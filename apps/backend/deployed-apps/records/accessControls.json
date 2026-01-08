@@ -1,0 +1,12 @@
+[
+  {
+    "role": "Admin",
+    "permission": "approve_requests",
+    "expiresInDays": 0
+  },
+  {
+    "role": "User",
+    "permission": "submit_documents",
+    "expiresInDays": 0
+  }
+]

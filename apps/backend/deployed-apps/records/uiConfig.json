@@ -1,0 +1,23 @@
+[
+  {
+    "id": "1748110159135",
+    "type": "button",
+    "label": "Enter",
+    "bindTo": "",
+    "props": {}
+  },
+  {
+    "id": "1748110159706",
+    "type": "select",
+    "label": "Hello",
+    "bindTo": "",
+    "props": {}
+  },
+  {
+    "id": "1748110160257",
+    "type": "input",
+    "label": "Hiii",
+    "bindTo": "",
+    "props": {}
+  }
+]

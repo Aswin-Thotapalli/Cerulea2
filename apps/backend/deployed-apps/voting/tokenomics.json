@@ -1,0 +1,6 @@
+{
+  "totalSupply": 1000000,
+  "initialPrice": 0.05,
+  "inflationRate": 2,
+  "distribution": "60% Public, 20% Team, 20% Reserve"
+}

@@ -1,0 +1,30 @@
+{
+  "modules": [
+    "voting"
+  ],
+  "logic": [
+    {
+      "if": "IF: File Uploaded",
+      "then": "",
+      "do": ""
+    },
+    {
+      "if": "",
+      "then": "THEN: Check with AI",
+      "do": ""
+    },
+    {
+      "if": "",
+      "then": "",
+      "do": "DO: Notify Admin"
+    }
+  ],
+  "access": [],
+  "ai": [],
+  "tokenomics": {
+    "totalSupply": 1000000,
+    "initialPrice": 0.05,
+    "inflationRate": 2,
+    "distribution": "60% Public, 20% Team, 20% Reserve"
+  }
+}

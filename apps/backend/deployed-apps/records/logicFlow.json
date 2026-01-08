@@ -1,0 +1,17 @@
+[
+  {
+    "if": "IF: File Uploaded",
+    "then": "",
+    "do": ""
+  },
+  {
+    "if": "",
+    "then": "THEN: Check with AI",
+    "do": ""
+  },
+  {
+    "if": "",
+    "then": "",
+    "do": "DO: Notify Admin"
+  }
+]
