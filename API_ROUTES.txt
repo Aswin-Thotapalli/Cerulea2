@@ -1,0 +1,46 @@
+API ROUTES:
+/api/ai/threads  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\ai\threads\route.ts
+/api/ai/threads/[id]/messages  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\ai\threads\[id]\messages\route.ts
+/api/auth/[...nextauth]  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\auth\[...nextauth]\route.ts
+/api/auth/forgot-password  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\auth\forgot-password\route.ts
+/api/auth/register  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\auth\register\route.ts
+/api/auth/reset-password  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\auth\reset-password\route.ts
+/api/blocks  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\blocks\route.ts
+/api/compile/solidity  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\compile\solidity\route.ts
+/api/dbcheck  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\dbcheck\route.ts
+/api/drafts/[[...slug]]  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\drafts\[[...slug]]\route.ts
+/api/module-presets  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\module-presets\route.ts
+/api/modules  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\modules\route.ts
+/api/presets/modules  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\presets\modules\route.ts
+/api/presets/templates  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\presets\templates\route.ts
+/api/projects  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\projects\route.ts
+/api/projects/[id]/blueprint  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\projects\[id]\blueprint\route.ts
+/api/projects/[id]/draft  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\projects\[id]\draft\route.ts
+/api/projects/[id]/logic  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\projects\[id]\logic\route.ts
+/api/projects/[id]/schema  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\projects\[id]\schema\route.ts
+/api/scripts/compile  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\scripts\compile\route.ts
+/api/solc/compile  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\solc\compile\route.ts
+/api/static/logic-palette  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\static\logic-palette\route.ts
+/api/static/module-entity-presets  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\static\module-entity-presets\route.ts
+/api/templates  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\templates\route.ts
+/api/tools/solc/compile  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\tools\solc\compile\route.ts
+/api/tools/ts/compile  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\tools\ts\compile\route.ts
+/api/workspaces  ->  C:\Users\aswin\Documents\Caerulean Bytechians\Projects\New folder\apps\frontend\src\app\api\workspaces\route.ts
+
+TOP-LEVEL API GROUP COUNTS:
+projects: 5
+auth: 4
+ai: 2
+presets: 2
+static: 2
+tools: 2
+blocks: 1
+compile: 1
+dbcheck: 1
+drafts: 1
+module-presets: 1
+modules: 1
+scripts: 1
+solc: 1
+templates: 1
+workspaces: 1
