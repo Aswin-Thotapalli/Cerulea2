@@ -44,3 +44,9 @@ pnpm-debug.log*
 # System files
 .DS_Store
 Thumbs.db
+
+
+apps/frontend/.data/
+*.sqlite
+*.sqlite3
+*.db

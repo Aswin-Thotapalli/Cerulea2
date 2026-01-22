@@ -12,3 +12,4 @@ export const db = drizzle(pool);
 
 // re-export schema tables for convenience
 export * from './schema';
+export * from "./client";
