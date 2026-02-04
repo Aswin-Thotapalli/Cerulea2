@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ReactNode } from 'react';
+import { Analytics } from '@vercel/analytics/next';
 import { Providers } from './providers';
 import { StudioProvider } from '@/context/StudioContext';
 import NavBar from '../components/NavBar';
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <Assistant />
           </StudioProvider>
         </Providers>
+        <Analytics />
       </body>
     </html>
   );
