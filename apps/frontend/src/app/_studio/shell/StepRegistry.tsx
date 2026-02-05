@@ -42,14 +42,14 @@ export const STEP_REGISTRY: StepMeta[] = [
     path: 'common',
     loader: () => import('@/components/studio/steps/step4'),
   },
-  {
+  /*{
     id: 5,
     label: '',
     path: 'common',
     loader: () => import('@/components/studio/steps/step5'),
-  },
+  }, */
   {
-    id: 6,
+    id: 5,
     label: '',
     path: 'common',
     loader: () => import('@/components/studio/steps/step6'),

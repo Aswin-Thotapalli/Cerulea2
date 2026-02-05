@@ -256,7 +256,7 @@ export default function Step4({ goPrev, goNext, projectId }: StepProps) {
   const handleNext = async () => {
     await handleSave();
     if (goNext) return goNext();
-    router.push("/studio/step5");
+    router.push("/studio/step6");
   };
 
   const [loading, setLoading] = useState(true);
