@@ -228,6 +228,66 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
     const lsType = typeof window !== 'undefined' ? localStorage.getItem('cerulea.projectType') : null;
     if (lsType) setProjectType(lsType as any);
 
+    // Load pre-populated economics (set by StudioEntry from DB)
+    const econRaw = typeof window !== 'undefined' ? localStorage.getItem('cerulea.economics') : null;
+    if (econRaw) {
+      try {
+        const econ = JSON.parse(econRaw);
+        if (econ.tokenomics) {
+          const t = econ.tokenomics;
+          const dist = t.distribution ?? {};
+          const validatorPct = dist.validators?.percent ?? 40;
+          const treasuryPct = dist.platformTreasury?.percent ?? 30;
+          const communityPct = Math.max(0, 100 - validatorPct - treasuryPct);
+          setChainToken((prev) => ({
+            ...prev,
+            symbol: t.symbol ?? prev.symbol,
+            name: t.name ?? prev.name,
+            supply: t.totalSupply ?? prev.supply,
+            inflation: t.inflationRate ?? prev.inflation,
+            dist: { validators: validatorPct, treasury: treasuryPct, community: communityPct },
+            model: (t.inflationRate ?? 0) > 0 ? 'inflationary' : 'fixed',
+          }));
+        }
+        if (econ.gasPolicy) {
+          const g = econ.gasPolicy;
+          setChainFees((prev) => ({
+            ...prev,
+            baseFee: g.baseFee ?? prev.baseFee,
+            burnPct: g.burnPercent ?? prev.burnPct,
+            blockGasLimit: g.blockGasLimit ?? prev.blockGasLimit,
+            elasticity: g.elasticityMultiplier ?? prev.elasticity,
+          }));
+        }
+        if (econ.staking) {
+          const s = econ.staking;
+          const slash = s.slashingConditions ?? {};
+          setChainStaking((prev) => ({
+            ...prev,
+            minStake: s.minValidatorStake ?? prev.minStake,
+            unbondTime: s.unbondingPeriodDays ?? prev.unbondTime,
+            maxValidators: s.maxValidatorCount ?? prev.maxValidators,
+            delegationEnabled: s.delegationEnabled ?? prev.delegationEnabled,
+            minDelegation: s.minDelegationAmount ?? prev.minDelegation,
+            doubleSignSlash: slash.doubleSigning?.slashPercent ?? prev.doubleSignSlash,
+            downtimeSlash: slash.downtime?.slashPercent ?? prev.downtimeSlash,
+          }));
+        }
+        if (econ.governance) {
+          const gov = econ.governance;
+          setChainGov((prev) => ({
+            ...prev,
+            model: gov.model === 'token-weighted-voting' ? 'token' : (gov.model ?? prev.model),
+            quorum: gov.quorumPercent ?? prev.quorum,
+            passThreshold: gov.passThresholdPercent ?? prev.passThreshold,
+            votingPeriod: gov.votingPeriodDays ?? prev.votingPeriod,
+            timelockDelay: gov.timelockDelayHours ?? prev.timelockDelay,
+            vetoEnabled: (gov.vetoThresholdPercent ?? 0) > 0,
+          }));
+        }
+      } catch {}
+    }
+
     const mods = typeof window !== 'undefined' ? localStorage.getItem('cerulea.templateModules') : null;
     if (mods) {
        setHasErc20(mods.includes('erc20') || mods.includes('token'));

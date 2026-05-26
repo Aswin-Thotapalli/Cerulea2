@@ -4,11 +4,14 @@
 import { useEffect, useState } from 'react';
 import { Box, CircularProgress } from '@mui/material';
 import StudioShell from '@/app/_studio/shell/StudioShell';
+import { useStudio } from '@/context/StudioContext';
 
 type Props = { projectId?: string | null };
 
 export default function StudioEntry({ projectId: initialProjectId }: Props) {
+  const { setStudioState } = useStudio();
   const [resolvedId, setResolvedId] = useState<string | null>(null);
+  const [initialStep, setInitialStep] = useState(0);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -23,7 +26,6 @@ export default function StudioEntry({ projectId: initialProjectId }: Props) {
             const j = await res.json();
             if (j.projects?.[0]?.id) {
               pid = j.projects[0].id;
-              // Update URL so refresh / sharing works
               window.history.replaceState(null, '', `/?project=${pid}`);
             }
           }
@@ -31,39 +33,78 @@ export default function StudioEntry({ projectId: initialProjectId }: Props) {
       }
 
       if (pid) {
-        // Set project ID in localStorage so all steps can read/save to it
         localStorage.setItem('cerulea.projectId', pid);
         localStorage.setItem('cerulea.activeProjectId', pid);
 
-        // Load project metadata (projectType etc.)
+        // Load project metadata: projectType, economics, integrations
         try {
           const pRes = await fetch(`/api/projects/${pid}`);
           if (pRes.ok) {
             const { project } = await pRes.json();
+
             if (project?.projectType) {
               localStorage.setItem('cerulea.projectType', project.projectType);
+              // Set StudioContext so steps that read from context get the right value
+              setStudioState({
+                projectType: project.projectType as 'blockchain' | 'dapp',
+                projectId: pid,
+              });
+            }
+
+            // Pre-populate Step 3 economics — step3 reads cerulea.economics on mount
+            if (project?.economics) {
+              localStorage.setItem('cerulea.economics', JSON.stringify(project.economics));
             }
           }
         } catch {}
 
-        // Load blueprint (step 1 canvas) — only overwrite if step1 hasn't been locally modified
-        // for this specific project ID (prevents clobbering user edits on re-open)
+        // Pre-populate Step 1 blueprint — always overwrite from DB for this project
         try {
           const bpRes = await fetch(`/api/projects/${pid}/blueprint`);
           if (bpRes.ok) {
             const { blueprint } = await bpRes.json();
             if (blueprint?.graph?.nodes?.length) {
-              const graphKey = `cerulea.step1.graph`;
-              // Only seed from DB if localStorage is empty or belongs to a different project
-              const stored = localStorage.getItem(graphKey);
-              const storedProjectId = localStorage.getItem('cerulea.projectId.last');
-              if (!stored || storedProjectId !== pid) {
-                localStorage.setItem(graphKey, JSON.stringify(blueprint.graph));
-                localStorage.setItem('cerulea.projectId.last', pid);
+              localStorage.setItem('cerulea.step1.graph', JSON.stringify(blueprint.graph));
+              localStorage.setItem('cerulea.projectId.last', pid);
+
+              // Derive templateModules list for step2 fallback
+              const moduleIds: string[] = (
+                blueprint.modules?.map((m: any) => m.moduleId) ??
+                blueprint.graph.nodes.map((n: any) => n.data?.moduleId).filter(Boolean)
+              );
+              if (moduleIds.length) {
+                localStorage.setItem('cerulea.templateModules', JSON.stringify(moduleIds));
               }
             }
           }
         } catch {}
+
+        // Pre-populate Step 2 schema (draft:local:3)
+        try {
+          const schemaRes = await fetch(`/api/projects/${pid}/schema`);
+          if (schemaRes.ok) {
+            const schemaData = await schemaRes.json();
+            if (Array.isArray(schemaData?.entities) && schemaData.entities.length) {
+              // Group entities by moduleId / group field for step2's moduleEntities format
+              const moduleEntities: Record<string, any[]> = {};
+              for (const entity of schemaData.entities) {
+                const key = entity.moduleId || entity.group || 'general';
+                if (!moduleEntities[key]) moduleEntities[key] = [];
+                moduleEntities[key].push(entity);
+              }
+              const draft3 = {
+                data: {
+                  moduleEntities,
+                  relationships: schemaData.relationships ?? [],
+                },
+              };
+              localStorage.setItem('draft:local:3', JSON.stringify(draft3));
+            }
+          }
+        } catch {}
+
+        // Existing project — skip Step 0 (type selection), go straight to Blueprint
+        setInitialStep(1);
       }
 
       setResolvedId(pid);
@@ -82,5 +123,5 @@ export default function StudioEntry({ projectId: initialProjectId }: Props) {
     );
   }
 
-  return <StudioShell initialProjectId={resolvedId} />;
+  return <StudioShell initialStep={initialStep} initialProjectId={resolvedId} />;
 }

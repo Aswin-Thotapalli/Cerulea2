@@ -4,7 +4,7 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { projects, drafts } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
@@ -20,6 +20,30 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
     if (!row) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
 
+    // Parse economics from projects table
+    let economics: any = null;
+    const econRaw = (row as any).economics;
+    if (econRaw) {
+      try { economics = typeof econRaw === 'string' ? JSON.parse(econRaw) : econRaw; } catch {}
+    }
+
+    // Find integrations from the step-4 draft
+    let integrations: any = null;
+    const allDrafts = await db
+      .select()
+      .from(drafts)
+      .where(eq(drafts.projectId as any, params.id))
+      .orderBy(desc(drafts.updatedAt));
+    for (const d of allDrafts) {
+      try {
+        const parsed = typeof d.data === 'string' ? JSON.parse(d.data) : (d.data as any);
+        if (parsed?.step === 4 && parsed?.payload?.configs) {
+          integrations = parsed.payload;
+          break;
+        }
+      } catch {}
+    }
+
     return NextResponse.json({
       ok: true,
       project: {
@@ -32,6 +56,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         legacyMode: (row as any).legacyMode ?? 'none',
         createdAt: (row as any).createdAt,
         updatedAt: (row as any).updatedAt,
+        economics,
+        integrations,
       },
     });
   } catch (err: any) {
