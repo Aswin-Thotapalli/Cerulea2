@@ -13,7 +13,8 @@ const COOKIE_NAMES = [
 export async function GET(req: NextRequest) {
   const next = req.nextUrl.searchParams.get('next') || '/';
   const cookieDomain = process.env.AUTH_COOKIE_DOMAIN;
-  const isHttps = req.nextUrl.protocol === 'https:';
+  // Use the same HTTPS check as auth.ts — req.nextUrl.protocol is unreliable behind Vercel's proxy
+  const isHttps = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;
 
   const headers = new Headers();
   headers.set('Location', next);
