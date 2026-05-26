@@ -39,7 +39,7 @@ const TYPE_LABEL: Record<string, string> = {
 
 function getStudioUrl(projectId: string) {
   const isLocal = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
-  const base = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.app';
+  const base = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
   return `${base}/?project=${projectId}`;
 }
 

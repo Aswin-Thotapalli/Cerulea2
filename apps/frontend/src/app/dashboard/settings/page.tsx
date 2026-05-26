@@ -97,7 +97,7 @@ export default function SettingsPage() {
       // Give 1.5s for confirmation to show, then redirect to studio
       setTimeout(() => {
         const isLocal = window.location.hostname.includes('localhost');
-        window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.app';
+        window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
       }, 1500);
     } catch {
       // silent

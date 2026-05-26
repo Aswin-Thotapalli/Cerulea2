@@ -102,7 +102,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Paper
               onClick={() => {
                 const isLocal = window.location.hostname.includes('localhost');
-                window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.app';
+                window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
               }}
               sx={{
                 display: 'flex',

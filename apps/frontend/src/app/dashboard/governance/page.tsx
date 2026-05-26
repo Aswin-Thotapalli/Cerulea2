@@ -145,7 +145,7 @@ export default function GovernancePage() {
               sx={{ borderRadius: 999, fontWeight: 700 }}
               onClick={() => {
                 const isLocal = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
-                window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.app';
+                window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
               }}
             >
               Create a Blockchain Project
