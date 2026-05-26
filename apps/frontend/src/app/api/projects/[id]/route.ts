@@ -40,6 +40,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         if (parsed?.step === 4 && parsed?.payload?.configs) {
           integrations = parsed.payload;
           break;
+        } else if (parsed?.configs) {
+          integrations = parsed;
+          break;
         }
       } catch {}
     }
