@@ -72,6 +72,10 @@ type Entity = {
   description?: string;
   fields: Field[];
   isCore?: boolean;
+  access?: { create: string; read: string; update: string; delete: string };
+  onChain?: boolean;
+  apiPublic?: boolean;
+  encryptionLevel?: string;
 };
 
 type ModuleInfo = { id: string; label: string; category?: string };
@@ -998,9 +1002,21 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                         {modEnts.map((ent) => (
                           <TableRow key={ent.id}>
                             <TableCell sx={{ fontWeight: 700 }}>{ent.name}</TableCell>
-                            {['Create', 'Read', 'Update', 'Delete'].map((action, i) => (
+                            {(['create', 'read', 'update', 'delete'] as const).map((action, i) => (
                               <TableCell key={action}>
-                                <Select size="small" fullWidth defaultValue={i === 1 ? 'public' : 'owner'} MenuProps={OPAQUE_MENU_PROPS as any} sx={{ borderRadius: 2 }}>
+                                <Select
+                                  size="small" fullWidth
+                                  value={ent.access?.[action] ?? (i === 1 ? 'public' : i === 3 ? 'admin' : 'owner')}
+                                  onChange={(e) => updateEntity(mod.id, ent.id, {
+                                    access: {
+                                      create: ent.access?.create ?? 'owner',
+                                      read: ent.access?.read ?? 'public',
+                                      update: ent.access?.update ?? 'owner',
+                                      delete: ent.access?.delete ?? 'admin',
+                                      [action]: e.target.value as string,
+                                    },
+                                  })}
+                                  MenuProps={OPAQUE_MENU_PROPS as any} sx={{ borderRadius: 2 }}>
                                   <MenuItem value="public">Public</MenuItem>
                                   <MenuItem value="auth">Auth User</MenuItem>
                                   <MenuItem value="owner">Owner</MenuItem>
@@ -1305,9 +1321,23 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                         {modEnts.map((ent) => (
                           <TableRow key={ent.id}>
                             <TableCell sx={{ fontWeight: 700 }}>{ent.name}</TableCell>
-                            <TableCell align="center"><Switch size="small" /></TableCell>
-                            <TableCell align="center"><Switch size="small" defaultChecked /></TableCell>
-                            <TableCell align="center"><Chip label="At Rest" size="small" variant="outlined" /></TableCell>
+                            <TableCell align="center">
+                              <Switch
+                                size="small"
+                                checked={ent.onChain ?? false}
+                                onChange={(e) => updateEntity(mod.id, ent.id, { onChain: e.target.checked })}
+                              />
+                            </TableCell>
+                            <TableCell align="center">
+                              <Switch
+                                size="small"
+                                checked={ent.apiPublic ?? true}
+                                onChange={(e) => updateEntity(mod.id, ent.id, { apiPublic: e.target.checked })}
+                              />
+                            </TableCell>
+                            <TableCell align="center">
+                              <Chip label={ent.encryptionLevel || 'At Rest'} size="small" variant="outlined" />
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
