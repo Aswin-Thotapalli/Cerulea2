@@ -13,12 +13,14 @@ const COOKIE_NAMES = [
 export async function GET(req: NextRequest) {
   const next = req.nextUrl.searchParams.get('next') || '/';
   const cookieDomain = process.env.AUTH_COOKIE_DOMAIN;
+  const isHttps = req.nextUrl.protocol === 'https:';
 
   const headers = new Headers();
   headers.set('Location', next);
 
   COOKIE_NAMES.forEach((name) => {
-    const base = `${name}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`;
+    const secure = isHttps ? '; Secure' : '';
+    const base = `${name}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secure}`;
     headers.append('Set-Cookie', cookieDomain ? `${base}; Domain=${cookieDomain}` : base);
     // Also clear without domain in case host-specific cookie exists
     headers.append('Set-Cookie', base);
