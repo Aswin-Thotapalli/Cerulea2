@@ -151,13 +151,9 @@ export default function NavBar() {
               </MenuItem>
               <Divider />
               <MenuItem
-                onClick={() => {
+                onClick={async () => {
                   setAnchorEl(null);
-                  // Use the force-signout route which expires the httpOnly session
-                  // cookie directly via Set-Cookie response headers — the only
-                  // reliable way to clear httpOnly cookies from the browser.
-                  const returnTo = encodeURIComponent(window.location.origin + '/');
-                  window.location.href = `/api/auth/force-signout?next=${returnTo}`;
+                  await signOut({ callbackUrl: '/' });
                 }}
                 dense
               >
