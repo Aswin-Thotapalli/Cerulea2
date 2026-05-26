@@ -153,7 +153,7 @@ export default function NavBar() {
               <MenuItem
                 onClick={() => {
                   setAnchorEl(null);
-                  signOut({ callbackUrl: '/auth/login' });
+                  window.location.href = '/auth/logout';
                 }}
                 dense
               >
