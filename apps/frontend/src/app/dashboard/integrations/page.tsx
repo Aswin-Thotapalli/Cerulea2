@@ -127,7 +127,7 @@ export default function IntegrationsPage() {
           sx={{ borderRadius: 999, fontWeight: 700 }}
           onClick={() => {
             const isLocal = window.location.hostname.includes('localhost');
-            window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.app';
+            window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
           }}
         >
           Configure in Studio
@@ -312,7 +312,7 @@ export default function IntegrationsPage() {
               sx={{ borderRadius: 999, fontWeight: 700 }}
               onClick={() => {
                 const isLocal = window.location.hostname.includes('localhost');
-                window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.app';
+                window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
               }}
             >
               Open Studio

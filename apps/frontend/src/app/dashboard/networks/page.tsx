@@ -132,7 +132,7 @@ export default function NetworksPage() {
           sx={{ borderRadius: 999, fontWeight: 700 }}
           onClick={() => {
             const isLocal = window.location.hostname.includes('localhost');
-            window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.app';
+            window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
           }}
         >
           Deploy New Network
@@ -153,7 +153,7 @@ export default function NetworksPage() {
             sx={{ mt: 1, borderRadius: 999 }}
             onClick={() => {
               const isLocal = window.location.hostname.includes('localhost');
-              window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.app';
+              window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
             }}
           >
             Deploy Your First Network

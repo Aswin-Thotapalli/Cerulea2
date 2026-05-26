@@ -21,7 +21,10 @@ export default async function Home({ searchParams }: { searchParams?: SearchPara
   const forceStudio = !!(searchParams && ('studio' in searchParams));
 
   if (isStudioHost || forceStudio) {
-    return <StudioEntry />; // mounts the full Studio Shell
+    const projectId = searchParams?.project
+      ? String(searchParams.project)
+      : null;
+    return <StudioEntry projectId={projectId} />;
   }
 
   // Regular marketing / landing page for everything else

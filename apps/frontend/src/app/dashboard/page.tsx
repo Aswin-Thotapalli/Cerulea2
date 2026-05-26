@@ -41,13 +41,13 @@ type Project = {
 
 function getStudioUrl(projectId: string) {
   const isLocal = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
-  const base = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.app';
+  const base = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
   return `${base}/?project=${projectId}`;
 }
 
 function getNewProjectUrl() {
   const isLocal = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
-  return isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.app';
+  return isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
 }
 
 function StatusBadge({ status }: { status: string }) {
