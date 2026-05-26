@@ -151,9 +151,9 @@ export default function NavBar() {
               </MenuItem>
               <Divider />
               <MenuItem
-                onClick={async () => {
+                onClick={() => {
                   setAnchorEl(null);
-                  await signOut({ callbackUrl: '/' });
+                  signOut({ callbackUrl: '/auth/login' });
                 }}
                 dense
               >
