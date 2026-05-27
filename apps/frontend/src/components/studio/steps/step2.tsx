@@ -1044,6 +1044,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
 
   // Pre-seeded trigger templates per module type
   const TRIGGER_SEEDS: Record<string, Array<{ event: string; action: string; description: string; color: string }>> = {
+    /* ── Generic catalog modules ── */
     'user-auth': [
       { event: 'User.Created', action: 'Send Welcome Email', description: 'Fire when a new user account is created.', color: '#3b82f6' },
       { event: 'User.LoginFailed (3x)', action: 'Lock Account + Alert', description: 'Prevent brute-force by locking after 3 failed attempts.', color: '#ef4444' },
@@ -1056,6 +1057,226 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
       { event: 'Proposal.Created', action: 'Notify Voters', description: 'Alert all eligible voters when a new proposal is submitted.', color: '#f59e0b' },
       { event: 'Vote.Deadline.Reached', action: 'Finalize Proposal', description: 'Auto-execute the winning outcome when voting ends.', color: '#06b6d4' },
     ],
+    /* ── Blockchain Infrastructure ── */
+    'consensus': [
+      { event: 'BlockProposal.Created', action: 'Validate Proposer Signature', description: 'Verify the proposer is in the active validator set before propagating the block.', color: '#6366f1' },
+      { event: 'FinalityRecord.Created', action: 'Broadcast Finality Proof', description: 'Distribute the 2/3-supermajority finality proof to all connected peer nodes.', color: '#8b5cf6' },
+      { event: 'ConsensusNode.Slashed', action: 'Emit Slash Event + Update Stake', description: 'Reduce on-chain stake balance and push alert to the validator dashboard.', color: '#ef4444' },
+    ],
+    'evm-config': [
+      { event: 'EVMParameter.Updated', action: 'Redeploy Contract Factory', description: 'Rebuild and redeploy factory contracts to apply the new EVM configuration.', color: '#f59e0b' },
+      { event: 'EVMUpgrade.Proposed', action: 'Notify All Node Operators', description: 'Alert all node operators to download and prepare the new protocol version.', color: '#06b6d4' },
+    ],
+    'genesis': [
+      { event: 'GenesisBlock.Initialized', action: 'Bootstrap Validator Set', description: 'Populate the initial validator set from genesis allocations and start block production.', color: '#10b981' },
+      { event: 'GenesisConfig.Validated', action: 'Lock Genesis Parameters', description: 'Freeze genesis configuration and mark the chain as fully bootstrapped.', color: '#3b82f6' },
+    ],
+    'p2p': [
+      { event: 'PeerDiscovery.Completed', action: 'Update Peer Routing Table', description: 'Refresh the Kademlia routing table with newly discovered peer addresses.', color: '#06b6d4' },
+      { event: 'PeerSession.Disconnected', action: 'Trigger Reconnect Logic', description: 'Attempt reconnection within 30 s if the connected-peer count drops below the minimum threshold.', color: '#f59e0b' },
+    ],
+    'p2p-tls': [
+      { event: 'TLSCertificate.Expiring', action: 'Rotate mTLS Certificate', description: 'Auto-rotate the node mTLS certificate before expiry using the ACME provisioning flow.', color: '#10b981' },
+      { event: 'PeerHandshake.Failed', action: 'Log + Temp-Ban Peer', description: 'Record the failed handshake and apply a 10-minute cooldown ban on that peer address.', color: '#ef4444' },
+    ],
+    'node-permissioning': [
+      { event: 'AllowlistedNode.Added', action: 'Propagate Allow-List', description: 'Push the updated node allowlist to all active validators via the permissioning contract.', color: '#3b82f6' },
+      { event: 'NodePermission.Revoked', action: 'Disconnect + Alert Admin', description: 'Immediately drop the revoked node connection and alert PLATFORM_ADMIN.', color: '#ef4444' },
+    ],
+    'validators': [
+      { event: 'ValidatorDelegation.Staked', action: 'Update Voting Power', description: 'Recalculate and publish the validator\'s voting power based on total delegated stake.', color: '#8b5cf6' },
+      { event: 'ValidatorUptime.ThresholdMissed', action: 'Jail Validator', description: 'Automatically jail a validator that misses 1,000 of the last 10,000 blocks.', color: '#ef4444' },
+    ],
+    'tokenomics': [
+      { event: 'BlockReward.Issued', action: 'Distribute to Validators', description: 'Split the AGT block reward proportionally across active validators by staked weight.', color: '#10b981' },
+      { event: 'InflationMint.Triggered', action: 'Transfer to Reward Pool', description: 'Move the 5% annual inflation mint into the validator rewards pool for next-cycle distribution.', color: '#f59e0b' },
+    ],
+    'fees': [
+      { event: 'BaseFee.Adjusted', action: 'Update Fee Oracle', description: 'Publish the new EIP-1559 base fee to the RPC fee oracle so clients quote accurate gas prices.', color: '#06b6d4' },
+      { event: 'GaslessTx.Submitted', action: 'Deduct from Sponsor Pool', description: 'Verify role eligibility and deduct the gas cost from the ecosystemFarmerFund sponsor balance.', color: '#10b981' },
+    ],
+    'rpc': [
+      { event: 'RateLimitExceeded.Detected', action: 'Throttle + Log IP', description: 'Return HTTP 429 and log the offending IP to the rate-limit registry for monitoring.', color: '#ef4444' },
+      { event: 'BatchRPC.Received', action: 'Queue + Process Async', description: 'Enqueue the batch RPC call and push results back through the async response handler.', color: '#3b82f6' },
+    ],
+    'graphql-gateway': [
+      { event: 'IntrospectionAttempt.Blocked', action: 'Log Security Event', description: 'Record unauthorized schema introspection attempts with requester IP for audit.', color: '#ef4444' },
+      { event: 'QueryDepth.Exceeded', action: 'Reject + Log Abuse', description: 'Block queries with depth > 8 and log the request for abuse monitoring dashboards.', color: '#f59e0b' },
+    ],
+    'ws-subscriptions': [
+      { event: 'LotStageEvent.Emitted', action: 'Fan-out to Subscribers', description: 'Push lot stage-transition payload in real-time to all WebSocket clients subscribed to that lot.', color: '#8b5cf6' },
+      { event: 'IoTBreachAlert.Emitted', action: 'Broadcast Breach Alert', description: 'Instantly broadcast temperature breach alerts to all subscribed dashboard connections.', color: '#ef4444' },
+    ],
+    'api-gateway': [
+      { event: 'JWTToken.Expired', action: 'Return 401 + Invalidate Session', description: 'Clear the server-side session and return 401 so the client re-authenticates cleanly.', color: '#f59e0b' },
+      { event: 'FraudRule.Triggered', action: 'Block Request + Alert Admin', description: 'Immediately block the inbound request and notify PLATFORM_ADMIN of the fraud signal.', color: '#ef4444' },
+    ],
+    'metrics-dashboards': [
+      { event: 'ValidatorDowntime.Detected', action: 'Fire PagerDuty Critical Alert', description: 'Trigger a PagerDuty critical incident when validator uptime drops below SLA threshold.', color: '#ef4444' },
+      { event: 'BlockTimeAnomaly.Detected', action: 'Create Incident + Annotate Grafana', description: 'Log the block-time anomaly for ops review and add a Grafana annotation on the timeline.', color: '#f59e0b' },
+    ],
+    'log-shipping': [
+      { event: 'AuditLog.Written', action: 'Ship to CloudWatch + ELK', description: 'Forward each tamper-evident log entry to both CloudWatch and the ELK search index.', color: '#06b6d4' },
+      { event: 'ShipmentFailed.Detected', action: 'Retry with Exponential Backoff', description: 'Apply exponential backoff retry and alert ops on 3 consecutive delivery failures.', color: '#f59e0b' },
+    ],
+    'backups-restore': [
+      { event: 'BackupSchedule.Triggered', action: 'Snapshot + Upload to S3', description: 'Create an incremental DB snapshot and upload to S3 bucket with SSE-KMS encryption.', color: '#10b981' },
+      { event: 'RestoreRequest.Created', action: 'Validate Hash + Restore', description: 'Verify the backup integrity hash before initiating the restore procedure.', color: '#3b82f6' },
+    ],
+    /* ── Identity & Access ── */
+    'wallet-auth': [
+      { event: 'WalletProfile.Created', action: 'Trigger AML Screening', description: 'Run Chainalysis KYT check on the new wallet address before granting platform access.', color: '#8b5cf6' },
+      { event: 'AuthSession.Expired', action: 'Invalidate Session Keys', description: 'Revoke all session keys bound to this expired authentication session.', color: '#ef4444' },
+    ],
+    'session-keys': [
+      { event: 'SessionKey.Created', action: 'Bind to Device Fingerprint', description: 'Register the device fingerprint and bind the key to prevent cross-device reuse.', color: '#3b82f6' },
+      { event: 'SessionKey.Revoked', action: 'Cascade Revocation to Pending Txs', description: 'Cancel any in-flight gasless transactions signed with the revoked key.', color: '#ef4444' },
+    ],
+    'rbac': [
+      { event: 'RoleAssignment.Created', action: 'Write On-chain + Propagate', description: 'Anchor the role grant on-chain and propagate the change to all enforcement middleware.', color: '#10b981' },
+      { event: 'Permission.Changed', action: 'Flush Cache + Notify User', description: 'Invalidate the permission cache for the affected user and send a security notification.', color: '#f59e0b' },
+    ],
+    'org-accounts': [
+      { event: 'OrgMember.Invited', action: 'Send Invitation Email', description: 'Send an org-invite email with onboarding link and a temporary access token.', color: '#3b82f6' },
+      { event: 'OrgMember.Removed', action: 'Revoke All Access', description: 'Strip RBAC roles, invalidate sessions, and remove from the gasless sponsor allowlist.', color: '#ef4444' },
+    ],
+    'kyc': [
+      { event: 'KYCDocument.Submitted', action: 'Queue for Verification', description: 'Route to Sumsub (non-APEDA actors) or APEDA AgriExchange registry check queue.', color: '#06b6d4' },
+      { event: 'KYCVerification.Failed', action: 'Notify + Suspend Actor', description: 'Send rejection notification and set Actor.verificationStatus = SUSPENDED on-chain.', color: '#ef4444' },
+    ],
+    'device-trust': [
+      { event: 'DeviceTrust.Created', action: 'Issue HMAC Device Token', description: 'Generate an HMAC secret for this IoT device to authenticate temperature batch ingestion.', color: '#10b981' },
+      { event: 'DeviceTrust.Revoked', action: 'Block All Device Transactions', description: 'Reject all future HMAC payloads from this device ID immediately.', color: '#ef4444' },
+    ],
+    'gasless-relayer': [
+      { event: 'GaslessSubmission.Received', action: 'Verify Cap + Relay', description: 'Check the user\'s daily cap, verify the meta-tx signature, then relay to chain via admin wallet.', color: '#10b981' },
+      { event: 'DailyCap.Exceeded', action: 'Return 429 + Log Usage', description: 'Block further gasless transactions for today and log usage to analytics.', color: '#f59e0b' },
+    ],
+    'did-vc-ledger': [
+      { event: 'DIDDocument.Created', action: 'Anchor Hash On-chain', description: 'Write the DID document hash to the on-chain DID registry for public verification.', color: '#8b5cf6' },
+      { event: 'VerifiableCredential.Issued', action: 'Emit VC Proof On-chain', description: 'Anchor the VC proof hash on-chain and notify the credential holder.', color: '#10b981' },
+    ],
+    'aml-screening': [
+      { event: 'AMLFlagRecord.Created', action: 'Suspend Actor + Alert Admin', description: 'Immediately set Actor.verificationStatus = SUSPENDED and alert PLATFORM_ADMIN.', color: '#ef4444' },
+      { event: 'AMLScreening.Passed', action: 'Mark Actor Verified', description: 'Update Actor.verificationStatus = VERIFIED and log the screening result for audit.', color: '#10b981' },
+    ],
+    /* ── Supply Chain Domain ── */
+    'traceability-ledger': [
+      { event: 'MangoLot.Created', action: 'Assign Lot Number On-chain', description: 'Generate lotNumber (AT-{VAR3}-{YYYY}-{SEQ5}) and write the MangoLot record to chain.', color: '#10b981' },
+      { event: 'LotStageTransition.Emitted', action: 'Notify Stage Stakeholders', description: 'Push notification to all role-holders responsible for the newly entered stage.', color: '#3b82f6' },
+      { event: 'LotStageTransition.REJECTED', action: 'Halt Lot + Alert', description: 'Block all further stage events for this lot and alert FARMER + APEDA_OFFICER.', color: '#ef4444' },
+    ],
+    'cold-chain-monitoring': [
+      { event: 'IoTDeviceSession.Created', action: 'Begin Temperature Monitoring', description: 'Start accepting HMAC-validated temperature batches from the paired IoT device every 5 minutes.', color: '#06b6d4' },
+      { event: 'TemperatureReading.Breach', action: 'Create BreachAlert On-chain', description: 'Write IoTBreachAlert, push notifications to operators, and fire PagerDuty if > threshold + 5°C.', color: '#ef4444' },
+    ],
+    'port-customs-events': [
+      { event: 'ShippingBill.Filed', action: 'Validate via ICEGATE API', description: 'Verify shippingBillNumber format and existence against the ICEGATE API.', color: '#8b5cf6' },
+      { event: 'LEOStatus.Received', action: 'Advance Lot to Cold Storage', description: 'Set MangoLot.currentStage = COLD_STORAGE when LEO is granted by customs.', color: '#10b981' },
+    ],
+    'quality-recall-ledger': [
+      { event: 'RecallEvent.Created', action: 'Broadcast Recall Alert', description: 'Push urgent notification and email to all role-holders linked to the recalled lot.', color: '#ef4444' },
+      { event: 'QualityViolation.Detected', action: 'Create ComplianceViolation On-chain', description: 'Write ComplianceViolation record and halt lot progression until remediation is recorded.', color: '#f59e0b' },
+    ],
+    'evidence-chain': [
+      { event: 'DocumentHash.Created', action: 'Anchor On-chain + Pin to IPFS', description: 'Write hash to on-chain registry and pin the referenced PDF to IPFS via Pinata.', color: '#8b5cf6' },
+      { event: 'EvidenceItem.Challenged', action: 'Lock Chain + Notify Arbitrator', description: 'Lock the evidence chain for this lot and alert the assigned arbitrator for review.', color: '#ef4444' },
+    ],
+    'trade-finance-docs': [
+      { event: 'CertificateOfOrigin.Created', action: 'Validate via APEDA AgriExchange', description: 'Call APEDA AgriExchange API to verify exporter registration and CoO details.', color: '#10b981' },
+      { event: 'BillOfLading.Created', action: 'Validate ISO 6346 + Activate Tracking', description: 'Check containerNumber format and activate the in-transit IoT monitoring session.', color: '#3b82f6' },
+    ],
+    'compliance-attestations': [
+      { event: 'ComplianceAttestation.Created', action: 'Anchor + Mint Certificate NFT', description: 'Write attestation hash on-chain and mint a soulbound CertificateNFT to the issuing authority.', color: '#8b5cf6' },
+      { event: 'AttestationExpiry.Approaching', action: 'Alert Issuing Authority', description: 'Send a 7-day advance warning to APEDA_OFFICER and NPPO_INSPECTOR for renewal.', color: '#f59e0b' },
+    ],
+    'provenance-notary': [
+      { event: 'ProvenanceRecord.Created', action: 'Pin to IPFS + Anchor On-chain', description: 'Pin the document to IPFS via Pinata and anchor its hash to the on-chain provenance registry.', color: '#10b981' },
+      { event: 'TrustAnchor.Revoked', action: 'Cascade Revoke Downstream Certs', description: 'Invalidate all CertificateNFTs whose trust anchor is this revoked provenance record.', color: '#ef4444' },
+    ],
+    /* ── Data & IoT ── */
+    'onchain-data': [
+      { event: 'OnChainEvent.Emitted', action: 'Index in Subgraph', description: 'Forward the event to the Subgraph Indexer for efficient off-chain query access.', color: '#6366f1' },
+      { event: 'OnChainEvent.Emitted', action: 'Ship to ELK Stack', description: 'Forward the on-chain event log to the ELK stack for full-text search and long-term audit.', color: '#06b6d4' },
+    ],
+    'oracles': [
+      { event: 'OracleDataFeed.Updated', action: 'Push to Smart Contract Consumers', description: 'Propagate the latest oracle value to all on-chain consumers subscribed to this feed.', color: '#f59e0b' },
+      { event: 'OracleFeed.StaleDetected', action: 'Alert + Switch to Backup Source', description: 'Alert PLATFORM_ADMIN and automatically switch to the configured backup data provider.', color: '#ef4444' },
+    ],
+    'webhooks-inbound': [
+      { event: 'WebhookPayload.Received', action: 'Validate HMAC Signature', description: 'Reject the payload immediately if the HMAC-SHA256 signature does not match the shared secret.', color: '#8b5cf6' },
+      { event: 'IoTBatch.Received', action: 'Queue for Dedup + Threshold Check', description: 'Enqueue the IoT batch for deduplication and breach-threshold evaluation.', color: '#06b6d4' },
+    ],
+    'webhooks-outbound': [
+      { event: 'OutboundWebhook.Triggered', action: 'Sign Payload + Dispatch', description: 'Sign the outbound payload with the platform key and deliver to the subscriber endpoint.', color: '#3b82f6' },
+      { event: 'DeliveryFailed (3x)', action: 'Mark Dead + Alert Admin', description: 'After 3 exponential-backoff retries, mark the webhook dead and notify PLATFORM_ADMIN.', color: '#ef4444' },
+    ],
+    'subgraph-indexer': [
+      { event: 'BlockIndexed.Completed', action: 'Refresh GraphQL Query Cache', description: 'Invalidate and warm the GraphQL query cache with the latest indexed block data.', color: '#10b981' },
+      { event: 'IndexLag.Detected', action: 'Alert + Trigger Re-index', description: 'Alert ops when subgraph lag exceeds 100 blocks and restart indexing from the last checkpoint.', color: '#ef4444' },
+    ],
+    /* ── Operations ── */
+    'notifications': [
+      { event: 'PushNotification.Created', action: 'Dispatch by Channel + Role', description: 'Route the notification to the correct channel (push, in-app, WhatsApp) based on actor role preference.', color: '#3b82f6' },
+      { event: 'NotificationDelivery.Failed', action: 'Retry + Fallback Channel', description: 'Retry 3 times then failover to the secondary channel (e.g., SMS if push fails).', color: '#f59e0b' },
+    ],
+    'emails': [
+      { event: 'Email.Created', action: 'Send via Resend', description: 'Submit to the Resend API from agrotrace.in sender domain and track delivery status.', color: '#10b981' },
+      { event: 'ResendDelivery.Failed', action: 'Fallback to SendGrid', description: 'Retry once on Resend then transparently switch to SendGrid as backup provider.', color: '#f59e0b' },
+    ],
+    'audit-logs': [
+      { event: 'AuditEntry.Written', action: 'Compute SHA-256 Chain Hash', description: 'Append a SHA-256 hash linking each entry to the previous one to prevent log tampering.', color: '#8b5cf6' },
+      { event: 'AuditExport.Requested', action: 'Generate Signed PDF', description: 'Assemble chronological event timeline and sign the PDF with the AWS KMS platform key.', color: '#3b82f6' },
+    ],
+    'audit-export': [
+      { event: 'AuditTrailExport.Requested', action: 'Compile + KMS-Sign PDF', description: 'Compile all LotStageTransitions in chronological order and sign the PDF with the KMS platform key.', color: '#6366f1' },
+      { event: 'ExportCompleted', action: 'Upload to S3 + Email Download Link', description: 'Upload the signed PDF to S3 and email the secure download link to the requestor.', color: '#10b981' },
+    ],
+    /* ── Compliance & Legal ── */
+    'produce-grades': [
+      { event: 'GradeStandard.Updated', action: 'Propagate to Active Lots', description: 'Push updated APEDA grading criteria to all lots currently in the PACKHOUSE stage.', color: '#f59e0b' },
+      { event: 'GradeViolation.Detected', action: 'Block Lot Advance', description: 'Prevent the lot from progressing to TREATMENT until a grade re-assessment is recorded.', color: '#ef4444' },
+    ],
+    'document-signing': [
+      { event: 'SignRequest.Created', action: 'Check Signer Capability', description: 'Route to on-chain wallet signature if available, otherwise delegate to DocuSign for small farmers.', color: '#8b5cf6' },
+      { event: 'SignatureComplete', action: 'Anchor Document Hash On-chain', description: 'Write the document hash and signer wallet address to the on-chain ProvenanceRecord.', color: '#10b981' },
+    ],
+    'fraud-rules': [
+      { event: 'DuplicateLot.Detected', action: 'Block + Create Fraud Alert', description: 'Block the FarmRegistration immediately and alert PLATFORM_ADMIN with duplicate lot details.', color: '#ef4444' },
+      { event: 'RoleMismatch.Detected', action: 'Reject Action + Log Violation', description: 'Reject the attempted action and write a ComplianceViolation on-chain for audit.', color: '#f59e0b' },
+    ],
+    'privacy-compliance': [
+      { event: 'ConsentRecord.Revoked', action: 'Anonymize Linked PII', description: 'Trigger the PDPB data-minimization pipeline to anonymize all PII records linked to this consent.', color: '#8b5cf6' },
+      { event: 'DataRetention.Expired', action: 'Schedule Secure Deletion', description: 'Queue expired personal data for PDPB-compliant secure deletion from all storage tiers.', color: '#ef4444' },
+    ],
+    /* ── Financial ── */
+    'treasury': [
+      { event: 'FeeCollection.Received', action: 'Split Across Treasury Accounts', description: 'Distribute the per-lot fee: 60% platform, 20% validators, 10% ecosystem fund, 10% reserve.', color: '#10b981' },
+      { event: 'ValidatorReward.Pending', action: 'Distribute Per-block Proportionally', description: 'Release staking rewards to validators each block, proportional to delegated stake weight.', color: '#f59e0b' },
+    ],
+    'escrow-settlement': [
+      { event: 'EscrowRecord.Created', action: 'Lock Funds in Smart Contract', description: 'Lock buyer payment in the escrow contract pending successful lot delivery and acceptance.', color: '#8b5cf6' },
+      { event: 'BuyerReceipt.Accepted', action: 'Release Funds to Exporter', description: 'Trigger EscrowRecord release and send payment notification to the FARMER.', color: '#10b981' },
+      { event: 'BuyerReceipt.Rejected', action: 'Hold Escrow + Open Dispute', description: 'Keep funds locked and auto-trigger the dispute evidence assembly workflow.', color: '#ef4444' },
+    ],
+    'invoices-billing': [
+      { event: 'Invoice.Created', action: 'Email PDF to Buyer', description: 'Send the invoice PDF (AGT-INV prefix, INR + 18% GST) to the buyer contact on record.', color: '#3b82f6' },
+      { event: 'Invoice.Overdue', action: 'Send Reminder + Suspend Lot', description: 'Email a payment reminder and suspend lot progression until payment is confirmed.', color: '#f59e0b' },
+    ],
+    'razorpay-adapter': [
+      { event: 'PaymentOrder.Created', action: 'Generate Razorpay Checkout', description: 'Create a Razorpay order with INR amount + 18% GST and return the checkout URL to the payer.', color: '#06b6d4' },
+      { event: 'Payment.Confirmed', action: 'Mark Invoice PAID + Release Gate', description: 'Update Invoice.status = PAID and trigger the lot-release gate for the next stage.', color: '#10b981' },
+    ],
+    /* ── Credentials & Tokens ── */
+    'soulbound-token': [
+      { event: 'SoulboundToken.Minted', action: 'Register in DID Ledger', description: 'Link the new soulbound token to the holder\'s DID document on-chain for verifiable binding.', color: '#8b5cf6' },
+      { event: 'SoulboundToken.RevocationRequested', action: 'Verify Authority + Revoke', description: 'Confirm the requestor holds the APEDA_OFFICER role before executing on-chain revocation.', color: '#ef4444' },
+    ],
+    'erc721': [
+      { event: 'NFTToken.Minted', action: 'Pin Metadata to IPFS', description: 'Upload certificate metadata JSON to IPFS via Pinata and set the on-chain tokenURI.', color: '#8b5cf6' },
+      { event: 'NFTToken.TransferAttempted', action: 'Enforce Soulbound Rule', description: 'Block the transfer and revert with SOULBOUND_NON_TRANSFERABLE if the token was minted as soulbound.', color: '#ef4444' },
+    ],
+    /* ── Fallback ── */
     '_default': [
       { event: 'Record.Created', action: 'Index for Search', description: 'Update the search index when a new record is added.', color: '#3b82f6' },
       { event: 'Record.Updated', action: 'Write Audit Log', description: 'Track all changes in the audit log for compliance.', color: '#10b981' },
