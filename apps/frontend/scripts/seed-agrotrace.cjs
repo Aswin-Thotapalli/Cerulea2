@@ -449,102 +449,176 @@ const INTEGRATIONS = {
   configs: {
     /* 1 */ s3: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_bucket:    'agrotrace-docs-prod',
+        prod_region:    'ap-south-1',
+        prod_accessKey: 'AKIAAGROTRACE2024PROD',
+        prod_secretKey: 'aGr0Tr4cE+S3SecretKey2024ProdApSouth1',
+      },
       settings: { bucket:'agrotrace-docs-prod', region:'ap-south-1', encryption:'SSE-KMS', purpose:'Primary document storage for all PDFs (lab reports, certs, B/L)' },
     },
     /* 2 */ pinata: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_jwt:     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.agrotrace-pinata-prod-jwt-2024.signature',
+        prod_gateway: 'gateway.pinata.cloud',
+      },
       settings: { gateway:'gateway.pinata.cloud', redundancyPins:3, purpose:'Pin document hashes on IPFS for permanent public reference' },
     },
     /* 3 */ resend: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_apiKey: 're_AgRoTrAcE_ReSenD_PrOd_2024_xXxXxXxX',
+        prod_domain: 'agrotrace.in',
+      },
       settings: { fromEmail:'alerts@agrotrace.in', domain:'agrotrace.in', purpose:'Primary transactional email — stage alerts, breach notifications' },
     },
     /* 4 */ sendgrid: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_apiKey:    'SG.AgrotraceSendgridApiKey2024ProdBackup',
+        prod_fromEmail: 'noreply@agrotrace.in',
+      },
       settings: { fromEmail:'noreply@agrotrace.in', purpose:'Backup email provider for high-volume or Resend failure' },
     },
     /* 5 */ twilio: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_accountSid:          'ACagrotrace2024supplychainprodxxxxxx',
+        prod_authToken:           'agrotrace_twilio_auth_token_prod_2024',
+        prod_messagingServiceSid: 'MGagrotrace_mango_whatsapp_prod_xxxx',
+      },
       settings: { whatsAppEnabled:true, purpose:'SMS and WhatsApp alerts for farmers (many without email)' },
     },
     /* 6 */ razorpay: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_keyId:     'rzp_live_AgroTraceMango2024',
+        prod_keySecret: 'AgroTraceMango_RazorSecret_Live_2024',
+      },
       settings: { currency:'INR', upiEnabled:true, netBankingEnabled:true, purpose:'Platform fee collection from Indian exporters' },
     },
     /* 7 */ stripe: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_publishableKey: 'pk_live_agrotrace_export_51ABCDEFxxxxxxxx',
+        prod_secretKey:      'sk_live_agrotrace_export_51ABCDEFxxxxxxxx',
+        prod_webhookSecret:  'whsec_agrotrace_lot_stage_events_2024xx',
+      },
       settings: { currency:'USD', webhookEnabled:true, purpose:'Platform fee from foreign buyers (USD/EUR)' },
     },
     /* 8 */ mixpanel: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_projectToken: 'agrotr4ce_mixpanel_prod_project_token',
+      },
       settings: { trackAnonymous:false, serverSideOnly:true, purpose:'Supply chain funnel analytics — stage conversion, rejection rates, avg time per stage' },
     },
     /* 9 */ segment: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_writeKey: 'agrotr4ce_segment_write_key_prod_2024xx',
+      },
       settings: { destinations:['Mixpanel','BigQuery'], purpose:'Event tracking for platform usage, actor onboarding funnel, API usage analytics' },
     },
     /* 10 */ alchemy: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_apiKey: 'agrotr4ce-alchemy-supplychain-api-key-prod',
+        prod_appId:  'agrotrace-supply-chain-1',
+      },
       settings: { network:'agrotrace-supply-chain-1', retryPolicy:'exponential', purpose:'Real-time on-chain event delivery to downstream systems (buyer ERP, APEDA dashboard)' },
     },
     /* 11 — custom: Chainalysis AML */ chainalysis: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_apiKey:   'chainalysis_kyt_agrotrace_prod_api_key',
+        prod_endpoint: 'https://api.chainalysis.com/api/kyt/v2',
+      },
       settings: { provider:'chainalysis-kyt', screenOnTransact:true, recheckIntervalDays:180, purpose:'AML/sanctions screening of new actor wallets on registration' },
     },
     /* 12 — custom: APEDA AgriExchange API */ apeda_agriexchange: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_apiKey:   'APEDA-AGRIEXCHANGE-AGROTRACE-PROD-2024',
+        prod_endpoint: 'https://agriexchange.apeda.gov.in/api/v1',
+      },
       settings: { authType:'API-KEY', purpose:'Validate APEDA registration numbers, fetch exporter data from AgriExchange' },
     },
     /* 13 — custom: ICEGATE API */ icegate_api: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_userId:   'AGROTRACE_ICEGATE_CBIC_USER',
+        prod_password: 'icegate_cbic_agrotrace_prod_pass_2024',
+        prod_endpoint: 'https://www.icegate.gov.in/Webservice',
+      },
       settings: { authType:'CBIC-credentials', purpose:'Validate Shipping Bill numbers, retrieve LEO status from ICEGATE' },
     },
     /* 14 — custom: NPPO India / DPPQ */ nppo_dppq: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_apiKey:   'NPPO-DPPQ-AGROTRACE-PHYTO-VERIFY-2024',
+        prod_endpoint: 'https://ppqs.gov.in/api/phytocert/verify',
+      },
       settings: { manualFallback:true, purpose:'Validate phytosanitary certificate numbers against DPPQ official registry' },
     },
     /* 15 — custom: CloudWatch + ELK */ cloudwatch_elk: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_awsAccessKey:  'AKIAAGROTRACE_CLOUDWATCH',
+        prod_awsSecretKey:  'aGr0Tr4cE+CloudWatch+Secret+2024',
+        prod_awsRegion:     'ap-south-1',
+        prod_elkEndpoint:   'https://elk.agrotrace.internal:9200',
+        prod_elkApiKey:     'agrotrace_elk_api_key_prod_2024',
+      },
       settings: { retentionYears:2, alertsEnabled:true, purpose:'Centralized log aggregation, chain event logs, API access logs (regulatory requirement)' },
     },
     /* 16 — custom: Prometheus + Grafana */ prometheus_grafana: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_prometheusEndpoint: 'https://prometheus.agrotrace.internal:9090',
+        prod_grafanaEndpoint:    'https://grafana.agrotrace.internal:3000',
+        prod_grafanaApiKey:      'glsa_agrotrace_grafana_service_api_2024',
+        prod_alertmanagerUrl:    'https://alertmanager.agrotrace.internal:9093',
+      },
       settings: { alertManagerEnabled:true, sla:'99.9% uptime', purpose:'Real-time validator health, block time, tx throughput, IoT ingestion rates' },
     },
     /* 17 — custom: PagerDuty */ pagerduty: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_integrationKey: 'r3b9agrotrace_pagerduty_integration_key',
+        prod_apiToken:       'agrotrace_pagerduty_api_token_prod_2024',
+        prod_serviceId:      'PAGROTRACE01',
+      },
       settings: { escalationPolicy:'24/7-on-call-rotation', purpose:'Critical alerts — temperature breach >5°C, chain halt, validator down' },
     },
     /* 18 — custom: DocuSign */ docusign: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_integrationKey: 'agrotrace-docusign-integration-key-prod',
+        prod_userId:         'agrotrace-docusign-user-id-prod',
+        prod_accountId:      'agrotrace-docusign-account-id-prod',
+        prod_privateKey:     '-----BEGIN RSA PRIVATE KEY-----\nAgroTrace_DocuSign_RSA_Key_Placeholder\n-----END RSA PRIVATE KEY-----',
+      },
       settings: { signerAuth:'email', auditTrail:true, purpose:'Fallback document signing for actors who cannot use wallet signatures (small farmers via PoA)' },
     },
     /* 19 — custom: Sumsub KYC */ sumsub: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_appToken:  'agrotrace_sumsub_app_token_prod_2024',
+        prod_secretKey: 'agrotrace_sumsub_secret_key_prod_2024',
+        prod_baseUrl:   'https://api.sumsub.com',
+      },
       settings: { level:'basic', livenessCheck:true, purpose:'KYC/identity verification for non-APEDA actors (foreign buyers, arbitrators)' },
     },
     /* 20 — custom: AWS KMS */ aws_kms: {
       enabled: true, environment: 'prod',
-      credentials: {},
+      credentials: {
+        prod_keyArn:       'arn:aws:kms:ap-south-1:123456789012:key/agrotrace-platform-signing-key',
+        prod_accessKey:    'AKIAAGROTRACE_KMS_SIGN',
+        prod_secretKey:    'aGr0Tr4cE+KMS+SigningKey+2024+ProdARN',
+        prod_region:       'ap-south-1',
+      },
       settings: { keyRotationDays:365, multiRegion:true, purpose:'Platform signing keys for audit trail PDFs, certificate NFT metadata, chain signing' },
     },
   },
