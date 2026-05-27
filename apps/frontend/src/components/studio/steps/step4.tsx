@@ -176,6 +176,42 @@ const CATALOG: IntegrationDef[] = [
       { key: "projectId", label: "Project ID", type: "text" },
     ]
   },
+  {
+    id: "sumsub",
+    name: "Sumsub KYC",
+    category: "Auth",
+    description: "Identity verification and KYC for non-APEDA actors (foreign buyers, arbitrators).",
+    docsUrl: "https://developers.sumsub.com",
+    fields: [
+      { key: "appToken", label: "App Token", type: "password", placeholder: "sbx:..." },
+      { key: "secretKey", label: "Secret Key", type: "password" },
+      { key: "baseUrl", label: "Base URL", type: "text", placeholder: "https://api.sumsub.com" },
+    ]
+  },
+  {
+    id: "chainalysis",
+    name: "Chainalysis KYT",
+    category: "Auth",
+    description: "AML and sanctions screening of new actor wallets on registration.",
+    docsUrl: "https://docs.chainalysis.com",
+    fields: [
+      { key: "apiKey", label: "API Key", type: "password" },
+      { key: "endpoint", label: "API Endpoint", type: "text", placeholder: "https://api.chainalysis.com/api/kyt/v2", hint: "KYT v2 endpoint" },
+    ]
+  },
+  {
+    id: "docusign",
+    name: "DocuSign",
+    category: "Auth",
+    description: "Fallback e-signature for farmers who cannot use wallet signatures.",
+    docsUrl: "https://developers.docusign.com",
+    fields: [
+      { key: "integrationKey", label: "Integration Key", type: "text" },
+      { key: "userId", label: "User ID (API Username)", type: "text" },
+      { key: "accountId", label: "Account ID", type: "text" },
+      { key: "privateKey", label: "RSA Private Key", type: "password", hint: "Used to generate JWT access tokens" },
+    ]
+  },
 
   // --- COMMUNICATION ---
   {
@@ -333,6 +369,37 @@ const CATALOG: IntegrationDef[] = [
       { key: "hermesUrl", label: "Hermes Endpoint", type: "text", placeholder: "https://hermes.pyth.network" },
     ]
   },
+  {
+    id: "apeda_agriexchange",
+    name: "APEDA AgriExchange",
+    category: "Data",
+    description: "Validate APEDA registration numbers and fetch exporter data from AgriExchange.",
+    fields: [
+      { key: "apiKey", label: "API Key", type: "password", hint: "Issued by APEDA for registered platform integrators" },
+      { key: "endpoint", label: "API Endpoint", type: "text", placeholder: "https://agriexchange.apeda.gov.in/api/v1" },
+    ]
+  },
+  {
+    id: "icegate_api",
+    name: "ICEGATE (CBIC)",
+    category: "Data",
+    description: "Validate shipping bill numbers and retrieve LEO status from ICEGATE customs portal.",
+    fields: [
+      { key: "userId", label: "CBIC User ID", type: "text", hint: "Registered ICEGATE user ID for the platform" },
+      { key: "password", label: "CBIC Password", type: "password" },
+      { key: "endpoint", label: "Web Service URL", type: "text", placeholder: "https://www.icegate.gov.in/Webservice" },
+    ]
+  },
+  {
+    id: "nppo_dppq",
+    name: "NPPO India / DPPQ",
+    category: "Data",
+    description: "Validate phytosanitary certificate numbers against the DPPQ official registry.",
+    fields: [
+      { key: "apiKey", label: "API Key", type: "password", hint: "Issued by PPQS (Directorate of Plant Protection)" },
+      { key: "endpoint", label: "Verification Endpoint", type: "text", placeholder: "https://ppqs.gov.in/api/phytocert/verify" },
+    ]
+  },
 
   // --- ANALYTICS ---
   {
@@ -380,6 +447,31 @@ const CATALOG: IntegrationDef[] = [
     description: "Event analytics for mobile & web.",
     fields: [
       { key: "projectToken", label: "Project Token", type: "text" },
+    ]
+  },
+  {
+    id: "cloudwatch_elk",
+    name: "CloudWatch + ELK",
+    category: "Analytics",
+    description: "Centralized log aggregation for chain events, API access logs, and regulatory audit trail.",
+    fields: [
+      { key: "awsAccessKey", label: "AWS Access Key ID", type: "text", placeholder: "AKIA..." },
+      { key: "awsSecretKey", label: "AWS Secret Access Key", type: "password" },
+      { key: "awsRegion", label: "AWS Region", type: "text", placeholder: "ap-south-1" },
+      { key: "elkEndpoint", label: "ELK Endpoint", type: "text", placeholder: "https://elk.agrotrace.internal:9200" },
+      { key: "elkApiKey", label: "ELK API Key", type: "password" },
+    ]
+  },
+  {
+    id: "prometheus_grafana",
+    name: "Prometheus + Grafana",
+    category: "Analytics",
+    description: "Real-time metrics for validator health, block time, tx throughput, and IoT ingestion rates.",
+    fields: [
+      { key: "prometheusEndpoint", label: "Prometheus Endpoint", type: "text", placeholder: "https://prometheus.agrotrace.internal:9090" },
+      { key: "grafanaEndpoint", label: "Grafana Endpoint", type: "text", placeholder: "https://grafana.agrotrace.internal:3000" },
+      { key: "grafanaApiKey", label: "Grafana Service API Key", type: "password", hint: "Service account key with Editor role" },
+      { key: "alertmanagerUrl", label: "Alertmanager URL", type: "text", placeholder: "https://alertmanager.agrotrace.internal:9093" },
     ]
   },
 
@@ -430,6 +522,33 @@ const CATALOG: IntegrationDef[] = [
       { key: "url", label: "Endpoint URL", type: "text", placeholder: "https://api.myapp.com/events" },
       { key: "secret", label: "Signing Secret", type: "password", hint: "Used to sign X-Hub-Signature header" },
       { key: "headers", label: "Custom Headers", type: "text", placeholder: '{"Authorization": "Bearer..."}' },
+    ]
+  },
+  {
+    id: "pagerduty",
+    name: "PagerDuty",
+    category: "Webhooks",
+    description: "Critical incident alerts — temperature breach, chain halt, validator down.",
+    docsUrl: "https://developer.pagerduty.com",
+    fields: [
+      { key: "integrationKey", label: "Events API Integration Key", type: "password", hint: "From the service's Integration tab (Events API v2)" },
+      { key: "apiToken", label: "REST API Token", type: "password", hint: "Used to manage incidents and escalation policies" },
+      { key: "serviceId", label: "Service ID", type: "text", placeholder: "PXXXXXXX" },
+    ]
+  },
+
+  // --- STORAGE (continued) ---
+  {
+    id: "aws_kms",
+    name: "AWS KMS",
+    category: "Storage",
+    description: "Platform signing keys for audit trail PDFs, certificate NFT metadata, and chain signing.",
+    docsUrl: "https://docs.aws.amazon.com/kms",
+    fields: [
+      { key: "keyArn", label: "Key ARN", type: "text", placeholder: "arn:aws:kms:ap-south-1:...", hint: "The CMK used for platform signing" },
+      { key: "accessKey", label: "AWS Access Key ID", type: "text", placeholder: "AKIA..." },
+      { key: "secretKey", label: "AWS Secret Access Key", type: "password" },
+      { key: "region", label: "AWS Region", type: "text", placeholder: "ap-south-1" },
     ]
   },
 ];
