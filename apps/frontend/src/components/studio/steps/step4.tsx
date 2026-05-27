@@ -633,7 +633,8 @@ export default function Step4({ goPrev, goNext, projectId }: { goPrev?: () => vo
       if (!resolvedId) { setLoading(false); return; }
       try {
         const p = await apiGetProject(resolvedId);
-        if (p.integrations?.configs) setConfigs(p.integrations.configs);
+        const integrations = p.project?.integrations ?? p.integrations;
+        if (integrations?.configs) setConfigs(integrations.configs);
       } catch (e) { console.warn(e); }
       finally { setLoading(false); }
     })();
