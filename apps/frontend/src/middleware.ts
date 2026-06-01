@@ -82,20 +82,17 @@ export async function middleware(req: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  // Test accounts bypass pricing gate
-  if (!(token.isTestAccount as boolean)) {
-    const plan = token.plan as string | undefined;
-    if ((!plan || plan === 'free') && pathname !== '/pricing') {
-      // Stay on the same host — changing host would break the session cookie
-      // (cookie is host-scoped; studio.cerulea.app cookie isn't readable on cerulea.app).
-      // On production, AUTH_COOKIE_DOMAIN=.cerulea.app shares cookies across subdomains,
-      // but we still keep the user on the same host for a smooth UX.
-      const pricingUrl = req.nextUrl.clone();
-      pricingUrl.pathname = '/pricing';
-      pricingUrl.search = '';
-      return NextResponse.redirect(pricingUrl);
-    }
-  }
+  // PRICING GATE DISABLED — pricing page is offline pending Stripe integration.
+  // Re-enable this block once plans are live again.
+  // if (!(token.isTestAccount as boolean)) {
+  //   const plan = token.plan as string | undefined;
+  //   if ((!plan || plan === 'free') && pathname !== '/pricing') {
+  //     const pricingUrl = req.nextUrl.clone();
+  //     pricingUrl.pathname = '/pricing';
+  //     pricingUrl.search = '';
+  //     return NextResponse.redirect(pricingUrl);
+  //   }
+  // }
 
   // Apply studio subdomain rewrite AFTER auth/pricing checks pass
   if (isStudioHost) {

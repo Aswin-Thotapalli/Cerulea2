@@ -47,8 +47,8 @@ export default function RegisterPage() {
       return;
     }
 
-    // 3. Hard redirect so middleware runs fresh and enforces the pricing gate
-    window.location.href = '/pricing';
+    // 3. Go straight to the dashboard (pricing page is offline)
+    window.location.href = '/dashboard';
   };
 
   return (

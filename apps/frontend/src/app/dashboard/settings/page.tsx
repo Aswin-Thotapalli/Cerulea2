@@ -211,20 +211,9 @@ export default function SettingsPage() {
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Box>
             <Typography variant="body2" color="text.secondary">
-              Next billing: <strong>May 1, 2026</strong> · $0 (Developer plan is free)
+              Billing &amp; plan upgrades coming soon.
             </Typography>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<UpgradeIcon />}
-            sx={{
-              borderRadius: 999, fontWeight: 700,
-              bgcolor: PLAN_COLOR['Pro'],
-              '&:hover': { bgcolor: alpha(PLAN_COLOR['Pro'], 0.85) },
-            }}
-          >
-            Upgrade to Pro
-          </Button>
         </Stack>
       </Paper>
 

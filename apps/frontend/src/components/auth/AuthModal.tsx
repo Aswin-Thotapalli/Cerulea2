@@ -58,11 +58,8 @@ export default function AuthModal({ open, title = 'Sign in', subtitle, onSuccess
       setTab(0);
       return setError('Account created. Please sign in.');
     }
-    // New accounts must select a plan before entering the studio
-    const isLocal = window.location.hostname.includes('localhost');
-    const returnUrl = encodeURIComponent(window.location.href);
-    const base = isLocal ? 'http://localhost:3000' : 'https://cerulea.app';
-    window.location.href = `${base}/pricing?return=${returnUrl}`;
+    // Pricing page is offline — go straight to dashboard
+    window.location.href = '/dashboard';
   };
 
   return (
