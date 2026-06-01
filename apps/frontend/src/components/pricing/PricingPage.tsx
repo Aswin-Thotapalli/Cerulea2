@@ -2,91 +2,111 @@
 
 import {
   Box, Typography, Card, CardContent, Button, Stack, Chip, List,
-  ListItem, ListItemIcon, ListItemText, CircularProgress, Alert, Divider
+  ListItem, ListItemIcon, ListItemText, Divider,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
-import CreditCardIcon from '@mui/icons-material/CreditCard';
-import CancelIcon from '@mui/icons-material/Cancel';
-import AutorenewIcon from '@mui/icons-material/Autorenew';
-import { useTheme, alpha, keyframes } from '@mui/material/styles';
-import { useState } from 'react';
+import ContactSupportIcon from '@mui/icons-material/ContactSupport';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import { useTheme, alpha } from '@mui/material/styles';
 import { useSession } from 'next-auth/react';
-import { useSearchParams } from 'next/navigation';
 
-const shimmer = keyframes`
-  0%   { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
-`;
-
-const pulse = keyframes`
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.6; }
-`;
+const CONTACT_SALES_URL = 'https://cerulea.io/company/contact-sales';
+const FREE_GREEN = '#10b981';
 
 interface PlanFeature {
   text: string;
-  included: boolean;
 }
 
 interface Plan {
-  id: 'developer' | 'pro' | 'enterprise';
+  id: 'sandbox' | 'developer' | 'pro' | 'enterprise';
   label: string;
+  planName: string;
   price: string;
   period: string;
   tagline: string;
   cta: string;
   popular: boolean;
+  isFree: boolean;
+  footerNote?: string;
   features: PlanFeature[];
 }
 
 const PLANS: Plan[] = [
   {
+    id: 'sandbox',
+    label: 'FREE',
+    planName: 'Sandbox',
+    price: 'Free',
+    period: 'forever · no credit card',
+    tagline:
+      'Explore the full Cerulea platform on the testnet. Build, test, and validate your entire architecture with zero cost and zero commitment.',
+    cta: 'Start Building',
+    popular: false,
+    isFree: true,
+    footerNote: 'Testnet only — no mainnet or live deployments.',
+    features: [
+      { text: 'Full Cerulea Studio access' },
+      { text: 'Cerulea Intelligence (AI)' },
+      { text: 'Testnet deployments (unlimited)' },
+      { text: 'Dashboard (testnet view)' },
+      { text: 'Community support' },
+    ],
+  },
+  {
     id: 'developer',
     label: 'DEVELOPER',
+    planName: 'Developer',
     price: '₹14,999',
     period: 'per month',
-    tagline: 'For individuals and small teams building public dApps and executing production pilots.',
-    cta: 'Start 14-Day Free Trial',
+    tagline:
+      'For individuals and small teams building public dApps and executing production pilots.',
+    cta: 'Contact Sales',
     popular: false,
+    isFree: false,
     features: [
-      { text: 'Access to Cerulea Studio', included: true },
-      { text: 'Deploy to Cerulea Public L1', included: true },
-      { text: '100,000 RPC requests per day', included: true },
-      { text: 'Standard community governance', included: true },
-      { text: 'Community Discord support', included: true },
+      { text: 'Access to Cerulea Studio' },
+      { text: 'Deploy to Cerulea Public L1' },
+      { text: '100,000 RPC requests per day' },
+      { text: 'Standard community governance' },
+      { text: 'Community Discord support' },
     ],
   },
   {
     id: 'pro',
     label: 'PRO',
+    planName: 'Pro',
     price: '₹55,000',
     period: 'per month',
-    tagline: 'For scaling applications requiring dedicated indexing and staging environments.',
-    cta: 'Start 14-Day Free Trial',
+    tagline:
+      'For scaling applications requiring dedicated indexing and staging environments.',
+    cta: 'Contact Sales',
     popular: true,
+    isFree: false,
     features: [
-      { text: 'Everything in Developer', included: true },
-      { text: 'Unlimited RPC requests', included: true },
-      { text: 'Dedicated indexing nodes', included: true },
-      { text: 'Staging and testnet environments', included: true },
-      { text: 'Priority email support', included: true },
+      { text: 'Everything in Developer' },
+      { text: 'Unlimited RPC requests' },
+      { text: 'Dedicated indexing nodes' },
+      { text: 'Staging and testnet environments' },
+      { text: 'Priority email support' },
     ],
   },
   {
     id: 'enterprise',
     label: 'ENTERPRISE',
+    planName: 'Enterprise',
     price: 'Custom',
     period: 'yearly licensing',
-    tagline: 'For organizations deploying sovereign Private Chains with strict compliance rules.',
+    tagline:
+      'For organizations deploying sovereign Private Chains with strict compliance rules.',
     cta: 'Contact Sales',
     popular: false,
+    isFree: false,
     features: [
-      { text: 'Sovereign Private Chain deployment', included: true },
-      { text: 'Bring your own cloud (AWS, GCP)', included: true },
-      { text: 'Custom compliance and RBAC modules', included: true },
-      { text: 'Node architecture review', included: true },
-      { text: '24/7 dedicated engineering SLA', included: true },
+      { text: 'Sovereign Private Chain deployment' },
+      { text: 'Bring your own cloud (AWS, GCP)' },
+      { text: 'Custom compliance and RBAC modules' },
+      { text: 'Node architecture review' },
+      { text: '24/7 dedicated engineering SLA' },
     ],
   },
 ];
@@ -94,38 +114,13 @@ const PLANS: Plan[] = [
 export default function PricingPage() {
   const theme = useTheme();
   const { data: session } = useSession();
-  const searchParams = useSearchParams();
-  const returnUrl = searchParams.get('return') || '';
-  const [loading, setLoading] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  const handleSelect = async (plan: Plan) => {
-    if (plan.id === 'enterprise') {
-      window.location.href = 'mailto:sales@cerulea.app?subject=Enterprise Plan Inquiry';
+  const handleSelect = (plan: Plan) => {
+    if (plan.isFree) {
+      window.location.href = '/dashboard';
       return;
     }
-
-    setLoading(plan.id);
-    setError(null);
-
-    try {
-      const res = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: plan.id, returnUrl }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.url) {
-        throw new Error(data.error || 'Failed to start checkout');
-      }
-
-      window.location.href = data.url;
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong. Please try again.');
-      setLoading(null);
-    }
+    window.open(CONTACT_SALES_URL, '_blank', 'noopener,noreferrer');
   };
 
   const isDark = theme.palette.mode === 'dark';
@@ -142,144 +137,6 @@ export default function PricingPage() {
         py: 8,
       }}
     >
-      {/* ── Launch Trial Banner ── */}
-      <Box
-        sx={{
-          width: '100%',
-          maxWidth: 1100,
-          mb: 6,
-          borderRadius: 3,
-          position: 'relative',
-          overflow: 'hidden',
-          // layered glow border
-          p: '1.5px',
-          background: `linear-gradient(135deg,
-            ${theme.palette.primary.main} 0%,
-            ${alpha('#10b981', 1)} 50%,
-            ${theme.palette.primary.main} 100%)`,
-          backgroundSize: '200% 200%',
-          animation: `${shimmer} 4s linear infinite`,
-        }}
-      >
-        <Box
-          sx={{
-            borderRadius: 'inherit',
-            background: isDark
-              ? 'linear-gradient(135deg, rgba(10,14,26,0.97) 0%, rgba(12,18,30,0.97) 100%)'
-              : 'linear-gradient(135deg, #f0f4ff 0%, #ecfdf5 100%)',
-            px: { xs: 3, md: 5 },
-            py: { xs: 3, md: 3.5 },
-          }}
-        >
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            alignItems={{ xs: 'flex-start', sm: 'center' }}
-            spacing={{ xs: 2, sm: 3 }}
-          >
-            {/* Big day count */}
-            <Box sx={{ flexShrink: 0, textAlign: 'center', minWidth: 88 }}>
-              <Typography
-                sx={{
-                  fontSize: { xs: '3.5rem', md: '4.5rem' },
-                  fontWeight: 900,
-                  lineHeight: 1,
-                  background: `linear-gradient(135deg, ${theme.palette.primary.main}, #10b981)`,
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                }}
-              >
-                14
-              </Typography>
-              <Typography
-                sx={{
-                  fontSize: '0.65rem',
-                  fontWeight: 800,
-                  letterSpacing: 2,
-                  color: 'text.secondary',
-                  textTransform: 'uppercase',
-                  mt: -0.5,
-                }}
-              >
-                Day Free
-              </Typography>
-            </Box>
-
-            {/* Divider line — desktop only */}
-            <Box
-              sx={{
-                display: { xs: 'none', sm: 'block' },
-                width: '1px',
-                alignSelf: 'stretch',
-                background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                flexShrink: 0,
-              }}
-            />
-
-            {/* Copy */}
-            <Box sx={{ flex: 1 }}>
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.75 }}>
-                <Chip
-                  label="LAUNCH OFFER"
-                  size="small"
-                  sx={{
-                    height: 20,
-                    fontSize: '0.6rem',
-                    fontWeight: 800,
-                    letterSpacing: 1.5,
-                    background: `linear-gradient(90deg, ${theme.palette.primary.main}, #10b981)`,
-                    color: '#fff',
-                    animation: `${pulse} 2.4s ease-in-out infinite`,
-                  }}
-                />
-                <Typography variant="caption" sx={{ opacity: 0.5 }}>
-                  Developer &amp; Pro plans
-                </Typography>
-              </Stack>
-
-              <Typography
-                variant="h5"
-                sx={{ fontWeight: 800, mb: 0.75, lineHeight: 1.25 }}
-              >
-                Start free. No risk. On us for 14 days.
-              </Typography>
-
-              <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                spacing={{ xs: 0.5, sm: 2.5 }}
-                sx={{ mb: 1.25 }}
-              >
-                {[
-                  { icon: <CreditCardIcon sx={{ fontSize: 14 }} />, text: 'Card required to start' },
-                  { icon: <CancelIcon sx={{ fontSize: 14 }} />, text: 'Cancel anytime during trial' },
-                  { icon: <AutorenewIcon sx={{ fontSize: 14 }} />, text: 'Auto-converts at trial end' },
-                ].map(({ icon, text }) => (
-                  <Stack key={text} direction="row" alignItems="center" spacing={0.6}>
-                    <Box sx={{ color: '#10b981', display: 'flex' }}>{icon}</Box>
-                    <Typography variant="caption" sx={{ opacity: 0.75, fontWeight: 500 }}>
-                      {text}
-                    </Typography>
-                  </Stack>
-                ))}
-              </Stack>
-
-              <Typography
-                variant="caption"
-                sx={{
-                  opacity: 0.45,
-                  display: 'block',
-                  fontSize: '0.7rem',
-                  borderTop: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.07)',
-                  pt: 1,
-                }}
-              >
-                Trial available for new users during the launch window only. After launch, all new plans start at standard full price with no trial. Existing launch users retain their 14-day trial terms.
-              </Typography>
-            </Box>
-          </Stack>
-        </Box>
-      </Box>
-
       {/* Header */}
       <Box sx={{ textAlign: 'center', mb: 6, maxWidth: 640 }}>
         <Typography
@@ -292,7 +149,7 @@ export default function PricingPage() {
           Choose your plan
         </Typography>
         <Typography variant="body1" sx={{ opacity: 0.7, fontSize: '1.05rem' }}>
-          Start free in the Studio. Upgrade when you're ready to deploy to production.
+          Start free on the testnet. Upgrade when you&apos;re ready to deploy to production.
           All plans include access to Cerulea AI and the full module library.
         </Typography>
 
@@ -303,21 +160,15 @@ export default function PricingPage() {
         )}
       </Box>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 4, maxWidth: 900, width: '100%' }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
-
       {/* Plan cards */}
       <Stack
         direction={{ xs: 'column', md: 'row' }}
         spacing={3}
-        sx={{ width: '100%', maxWidth: 1100, alignItems: 'stretch' }}
+        sx={{ width: '100%', maxWidth: 1200, alignItems: 'stretch' }}
       >
         {PLANS.map((plan) => {
           const isPopular = plan.popular;
-          const isLoading = loading === plan.id;
+          const isFree = plan.isFree;
 
           return (
             <Card
@@ -328,6 +179,8 @@ export default function PricingPage() {
                 borderRadius: 3,
                 border: isPopular
                   ? `2px solid ${theme.palette.primary.main}`
+                  : isFree
+                  ? `1.5px solid ${alpha(FREE_GREEN, 0.4)}`
                   : `1px solid ${alpha(theme.palette.divider, 0.3)}`,
                 background: isDark
                   ? alpha(theme.palette.background.paper, 0.6)
@@ -340,6 +193,8 @@ export default function PricingPage() {
                   transform: 'translateY(-4px)',
                   boxShadow: isPopular
                     ? `0 12px 40px ${alpha(theme.palette.primary.main, 0.25)}`
+                    : isFree
+                    ? `0 8px 30px ${alpha(FREE_GREEN, 0.2)}`
                     : `0 8px 30px ${alpha(theme.palette.common.black, 0.15)}`,
                 },
               }}
@@ -372,23 +227,33 @@ export default function PricingPage() {
               )}
 
               <CardContent sx={{ p: 4, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                {/* Plan name */}
+                {/* Plan tier label */}
                 <Typography
                   variant="overline"
                   sx={{
                     fontWeight: 700,
                     letterSpacing: 2,
-                    color: isPopular ? 'primary.main' : 'text.secondary',
-                    mb: 1.5,
+                    color: isFree ? FREE_GREEN : isPopular ? 'primary.main' : 'text.secondary',
+                    mb: 0.5,
                   }}
                 >
                   {plan.label}
                 </Typography>
 
+                {/* Plan name */}
+                <Typography variant="h5" sx={{ fontWeight: 800, mb: 1.5 }}>
+                  {plan.planName}
+                </Typography>
+
                 {/* Price */}
                 <Typography
                   variant="h3"
-                  sx={{ fontWeight: 800, lineHeight: 1, mb: 0.5 }}
+                  sx={{
+                    fontWeight: 800,
+                    lineHeight: 1,
+                    mb: 0.5,
+                    color: isFree ? FREE_GREEN : 'text.primary',
+                  }}
                 >
                   {plan.price}
                 </Typography>
@@ -399,12 +264,7 @@ export default function PricingPage() {
                 {/* Tagline */}
                 <Typography
                   variant="body2"
-                  sx={{
-                    color: isPopular ? 'primary.main' : 'text.secondary',
-                    mb: 3,
-                    lineHeight: 1.6,
-                    minHeight: 60,
-                  }}
+                  sx={{ color: 'text.secondary', mb: 3, lineHeight: 1.6, minHeight: 60 }}
                 >
                   {plan.tagline}
                 </Typography>
@@ -414,26 +274,34 @@ export default function PricingPage() {
                   variant={isPopular ? 'contained' : 'outlined'}
                   fullWidth
                   size="large"
-                  disabled={isLoading}
                   onClick={() => handleSelect(plan)}
+                  endIcon={isFree ? <ArrowForwardIcon /> : <ContactSupportIcon />}
                   sx={{
                     mb: 3,
                     py: 1.5,
                     borderRadius: 2,
                     fontWeight: 700,
                     fontSize: '0.95rem',
+                    ...(isFree && {
+                      borderColor: FREE_GREEN,
+                      color: FREE_GREEN,
+                      '&:hover': {
+                        borderColor: FREE_GREEN,
+                        background: alpha(FREE_GREEN, 0.06),
+                      },
+                    }),
                     ...(isPopular && {
                       background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
                       boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.4)}`,
                     }),
                   }}
                 >
-                  {isLoading ? <CircularProgress size={20} color="inherit" /> : plan.cta}
+                  {plan.cta}
                 </Button>
 
                 <Divider sx={{ mb: 3, opacity: 0.3 }} />
 
-                {/* Features */}
+                {/* Features list */}
                 <Typography
                   variant="overline"
                   sx={{ fontWeight: 700, letterSpacing: 1.5, mb: 1.5, opacity: 0.7, display: 'block' }}
@@ -445,24 +313,40 @@ export default function PricingPage() {
                   {plan.features.map((feature, i) => (
                     <ListItem key={i} disableGutters sx={{ py: 0.5 }}>
                       <ListItemIcon sx={{ minWidth: 32 }}>
-                        {feature.included ? (
-                          <CheckCircleIcon
-                            sx={{
-                              fontSize: 18,
-                              color: isPopular ? 'primary.main' : alpha(theme.palette.success.main, 0.9),
-                            }}
-                          />
-                        ) : (
-                          <RadioButtonUncheckedIcon sx={{ fontSize: 18, opacity: 0.3 }} />
-                        )}
+                        <CheckCircleIcon
+                          sx={{
+                            fontSize: 18,
+                            color: isFree
+                              ? FREE_GREEN
+                              : isPopular
+                              ? 'primary.main'
+                              : alpha(theme.palette.success.main, 0.9),
+                          }}
+                        />
                       </ListItemIcon>
                       <ListItemText
                         primary={feature.text}
-                        primaryTypographyProps={{ variant: 'body2', sx: { opacity: feature.included ? 1 : 0.4 } }}
+                        primaryTypographyProps={{ variant: 'body2' }}
                       />
                     </ListItem>
                   ))}
                 </List>
+
+                {/* Per-card footer note (e.g. sandbox disclaimer) */}
+                {plan.footerNote && (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      mt: 2,
+                      display: 'block',
+                      color: FREE_GREEN,
+                      opacity: 0.7,
+                      fontStyle: 'italic',
+                    }}
+                  >
+                    {plan.footerNote}
+                  </Typography>
+                )}
               </CardContent>
             </Card>
           );
@@ -471,9 +355,8 @@ export default function PricingPage() {
 
       {/* Footer note */}
       <Typography variant="caption" sx={{ mt: 5, opacity: 0.5, textAlign: 'center', maxWidth: 700 }}>
-        14-day free trial requires a valid payment card. No charge during the trial period. If not canceled before
-        day 14, the subscription auto-converts to the selected plan at the standard monthly price.
-        All prices in INR, exclusive of applicable taxes. Cancel anytime.
+        Paid plans are billed annually. Contact our sales team for custom pricing, enterprise
+        agreements, and volume discounts. All prices in INR, exclusive of applicable taxes.
       </Typography>
     </Box>
   );
