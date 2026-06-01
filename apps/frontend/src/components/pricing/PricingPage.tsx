@@ -1,8 +1,8 @@
 'use client';
 
 import {
-  Box, Typography, Card, CardContent, Button, Stack, Chip, List,
-  ListItem, ListItemIcon, ListItemText, Divider,
+  Box, Typography, Card, CardContent, Button, List,
+  ListItem, ListItemIcon, ListItemText, Divider, Stack,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
@@ -10,7 +10,6 @@ import { useTheme, alpha } from '@mui/material/styles';
 import { useSession } from 'next-auth/react';
 
 const CONTACT_SALES_URL = 'https://cerulea.io/company/contact-sales';
-const FREE_GREEN = '#10b981';
 
 interface PlanFeature {
   text: string;
@@ -18,13 +17,13 @@ interface PlanFeature {
 
 interface Plan {
   id: 'sandbox' | 'developer' | 'pro' | 'enterprise';
-  label: string;
+  accentColor: string;
+  label?: string;
   planName: string;
   price?: string;
   period?: string;
   tagline: string;
   cta: string;
-  popular: boolean;
   isFree: boolean;
   footerNote?: string;
   features: PlanFeature[];
@@ -33,6 +32,7 @@ interface Plan {
 const PLANS: Plan[] = [
   {
     id: 'sandbox',
+    accentColor: '#10b981',
     label: 'FREE',
     planName: 'Sandbox',
     price: 'Free',
@@ -40,7 +40,6 @@ const PLANS: Plan[] = [
     tagline:
       'Explore the full Cerulea platform on the testnet. Build, test, and validate your entire architecture with zero cost and zero commitment.',
     cta: 'Start Building',
-    popular: false,
     isFree: true,
     footerNote: 'Testnet only — no mainnet or live deployments.',
     features: [
@@ -53,12 +52,12 @@ const PLANS: Plan[] = [
   },
   {
     id: 'developer',
-    label: 'DEVELOPER',
+    accentColor: '#6366f1',
     planName: 'Developer',
+    period: 'usage-based',
     tagline:
-      'For individuals and small teams building public dApps and executing production pilots.',
+      'For teams ready to go live. Deploy production applications to the Cerulea Public L1 and integrate with real-world systems.',
     cta: 'Contact Sales',
-    popular: false,
     isFree: false,
     features: [
       { text: 'Access to Cerulea Studio' },
@@ -70,12 +69,12 @@ const PLANS: Plan[] = [
   },
   {
     id: 'pro',
-    label: 'PRO',
+    accentColor: '#3b82f6',
     planName: 'Pro',
+    period: 'usage-based',
     tagline:
-      'For scaling applications requiring dedicated indexing and staging environments.',
+      'For scaling applications. Dedicated infrastructure, higher limits, and hands-on architecture support from our engineering team.',
     cta: 'Contact Sales',
-    popular: true,
     isFree: false,
     features: [
       { text: 'Everything in Developer' },
@@ -87,12 +86,12 @@ const PLANS: Plan[] = [
   },
   {
     id: 'enterprise',
-    label: 'ENTERPRISE',
+    accentColor: '#8b5cf6',
     planName: 'Enterprise',
+    period: 'annual licensing',
     tagline:
-      'For organizations deploying sovereign Private Chains with strict compliance rules.',
+      'For organisations deploying sovereign Private Chains with complete governance control, compliance requirements, and dedicated engineering support.',
     cta: 'Contact Sales',
-    popular: false,
     isFree: false,
     features: [
       { text: 'Sovereign Private Chain deployment' },
@@ -107,6 +106,7 @@ const PLANS: Plan[] = [
 export default function PricingPage() {
   const theme = useTheme();
   const { data: session } = useSession();
+  const isDark = theme.palette.mode === 'dark';
 
   const handleSelect = (plan: Plan) => {
     if (plan.isFree) {
@@ -115,8 +115,6 @@ export default function PricingPage() {
     }
     window.open(CONTACT_SALES_URL, '_blank', 'noopener,noreferrer');
   };
-
-  const isDark = theme.palette.mode === 'dark';
 
   return (
     <Box
@@ -145,7 +143,6 @@ export default function PricingPage() {
           Start free on the testnet. Upgrade when you&apos;re ready to deploy to production.
           All plans include access to Cerulea AI and the full module library.
         </Typography>
-
         {session?.user && (
           <Typography variant="body2" sx={{ mt: 2, opacity: 0.6 }}>
             Logged in as <strong>{session.user.email}</strong>
@@ -160,8 +157,7 @@ export default function PricingPage() {
         sx={{ width: '100%', maxWidth: 1200, alignItems: 'stretch' }}
       >
         {PLANS.map((plan) => {
-          const isPopular = plan.popular;
-          const isFree = plan.isFree;
+          const { accentColor, isFree } = plan;
 
           return (
             <Card
@@ -170,103 +166,85 @@ export default function PricingPage() {
               sx={{
                 flex: 1,
                 borderRadius: 3,
-                border: isPopular
-                  ? `2px solid ${theme.palette.primary.main}`
-                  : isFree
-                  ? `1.5px solid ${alpha(FREE_GREEN, 0.4)}`
-                  : `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+                borderTop: `3px solid ${accentColor}`,
                 background: isDark
-                  ? alpha(theme.palette.background.paper, 0.6)
+                  ? alpha(theme.palette.background.paper, 0.8)
                   : theme.palette.background.paper,
-                backdropFilter: 'blur(12px)',
                 position: 'relative',
                 overflow: 'visible',
-                transition: 'transform 0.2s, box-shadow 0.2s',
+                transition: 'box-shadow 0.2s',
                 '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: isPopular
-                    ? `0 12px 40px ${alpha(theme.palette.primary.main, 0.25)}`
-                    : isFree
-                    ? `0 8px 30px ${alpha(FREE_GREEN, 0.2)}`
-                    : `0 8px 30px ${alpha(theme.palette.common.black, 0.15)}`,
+                  boxShadow: `0 8px 32px ${alpha(accentColor, 0.18)}`,
                 },
               }}
             >
-              {/* Most Popular badge */}
-              {isPopular && (
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    top: -14,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    zIndex: 1,
-                  }}
-                >
-                  <Chip
-                    label="MOST POPULAR"
-                    size="small"
-                    sx={{
-                      backgroundColor: isDark ? 'rgba(30,30,40,0.95)' : 'white',
-                      border: `1px solid ${theme.palette.primary.main}`,
-                      color: theme.palette.primary.main,
-                      fontWeight: 700,
-                      fontSize: '0.65rem',
-                      letterSpacing: 1.5,
-                      px: 1,
-                    }}
-                  />
-                </Box>
-              )}
-
               <CardContent sx={{ p: 4, height: '100%', display: 'flex', flexDirection: 'column' }}>
 
-                {/* ── Top section: flex:1 so it grows identically in every card,
-                     keeping the CTA button at the same vertical position ── */}
+                {/* Top section — flex:1 keeps the button at the same level across all cards */}
                 <Box sx={{ flex: 1 }}>
+                  {/* FREE label — only for Sandbox */}
+                  {plan.label && (
+                    <Typography
+                      variant="overline"
+                      sx={{
+                        fontWeight: 700,
+                        letterSpacing: 2,
+                        display: 'block',
+                        color: accentColor,
+                        mb: 0.5,
+                      }}
+                    >
+                      {plan.label}
+                    </Typography>
+                  )}
+
+                  {/* Plan name */}
                   <Typography
-                    variant="overline"
+                    variant="h4"
                     sx={{
-                      fontWeight: 700,
-                      letterSpacing: 2,
-                      display: 'block',
-                      color: isFree ? FREE_GREEN : isPopular ? 'primary.main' : 'text.secondary',
-                      mb: 0.5,
+                      fontWeight: 800,
+                      mb: 0.75,
+                      color: isDark ? 'text.primary' : '#0f172a',
                     }}
                   >
-                    {plan.label}
-                  </Typography>
-
-                  <Typography variant="h5" sx={{ fontWeight: 800, mb: 1.5 }}>
                     {plan.planName}
                   </Typography>
 
+                  {/* Price (Sandbox only) */}
                   {plan.price && (
                     <Typography
                       variant="h3"
-                      sx={{
-                        fontWeight: 800,
-                        lineHeight: 1,
-                        mb: 0.5,
-                        color: isFree ? FREE_GREEN : 'text.primary',
-                      }}
+                      sx={{ fontWeight: 800, lineHeight: 1, mb: 0.5, color: accentColor }}
                     >
                       {plan.price}
                     </Typography>
                   )}
 
+                  {/* Period */}
                   {plan.period && (
-                    <Typography variant="body2" sx={{ opacity: 0.6, mb: 2.5 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        mb: 2.5,
+                        fontWeight: 500,
+                        color: isFree ? (isDark ? 'text.secondary' : '#64748b') : alpha(accentColor, 0.85),
+                      }}
+                    >
                       {plan.period}
                     </Typography>
                   )}
 
-                  <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.6 }}>
+                  {/* Tagline */}
+                  <Typography
+                    variant="body1"
+                    sx={{ color: isDark ? 'text.secondary' : '#334155', lineHeight: 1.65 }}
+                  >
                     {plan.tagline}
                   </Typography>
                 </Box>
 
-                {/* ── CTA button — same vertical position in every card ── */}
+                {/* CTA button — same vertical position in every card */}
                 <Button
                   variant="outlined"
                   fullWidth
@@ -280,25 +258,23 @@ export default function PricingPage() {
                     borderRadius: 2,
                     fontWeight: 700,
                     fontSize: '0.95rem',
-                    ...(isFree && {
-                      borderColor: FREE_GREEN,
-                      color: FREE_GREEN,
-                      '&:hover': {
-                        borderColor: FREE_GREEN,
-                        background: alpha(FREE_GREEN, 0.06),
-                      },
-                    }),
+                    borderColor: accentColor,
+                    color: accentColor,
+                    '&:hover': {
+                      borderColor: accentColor,
+                      background: alpha(accentColor, 0.06),
+                    },
                   }}
                 >
                   {plan.cta}
                 </Button>
 
-                <Divider sx={{ mb: 3, opacity: 0.3 }} />
+                <Divider sx={{ mb: 3, opacity: 0.25 }} />
 
                 {/* Features list */}
                 <Typography
                   variant="overline"
-                  sx={{ fontWeight: 700, letterSpacing: 1.5, mb: 1.5, opacity: 0.7, display: 'block' }}
+                  sx={{ fontWeight: 700, letterSpacing: 1.5, mb: 1.5, opacity: 0.6, display: 'block' }}
                 >
                   INCLUDED FEATURES
                 </Typography>
@@ -307,16 +283,7 @@ export default function PricingPage() {
                   {plan.features.map((feature, i) => (
                     <ListItem key={i} disableGutters sx={{ py: 0.5 }}>
                       <ListItemIcon sx={{ minWidth: 32 }}>
-                        <CheckCircleIcon
-                          sx={{
-                            fontSize: 18,
-                            color: isFree
-                              ? FREE_GREEN
-                              : isPopular
-                              ? 'primary.main'
-                              : alpha(theme.palette.success.main, 0.9),
-                          }}
-                        />
+                        <CheckCircleIcon sx={{ fontSize: 18, color: accentColor }} />
                       </ListItemIcon>
                       <ListItemText
                         primary={feature.text}
@@ -326,14 +293,12 @@ export default function PricingPage() {
                   ))}
                 </List>
 
-                {/* Fixed-height footer slot — always rendered so every card
-                     has the same height below the features list, which is
-                     required to keep all buttons aligned. */}
+                {/* Fixed-height footer slot — keeps button aligned even when absent */}
                 <Box sx={{ mt: 2, minHeight: '1.25rem' }}>
                   {plan.footerNote && (
                     <Typography
                       variant="caption"
-                      sx={{ display: 'block', color: FREE_GREEN, opacity: 0.7, fontStyle: 'italic' }}
+                      sx={{ display: 'block', color: accentColor, opacity: 0.65, fontStyle: 'italic' }}
                     >
                       {plan.footerNote}
                     </Typography>
@@ -347,9 +312,9 @@ export default function PricingPage() {
       </Stack>
 
       {/* Footer note */}
-      <Typography variant="caption" sx={{ mt: 5, opacity: 0.5, textAlign: 'center', maxWidth: 700 }}>
+      <Typography variant="caption" sx={{ mt: 5, opacity: 0.45, textAlign: 'center', maxWidth: 700 }}>
         Paid plans are billed annually. Contact our sales team for custom pricing, enterprise
-        agreements, and volume discounts. All prices in INR, exclusive of applicable taxes.
+        agreements, and volume discounts.
       </Typography>
     </Box>
   );
