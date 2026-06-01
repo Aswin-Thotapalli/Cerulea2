@@ -227,49 +227,49 @@ export default function PricingPage() {
               )}
 
               <CardContent sx={{ p: 4, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                {/* Plan tier label */}
-                <Typography
-                  variant="overline"
-                  sx={{
-                    fontWeight: 700,
-                    letterSpacing: 2,
-                    color: isFree ? FREE_GREEN : isPopular ? 'primary.main' : 'text.secondary',
-                    mb: 0.5,
-                  }}
-                >
-                  {plan.label}
-                </Typography>
 
-                {/* Plan name */}
-                <Typography variant="h5" sx={{ fontWeight: 800, mb: 1.5 }}>
-                  {plan.planName}
-                </Typography>
+                {/* ── Top section: flex:1 so it grows identically in every card,
+                     keeping the CTA button at the same vertical position ── */}
+                <Box sx={{ flex: 1 }}>
+                  <Typography
+                    variant="overline"
+                    sx={{
+                      fontWeight: 700,
+                      letterSpacing: 2,
+                      display: 'block',
+                      color: isFree ? FREE_GREEN : isPopular ? 'primary.main' : 'text.secondary',
+                      mb: 0.5,
+                    }}
+                  >
+                    {plan.label}
+                  </Typography>
 
-                {/* Price */}
-                <Typography
-                  variant="h3"
-                  sx={{
-                    fontWeight: 800,
-                    lineHeight: 1,
-                    mb: 0.5,
-                    color: isFree ? FREE_GREEN : 'text.primary',
-                  }}
-                >
-                  {plan.price}
-                </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.6, mb: 2.5 }}>
-                  {plan.period}
-                </Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 800, mb: 1.5 }}>
+                    {plan.planName}
+                  </Typography>
 
-                {/* Tagline */}
-                <Typography
-                  variant="body2"
-                  sx={{ color: 'text.secondary', mb: 3, lineHeight: 1.6, minHeight: 60 }}
-                >
-                  {plan.tagline}
-                </Typography>
+                  <Typography
+                    variant="h3"
+                    sx={{
+                      fontWeight: 800,
+                      lineHeight: 1,
+                      mb: 0.5,
+                      color: isFree ? FREE_GREEN : 'text.primary',
+                    }}
+                  >
+                    {plan.price}
+                  </Typography>
 
-                {/* CTA button */}
+                  <Typography variant="body2" sx={{ opacity: 0.6, mb: 2.5 }}>
+                    {plan.period}
+                  </Typography>
+
+                  <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.6 }}>
+                    {plan.tagline}
+                  </Typography>
+                </Box>
+
+                {/* ── CTA button — same vertical position in every card ── */}
                 <Button
                   variant={isPopular ? 'contained' : 'outlined'}
                   fullWidth
@@ -277,6 +277,7 @@ export default function PricingPage() {
                   onClick={() => handleSelect(plan)}
                   endIcon={isFree ? <ArrowForwardIcon /> : <ContactSupportIcon />}
                   sx={{
+                    mt: 3,
                     mb: 3,
                     py: 1.5,
                     borderRadius: 2,
@@ -309,7 +310,7 @@ export default function PricingPage() {
                   INCLUDED FEATURES
                 </Typography>
 
-                <List dense disablePadding sx={{ flex: 1 }}>
+                <List dense disablePadding>
                   {plan.features.map((feature, i) => (
                     <ListItem key={i} disableGutters sx={{ py: 0.5 }}>
                       <ListItemIcon sx={{ minWidth: 32 }}>
@@ -332,21 +333,20 @@ export default function PricingPage() {
                   ))}
                 </List>
 
-                {/* Per-card footer note (e.g. sandbox disclaimer) */}
-                {plan.footerNote && (
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      mt: 2,
-                      display: 'block',
-                      color: FREE_GREEN,
-                      opacity: 0.7,
-                      fontStyle: 'italic',
-                    }}
-                  >
-                    {plan.footerNote}
-                  </Typography>
-                )}
+                {/* Fixed-height footer slot — always rendered so every card
+                     has the same height below the features list, which is
+                     required to keep all buttons aligned. */}
+                <Box sx={{ mt: 2, minHeight: '1.25rem' }}>
+                  {plan.footerNote && (
+                    <Typography
+                      variant="caption"
+                      sx={{ display: 'block', color: FREE_GREEN, opacity: 0.7, fontStyle: 'italic' }}
+                    >
+                      {plan.footerNote}
+                    </Typography>
+                  )}
+                </Box>
+
               </CardContent>
             </Card>
           );
