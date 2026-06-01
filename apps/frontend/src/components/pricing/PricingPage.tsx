@@ -5,7 +5,6 @@ import {
   ListItem, ListItemIcon, ListItemText, Divider,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import ContactSupportIcon from '@mui/icons-material/ContactSupport';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { useTheme, alpha } from '@mui/material/styles';
 import { useSession } from 'next-auth/react';
@@ -21,8 +20,8 @@ interface Plan {
   id: 'sandbox' | 'developer' | 'pro' | 'enterprise';
   label: string;
   planName: string;
-  price: string;
-  period: string;
+  price?: string;
+  period?: string;
   tagline: string;
   cta: string;
   popular: boolean;
@@ -56,8 +55,6 @@ const PLANS: Plan[] = [
     id: 'developer',
     label: 'DEVELOPER',
     planName: 'Developer',
-    price: '₹14,999',
-    period: 'per month',
     tagline:
       'For individuals and small teams building public dApps and executing production pilots.',
     cta: 'Contact Sales',
@@ -75,8 +72,6 @@ const PLANS: Plan[] = [
     id: 'pro',
     label: 'PRO',
     planName: 'Pro',
-    price: '₹55,000',
-    period: 'per month',
     tagline:
       'For scaling applications requiring dedicated indexing and staging environments.',
     cta: 'Contact Sales',
@@ -94,8 +89,6 @@ const PLANS: Plan[] = [
     id: 'enterprise',
     label: 'ENTERPRISE',
     planName: 'Enterprise',
-    price: 'Custom',
-    period: 'yearly licensing',
     tagline:
       'For organizations deploying sovereign Private Chains with strict compliance rules.',
     cta: 'Contact Sales',
@@ -248,21 +241,25 @@ export default function PricingPage() {
                     {plan.planName}
                   </Typography>
 
-                  <Typography
-                    variant="h3"
-                    sx={{
-                      fontWeight: 800,
-                      lineHeight: 1,
-                      mb: 0.5,
-                      color: isFree ? FREE_GREEN : 'text.primary',
-                    }}
-                  >
-                    {plan.price}
-                  </Typography>
+                  {plan.price && (
+                    <Typography
+                      variant="h3"
+                      sx={{
+                        fontWeight: 800,
+                        lineHeight: 1,
+                        mb: 0.5,
+                        color: isFree ? FREE_GREEN : 'text.primary',
+                      }}
+                    >
+                      {plan.price}
+                    </Typography>
+                  )}
 
-                  <Typography variant="body2" sx={{ opacity: 0.6, mb: 2.5 }}>
-                    {plan.period}
-                  </Typography>
+                  {plan.period && (
+                    <Typography variant="body2" sx={{ opacity: 0.6, mb: 2.5 }}>
+                      {plan.period}
+                    </Typography>
+                  )}
 
                   <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.6 }}>
                     {plan.tagline}
@@ -271,11 +268,11 @@ export default function PricingPage() {
 
                 {/* ── CTA button — same vertical position in every card ── */}
                 <Button
-                  variant={isPopular ? 'contained' : 'outlined'}
+                  variant="outlined"
                   fullWidth
                   size="large"
                   onClick={() => handleSelect(plan)}
-                  endIcon={isFree ? <ArrowForwardIcon /> : <ContactSupportIcon />}
+                  endIcon={isFree ? <ArrowForwardIcon /> : undefined}
                   sx={{
                     mt: 3,
                     mb: 3,
@@ -290,10 +287,6 @@ export default function PricingPage() {
                         borderColor: FREE_GREEN,
                         background: alpha(FREE_GREEN, 0.06),
                       },
-                    }),
-                    ...(isPopular && {
-                      background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
-                      boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.4)}`,
                     }),
                   }}
                 >
