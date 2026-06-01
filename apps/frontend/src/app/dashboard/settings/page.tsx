@@ -11,6 +11,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { useSession } from 'next-auth/react';
 import SaveIcon from '@mui/icons-material/Save';
 import UpgradeIcon from '@mui/icons-material/Upgrade';
+import ContactSupportIcon from '@mui/icons-material/ContactSupport';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -211,9 +212,19 @@ export default function SettingsPage() {
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Box>
             <Typography variant="body2" color="text.secondary">
-              Billing &amp; plan upgrades coming soon.
+              Interested in upgrading your plan or enterprise pricing?
             </Typography>
           </Box>
+          <Button
+            variant="outlined"
+            startIcon={<ContactSupportIcon />}
+            href="https://cerulea.io/company/contact-sales"
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{ borderRadius: 999, fontWeight: 700, whiteSpace: 'nowrap', ml: 2 }}
+          >
+            Contact Sales
+          </Button>
         </Stack>
       </Paper>
 
