@@ -2,8 +2,8 @@ import type { FastifyPluginAsync } from 'fastify';
 import { eq, and, or, desc, sql } from 'drizzle-orm';
 import { getDb }              from '../db/client';
 import { accounts, extrinsics, contracts } from '../db/schema';
-import { getApi, isChainConfigured }        from '../indexer/substrate';
-import { upsertAccountFromApi }             from '../lib/accountHelper';
+import { getClient, isChainConfigured }     from '../indexer/substrate';
+import { upsertAccountFromClient }          from '../lib/accountHelper';
 import { paginate, parsePagination }        from '../lib/paginate';
 import type { AccountInfo, ChainSlug }      from '@cerulea/types';
 
@@ -19,8 +19,8 @@ const accountsRoute: FastifyPluginAsync = async (app) => {
     // Always try to fetch fresh data from the node if available
     if (isChainConfigured(chain)) {
       try {
-        const api = await getApi(chain);
-        await upsertAccountFromApi(api, chain, address, null);
+        const client = await getClient(chain);
+        await upsertAccountFromClient(client, chain, address, null);
       } catch {}
     }
 

@@ -1,26 +1,28 @@
 /**
- * Block indexer — connects to Substrate nodes, processes every block,
- * and persists the decoded data into SQLite.
+ * Block indexer — connects to chain nodes, processes every block,
+ * and persists decoded data into SQLite.
  *
- * Lifecycle:
- *  1. startIndexer()  → tries to connect each configured chain
- *  2. For each chain: backfill BACKFILL_BLOCKS recent blocks from history
- *  3. Then subscribe to new blocks via chain_subscribeNewHead
- *  4. Any connection failure is caught and retried with exponential backoff
+ * Lifecycle per chain:
+ *  1. startIndexer()  → attempt to connect each configured chain
+ *  2. Backfill the last BACKFILL_BLOCKS blocks from history
+ *  3. Poll for new blocks every POLL_INTERVAL ms
+ *  4. Connection errors are caught and retried with exponential back-off
  */
-import type { ApiPromise }     from '@polkadot/api';
-import type { EventRecord }    from '@polkadot/types/interfaces';
-import type { Vec }            from '@polkadot/types';
-import { getApi, isChainConfigured }          from './substrate';
-import { parseBlock, parseExtrinsic, detectContracts } from './parser';
-import { getDb }                              from '../db/client';
+import { getClient, isChainConfigured } from './substrate';
+import { parseBlock, parseExtrinsic }   from './parser';
+import { getDb }                        from '../db/client';
 import { blocks, extrinsics, accounts, validators, contracts } from '../db/schema';
-import { eq, and, sql }                       from 'drizzle-orm';
+import { systemAccountKey, sessionValidatorsKey, decodeAccountInfo, decodeVecAccountId32, ss58Encode } from './scale';
+import { eq, and, sql }                 from 'drizzle-orm';
+import type { CeruleaNodeClient }       from './rpc-client';
 
 type ChainKey = 'public' | 'private';
 const CHAINS: ChainKey[] = ['public', 'private'];
 const BACKFILL  = Math.max(0, parseInt(process.env.BACKFILL_BLOCKS ?? '200', 10));
-const VALIDATOR_REFRESH_BLOCKS = 50; // Re-read staking data every N blocks
+const POLL_MS   = parseInt(process.env.POLL_INTERVAL_MS ?? '3000', 10);
+const VAL_EVERY = 50; // refresh validators every N blocks
+
+function sleep(ms: number) { return new Promise<void>(r => setTimeout(r, ms)); }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Entry point
@@ -32,97 +34,103 @@ export async function startIndexer(): Promise<void> {
       continue;
     }
     indexChain(chain).catch((err) => {
-      console.error(`[indexer] ${chain} chain indexer crashed:`, err);
-      // Retry after 10 s
-      setTimeout(() => indexChain(chain).catch(console.error), 10_000);
+      console.error(`[indexer] ${chain} fatal error:`, err);
     });
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Per-chain indexer loop
+// Per-chain indexer loop (polls for new blocks)
 // ─────────────────────────────────────────────────────────────────────────────
 async function indexChain(chain: ChainKey): Promise<void> {
-  const api = await getApi(chain);
+  let backfillDone = false;
 
-  // ── Backfill ────────────────────────────────────────────────────────────────
-  if (BACKFILL > 0) {
-    await backfillChain(api, chain, BACKFILL);
-  }
+  while (true) {
+    try {
+      const client = await getClient(chain);
 
-  // ── Live subscription ───────────────────────────────────────────────────────
-  console.log(`[indexer] ${chain} — subscribing to new blocks`);
-
-  await new Promise<void>((_, reject) => {
-    api.derive.chain.subscribeNewHeads(async (header) => {
-      const blockNum = header.number.toNumber();
-      const hash     = header.hash.toHex();
-      const author   = header.author?.toString() ?? null;
-
-      try {
-        await processBlock(api, chain, hash, blockNum, author);
-
-        // Periodically refresh validator set
-        if (blockNum % VALIDATOR_REFRESH_BLOCKS === 0) {
-          refreshValidators(api, chain).catch(console.error);
-        }
-      } catch (err) {
-        console.error(`[indexer] ${chain} failed to process block #${blockNum}:`, err);
+      if (!backfillDone && BACKFILL > 0) {
+        await backfillChain(client, chain, BACKFILL);
+        backfillDone = true;
       }
-    }).catch(reject);
-  });
+
+      let lastBlock = -1;
+      console.log(`[indexer] ${chain} — polling for new blocks every ${POLL_MS} ms`);
+
+      while (true) {
+        await sleep(POLL_MS);
+        if (!client.isConnected) break; // reconnecting; exit inner loop
+
+        try {
+          const headHash   = await client.getBlockHash();
+          const headHeader = await client.getHeader(headHash);
+          const headNum    = parseInt(headHeader.number, 16);
+
+          if (headNum > lastBlock) {
+            const from = lastBlock < 0 ? headNum : lastBlock + 1;
+            for (let n = from; n <= headNum; n++) {
+              const hash = await client.getBlockHash(n);
+              await processBlock(client, chain, hash, n);
+            }
+            lastBlock = headNum;
+
+            if (headNum % VAL_EVERY === 0) {
+              refreshValidators(client, chain).catch(console.error);
+            }
+          }
+        } catch (err) {
+          console.warn(`[indexer] ${chain} poll error:`, err);
+          break;
+        }
+      }
+    } catch (err) {
+      console.warn(`[indexer] ${chain} connection error:`, err);
+    }
+
+    await sleep(10_000);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Backfill
 // ─────────────────────────────────────────────────────────────────────────────
-async function backfillChain(api: ApiPromise, chain: ChainKey, count: number): Promise<void> {
+async function backfillChain(
+  client: CeruleaNodeClient,
+  chain:  ChainKey,
+  count:  number,
+): Promise<void> {
   const db = getDb();
 
-  // Find what we already have
-  const existingResult = db
-    .select({ maxNumber: sql<number>`MAX(number)` })
-    .from(blocks)
-    .where(eq(blocks.chain, chain))
-    .get();
-  const latestIndexed = existingResult?.maxNumber ?? -1;
+  const existingRow = db.select({ max: sql<number>`MAX(number)` })
+    .from(blocks).where(eq(blocks.chain, chain)).get();
+  const latestIndexed = existingRow?.max ?? -1;
 
-  // Get current chain head
-  const latestHash   = await api.rpc.chain.getBlockHash();
-  const latestHeader = await api.rpc.chain.getHeader(latestHash);
-  const latestBlock  = latestHeader.number.toNumber();
+  const headHash   = await client.getBlockHash();
+  const headHeader = await client.getHeader(headHash);
+  const headNum    = parseInt(headHeader.number, 16);
 
-  const startBlock = Math.max(0, latestBlock - count + 1);
+  const startBlock = Math.max(0, headNum - count + 1);
   const needed: number[] = [];
-  for (let n = startBlock; n <= latestBlock; n++) {
+  for (let n = startBlock; n <= headNum; n++) {
     if (n > latestIndexed) needed.push(n);
   }
 
   if (needed.length === 0) {
-    console.log(`[indexer] ${chain} — backfill up to date (latest indexed: #${latestIndexed})`);
+    console.log(`[indexer] ${chain} — backfill up to date (latest: #${latestIndexed})`);
     return;
   }
 
-  console.log(`[indexer] ${chain} — backfilling blocks #${needed[0]}–#${needed[needed.length - 1]} (${needed.length} blocks)`);
+  console.log(`[indexer] ${chain} — backfilling #${needed[0]}–#${needed[needed.length - 1]} (${needed.length} blocks)`);
 
-  // Process in batches of 10 to avoid overwhelming the node
   const BATCH = 10;
   for (let i = 0; i < needed.length; i += BATCH) {
-    const batch = needed.slice(i, i + BATCH);
     await Promise.all(
-      batch.map(async (n) => {
+      needed.slice(i, i + BATCH).map(async (n) => {
         try {
-          const hash   = await api.rpc.chain.getBlockHash(n);
-          const header = await api.rpc.chain.getHeader(hash);
-          // For backfill we don't have derive.chain so author might be null
-          let author: string | null = null;
-          try {
-            const derived = await api.derive.chain.getBlock(hash);
-            author = derived?.author?.toString() ?? null;
-          } catch {}
-          await processBlock(api, chain, hash.toHex(), n, author);
+          const hash = await client.getBlockHash(n);
+          await processBlock(client, chain, hash, n);
         } catch (err) {
-          console.warn(`[indexer] ${chain} backfill failed for block #${n}:`, err);
+          console.warn(`[indexer] ${chain} backfill failed for #${n}:`, err);
         }
       })
     );
@@ -132,47 +140,29 @@ async function backfillChain(api: ApiPromise, chain: ChainKey, count: number): P
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Process a single block
+// Process one block
 // ─────────────────────────────────────────────────────────────────────────────
 async function processBlock(
-  api:     ApiPromise,
-  chain:   ChainKey,
-  hash:    string,
-  number:  number,
-  author:  string | null,
+  client: CeruleaNodeClient,
+  chain:  ChainKey,
+  hash:   string,
+  number: number,
 ): Promise<void> {
   const db = getDb();
 
   // Skip if already indexed
-  const exists = db
-    .select({ id: blocks.id })
-    .from(blocks)
-    .where(and(eq(blocks.chain, chain), eq(blocks.number, number)))
-    .get();
-  if (exists) return;
+  if (db.select({ id: blocks.id }).from(blocks)
+    .where(and(eq(blocks.chain, chain), eq(blocks.number, number))).get()) return;
 
-  // Fetch block + events in parallel
-  const [signedBlock, allEvents] = await Promise.all([
-    api.rpc.chain.getBlock(hash),
-    api.query.system.events.at(hash) as unknown as Promise<Vec<EventRecord>>,
-  ]);
+  const raw = await client.getBlock(hash);
 
-  // Previous block's timestamp for block-time calculation
-  const prevBlock = db
-    .select({ timestampMs: blocks.timestampMs })
+  const prevRow = db.select({ timestampMs: blocks.timestampMs })
     .from(blocks)
     .where(and(eq(blocks.chain, chain), eq(blocks.number, number - 1)))
     .get();
 
-  const parsed = parseBlock(
-    signedBlock as any,
-    hash,
-    allEvents as any,
-    author,
-    prevBlock?.timestampMs ?? null,
-  );
+  const parsed = parseBlock(hash, raw, null, prevRow?.timestampMs ?? null);
 
-  // ── Persist block ──────────────────────────────────────────────────────────
   db.insert(blocks).values({
     chain,
     number:         parsed.number,
@@ -189,220 +179,158 @@ async function processBlock(
     eventsCount:    parsed.eventsCount,
   }).onConflictDoNothing().run();
 
-  // ── Persist extrinsics ─────────────────────────────────────────────────────
-  for (const [idx, ext] of signedBlock.block.extrinsics.entries()) {
+  for (const [idx, extHex] of raw.block.extrinsics.entries()) {
     try {
-      const parsedExt = parseExtrinsic(
-        api, ext as any, idx, number, hash, parsed.timestampMs, allEvents as any
-      );
+      const p = parseExtrinsic(extHex, idx, number, hash, parsed.timestampMs);
       db.insert(extrinsics).values({
         chain,
-        hash:         parsedExt.hash,
-        blockNumber:  parsedExt.blockNumber,
-        blockHash:    parsedExt.blockHash,
-        indexInBlock: parsedExt.indexInBlock,
-        timestampMs:  parsedExt.timestampMs,
-        fromAddress:  parsedExt.fromAddress,
-        toAddress:    parsedExt.toAddress,
-        value:        parsedExt.value,
-        fee:          parsedExt.fee,
-        status:       parsedExt.status,
-        section:      parsedExt.section,
-        method:       parsedExt.method,
-        nonce:        parsedExt.nonce,
-        callData:     parsedExt.callData,
-        decodedCall:  parsedExt.decodedCall,
-        eventsJson:   parsedExt.eventsJson,
+        hash:         p.hash,
+        blockNumber:  p.blockNumber,
+        blockHash:    p.blockHash,
+        indexInBlock: p.indexInBlock,
+        timestampMs:  p.timestampMs,
+        fromAddress:  p.fromAddress,
+        toAddress:    p.toAddress,
+        value:        p.value,
+        fee:          p.fee,
+        status:       p.status,
+        section:      p.section,
+        method:       p.method,
+        nonce:        p.nonce,
+        callData:     p.callData,
+        decodedCall:  p.decodedCall,
+        eventsJson:   p.eventsJson,
       }).onConflictDoNothing().run();
 
-      // Update account record for sender
-      if (parsedExt.fromAddress) {
-        upsertAccount(api, chain, parsedExt.fromAddress, number).catch(() => {});
+      if (p.fromAddress) {
+        upsertAccountFromChain(client, chain, p.fromAddress, number).catch(() => {});
       }
     } catch (err) {
-      console.warn(`[indexer] ${chain} failed to parse extrinsic #${idx} in block #${number}:`, err);
+      console.warn(`[indexer] ${chain} failed to parse ext #${idx} in block #${number}:`, err);
     }
-  }
-
-  // ── Detect and register contracts ─────────────────────────────────────────
-  const detected = detectContracts(signedBlock as any, allEvents as any, number);
-  for (const c of detected) {
-    db.insert(contracts).values({
-      chain,
-      address:         c.address,
-      deployerAddress: c.deployer,
-      deployTxHash:    c.txHash,
-      deployBlock:     c.block,
-      isVerified:      false,
-      updatedAt:       Date.now(),
-    }).onConflictDoNothing().run();
-
-    // Mark account as contract
-    db.insert(accounts)
-      .values({
-        chain,
-        address:    c.address,
-        isContract: true,
-        updatedAt:  Date.now(),
-      })
-      .onConflictDoUpdate({
-        target: [accounts.chain, accounts.address],
-        set:    { isContract: true, updatedAt: Date.now() },
-      })
-      .run();
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Account upsert (balances + nonce)
+// Account balance upsert
 // ─────────────────────────────────────────────────────────────────────────────
-async function upsertAccount(
-  api:     ApiPromise,
-  chain:   ChainKey,
-  address: string,
+async function upsertAccountFromChain(
+  client:      CeruleaNodeClient,
+  chain:       ChainKey,
+  address:     string,
   blockNumber: number,
 ): Promise<void> {
   const db = getDb();
   try {
-    const info = await api.query.system.account(address);
-    const data = (info as any).data;
-    db.insert(accounts)
-      .values({
-        chain,
-        address,
-        freeBalance:     data.free?.toString()     ?? '0',
-        reservedBalance: data.reserved?.toString() ?? '0',
-        nonce:           (info as any).nonce?.toNumber() ?? 0,
+    // Decode SS58 address back to raw AccountId32
+    const accountId = ss58ToBytes(address);
+    if (!accountId) return;
+
+    const storageKey = systemAccountKey(accountId);
+    const raw = await client.getStorage(storageKey);
+    if (!raw) return;
+
+    const { nonce, free, reserved } = decodeAccountInfo(raw);
+    db.insert(accounts).values({
+      chain, address,
+      freeBalance:     free.toString(),
+      reservedBalance: reserved.toString(),
+      nonce,
+      lastSeenBlock:   blockNumber,
+      updatedAt:       Date.now(),
+    }).onConflictDoUpdate({
+      target: [accounts.chain, accounts.address],
+      set: {
+        freeBalance:     free.toString(),
+        reservedBalance: reserved.toString(),
+        nonce,
         lastSeenBlock:   blockNumber,
         updatedAt:       Date.now(),
-      })
-      .onConflictDoUpdate({
-        target: [accounts.chain, accounts.address],
-        set: {
-          freeBalance:     data.free?.toString()     ?? '0',
-          reservedBalance: data.reserved?.toString() ?? '0',
-          nonce:           (info as any).nonce?.toNumber() ?? 0,
-          lastSeenBlock:   blockNumber,
-          updatedAt:       Date.now(),
-        },
-      })
-      .run();
+      },
+    }).run();
   } catch {
-    // Non-critical — skip silently
+    // Non-critical — skip
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Validator refresh (staking pallet)
+// Validator refresh
 // ─────────────────────────────────────────────────────────────────────────────
-async function refreshValidators(api: ApiPromise, chain: ChainKey): Promise<void> {
+async function refreshValidators(client: CeruleaNodeClient, chain: ChainKey): Promise<void> {
   const db = getDb();
   try {
-    // Get elected validators (current set)
-    const currentElected: string[] = [];
-    try {
-      const sessionValidators = await api.query.session.validators() as any;
-      (sessionValidators as any[]).forEach((v: any) => currentElected.push(v.toString()));
-    } catch {}
+    const raw = await client.getStorage(sessionValidatorsKey());
+    if (!raw) return;
 
-    if (currentElected.length === 0) return;
+    const accountIds = decodeVecAccountId32(raw);
+    const elected = accountIds.map(id => ss58Encode(id));
 
-    for (const address of currentElected) {
-      try {
-        let commission = 0;
-        let ownStake   = '0';
-        let totalStake = '0';
+    for (const address of elected) {
+      const blocksRow = db.select({ count: sql<number>`COUNT(*)` })
+        .from(blocks)
+        .where(and(eq(blocks.chain, chain), eq(blocks.author, address)))
+        .get();
 
-        // Staking prefs
-        try {
-          const prefs = await api.query.staking.validators(address) as any;
-          commission = (prefs.commission?.toNumber() ?? 0) / 10_000_000; // perbill → percentage
-        } catch {}
-
-        // Ledger for own stake
-        try {
-          const bonded  = await api.query.staking.bonded(address) as any;
-          if (bonded.isSome) {
-            const ledger = await api.query.staking.ledger(bonded.unwrap()) as any;
-            if (ledger.isSome) ownStake = ledger.unwrap().active?.toString() ?? '0';
-          }
-        } catch {}
-
-        // Exposure for total stake
-        try {
-          const activeEra = await api.query.staking.activeEra() as any;
-          if (activeEra.isSome) {
-            const era = activeEra.unwrap().index;
-            const exposure = await api.query.staking.erasTotalStake(era, address) as any;
-            totalStake = exposure?.toString() ?? '0';
-          }
-        } catch {}
-
-        // Identity (if pallet available)
-        let identity: string | null = null;
-        try {
-          const idInfo = await api.query.identity?.identityOf(address) as any;
-          if (idInfo?.isSome) {
-            const display = idInfo.unwrap()[0]?.info?.display;
-            if (display?.isRaw) identity = display.asRaw.toUtf8();
-          }
-        } catch {}
-
-        // Count blocks produced by this validator
-        const blocksProducedRow = db
-          .select({ count: sql<number>`COUNT(*)` })
-          .from(blocks)
-          .where(and(eq(blocks.chain, chain), eq(blocks.author, address)))
-          .get();
-        const blocksProduced = blocksProducedRow?.count ?? 0;
-
-        db.insert(validators)
-          .values({
-            chain,
-            address,
-            identity,
-            commission,
-            totalStake,
-            ownStake,
-            blocksProduced,
-            uptimePct: 100, // Uptime calculated from block production rate over time
-            isActive:  true,
-            isElected: true,
-            updatedAt: Date.now(),
-          })
-          .onConflictDoUpdate({
-            target: [validators.chain, validators.address],
-            set: {
-              identity,
-              commission,
-              totalStake,
-              ownStake,
-              blocksProduced,
-              isActive:  true,
-              isElected: true,
-              updatedAt: Date.now(),
-            },
-          })
-          .run();
-      } catch (err) {
-        console.warn(`[indexer] Failed to refresh validator ${address}:`, err);
-      }
+      db.insert(validators).values({
+        chain, address,
+        identity:       null,
+        commission:     0,
+        totalStake:     '0',
+        ownStake:       '0',
+        blocksProduced: blocksRow?.count ?? 0,
+        uptimePct:      100,
+        isActive:       true,
+        isElected:      true,
+        updatedAt:      Date.now(),
+      }).onConflictDoUpdate({
+        target: [validators.chain, validators.address],
+        set: {
+          blocksProduced: blocksRow?.count ?? 0,
+          isActive:       true,
+          isElected:      true,
+          updatedAt:      Date.now(),
+        },
+      }).run();
     }
 
-    // Mark previous validators that are no longer elected
-    db.update(validators)
-      .set({ isElected: false, updatedAt: Date.now() })
-      .where(
-        and(
-          eq(validators.chain, chain),
-          eq(validators.isElected, true),
-          sql`address NOT IN (${currentElected.map(() => '?').join(',')})`,
+    // Mark previously-elected validators no longer in the set
+    if (elected.length > 0) {
+      db.update(validators)
+        .set({ isElected: false, updatedAt: Date.now() })
+        .where(
+          and(
+            eq(validators.chain, chain),
+            eq(validators.isElected, true),
+            sql`address NOT IN (${sql.raw(elected.map(() => '?').join(','))})`,
+          )
         )
-      )
-      .run();
+        .run();
+    }
 
-    console.log(`[indexer] ${chain} — refreshed ${currentElected.length} validators`);
+    console.log(`[indexer] ${chain} — refreshed ${elected.length} validators`);
   } catch (err) {
-    console.warn(`[indexer] ${chain} validator refresh failed:`, err);
+    console.warn(`[indexer] ${chain} validator refresh error:`, err);
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Utility: decode SS58 → raw 32-byte AccountId
+// ─────────────────────────────────────────────────────────────────────────────
+const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+function ss58ToBytes(address: string): Buffer | null {
+  try {
+    let n = 0n;
+    for (const c of address) {
+      const idx = BASE58.indexOf(c);
+      if (idx < 0) return null;
+      n = n * 58n + BigInt(idx);
+    }
+    const bytes: number[] = [];
+    while (n > 0n) { bytes.unshift(Number(n & 0xffn)); n >>= 8n; }
+    const buf = Buffer.from(bytes);
+    // Prefix length: 1 byte if first byte < 64, else 2 bytes
+    const prefixLen = buf[0] < 64 ? 1 : 2;
+    return buf.slice(prefixLen, prefixLen + 32);
+  } catch { return null; }
 }

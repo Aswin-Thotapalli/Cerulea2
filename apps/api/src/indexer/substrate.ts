@@ -1,9 +1,8 @@
 /**
- * Manages one Polkadot/Substrate ApiPromise connection per chain.
- * Connections are created lazily and cached. If a connection drops,
- * WsProvider handles reconnection automatically.
+ * Connection manager — one CeruleaNodeClient per chain, lazily created.
+ * Reads RPC_WS_PUBLIC / RPC_WS_PRIVATE from environment.
  */
-import { ApiPromise, WsProvider } from '@polkadot/api';
+import { CeruleaNodeClient } from './rpc-client';
 
 type ChainKey = 'public' | 'private';
 
@@ -12,62 +11,42 @@ const WS_ENV: Record<ChainKey, string> = {
   private: 'RPC_WS_PRIVATE',
 };
 
-const apiCache: Map<ChainKey, ApiPromise> = new Map();
-const pendingConnect: Map<ChainKey, Promise<ApiPromise>> = new Map();
+const clientCache = new Map<ChainKey, CeruleaNodeClient>();
+const connecting  = new Map<ChainKey, Promise<CeruleaNodeClient>>();
 
-export async function getApi(chain: ChainKey): Promise<ApiPromise> {
-  // Return cached and connected API
-  const cached = apiCache.get(chain);
+export async function getClient(chain: ChainKey): Promise<CeruleaNodeClient> {
+  const cached = clientCache.get(chain);
   if (cached?.isConnected) return cached;
 
-  // Deduplicate concurrent connection attempts
-  const pending = pendingConnect.get(chain);
-  if (pending) return pending;
+  const inflight = connecting.get(chain);
+  if (inflight) return inflight;
 
-  const envKey = WS_ENV[chain];
-  const wsUrl = process.env[envKey];
-  if (!wsUrl) {
-    throw new Error(
-      `[substrate] ${envKey} is not set in environment. Cannot connect to the ${chain} chain.`
-    );
-  }
+  const wsUrl = process.env[WS_ENV[chain]];
+  if (!wsUrl) throw new Error(`[node] ${WS_ENV[chain]} is not set`);
 
-  console.log(`[substrate] Connecting to ${chain} chain at ${wsUrl}`);
+  console.log(`[node] Connecting to ${chain} chain at ${wsUrl}`);
 
   const promise = (async () => {
-    const provider = new WsProvider(wsUrl, 5_000); // 5 s reconnect interval
-    const api = await ApiPromise.create({
-      provider,
-      noInitWarn: true,
-    });
-    await api.isReady;
-    console.log(`[substrate] Connected to ${chain} chain — runtime ${api.runtimeVersion.specName}/${api.runtimeVersion.specVersion}`);
-    apiCache.set(chain, api);
-
-    // Clean up cache on fatal disconnect
-    api.on('disconnected', () => {
-      console.warn(`[substrate] ${chain} chain disconnected — will reconnect`);
-      apiCache.delete(chain);
-    });
-
-    return api;
+    const client = new CeruleaNodeClient(wsUrl);
+    await client.connect();
+    clientCache.set(chain, client);
+    console.log(`[node] Connected to ${chain} chain`);
+    return client;
   })();
 
-  pendingConnect.set(chain, promise);
-  promise.finally(() => pendingConnect.delete(chain));
-
+  connecting.set(chain, promise);
+  promise.finally(() => connecting.delete(chain));
   return promise;
 }
 
 export async function disconnectAll(): Promise<void> {
-  for (const [chain, api] of apiCache) {
-    console.log(`[substrate] Disconnecting ${chain} chain`);
-    await api.disconnect();
+  for (const [chain, client] of clientCache) {
+    console.log(`[node] Disconnecting ${chain} chain`);
+    client.disconnect();
   }
-  apiCache.clear();
+  clientCache.clear();
 }
 
-/** Returns true if a WS URL is configured for this chain. */
 export function isChainConfigured(chain: ChainKey): boolean {
   return !!process.env[WS_ENV[chain]];
 }

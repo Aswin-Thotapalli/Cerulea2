@@ -1,15 +1,14 @@
 /**
- * Convert raw @polkadot/api types into the shapes stored in our SQLite DB.
- * This is the heart of the indexer — it decodes SCALE-encoded block data
- * into human-readable records.
+ * Parse raw block and extrinsic data from Substrate JSON-RPC responses
+ * into flat records suitable for database storage.
+ * No third-party blockchain libraries.
  */
-import type { ApiPromise } from '@polkadot/api';
-import type { SignedBlock, EventRecord } from '@polkadot/types/interfaces';
-import type { Vec } from '@polkadot/types';
+import { createHash } from 'crypto';
+import { decodeCompact, hexToSS58, blake2b256 } from './scale';
+import type { SubstrateBlock } from './rpc-client';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Block
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Block ─────────────────────────────────────────────────────────────────────
+
 export interface ParsedBlock {
   number:         number;
   hash:           string;
@@ -26,68 +25,42 @@ export interface ParsedBlock {
 }
 
 export function parseBlock(
-  signedBlock: SignedBlock,
-  hash: string,
-  allEvents: Vec<EventRecord>,
-  author: string | null,
+  hash:            string,
+  raw:             SubstrateBlock,
+  author:          string | null,
   prevTimestampMs: number | null,
 ): ParsedBlock {
-  const header = signedBlock.block.header;
-  const number = header.number.toNumber();
+  const header = raw.block.header;
+  const number = parseInt(header.number, 16);
+  const extrinsics = raw.block.extrinsics;
 
-  // Timestamp is always the first inherent: timestamp.set(moment)
+  // Timestamp is always in the first unsigned (inherent) extrinsic
   let timestampMs = Date.now();
-  for (const ext of signedBlock.block.extrinsics) {
-    if (ext.method.section === 'timestamp' && ext.method.method === 'set') {
-      timestampMs = Number(ext.method.args[0].toString());
-      break;
-    }
+  for (const hex of extrinsics) {
+    const ts = tryExtractTimestamp(hex);
+    if (ts !== null) { timestampMs = ts; break; }
   }
 
-  // Count signed extrinsics (inherents are unsigned)
-  const txCount = signedBlock.block.extrinsics.filter(e => e.isSigned).length;
+  const txCount = extrinsics.filter(isSignedExtrinsic).length;
+  const blockTimeMs = prevTimestampMs != null ? Math.max(0, timestampMs - prevTimestampMs) : null;
 
-  // Block time: difference from previous block
-  const blockTimeMs = prevTimestampMs != null
-    ? Math.max(0, timestampMs - prevTimestampMs)
-    : null;
-
-  // Encode size (approximate)
   let sizeBytes: number | null = null;
-  try {
-    sizeBytes = signedBlock.encodedLength;
-  } catch {}
-
-  // Block weight from System.BlockWeight storage event if present
-  let weight: string | null = null;
-  try {
-    const weightEvent = allEvents.find(({ event }) =>
-      event.section === 'system' && event.method === 'ExtrinsicSuccess'
-    );
-    if (weightEvent) {
-      weight = (weightEvent.event.data[0] as any)?.weight?.toString() ?? null;
-    }
-  } catch {}
+  try { sizeBytes = extrinsics.reduce((s, h) => s + Math.floor((h.length - 2) / 2), 0); } catch {}
 
   return {
-    number,
-    hash,
-    parentHash:     header.parentHash.toHex(),
-    stateRoot:      header.stateRoot.toHex(),
-    extrinsicsRoot: header.extrinsicsRoot.toHex(),
-    timestampMs,
-    author,
-    txCount,
-    blockTimeMs,
-    weight,
+    number, hash,
+    parentHash:     header.parentHash,
+    stateRoot:      header.stateRoot,
+    extrinsicsRoot: header.extrinsicsRoot,
+    timestampMs, author, txCount, blockTimeMs,
+    weight:      null,
     sizeBytes,
-    eventsCount: allEvents.length,
+    eventsCount: 0,
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Extrinsic
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Extrinsic ─────────────────────────────────────────────────────────────────
+
 export interface ParsedExtrinsic {
   hash:         string;
   blockNumber:  number;
@@ -108,188 +81,134 @@ export interface ParsedExtrinsic {
 }
 
 export function parseExtrinsic(
-  api: ApiPromise,
-  extrinsic: SignedBlock['block']['extrinsics'][number],
-  idx: number,
+  extHex:      string,
+  idx:         number,
   blockNumber: number,
-  blockHash: string,
+  blockHash:   string,
   timestampMs: number,
-  allEvents: Vec<EventRecord>,
 ): ParsedExtrinsic {
-  const section = extrinsic.method.section;
-  const method  = extrinsic.method.method;
+  const bytes = Buffer.from(extHex.startsWith('0x') ? extHex.slice(2) : extHex, 'hex');
+  const hash = '0x' + blake2b256(bytes).toString('hex');
 
-  // Filter events belonging to this extrinsic
-  const txEvents = allEvents.filter(({ phase }) =>
-    phase.isApplyExtrinsic && phase.asApplyExtrinsic.eq(idx)
-  );
-
-  // Status
-  let status: 'success' | 'failed' | 'pending' = 'pending';
-  for (const { event } of txEvents) {
-    if (api.events.system.ExtrinsicSuccess.is(event)) { status = 'success'; break; }
-    if (api.events.system.ExtrinsicFailed.is(event))  { status = 'failed';  break; }
-  }
-
-  // Fee from TransactionPayment.TransactionFeePaid
-  let fee = '0';
-  try {
-    const feeEv = txEvents.find(({ event }) =>
-      event.section === 'transactionPayment' && event.method === 'TransactionFeePaid'
-    );
-    if (feeEv) fee = feeEv.event.data[1]?.toString() ?? '0';
-  } catch {}
-
-  // From / nonce
-  let fromAddress: string | null = null;
-  let nonce: number | null = null;
-  if (extrinsic.isSigned) {
-    fromAddress = extrinsic.signer.toString();
-    nonce = extrinsic.nonce.toNumber();
-  }
-
-  // To / value — depends on the call
-  let toAddress: string | null = null;
-  let value = '0';
-  extractTransferFields(section, method, extrinsic.method.args, (to, val) => {
-    toAddress = to;
-    value = val;
+  const blank = (): ParsedExtrinsic => ({
+    hash, blockNumber, blockHash, indexInBlock: idx, timestampMs,
+    fromAddress: null, toAddress: null, value: '0', fee: '0',
+    status: 'pending', section: 'unknown', method: 'unknown',
+    nonce: null, callData: extHex, decodedCall: null, eventsJson: null,
   });
 
-  // Detect contract instantiation
-  if (section === 'contracts' && method === 'instantiate') {
-    // No specific "to", but the contract address comes from an event
-    const instantiateEv = txEvents.find(({ event }) =>
-      event.section === 'contracts' && event.method === 'Instantiated'
-    );
-    if (instantiateEv) {
-      toAddress = instantiateEv.event.data[1]?.toString() ?? null; // contract address
-    }
-  }
-
-  // Decoded call as JSON
-  let decodedCall: string | null = null;
   try {
-    decodedCall = JSON.stringify({
-      section,
-      method,
-      args: extrinsic.method.toJSON(),
-    });
-  } catch {}
+    let pos = 0;
 
-  // Events as JSON
-  let eventsJson: string | null = null;
-  try {
-    eventsJson = JSON.stringify(
-      txEvents.map(({ event, phase }) => ({
-        index:   txEvents.indexOf({ event, phase } as any),
-        section: event.section,
-        method:  event.method,
-        data:    event.data.toJSON(),
-        phase:   phase.toString(),
-      }))
-    );
-  } catch {}
+    // Skip compact length prefix
+    const { bytesRead: lenB } = decodeCompact(bytes, pos);
+    pos += lenB;
+    if (pos >= bytes.length) return blank();
 
-  // Raw call data (hex)
-  let callData: string | null = null;
-  try {
-    callData = extrinsic.method.toHex();
-  } catch {}
+    const version  = bytes[pos++];
+    const isSigned = (version & 0x80) !== 0;
 
-  return {
-    hash:         extrinsic.hash.toHex(),
-    blockNumber,
-    blockHash,
-    indexInBlock: idx,
-    timestampMs,
-    fromAddress,
-    toAddress,
-    value,
-    fee,
-    status,
-    section,
-    method,
-    nonce,
-    callData,
-    decodedCall,
-    eventsJson,
-  };
-}
+    let fromAddress: string | null = null;
+    let nonce: number | null = null;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Transfer field extraction (handles common transfer calls)
-// ─────────────────────────────────────────────────────────────────────────────
-function extractTransferFields(
-  section: string,
-  method: string,
-  args: any,
-  cb: (to: string, value: string) => void
-): void {
-  try {
-    // balances.transfer / balances.transferKeepAlive / balances.transferAll
-    if (section === 'balances' && (method === 'transfer' || method === 'transferKeepAlive')) {
-      cb(args[0].toString(), args[1].toString());
-      return;
+    if (isSigned) {
+      // MultiAddress: 0x00 = AccountId32, 0x01 = AccountIndex, 0xff = raw
+      const addrType = bytes[pos++];
+      if (addrType === 0x00) {
+        fromAddress = hexToSS58(bytes.slice(pos, pos + 32).toString('hex'));
+        pos += 32;
+      } else {
+        pos += 32; // best-effort skip
+      }
+
+      // Signature: ed25519/sr25519 = 64 bytes, ecdsa = 65 bytes
+      const sigType = bytes[pos++];
+      pos += sigType === 0x02 ? 65 : 64;
+
+      // Era: 0x00 = immortal, else 2 bytes
+      const era = bytes[pos++];
+      if (era !== 0x00) pos++;
+
+      // Nonce (compact u64)
+      const nr = decodeCompact(bytes, pos);
+      nonce = Number(nr.value);
+      pos += nr.bytesRead;
+
+      // Tip (compact u128) — skip
+      pos += decodeCompact(bytes, pos).bytesRead;
     }
-    // balances.transferAll
-    if (section === 'balances' && method === 'transferAll') {
-      cb(args[0].toString(), '0');
-      return;
-    }
-    // evm.call / evm.create
-    if (section === 'evm' && method === 'call') {
-      cb(args[1].toString(), args[3].toString());
-      return;
-    }
+
+    if (pos + 2 > bytes.length) return blank();
+
+    const moduleIdx = bytes[pos++];
+    const callIdx   = bytes[pos++];
+
+    // Extract recipient/value for transfer-like calls
+    let toAddress: string | null = null;
+    let value = '0';
+    try {
+      const r = tryExtractRecipientAmount(bytes, pos);
+      if (r.to)     toAddress = r.to;
+      if (r.amount) value     = r.amount;
+    } catch {}
+
+    return {
+      hash, blockNumber, blockHash, indexInBlock: idx, timestampMs,
+      fromAddress, toAddress, value, fee: '0',
+      status: 'pending',
+      section: `pallet_${moduleIdx}`,
+      method:  `call_${callIdx}`,
+      nonce,
+      callData:    extHex,
+      decodedCall: JSON.stringify({ moduleIndex: moduleIdx, callIndex: callIdx }),
+      eventsJson:  null,
+    };
   } catch {
-    // Ignore parse errors — fields stay as defaults
+    return blank();
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Contract detection from events
-// ─────────────────────────────────────────────────────────────────────────────
-export interface DetectedContract {
-  address:  string;
-  deployer: string | null;
-  txHash:   string;
-  block:    number;
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function isSignedExtrinsic(hex: string): boolean {
+  try {
+    const buf = Buffer.from(hex.startsWith('0x') ? hex.slice(2) : hex, 'hex');
+    const { bytesRead } = decodeCompact(buf, 0);
+    return buf.length > bytesRead && (buf[bytesRead] & 0x80) !== 0;
+  } catch { return false; }
 }
 
-export function detectContracts(
-  signedBlock: SignedBlock,
-  allEvents: Vec<EventRecord>,
-  blockNumber: number,
-): DetectedContract[] {
-  const contracts: DetectedContract[] = [];
+/** Extract timestamp from timestamp.set inherent (unsigned, module 3 call 0 by default). */
+function tryExtractTimestamp(hex: string): number | null {
+  try {
+    const buf = Buffer.from(hex.startsWith('0x') ? hex.slice(2) : hex, 'hex');
+    let pos = decodeCompact(buf, 0).bytesRead;
+    const version = buf[pos++];
+    if (version & 0x80) return null; // signed extrinsic — skip
+    pos += 2; // skip module + call index
+    const { value } = decodeCompact(buf, pos);
+    const ts = Number(value);
+    // Sanity: reasonable UTC ms timestamp (2020–2100)
+    if (ts > 1_577_836_800_000 && ts < 4_102_444_800_000) return ts;
+    return null;
+  } catch { return null; }
+}
 
-  for (const [idx, ext] of signedBlock.block.extrinsics.entries()) {
-    const txEvents = allEvents.filter(({ phase }) =>
-      phase.isApplyExtrinsic && phase.asApplyExtrinsic.eq(idx)
-    );
-
-    // ink! / pallet-contracts
-    for (const { event } of txEvents) {
-      if (event.section === 'contracts' && event.method === 'Instantiated') {
-        contracts.push({
-          address:  event.data[1].toString(),
-          deployer: event.data[0].toString(),
-          txHash:   ext.hash.toHex(),
-          block:    blockNumber,
-        });
-      }
-      // EVM / Frontier
-      if (event.section === 'evm' && event.method === 'Created') {
-        contracts.push({
-          address:  event.data[0].toString(),
-          deployer: ext.isSigned ? ext.signer.toString() : null,
-          txHash:   ext.hash.toHex(),
-          block:    blockNumber,
-        });
-      }
+/** Try to extract a recipient address and amount from the call args. */
+function tryExtractRecipientAmount(
+  bytes: Buffer, argsOffset: number,
+): { to: string | null; amount: string | null } {
+  // Heuristic: check for MultiAddress::Id (0x00 prefix + 32-byte AccountId) followed by compact amount.
+  // This matches balances.transfer / balances.transferKeepAlive args on most Substrate runtimes.
+  const pos = argsOffset;
+  if (pos < bytes.length && bytes[pos] === 0x00 && pos + 33 <= bytes.length) {
+    const to = hexToSS58(bytes.slice(pos + 1, pos + 33).toString('hex'));
+    const amtPos = pos + 33;
+    if (amtPos < bytes.length) {
+      const { value } = decodeCompact(bytes, amtPos);
+      return { to, amount: value.toString() };
     }
+    return { to, amount: null };
   }
-
-  return contracts;
+  return { to: null, amount: null };
 }
