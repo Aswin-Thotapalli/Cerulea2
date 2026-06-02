@@ -9,9 +9,9 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@cerulea/types": "*",
-    "@cerulea/ui": "*",
-    "@cerulea/utils": "*",
+    "@cerulea/types": "workspace:*",
+    "@cerulea/ui": "workspace:*",
+    "@cerulea/utils": "workspace:*",
     "@emotion/react": "^11.14.0",
     "@polkadot/extension-dapp": "^0.46.6",
     "@emotion/styled": "^11.14.1",
