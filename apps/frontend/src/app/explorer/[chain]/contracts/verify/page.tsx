@@ -5,7 +5,7 @@ import {
   Step, Stepper, StepLabel, Alert, CircularProgress,
   MenuItem, Divider,
 } from '@mui/material';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useChainContext } from '@/context/ChainContext';
 import { verifyContract } from '@/lib/explorer/api/contracts';
@@ -22,7 +22,7 @@ const OPTIMIZATIONS = ['No optimization', '200 runs', '1000 runs', '10000 runs']
 
 type VerifyStep = 0 | 1 | 2;
 
-export default function VerifyContractPage() {
+function VerifyContractPageInner() {
   const { chain } = useChainContext();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -183,5 +183,13 @@ export default function VerifyContractPage() {
         </Paper>
       )}
     </Box>
+  );
+}
+
+export default function VerifyContractPage() {
+  return (
+    <Suspense>
+      <VerifyContractPageInner />
+    </Suspense>
   );
 }
