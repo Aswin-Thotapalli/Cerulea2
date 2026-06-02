@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { eq, and, desc, sql, gte } from 'drizzle-orm';
 import { getDb }               from '../db/client';
 import { blocks, extrinsics, validators } from '../db/schema';
-import { getApi, isChainConfigured } from '../indexer/substrate';
+import { getClient, isChainConfigured } from '../indexer/substrate';
 import type { NetworkStats, ChainSlug } from '@cerulea/types';
 
 const networkRoute: FastifyPluginAsync = async (app) => {
@@ -70,10 +70,11 @@ const networkRoute: FastifyPluginAsync = async (app) => {
     let chainStatus: 'healthy' | 'degraded' | 'down' = 'down';
     if (isChainConfigured(chain)) {
       try {
-        const api = await getApi(chain);
-        if (api.isConnected) {
-          // If latest indexed block is within last 10 blocks, healthy
-          const chainHead = (await api.rpc.chain.getHeader()).number.toNumber();
+        const client = await getClient(chain);
+        if (client.isConnected) {
+          const headHash   = await client.getBlockHash();
+          const headHeader = await client.getHeader(headHash);
+          const chainHead  = parseInt(headHeader.number, 16);
           const lag = chainHead - latestBlock;
           chainStatus = lag <= 10 ? 'healthy' : lag <= 50 ? 'degraded' : 'down';
         }
@@ -81,7 +82,6 @@ const networkRoute: FastifyPluginAsync = async (app) => {
         chainStatus = latestBlock > 0 ? 'degraded' : 'down';
       }
     } else if (latestBlock > 0) {
-      // Have data but node not configured
       chainStatus = 'degraded';
     }
 

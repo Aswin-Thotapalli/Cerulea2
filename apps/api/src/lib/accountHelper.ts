@@ -1,39 +1,59 @@
-import type { ApiPromise } from '@polkadot/api';
-import { getDb }           from '../db/client';
-import { accounts }        from '../db/schema';
+import { getDb }                      from '../db/client';
+import { accounts }                   from '../db/schema';
+import { systemAccountKey, decodeAccountInfo } from '../indexer/scale';
+import type { CeruleaNodeClient }     from '../indexer/rpc-client';
 
-export async function upsertAccountFromApi(
-  api:         ApiPromise,
+const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+function ss58ToBytes(address: string): Buffer | null {
+  try {
+    let n = 0n;
+    for (const c of address) {
+      const idx = BASE58.indexOf(c);
+      if (idx < 0) return null;
+      n = n * 58n + BigInt(idx);
+    }
+    const bytes: number[] = [];
+    while (n > 0n) { bytes.unshift(Number(n & 0xffn)); n >>= 8n; }
+    const buf = Buffer.from(bytes);
+    const prefixLen = buf[0] < 64 ? 1 : 2;
+    return buf.slice(prefixLen, prefixLen + 32);
+  } catch { return null; }
+}
+
+export async function upsertAccountFromClient(
+  client:      CeruleaNodeClient,
   chain:       string,
   address:     string,
   blockNumber: number | null,
 ): Promise<void> {
   const db = getDb();
   try {
-    const info = await api.query.system.account(address) as any;
-    const data = info.data;
-    db.insert(accounts)
-      .values({
-        chain,
-        address,
-        freeBalance:     data.free?.toString()     ?? '0',
-        reservedBalance: data.reserved?.toString() ?? '0',
-        nonce:           info.nonce?.toNumber()     ?? 0,
+    const accountId = ss58ToBytes(address);
+    if (!accountId) return;
+
+    const raw = await client.getStorage(systemAccountKey(accountId));
+    if (!raw) return;
+
+    const { nonce, free, reserved } = decodeAccountInfo(raw);
+    db.insert(accounts).values({
+      chain, address,
+      freeBalance:     free.toString(),
+      reservedBalance: reserved.toString(),
+      nonce,
+      lastSeenBlock:   blockNumber,
+      updatedAt:       Date.now(),
+    }).onConflictDoUpdate({
+      target: [accounts.chain, accounts.address],
+      set: {
+        freeBalance:     free.toString(),
+        reservedBalance: reserved.toString(),
+        nonce,
         lastSeenBlock:   blockNumber,
         updatedAt:       Date.now(),
-      })
-      .onConflictDoUpdate({
-        target: [accounts.chain, accounts.address],
-        set: {
-          freeBalance:     data.free?.toString()     ?? '0',
-          reservedBalance: data.reserved?.toString() ?? '0',
-          nonce:           info.nonce?.toNumber()     ?? 0,
-          lastSeenBlock:   blockNumber,
-          updatedAt:       Date.now(),
-        },
-      })
-      .run();
+      },
+    }).run();
   } catch {
-    // Silently skip — node may not have this account
+    // Silently skip
   }
 }
