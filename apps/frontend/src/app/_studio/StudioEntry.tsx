@@ -59,11 +59,13 @@ export default function StudioEntry({ projectId: initialProjectId }: Props) {
         } catch {}
 
         // Pre-populate Step 1 blueprint — always overwrite from DB for this project
+        let hasModules = false;
         try {
           const bpRes = await fetch(`/api/projects/${pid}/blueprint`);
           if (bpRes.ok) {
             const { blueprint } = await bpRes.json();
             if (blueprint?.graph?.nodes?.length) {
+              hasModules = true;
               localStorage.setItem('cerulea.step1.graph', JSON.stringify(blueprint.graph));
               localStorage.setItem('cerulea.projectId.last', pid);
 
@@ -103,8 +105,9 @@ export default function StudioEntry({ projectId: initialProjectId }: Props) {
           }
         } catch {}
 
-        // Existing project — skip Step 0 (type selection), go straight to Blueprint
-        setInitialStep(1);
+        // Only skip the type-selection step if the user has already added modules.
+        // A project with no blueprint modules goes back to step 0 on next login.
+        if (hasModules) setInitialStep(1);
       }
 
       setResolvedId(pid);
