@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  transpilePackages: ['@cerulea/types', '@cerulea/ui', '@cerulea/utils'],
 
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
