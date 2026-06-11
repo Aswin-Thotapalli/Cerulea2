@@ -4185,7 +4185,6 @@
       }
     },
     {
-      "templateId": "chain-tax-compliance",
       "title": "Tax Compliance & GST Reconciliation Ledger",
       "projectType": "blockchain",
       "category": "government-civic",
@@ -4204,10 +4203,22 @@
         "provenance-notary",
         "kyc-utility-registry",
         "api-gateway"
+      ],
+      "id": "chain-tax-compliance",
+      "tags": [],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "rpc",
+        "explorer",
+        "compliance-attestations",
+        "evidence-chain",
+        "provenance-notary",
+        "kyc-utility-registry",
+        "api-gateway"
       ]
     },
     {
-      "templateId": "chain-lab-diagnostics",
       "title": "Diagnostics & Lab Result Integrity Chain",
       "projectType": "blockchain",
       "category": "healthcare",
@@ -4227,10 +4238,23 @@
         "did-vc-ledger",
         "compliance-attestations",
         "api-gateway"
+      ],
+      "id": "chain-lab-diagnostics",
+      "tags": [],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "stf",
+        "rpc",
+        "explorer",
+        "evidence-chain",
+        "provenance-notary",
+        "did-vc-ledger",
+        "compliance-attestations",
+        "api-gateway"
       ]
     },
     {
-      "templateId": "chain-emissions-compliance",
       "title": "Industrial Emissions Permit & Compliance Monitor",
       "projectType": "blockchain",
       "category": "energy-environment",
@@ -4250,10 +4274,23 @@
         "device-attestation",
         "oracles",
         "api-gateway"
+      ],
+      "id": "chain-emissions-compliance",
+      "tags": [],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "stf",
+        "rpc",
+        "explorer",
+        "compliance-attestations",
+        "provenance-notary",
+        "device-attestation",
+        "oracles",
+        "api-gateway"
       ]
     },
     {
-      "templateId": "chain-food-safety-recall",
       "title": "Food Safety Recall Coordination Network",
       "projectType": "blockchain",
       "category": "manufacturing",
@@ -4273,10 +4310,23 @@
         "compliance-attestations",
         "indexer-sink",
         "api-gateway"
+      ],
+      "id": "chain-food-safety-recall",
+      "tags": [],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "stf",
+        "rpc",
+        "explorer",
+        "traceability-ledger",
+        "quality-recalls",
+        "compliance-attestations",
+        "indexer-sink",
+        "api-gateway"
       ]
     },
     {
-      "templateId": "chain-ip-adr",
       "title": "IP Registry, Licensing & ADR Evidence Vault",
       "projectType": "blockchain",
       "category": "legal-professional",
@@ -4296,10 +4346,23 @@
         "royalty-clearing",
         "compliance-attestations",
         "api-gateway"
+      ],
+      "id": "chain-ip-adr",
+      "tags": [],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "rpc",
+        "explorer",
+        "evidence-chain",
+        "provenance-notary",
+        "did-vc-ledger",
+        "royalty-clearing",
+        "compliance-attestations",
+        "api-gateway"
       ]
     },
     {
-      "templateId": "chain-travel-document",
       "title": "Digital Travel Document & Border Verification",
       "projectType": "blockchain",
       "category": "government-civic",
@@ -4318,10 +4381,22 @@
         "privacy-compliance",
         "provenance-notary",
         "api-gateway"
+      ],
+      "id": "chain-travel-document",
+      "tags": [],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "rpc",
+        "explorer",
+        "did-vc-ledger",
+        "civil-registry",
+        "privacy-compliance",
+        "provenance-notary",
+        "api-gateway"
       ]
     },
     {
-      "templateId": "chain-gambling-exclusion",
       "title": "Responsible Gambling Self-Exclusion Registry",
       "projectType": "blockchain",
       "category": "gambling-gaming",
@@ -4340,10 +4415,22 @@
         "privacy-compliance",
         "compliance-attestations",
         "api-gateway"
+      ],
+      "id": "chain-gambling-exclusion",
+      "tags": [],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "rpc",
+        "explorer",
+        "did-vc-ledger",
+        "kyc-utility-registry",
+        "privacy-compliance",
+        "compliance-attestations",
+        "api-gateway"
       ]
     },
     {
-      "templateId": "chain-satellite-ops",
       "title": "Satellite Operations & Spectrum Coordination Registry",
       "projectType": "blockchain",
       "category": "space",
@@ -4363,10 +4450,23 @@
         "compliance-attestations",
         "node-permissioning",
         "api-gateway"
+      ],
+      "id": "chain-satellite-ops",
+      "tags": [],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "rpc",
+        "explorer",
+        "spectrum-registry",
+        "evidence-chain",
+        "provenance-notary",
+        "compliance-attestations",
+        "node-permissioning",
+        "api-gateway"
       ]
     },
     {
-      "templateId": "chain-customs-clearance",
       "title": "Customs Clearance & Trade Document Chain",
       "projectType": "blockchain",
       "category": "government-civic",
@@ -4385,10 +4485,22 @@
         "compliance-attestations",
         "kyc-utility-registry",
         "api-gateway"
+      ],
+      "id": "chain-customs-clearance",
+      "tags": [],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "rpc",
+        "explorer",
+        "trade-finance-docs",
+        "provenance-notary",
+        "compliance-attestations",
+        "kyc-utility-registry",
+        "api-gateway"
       ]
     },
     {
-      "templateId": "chain-aviation-mro",
       "title": "Aircraft Parts MRO Provenance & Airworthiness",
       "projectType": "blockchain",
       "category": "manufacturing",
@@ -4410,10 +4522,25 @@
         "quality-recalls",
         "node-permissioning",
         "api-gateway"
+      ],
+      "id": "chain-aviation-mro",
+      "tags": [],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "stf",
+        "rpc",
+        "explorer",
+        "traceability-ledger",
+        "device-attestation",
+        "evidence-chain",
+        "did-vc-ledger",
+        "quality-recalls",
+        "node-permissioning",
+        "api-gateway"
       ]
     },
     {
-      "templateId": "chain-trade-compliance",
       "title": "International Trade Compliance & Dispute Evidence",
       "projectType": "blockchain",
       "category": "government-civic",
@@ -4423,6 +4550,20 @@
       "blurb": "WTO and bilateral trade dispute evidence submission, government delegation credential anchoring, procedural timeline with immutable filing dates, and third-party arbitration access layer.",
       "description": "Handles the government side of international trade (distinct from chain-trade-finance which covers the private sector buyer-seller flow). WTO dispute settlement, anti-dumping investigation evidence, rules of origin certification, and preferential trade agreement compliance verification. Each participating government needs a credentialed evidence submission layer with immutable timestamps. node-permissioning controls which government delegations can access which case records. Buyers: Ministry of Commerce and Industry, DGFT, CII, and FICCI. Gated (contact-us) due to government ministry procurement cycles.",
       "modules": [
+        "consensus",
+        "evm-config",
+        "rpc",
+        "explorer",
+        "evidence-chain",
+        "provenance-notary",
+        "did-vc-ledger",
+        "compliance-attestations",
+        "node-permissioning",
+        "api-gateway"
+      ],
+      "id": "chain-trade-compliance",
+      "tags": [],
+      "preinstalledModules": [
         "consensus",
         "evm-config",
         "rpc",
