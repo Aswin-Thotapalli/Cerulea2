@@ -587,7 +587,7 @@ export default function Step0({ goNext }: { goNext: () => void }) {
                             </Stack>
                             <Typography variant="body2" color="text.secondary">{t.description}</Typography>
                             <Stack direction="row" spacing={1} mt={1}>
-                               {t.tags.slice(0,3).map(tag => (
+                               {(t.tags || []).slice(0,3).map(tag => (
                                   <Typography key={tag} variant="caption" sx={{ opacity: 0.6, fontFamily: 'monospace' }}>#{tag}</Typography>
                                ))}
                             </Stack>
