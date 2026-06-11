@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-06-10",
+  "updatedAt": "2026-06-11",
   "modules": [
     {
       "moduleId": "wallet-auth",
@@ -5732,7 +5732,9 @@
         "p2p-tls",
         "sentry-nodes",
         "tx-access-policy",
-        "kyb-registry"
+        "kyb-registry",
+        "compliance-attestations",
+        "privacy-compliance"
       ],
       "reasonByDepId": {},
       "configSchema": {
@@ -6613,7 +6615,11 @@
       "dependsOn": [
         "api-gateway"
       ],
-      "recommends": [],
+      "recommends": [
+        "did-vc-ledger",
+        "civil-registry",
+        "compliance-attestations"
+      ],
       "reasonByDepId": {
         "api-gateway": "Intercepts and enforces per-route policies before requests hit nodes."
       },
@@ -6657,7 +6663,10 @@
       ],
       "recommends": [
         "indexer-sink",
-        "iot-device-registry"
+        "iot-device-registry",
+        "compliance-attestations",
+        "industrial-iot-oracle",
+        "oracles"
       ],
       "reasonByDepId": {
         "stf": "State transition validates signatures and anti-replay."
@@ -7138,7 +7147,10 @@
         "explorer",
         "indexer-sink",
         "health-record-anchor",
-        "ip-rights-registry"
+        "ip-rights-registry",
+        "compliance-attestations",
+        "evidence-chain",
+        "civil-registry"
       ],
       "reasonByDepId": {
         "stf": "State transition validates submissions and prevents replay."
@@ -7171,7 +7183,9 @@
         "academic-credential-registry",
         "skill-passport",
         "vaccination-cert",
-        "patient-consent"
+        "patient-consent",
+        "civil-registry",
+        "provenance-notary"
       ],
       "reasonByDepId": {
         "rpc": "Publishes and queries DID/VC events."
@@ -7206,7 +7220,9 @@
       ],
       "recommends": [
         "privacy-compliance",
-        "indexer-sink"
+        "indexer-sink",
+        "provenance-notary",
+        "did-vc-ledger"
       ],
       "reasonByDepId": {
         "stf": "Validates record creation and updates on-chain."
@@ -7269,7 +7285,10 @@
       ],
       "recommends": [
         "number-registry",
-        "indexer-sink"
+        "indexer-sink",
+        "provenance-notary",
+        "node-permissioning",
+        "compliance-attestations"
       ],
       "reasonByDepId": {
         "stf": "Validates allocation/transfer state changes."
@@ -7545,7 +7564,10 @@
       ],
       "recommends": [
         "escrow-settlement",
-        "indexer-sink"
+        "indexer-sink",
+        "provenance-notary",
+        "compliance-attestations",
+        "kyc-utility-registry"
       ],
       "reasonByDepId": {
         "stf": "Ensures consistent document state transitions."
@@ -7735,7 +7757,10 @@
       ],
       "recommends": [
         "indexer-sink",
-        "privacy-compliance"
+        "privacy-compliance",
+        "evidence-chain",
+        "provenance-notary",
+        "regulatory-reporting"
       ],
       "reasonByDepId": {
         "stf": "Applies validity checks and lifecycle constraints."
@@ -7797,7 +7822,9 @@
       "recommends": [
         "escrow-settlement",
         "indexer-sink",
-        "music-rights-registry"
+        "music-rights-registry",
+        "provenance-notary",
+        "evidence-chain"
       ],
       "reasonByDepId": {
         "fees": "Applies payout and processing fees.",
@@ -7998,7 +8025,8 @@
         "indexer-sink",
         "recall-hub",
         "bom-ledger",
-        "drug-serial-ledger"
+        "drug-serial-ledger",
+        "compliance-attestations"
       ],
       "reasonByDepId": {
         "stf": "Ensures consistent state transitions across batch events."
@@ -8222,7 +8250,9 @@
         "rpc"
       ],
       "recommends": [
-        "indexer-sink"
+        "indexer-sink",
+        "compliance-attestations",
+        "device-attestation"
       ],
       "reasonByDepId": {
         "rpc": "Publishes updates and serves verification queries."
@@ -8254,7 +8284,9 @@
         "indexer-sink",
         "privacy-compliance",
         "arbitration-vault",
-        "court-filing-registry"
+        "court-filing-registry",
+        "compliance-attestations",
+        "provenance-notary"
       ],
       "reasonByDepId": {
         "stf": "Validates unique references and prevents replay."
@@ -8284,7 +8316,8 @@
       ],
       "recommends": [
         "api-gateway",
-        "kyb-registry"
+        "kyb-registry",
+        "privacy-compliance"
       ],
       "reasonByDepId": {
         "stf": "Ensures consistent issuance/revocation state transitions."
