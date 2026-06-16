@@ -11,7 +11,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "fix:step-dupes": "node scripts/fix-step-dupes.cjs",
-    "seed:test-account": "node scripts/seed-test-account.cjs"
+    "seed:test-account": "node scripts/seed-test-account.cjs",
+    "stripe:setup-billing": "node scripts/stripe-setup-billing.cjs"
   },
   "dependencies": {
     "@cerulea/types": "*",

@@ -8,7 +8,7 @@ declare module "next-auth" {
       email: string;
       name?: string | null;
       image?: string | null;
-      plan: "free" | "developer" | "pro" | "enterprise";
+      plan: "free" | "developer" | "pro" | "enterprise" | "public_dapps" | "private_dapps" | "private_dapps_pro";
       isTestAccount: boolean;
     };
   }
