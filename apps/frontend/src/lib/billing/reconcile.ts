@@ -38,6 +38,7 @@ export async function reconcileFromStripeSubscription(
   const { tierPriceToId, addonRecurringPriceToId } = buildPriceReverseMaps();
 
   let tierId: string | null = null;
+  let tierSubscriptionItemId: string | null = null;
   const addonLineItems: { addonId: string; quantity: number; stripeSubscriptionItemId: string }[] = [];
 
   for (const item of sub.items.data) {
@@ -45,6 +46,7 @@ export async function reconcileFromStripeSubscription(
     if (!priceId) continue;
     if (tierPriceToId.has(priceId)) {
       tierId = tierPriceToId.get(priceId)!;
+      tierSubscriptionItemId = item.id;
     } else if (addonRecurringPriceToId.has(priceId)) {
       addonLineItems.push({
         addonId: addonRecurringPriceToId.get(priceId)!,
@@ -84,6 +86,8 @@ export async function reconcileFromStripeSubscription(
 
   const subscriptionId = existing?.id ?? randomUUID();
 
+  const cancelAtPeriodEnd = (sub as any).cancel_at_period_end ? 'true' : 'false';
+
   if (existing) {
     await db
       .update(subscriptions)
@@ -92,6 +96,8 @@ export async function reconcileFromStripeSubscription(
         status: sub.status,
         stripeCustomerId: sub.customer as string,
         stripeSubscriptionId: sub.id,
+        stripeTierSubscriptionItemId: tierSubscriptionItemId,
+        cancelAtPeriodEnd,
         currentPeriodEnd: periodEndIso as any,
         lastWebhookEventId: params.stripeEventId ?? (existing as any).lastWebhookEventId ?? null,
         updatedAt: new Date().toISOString(),
@@ -105,6 +111,8 @@ export async function reconcileFromStripeSubscription(
       status: sub.status,
       stripeCustomerId: sub.customer as string,
       stripeSubscriptionId: sub.id,
+      stripeTierSubscriptionItemId: tierSubscriptionItemId,
+      cancelAtPeriodEnd,
       currentPeriodEnd: periodEndIso as any,
       lastWebhookEventId: params.stripeEventId ?? null,
     });

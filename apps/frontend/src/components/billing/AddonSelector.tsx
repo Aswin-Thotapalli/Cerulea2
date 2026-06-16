@@ -43,6 +43,13 @@ export interface AddonSelectorProps {
   purchasedOneTimeAddonIds?: string[];
   /** Dashboard only: fired when the user turns on an addon that needs a paid checkout first. */
   onRequestOneTimeCheckout?: (addonId: string) => void;
+  /**
+   * Dashboard only: fired when the user turns OFF an add-on that was
+   * already active (i.e. a cancellation). Lets the parent persist it
+   * immediately via the dedicated remove endpoint rather than waiting
+   * for a batch "Save changes" — add-ons cancel individually, instantly.
+   */
+  onInstantRemove?: (addonId: string) => void;
   disabled?: boolean;
 }
 
@@ -64,6 +71,7 @@ export default function AddonSelector({
   mode,
   purchasedOneTimeAddonIds = [],
   onRequestOneTimeCheckout,
+  onInstantRemove,
   disabled = false,
 }: AddonSelectorProps) {
   const theme = useTheme();
@@ -94,7 +102,11 @@ export default function AddonSelector({
 
   const handleToggle = (addon: Addon, checked: boolean) => {
     if (!checked) {
+      const wasActive = selectedMap.has(addon.id);
       removeAddon(addon.id);
+      if (mode === 'dashboard' && wasActive) {
+        onInstantRemove?.(addon.id); // cancel this one add-on immediately, not batched with Save
+      }
       return;
     }
 
