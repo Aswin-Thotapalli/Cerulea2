@@ -16,9 +16,11 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText,
 } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
 import { alpha, useTheme } from '@mui/material/styles';
 import {
-  TIERS, getTierById, formatCents, type TierId, type AddonSelection,
+  TIERS, getTierById, getAddonById, isAddonEligibleForTier, formatCents, type TierId, type AddonSelection,
 } from '@/config/billing-catalog';
 import AddonSelector from '@/components/billing/AddonSelector';
 import PriceSummary from '@/components/billing/PriceSummary';
@@ -81,6 +83,25 @@ export default function DashboardBillingPage() {
   );
 
   const isDirty = data ? !selectionsEqual(selections, data.addons) : false;
+
+  // What happens to each currently-active add-on if the pending tier
+  // switch is confirmed — computed from the catalog's own eligibility
+  // rules, the same ones the server enforces, so this can never drift
+  // from what actually happens.
+  const tierChangeImpact = React.useMemo(() => {
+    if (!pendingTierChange || !data) return null;
+    const willContinue: { id: string; name: string }[] = [];
+    const willBeRemoved: { id: string; name: string }[] = [];
+    for (const sel of data.addons) {
+      const addon = getAddonById(sel.addonId);
+      if (!addon) continue;
+      (isAddonEligibleForTier(addon.id, pendingTierChange) ? willContinue : willBeRemoved).push({
+        id: addon.id,
+        name: addon.name,
+      });
+    }
+    return { willContinue, willBeRemoved };
+  }, [pendingTierChange, data]);
 
   const handleRequestOneTimeCheckout = async (addonId: string) => {
     setError(null);
@@ -189,11 +210,11 @@ export default function DashboardBillingPage() {
         setError(json.error || 'Could not change plan.');
         return;
       }
-      setNotice(
-        json.removedAddons?.length
-          ? `Plan changed. Removed (not available on the new plan): ${json.removedAddons.join(', ')}.`
-          : 'Plan changed.'
-      );
+      const continuedNames = tierChangeImpact?.willContinue.map((a) => a.name) ?? [];
+      const parts = [`Switched to ${getTierById(pendingTierChange)?.name}.`];
+      if (json.removedAddons?.length) parts.push(`Removed: ${json.removedAddons.join(', ')}.`);
+      if (continuedNames.length) parts.push(`Continued unchanged: ${continuedNames.join(', ')}.`);
+      setNotice(parts.join(' '));
       await load();
     } catch {
       setError('Could not change plan.');
@@ -471,10 +492,45 @@ export default function DashboardBillingPage() {
           Switch to {pendingTierChange ? getTierById(pendingTierChange)?.name : ''}?
         </DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            Your billing updates immediately, prorated for the rest of this period. Any active add-on
-            that isn&apos;t available on the new plan will be removed.
+          <DialogContentText sx={{ mb: tierChangeImpact && (tierChangeImpact.willContinue.length || tierChangeImpact.willBeRemoved.length) ? 2 : 0 }}>
+            Your billing updates immediately, prorated for the rest of this period.
           </DialogContentText>
+
+          {tierChangeImpact && tierChangeImpact.willContinue.length === 0 && tierChangeImpact.willBeRemoved.length === 0 && (
+            <DialogContentText>You have no active add-ons, so nothing else changes.</DialogContentText>
+          )}
+
+          {tierChangeImpact && tierChangeImpact.willBeRemoved.length > 0 && (
+            <Box sx={{ mb: tierChangeImpact.willContinue.length > 0 ? 2 : 0 }}>
+              <Typography variant="subtitle2" fontWeight={800} color="error.main" sx={{ mb: 0.75 }}>
+                Will be removed — not available on this plan
+              </Typography>
+              <Stack spacing={0.5}>
+                {tierChangeImpact.willBeRemoved.map((a) => (
+                  <Stack key={a.id} direction="row" alignItems="center" spacing={1}>
+                    <CancelIcon sx={{ fontSize: 18, color: 'error.main' }} />
+                    <Typography variant="body2">{a.name}</Typography>
+                  </Stack>
+                ))}
+              </Stack>
+            </Box>
+          )}
+
+          {tierChangeImpact && tierChangeImpact.willContinue.length > 0 && (
+            <Box>
+              <Typography variant="subtitle2" fontWeight={800} color="success.main" sx={{ mb: 0.75 }}>
+                Will continue, unchanged
+              </Typography>
+              <Stack spacing={0.5}>
+                {tierChangeImpact.willContinue.map((a) => (
+                  <Stack key={a.id} direction="row" alignItems="center" spacing={1}>
+                    <CheckCircleIcon sx={{ fontSize: 18, color: 'success.main' }} />
+                    <Typography variant="body2">{a.name}</Typography>
+                  </Stack>
+                ))}
+              </Stack>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button onClick={() => setPendingTierChange(null)} disabled={changingTier !== null}>Cancel</Button>
