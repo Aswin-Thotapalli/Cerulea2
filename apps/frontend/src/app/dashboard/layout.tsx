@@ -20,6 +20,7 @@ import HexagonOutlinedIcon from '@mui/icons-material/HexagonOutlined';
 import DescriptionIcon from '@mui/icons-material/Description';
 import SaveIcon from '@mui/icons-material/Save';
 import HubIcon from '@mui/icons-material/Hub';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -40,6 +41,7 @@ const NAV_ITEMS = [
   { label: 'Audit Logs', href: '/dashboard/audit', icon: <DescriptionIcon fontSize="small" /> },
   { label: 'State Snapshots', href: '/dashboard/state', icon: <SaveIcon fontSize="small" /> },
   { label: 'Integrations', href: '/dashboard/integrations', icon: <HubIcon fontSize="small" /> },
+  { label: 'Billing', href: '/dashboard/billing', icon: <CreditCardIcon fontSize="small" /> },
   { label: 'Settings', href: '/dashboard/settings', icon: <SettingsIcon fontSize="small" /> },
 ];
 

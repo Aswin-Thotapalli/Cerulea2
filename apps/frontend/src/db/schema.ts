@@ -84,6 +84,12 @@ export const aiMessages = pgTable("aiMessages", {
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
 });
 
+// `plan` historically held 'free' | 'developer' | 'pro' | 'enterprise'.
+// It now also holds the Cerulea Studio billing-catalog tier ids
+// ('public_dapps' | 'private_dapps' | 'private_dapps_pro') — see
+// src/config/billing-catalog.ts, which is the single source of truth for
+// tier/add-on pricing and eligibility. 'free' and 'enterprise' remain valid
+// for the always-free tier and the out-of-Studio Contact Sales flow.
 export const subscriptions = pgTable("subscriptions", {
   id: text("id").primaryKey(),
   userId: text("userId").notNull(),
@@ -92,8 +98,58 @@ export const subscriptions = pgTable("subscriptions", {
   stripeSubscriptionId: text("stripeSubscriptionId"),
   status: text("status").notNull().default("inactive"),
   currentPeriodEnd: text("currentPeriodEnd"),
+  // Guards webhook handlers against reprocessing the same Stripe event twice.
+  lastWebhookEventId: text("lastWebhookEventId"),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
+});
+
+// One row per active (or formerly active) add-on line item on a
+// subscription. `addonId` is a catalog id from billing-catalog.ts.
+// `quantity` is stored as text (project convention) and parsed as an int
+// in application code. `stripeSubscriptionItemId` is set for the recurring
+// component of an add-on (Stripe Subscription Items API); it is null for
+// purely one-time add-ons, which have no ongoing subscription item.
+export const subscriptionAddons = pgTable("subscriptionAddons", {
+  id: text("id").primaryKey(),
+  subscriptionId: text("subscriptionId").notNull(),
+  addonId: text("addonId").notNull(),
+  quantity: text("quantity").notNull().default("1"),
+  stripeSubscriptionItemId: text("stripeSubscriptionItemId"),
+  status: text("status").notNull().default("active"), // active | removed
+  createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
+  updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
+});
+
+// Records one-off charges that are NOT recurring subscription items:
+// one-time add-on components (custom domain, block explorer setup fee)
+// and pay-per-use actions (chain data export). `kind` distinguishes them.
+export const billingOneTimePurchases = pgTable("billingOneTimePurchases", {
+  id: text("id").primaryKey(),
+  subscriptionId: text("subscriptionId"),
+  userId: text("userId").notNull(),
+  kind: text("kind").notNull(), // 'addon_one_time' | 'export'
+  addonId: text("addonId"), // catalog addon id, or EXPORT_ACTION.id for exports
+  stripeCheckoutSessionId: text("stripeCheckoutSessionId"),
+  amountCents: text("amountCents"),
+  status: text("status").notNull().default("pending"), // pending | paid | failed
+  createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
+  updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
+});
+
+// Audit/dispatch log for infrastructure provisioning actions triggered by
+// webhook-driven subscription reconciliation (see
+// src/lib/billing/provisioning.ts). Lets the webhook dispatcher stay
+// idempotent and gives ops a queue/audit trail of what should happen on
+// the infra side for a given subscription state change.
+export const provisioningLog = pgTable("provisioningLog", {
+  id: text("id").primaryKey(),
+  subscriptionId: text("subscriptionId").notNull(),
+  actionKey: text("actionKey").notNull(),
+  payload: text("payload"), // JSON.stringify'd action payload
+  status: text("status").notNull().default("queued"), // queued | done | failed
+  stripeEventId: text("stripeEventId"),
+  createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
 });
 
 export const smartContracts = pgTable("smartContracts", {
