@@ -2,29 +2,31 @@
 
 // apps/frontend/src/app/dashboard/billing/page.tsx
 //
-// Post-signup add-on management. Reuses the SAME <AddonSelector> and
-// <PriceSummary> components as the signup flow (src/components/billing/),
-// pre-filled with the customer's current active add-ons, feeding the
-// update-subscription flow (PATCH /api/billing/subscription/addons for
-// purely recurring changes, POST /api/billing/addons/checkout for
-// add-ons with a one-time component). Also surfaces the pay-per-use
-// "Export Data" action for eligible tiers — never part of the add-on
-// selector, charged once per click.
+// Post-signup subscription management: change tier, cancel/resume the
+// subscription, and add/remove individual add-ons. Reuses the SAME
+// <AddonSelector> and <PriceSummary> components as the signup flow
+// (src/components/billing/), pre-filled with the customer's current
+// active add-ons. Add-ons cancel individually and instantly (no batch
+// "Save" needed for removal — only for additions/quantity changes).
+// Also surfaces the pay-per-use "Export Data" action for eligible tiers.
 
 import * as React from 'react';
 import {
   Box, Typography, Paper, Stack, Button, Divider, Alert, CircularProgress, Chip, Skeleton,
+  Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText,
 } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import { alpha, useTheme } from '@mui/material/styles';
 import {
-  getTierById, formatCents, type TierId, type AddonSelection,
+  TIERS, getTierById, formatCents, type TierId, type AddonSelection,
 } from '@/config/billing-catalog';
 import AddonSelector from '@/components/billing/AddonSelector';
 import PriceSummary from '@/components/billing/PriceSummary';
 
 interface SubscriptionState {
-  subscription: { id: string; tierId: TierId; status: string; currentPeriodEnd: string | null } | null;
+  subscription: {
+    id: string; tierId: TierId; status: string; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean;
+  } | null;
   tier: ReturnType<typeof getTierById> | null;
   addons: AddonSelection[];
   oneTimePurchases: { addonId: string | null; kind: string; createdAt: string }[];
@@ -43,8 +45,14 @@ export default function DashboardBillingPage() {
   const [selections, setSelections] = React.useState<AddonSelection[]>([]);
   const [saving, setSaving] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
+  const [changingTier, setChangingTier] = React.useState<TierId | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
+
+  const [cancelDialogOpen, setCancelDialogOpen] = React.useState(false);
+  const [canceling, setCanceling] = React.useState(false);
+  const [resuming, setResuming] = React.useState(false);
+  const [pendingTierChange, setPendingTierChange] = React.useState<TierId | null>(null);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -93,6 +101,28 @@ export default function DashboardBillingPage() {
     }
   };
 
+  const handleInstantRemove = async (addonId: string) => {
+    setError(null);
+    try {
+      const res = await fetch('/api/billing/subscription/addons/remove', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ addonId }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setError(json.error || 'Could not cancel this add-on.');
+        await load(); // revert any optimistic UI state
+        return;
+      }
+      setNotice('Add-on canceled.');
+      await load();
+    } catch {
+      setError('Could not cancel this add-on.');
+      await load();
+    }
+  };
+
   const handleSave = async () => {
     if (!data?.subscription) return;
     setSaving(true);
@@ -101,7 +131,8 @@ export default function DashboardBillingPage() {
       // Already-active one-time-bearing add-ons (e.g. block explorer) pass
       // through unchanged; genuinely new ones are routed to checkout via
       // onRequestOneTimeCheckout before they ever reach local selection
-      // state, so everything in `selections` here is safe to PATCH.
+      // state; removals are already applied instantly via onInstantRemove.
+      // This only ever needs to add or change quantities.
       const res = await fetch('/api/billing/subscription/addons', {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
@@ -143,6 +174,78 @@ export default function DashboardBillingPage() {
     }
   };
 
+  const confirmChangeTier = async () => {
+    if (!pendingTierChange) return;
+    setChangingTier(pendingTierChange);
+    setError(null);
+    try {
+      const res = await fetch('/api/billing/subscription/change-tier', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tierId: pendingTierChange }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setError(json.error || 'Could not change plan.');
+        return;
+      }
+      setNotice(
+        json.removedAddons?.length
+          ? `Plan changed. Removed (not available on the new plan): ${json.removedAddons.join(', ')}.`
+          : 'Plan changed.'
+      );
+      await load();
+    } catch {
+      setError('Could not change plan.');
+    } finally {
+      setChangingTier(null);
+      setPendingTierChange(null);
+    }
+  };
+
+  const handleCancel = async () => {
+    setCanceling(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/billing/subscription/cancel', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ atPeriodEnd: true }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setError(json.error || 'Could not cancel subscription.');
+        return;
+      }
+      setNotice('Subscription will end at the close of your current billing period.');
+      await load();
+    } catch {
+      setError('Could not cancel subscription.');
+    } finally {
+      setCanceling(false);
+      setCancelDialogOpen(false);
+    }
+  };
+
+  const handleResume = async () => {
+    setResuming(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/billing/subscription/resume', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setError(json.error || 'Could not resume subscription.');
+        return;
+      }
+      setNotice('Subscription resumed.');
+      await load();
+    } catch {
+      setError('Could not resume subscription.');
+    } finally {
+      setResuming(false);
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ maxWidth: 1000, mx: 'auto', p: 4 }}>
@@ -166,6 +269,7 @@ export default function DashboardBillingPage() {
 
   const { tier, subscription } = data;
   const exportEligible = tier ? ['private_dapps', 'private_dapps_pro'].includes(tier.id) : false;
+  const pendingCancellation = subscription.cancelAtPeriodEnd;
 
   return (
     <Box sx={{ maxWidth: 1000, mx: 'auto', p: 4 }}>
@@ -176,6 +280,20 @@ export default function DashboardBillingPage() {
 
       {notice && <Alert severity="success" onClose={() => setNotice(null)} sx={{ mb: 2, borderRadius: 2 }}>{notice}</Alert>}
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
+      {pendingCancellation && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2, borderRadius: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={handleResume} disabled={resuming} sx={{ fontWeight: 700 }}>
+              {resuming ? 'Resuming…' : 'Resume subscription'}
+            </Button>
+          }
+        >
+          Your subscription is set to cancel at the end of the current billing period
+          {subscription.currentPeriodEnd ? ` (${new Date(subscription.currentPeriodEnd).toLocaleDateString()})` : ''}.
+        </Alert>
+      )}
 
       {/* Current plan */}
       <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, mb: 3 }}>
@@ -194,9 +312,16 @@ export default function DashboardBillingPage() {
               {formatCents(tier.priceCents)}/month base plan
             </Typography>
           </Box>
-          <Button variant="outlined" href="/pricing" sx={{ borderRadius: 2, fontWeight: 700 }}>
-            Change plan
-          </Button>
+          {!pendingCancellation && (
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={() => setCancelDialogOpen(true)}
+              sx={{ borderRadius: 2, fontWeight: 700 }}
+            >
+              Cancel subscription
+            </Button>
+          )}
         </Stack>
 
         <Divider sx={{ my: 2.5 }} />
@@ -210,6 +335,43 @@ export default function DashboardBillingPage() {
           ))}
         </Stack>
       </Paper>
+
+      {/* Tier switcher */}
+      <Typography variant="h6" fontWeight={800} sx={{ mb: 1.5 }}>Plan</Typography>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
+        {TIERS.map((t) => {
+          const isCurrent = t.id === tier.id;
+          return (
+            <Paper
+              key={t.id}
+              variant="outlined"
+              sx={{
+                flex: 1, p: 2.5, borderRadius: 2.5,
+                borderColor: isCurrent ? 'primary.main' : 'divider',
+                bgcolor: isCurrent ? alpha(theme.palette.primary.main, 0.04) : 'transparent',
+              }}
+            >
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                <Typography variant="subtitle1" fontWeight={700}>{t.name}</Typography>
+                {isCurrent && <Chip label="Current" size="small" color="primary" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700 }} />}
+              </Stack>
+              <Typography variant="h6" fontWeight={800} color={isCurrent ? 'primary.main' : 'text.primary'} sx={{ mb: 1.5 }}>
+                {formatCents(t.priceCents)}<Typography component="span" variant="caption" color="text.secondary">/mo</Typography>
+              </Typography>
+              <Button
+                fullWidth
+                variant={isCurrent ? 'outlined' : 'contained'}
+                disabled={isCurrent || changingTier !== null || pendingCancellation}
+                onClick={() => setPendingTierChange(t.id)}
+                startIcon={changingTier === t.id ? <CircularProgress size={14} color="inherit" /> : undefined}
+                sx={{ borderRadius: 2, fontWeight: 700 }}
+              >
+                {isCurrent ? 'Current plan' : changingTier === t.id ? 'Switching…' : 'Switch to this plan'}
+              </Button>
+            </Paper>
+          );
+        })}
+      </Stack>
 
       {/* Pay-per-use export */}
       {exportEligible && (
@@ -246,7 +408,10 @@ export default function DashboardBillingPage() {
       )}
 
       {/* Add-on management */}
-      <Typography variant="h6" fontWeight={800} sx={{ mb: 1.5 }}>Add-ons</Typography>
+      <Typography variant="h6" fontWeight={800} sx={{ mb: 0.5 }}>Add-ons</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+        Turn an add-on off to cancel it immediately. Turning one on, or changing a quantity, applies when you save.
+      </Typography>
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems="flex-start">
         <Box sx={{ flex: 1.4, width: '100%' }}>
           <AddonSelector
@@ -256,6 +421,7 @@ export default function DashboardBillingPage() {
             mode="dashboard"
             purchasedOneTimeAddonIds={purchasedOneTimeAddonIds}
             onRequestOneTimeCheckout={handleRequestOneTimeCheckout}
+            onInstantRemove={handleInstantRemove}
             disabled={saving}
           />
         </Box>
@@ -273,6 +439,56 @@ export default function DashboardBillingPage() {
           </Button>
         </Box>
       </Stack>
+
+      {/* Cancel subscription confirm dialog */}
+      <Dialog open={cancelDialogOpen} onClose={() => setCancelDialogOpen(false)} PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>Cancel subscription?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            You&apos;ll keep access to {tier.name} and all your add-ons until the end of the current
+            billing period{subscription.currentPeriodEnd ? ` on ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}` : ''}.
+            You can resume any time before then.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setCancelDialogOpen(false)} disabled={canceling}>Keep my plan</Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={handleCancel}
+            disabled={canceling}
+            startIcon={canceling ? <CircularProgress size={14} color="inherit" /> : undefined}
+            sx={{ fontWeight: 700 }}
+          >
+            {canceling ? 'Canceling…' : 'Cancel subscription'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Change tier confirm dialog */}
+      <Dialog open={!!pendingTierChange} onClose={() => setPendingTierChange(null)} PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          Switch to {pendingTierChange ? getTierById(pendingTierChange)?.name : ''}?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Your billing updates immediately, prorated for the rest of this period. Any active add-on
+            that isn&apos;t available on the new plan will be removed.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setPendingTierChange(null)} disabled={changingTier !== null}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={confirmChangeTier}
+            disabled={changingTier !== null}
+            startIcon={changingTier !== null ? <CircularProgress size={14} color="inherit" /> : undefined}
+            sx={{ fontWeight: 700 }}
+          >
+            {changingTier !== null ? 'Switching…' : 'Confirm switch'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

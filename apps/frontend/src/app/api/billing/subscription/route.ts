@@ -44,6 +44,7 @@ export async function GET() {
       tierId: sub.plan,
       status: sub.status,
       currentPeriodEnd: sub.currentPeriodEnd,
+      cancelAtPeriodEnd: sub.cancelAtPeriodEnd === 'true',
     },
     tier: tier ?? null,
     addons, // [{ addonId, quantity }]

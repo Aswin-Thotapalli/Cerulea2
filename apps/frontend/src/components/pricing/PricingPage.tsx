@@ -93,8 +93,29 @@ export default function PricingPage() {
   const [notice, setNotice] = React.useState<string | null>(null);
   const [checkingOut, setCheckingOut] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [checkingExisting, setCheckingExisting] = React.useState(true);
 
   const selectorRef = React.useRef<HTMLDivElement>(null);
+
+  // An existing subscriber must manage their plan from the dashboard
+  // (change tier / cancel / add-ons) — sending them through checkout
+  // again would create a second, duplicate Stripe subscription.
+  React.useEffect(() => {
+    if (!session?.user) {
+      setCheckingExisting(false);
+      return;
+    }
+    fetch('/api/billing/subscription')
+      .then((r) => r.json())
+      .then((json) => {
+        if (json?.ok && json.subscription) {
+          window.location.href = '/dashboard/billing';
+        } else {
+          setCheckingExisting(false);
+        }
+      })
+      .catch(() => setCheckingExisting(false));
+  }, [session]);
 
   const handleSelectTier = (tierId: SelfServeTierId) => {
     if (selectedTierId === tierId) return;
@@ -142,6 +163,14 @@ export default function PricingPage() {
       setCheckingOut(false);
     }
   };
+
+  if (checkingExisting) {
+    return (
+      <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box

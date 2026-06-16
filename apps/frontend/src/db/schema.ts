@@ -100,6 +100,14 @@ export const subscriptions = pgTable("subscriptions", {
   currentPeriodEnd: text("currentPeriodEnd"),
   // Guards webhook handlers against reprocessing the same Stripe event twice.
   lastWebhookEventId: text("lastWebhookEventId"),
+  // The Stripe Subscription Item id for the TIER's own recurring price
+  // (distinct from subscriptionAddons, which only tracks add-on items).
+  // Needed so changeSubscriptionTier can update the right line item when
+  // a customer upgrades/downgrades.
+  stripeTierSubscriptionItemId: text("stripeTierSubscriptionItemId"),
+  // Mirrors Stripe's cancel_at_period_end — true once the customer has
+  // requested cancellation but the current paid period hasn't ended yet.
+  cancelAtPeriodEnd: text("cancelAtPeriodEnd").notNull().default("false"),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
 });
