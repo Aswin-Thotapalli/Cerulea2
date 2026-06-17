@@ -108,7 +108,7 @@ export default function PricingPage() {
     fetch('/api/billing/subscription')
       .then((r) => r.json())
       .then((json) => {
-        if (json?.ok && json.subscription) {
+        if (json?.ok && json.subscription && json.tier) {
           window.location.href = '/dashboard/billing';
         } else {
           setCheckingExisting(false);
