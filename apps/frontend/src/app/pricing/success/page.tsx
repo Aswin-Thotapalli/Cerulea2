@@ -1,65 +1,79 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Box, Typography, Button, Paper, CircularProgress } from '@mui/material';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import * as React from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Box, CircularProgress, Typography } from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
-export default function PricingSuccessPage() {
+function PricingSuccessInner() {
   const { update } = useSession();
-  const [returnUrl, setReturnUrl] = useState('');
-  const [refreshed, setRefreshed] = useState(false);
+  const router = useRouter();
+  const params = useSearchParams();
+  const returnUrl = params.get('return');
+  const [done, setDone] = React.useState(false);
 
-  useEffect(() => {
-    // Read return URL client-side to avoid useSearchParams() Suspense requirement at build time
-    const params = new URLSearchParams(window.location.search);
-    setReturnUrl(params.get('return') || '');
-    // Force JWT to re-fetch plan from DB so middleware sees the new subscription
-    update().then(() => setRefreshed(true)).catch(() => setRefreshed(true));
-  }, []);
+  React.useEffect(() => {
+    let cancelled = false;
+    let attempts = 0;
 
-  const handleContinue = () => {
-    if (returnUrl) {
-      window.location.href = returnUrl;
-    } else {
-      const isLocal = window.location.hostname.includes('localhost');
-      window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
-    }
-  };
+    const poll = async () => {
+      if (cancelled) return;
+      attempts++;
+
+      try {
+        const res = await fetch('/api/billing/subscription');
+        const json = await res.json();
+        if (json?.ok && json.subscription?.status === 'active' && json.tier) {
+          await update();
+          if (!cancelled) {
+            setDone(true);
+            setTimeout(() => router.replace(returnUrl || '/dashboard'), 1500);
+          }
+          return;
+        }
+      } catch { /* ignore transient errors */ }
+
+      if (attempts < 12 && !cancelled) {
+        setTimeout(poll, 1500);
+      } else if (!cancelled) {
+        await update();
+        setDone(true);
+        setTimeout(() => router.replace(returnUrl || '/dashboard'), 1500);
+      }
+    };
+
+    poll();
+    return () => { cancelled = true; };
+  }, [update, router, returnUrl]);
 
   return (
-    <Box sx={{ display: 'grid', placeItems: 'center', minHeight: '100vh', px: 2 }}>
-      <Paper
-        elevation={0}
-        sx={{
-          p: 5,
-          borderRadius: 4,
-          textAlign: 'center',
-          maxWidth: 480,
-          backdropFilter: 'blur(16px)',
-          backgroundColor: 'rgba(255,255,255,0.06)',
-          border: '1px solid rgba(255,255,255,0.12)',
-        }}
-      >
-        <CheckCircleOutlineIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
-        <Typography variant="h4" sx={{ fontWeight: 800, mb: 1.5 }}>
-          You're all set!
-        </Typography>
-        <Typography variant="body1" sx={{ opacity: 0.75, mb: 4 }}>
-          Your subscription is now active. You have full access to Cerulea Studio
-          and all the features included in your plan.
-        </Typography>
-        <Button
-          variant="contained"
-          size="large"
-          onClick={handleContinue}
-          disabled={!refreshed}
-          startIcon={!refreshed ? <CircularProgress size={16} color="inherit" /> : undefined}
-          sx={{ px: 4, py: 1.5, fontWeight: 700, borderRadius: 2 }}
-        >
-          {refreshed ? 'Open Studio' : 'Activating…'}
-        </Button>
-      </Paper>
+    <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', textAlign: 'center', gap: 2 }}>
+      {done ? (
+        <>
+          <CheckCircleIcon sx={{ fontSize: 72, color: 'success.main' }} />
+          <Typography variant="h5" fontWeight={800}>You&apos;re all set!</Typography>
+          <Typography color="text.secondary">Redirecting to your dashboard…</Typography>
+        </>
+      ) : (
+        <>
+          <CircularProgress size={48} />
+          <Typography variant="h6" fontWeight={600}>Setting up your subscription…</Typography>
+          <Typography variant="body2" color="text.secondary">This takes just a moment.</Typography>
+        </>
+      )}
     </Box>
+  );
+}
+
+export default function PricingSuccessPage() {
+  return (
+    <React.Suspense fallback={
+      <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+        <CircularProgress size={48} />
+      </Box>
+    }>
+      <PricingSuccessInner />
+    </React.Suspense>
   );
 }

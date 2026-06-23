@@ -82,17 +82,21 @@ export async function middleware(req: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  // PRICING GATE DISABLED — pricing page is offline pending Stripe integration.
-  // Re-enable this block once plans are live again.
-  // if (!(token.isTestAccount as boolean)) {
-  //   const plan = token.plan as string | undefined;
-  //   if ((!plan || plan === 'free') && pathname !== '/pricing') {
-  //     const pricingUrl = req.nextUrl.clone();
-  //     pricingUrl.pathname = '/pricing';
-  //     pricingUrl.search = '';
-  //     return NextResponse.redirect(pricingUrl);
-  //   }
-  // }
+  // Require an active paid plan to access the app. New users (plan === 'free')
+  // and users whose subscription lapsed are sent to /pricing to subscribe.
+  // /pricing and /pricing/success are already in PUBLIC_PATHS so they pass through.
+  // /dashboard/billing is also exempt so users can land there after checkout.
+  if (!(token.isTestAccount as boolean)) {
+    const plan = token.plan as string | undefined;
+    const FREE_PATHS = ['/dashboard/billing'];
+    const isFreeExempt = FREE_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
+    if ((!plan || plan === 'free') && !isFreeExempt) {
+      const pricingUrl = req.nextUrl.clone();
+      pricingUrl.pathname = '/pricing';
+      pricingUrl.search = '';
+      return NextResponse.redirect(pricingUrl);
+    }
+  }
 
   // Apply studio subdomain rewrite AFTER auth/pricing checks pass
   if (isStudioHost) {
