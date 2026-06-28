@@ -130,14 +130,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             flexShrink: 0, mt: '2px',
           }}>
             <Box component={Link} href="/" sx={{ flex: 1, display: 'flex', alignItems: 'center', textDecoration: 'none', minWidth: 0 }}>
-              <Image
-                src="/brand/logo-dark.png"
-                alt="Cerulea Studio"
-                width={160}
-                height={44}
-                style={{ objectFit: 'contain', width: 'auto', height: 38 }}
-                priority
-              />
+              <Box sx={{ ...(isDark && { bgcolor: '#ffffff', borderRadius: '7px', px: 1, py: 0.4 }) }}>
+                <Image
+                  src="/brand/logo-light.png"
+                  alt="Cerulea Studio"
+                  width={160}
+                  height={44}
+                  style={{ objectFit: 'contain', width: 'auto', height: 36, display: 'block' }}
+                  priority
+                />
+              </Box>
             </Box>
             <IconButton size="small" onClick={() => setCollapsed(true)}
               sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
