@@ -5,7 +5,6 @@ import {
   Box, Typography, Button, Stack, Paper, Chip,
   CircularProgress, IconButton, Tooltip,
 } from '@mui/material';
-import Grid from '@mui/material/GridLegacy';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
@@ -160,7 +159,7 @@ export default function StudioLanding({
           </Box>
         ) : projects.length === 0 ? (
           /* Empty state — two option cards */
-          <Grid container spacing={4} justifyContent="center">
+          <Box sx={{ display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap' }}>
             {[
               {
                 icon: <AutoAwesomeMosaicIcon sx={{ fontSize: 44 }} />,
@@ -177,7 +176,7 @@ export default function StudioLanding({
                 color: '#7C3AED',
               },
             ].map((card) => (
-              <Grid key={card.title} xs={12} sm={6} md={5}>
+              <Box key={card.title} sx={{ flex: '0 1 380px', minWidth: 260 }}>
                 <Paper
                   onClick={onNewProject}
                   variant="outlined"
@@ -214,9 +213,9 @@ export default function StudioLanding({
                     ))}
                   </Stack>
                 </Paper>
-              </Grid>
+              </Box>
             ))}
-          </Grid>
+          </Box>
         ) : (
           /* Project card grid */
           <>
