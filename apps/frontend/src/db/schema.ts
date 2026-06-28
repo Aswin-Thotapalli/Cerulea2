@@ -178,6 +178,18 @@ export const smartContracts = pgTable("smartContracts", {
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
 });
 
+export const snapshots = pgTable("snapshots", {
+  id: text("id").primaryKey(),
+  projectId: text("projectId").notNull(),
+  userId: text("userId").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  stateData: text("stateData"),
+  status: text("status").notNull().default("ready"),
+  createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
+  updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
+});
+
 export const userPlanSelections = pgTable("userPlanSelections", {
   id: text("id").primaryKey(),
   userId: text("userId").notNull(),

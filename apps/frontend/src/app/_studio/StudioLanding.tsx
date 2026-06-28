@@ -213,119 +213,116 @@ export default function StudioLanding({
               </Stack>
             </Stack>
 
-            <Grid container spacing={2.5}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 2.5 }}>
               {projects.map((p) => {
                 const isChain = p.projectType === 'blockchain';
                 const typeColor = isChain ? '#7C3AED' : '#4F46E5';
                 const statusCfg = STATUS_CONFIG[p.status] ?? { color: '#6366f1', icon: undefined, label: p.status };
                 return (
-                  <Grid key={p.id} xs={12} sm={6} md={4}>
-                    <Paper
-                      variant="outlined"
-                      onClick={() => onOpenProject(p.id)}
-                      sx={{
-                        p: 0, cursor: 'pointer', overflow: 'hidden',
-                        borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.12)',
-                        borderLeft: `3px solid ${typeColor}`,
-                        transition: 'all 0.15s',
-                        '&:hover': {
-                          borderColor: alpha(typeColor, 0.4),
-                          bgcolor: isDark ? alpha(typeColor, 0.04) : alpha(typeColor, 0.02),
-                          boxShadow: `0 4px 16px ${alpha(typeColor, isDark ? 0.2 : 0.12)}`,
-                          transform: 'translateY(-1px)',
-                        },
-                      }}
-                    >
-                      <Box sx={{ p: 2.5 }}>
-                        <Stack direction="row" alignItems="flex-start" spacing={1.5} sx={{ mb: 2 }}>
-                          <Box sx={{
-                            width: 36, height: 36, flexShrink: 0,
-                            bgcolor: alpha(typeColor, isDark ? 0.12 : 0.08),
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: typeColor, borderRadius: 1,
-                          }}>
-                            {isChain ? <LanIcon sx={{ fontSize: 18 }} /> : <AutoAwesomeMosaicIcon sx={{ fontSize: 18 }} />}
-                          </Box>
-                          <Box sx={{ minWidth: 0, flex: 1 }}>
-                            <Typography variant="subtitle2" fontWeight={800} noWrap>{p.name}</Typography>
-                            <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'monospace', fontSize: '0.62rem' }}>
-                              /{p.slug}
-                            </Typography>
-                          </Box>
-                          <Tooltip title="Open in Studio">
-                            <IconButton
-                              size="small"
-                              onClick={(e) => { e.stopPropagation(); onOpenProject(p.id); }}
-                              sx={{
-                                width: 28, height: 28, borderRadius: 1,
-                                bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
-                                '&:hover': { bgcolor: alpha(typeColor, 0.12) },
-                              }}
-                            >
-                              <OpenInNewIcon sx={{ fontSize: 14 }} />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
+                  <Paper
+                    key={p.id}
+                    variant="outlined"
+                    onClick={() => onOpenProject(p.id)}
+                    sx={{
+                      p: 0, cursor: 'pointer', overflow: 'hidden',
+                      borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.12)',
+                      borderLeft: `3px solid ${typeColor}`,
+                      transition: 'all 0.15s',
+                      '&:hover': {
+                        borderColor: alpha(typeColor, 0.4),
+                        bgcolor: isDark ? alpha(typeColor, 0.04) : alpha(typeColor, 0.02),
+                        boxShadow: `0 4px 16px ${alpha(typeColor, isDark ? 0.2 : 0.12)}`,
+                        transform: 'translateY(-1px)',
+                      },
+                    }}
+                  >
+                    <Box sx={{ p: 2.5 }}>
+                      <Stack direction="row" alignItems="flex-start" spacing={1.5} sx={{ mb: 2 }}>
+                        <Box sx={{
+                          width: 36, height: 36, flexShrink: 0,
+                          bgcolor: alpha(typeColor, isDark ? 0.12 : 0.08),
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: typeColor, borderRadius: 1,
+                        }}>
+                          {isChain ? <LanIcon sx={{ fontSize: 18 }} /> : <AutoAwesomeMosaicIcon sx={{ fontSize: 18 }} />}
+                        </Box>
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography variant="subtitle2" fontWeight={800} noWrap>{p.name}</Typography>
+                          <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'monospace', fontSize: '0.62rem' }}>
+                            /{p.slug}
+                          </Typography>
+                        </Box>
+                        <Tooltip title="Open in Studio">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => { e.stopPropagation(); onOpenProject(p.id); }}
+                            sx={{
+                              width: 28, height: 28, borderRadius: 1,
+                              bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+                              '&:hover': { bgcolor: alpha(typeColor, 0.12) },
+                            }}
+                          >
+                            <OpenInNewIcon sx={{ fontSize: 14 }} />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
 
-                        <Stack direction="row" alignItems="center" justifyContent="space-between">
-                          <Box sx={{
-                            px: 1.25, py: 0.3, borderRadius: 0.5,
-                            bgcolor: alpha(typeColor, 0.08), color: typeColor,
-                            fontSize: '0.63rem', fontWeight: 700,
-                          }}>
-                            {isChain ? 'Blockchain' : 'dApp'}
-                          </Box>
-                          <Stack direction="row" alignItems="center" spacing={0.75}>
-                            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: statusCfg.color }} />
-                            <Typography variant="caption" fontWeight={700} sx={{ color: statusCfg.color, fontSize: '0.7rem' }}>
-                              {statusCfg.label}
-                            </Typography>
-                          </Stack>
+                      <Stack direction="row" alignItems="center" justifyContent="space-between">
+                        <Box sx={{
+                          px: 1.25, py: 0.3, borderRadius: 0.5,
+                          bgcolor: alpha(typeColor, 0.08), color: typeColor,
+                          fontSize: '0.63rem', fontWeight: 700,
+                        }}>
+                          {isChain ? 'Blockchain' : 'dApp'}
+                        </Box>
+                        <Stack direction="row" alignItems="center" spacing={0.75}>
+                          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: statusCfg.color }} />
+                          <Typography variant="caption" fontWeight={700} sx={{ color: statusCfg.color, fontSize: '0.7rem' }}>
+                            {statusCfg.label}
+                          </Typography>
                         </Stack>
-                      </Box>
+                      </Stack>
+                    </Box>
 
-                      <Box sx={{
-                        px: 2.5, py: 1,
-                        borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'}`,
-                        bgcolor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
-                      }}>
-                        <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>
-                          Updated {new Date(p.updatedAt || p.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </Typography>
-                      </Box>
-                    </Paper>
-                  </Grid>
+                    <Box sx={{
+                      px: 2.5, py: 1,
+                      borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'}`,
+                      bgcolor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
+                    }}>
+                      <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>
+                        Updated {new Date(p.updatedAt || p.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </Typography>
+                    </Box>
+                  </Paper>
                 );
               })}
 
               {/* New project tile */}
-              <Grid xs={12} sm={6} md={4}>
-                <Paper
-                  variant="outlined"
-                  onClick={onNewProject}
-                  sx={{
-                    p: 2.5, cursor: 'pointer', minHeight: 120,
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    gap: 1, borderStyle: 'dashed',
-                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(79,70,229,0.2)',
-                    transition: 'border-color 0.15s, background-color 0.15s',
-                    '&:hover': {
-                      borderColor: alpha(theme.palette.primary.main, 0.45),
-                      bgcolor: alpha(theme.palette.primary.main, 0.03),
-                    },
-                  }}
-                >
-                  <Box sx={{
-                    width: 32, height: 32, borderRadius: 1,
-                    bgcolor: alpha(theme.palette.primary.main, 0.08),
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <AddIcon sx={{ fontSize: 18, color: 'primary.main' }} />
-                  </Box>
-                  <Typography variant="body2" fontWeight={700} color="primary.main">New Project</Typography>
-                </Paper>
-              </Grid>
-            </Grid>
+              <Paper
+                variant="outlined"
+                onClick={onNewProject}
+                sx={{
+                  p: 2.5, cursor: 'pointer', minHeight: 120,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  gap: 1, borderStyle: 'dashed',
+                  borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(79,70,229,0.2)',
+                  transition: 'border-color 0.15s, background-color 0.15s',
+                  '&:hover': {
+                    borderColor: alpha(theme.palette.primary.main, 0.45),
+                    bgcolor: alpha(theme.palette.primary.main, 0.03),
+                  },
+                }}
+              >
+                <Box sx={{
+                  width: 32, height: 32, borderRadius: 1,
+                  bgcolor: alpha(theme.palette.primary.main, 0.08),
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <AddIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                </Box>
+                <Typography variant="body2" fontWeight={700} color="primary.main">New Project</Typography>
+              </Paper>
+            </Box>
           </>
         )}
       </Box>
