@@ -8,9 +8,9 @@ import {
 import Grid from '@mui/material/GridLegacy';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useSession } from 'next-auth/react';
+import Image from 'next/image';
 import AddIcon from '@mui/icons-material/Add';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import HexagonIcon from '@mui/icons-material/Hexagon';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import StorageIcon from '@mui/icons-material/Storage';
 import PendingIcon from '@mui/icons-material/Pending';
@@ -87,12 +87,16 @@ export default function StudioLanding({
 
         {/* Header */}
         <Stack alignItems="center" spacing={2} sx={{ mb: 8, textAlign: 'center' }}>
-          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1 }}>
-            <HexagonIcon sx={{ color: 'primary.main', fontSize: 32 }} />
-            <Typography variant="h6" fontWeight={900} sx={{ letterSpacing: -0.5 }}>
-              Cerulea Studio
-            </Typography>
-          </Stack>
+          <Box sx={{ mb: 1 }}>
+            <Image
+              src="/brand/logo-studio.png"
+              alt="Cerulea Studio"
+              width={200}
+              height={60}
+              style={{ objectFit: 'contain', width: 'auto', height: 48 }}
+              priority
+            />
+          </Box>
 
           <Typography
             sx={{

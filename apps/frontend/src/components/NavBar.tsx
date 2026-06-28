@@ -1,12 +1,13 @@
 'use client';
 
 import {
-  AppBar, Toolbar, Typography, Button, IconButton, Box, Tooltip,
+  AppBar, Toolbar, Button, IconButton, Box, Tooltip,
 } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import { useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import Image from 'next/image';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -35,20 +36,16 @@ export default function NavBar() {
     >
       <Toolbar sx={{ gap: 0.5 }}>
         {/* Logo */}
-        <Typography
-          component={Link}
-          href="/"
-          variant="h6"
-          sx={{
-            flexGrow: 1,
-            fontWeight: 800,
-            textDecoration: 'none',
-            color: 'inherit',
-            letterSpacing: -0.5,
-          }}
-        >
-          Cerulea Studio
-        </Typography>
+        <Box component={Link} href="/" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+          <Image
+            src="/brand/logo-studio.png"
+            alt="Cerulea Studio"
+            width={140}
+            height={42}
+            style={{ objectFit: 'contain', width: 'auto', height: 36 }}
+            priority
+          />
+        </Box>
 
         {/* Theme toggle */}
         <Tooltip title={theme.palette.mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
