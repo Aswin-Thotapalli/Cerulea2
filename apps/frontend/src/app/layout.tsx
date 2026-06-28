@@ -8,9 +8,9 @@ export const metadata: Metadata = {
   title: 'Cerulea Studio',
   description: 'The AI Layer 1 for the next internet',
   icons: {
-    icon: '/brand/logo.png',
-    shortcut: '/brand/logo.png',
-    apple: '/brand/logo.png',
+    icon: '/brand/logo-light.png',
+    shortcut: '/brand/logo-light.png',
+    apple: '/brand/logo-light.png',
   },
 };
 
