@@ -13,7 +13,7 @@ export const ThemeContext = createContext({
 export const useThemeToggle = () => useContext(ThemeContext);
 
 export function Providers({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<'light' | 'dark'>('light');
+  const [mode, setMode] = useState<'light' | 'dark'>('dark');
 
   const themeToggle = useMemo(
     () => ({
