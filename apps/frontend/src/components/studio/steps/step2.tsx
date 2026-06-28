@@ -1706,8 +1706,13 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
         <Fade in={phase === 'exposure'} mountOnEnter unmountOnExit><Box sx={{ width: '100%', height: '100%' }}>{renderExposure()}</Box></Fade>
       </Box>
 
-      {/* FLOATING DOCK */}
-      <Box sx={{ position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+      {/* DOCK — flex footer, no absolute positioning so it never overlaps content */}
+      <Box sx={{
+        flexShrink: 0, display: 'flex', justifyContent: 'center', py: 2,
+        borderTop: `1px solid ${theme.palette.divider}`,
+        bgcolor: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.95)' : 'rgba(8,14,36,0.95)',
+        backdropFilter: 'blur(12px)',
+      }}>
         <FloatingIsland elevation={6}>
           <Tooltip title="Back">
             <IconButton onClick={goPrev || (() => router.back())} size="small" sx={{ border: '1px solid', borderColor: 'divider' }}>

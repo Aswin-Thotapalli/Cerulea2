@@ -112,35 +112,41 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }} />
 
         {/* Logo bar */}
-        <Box sx={{
-          height: 60,
-          display: 'flex',
-          alignItems: 'center',
-          px: collapsed ? 1.5 : 2.5,
-          gap: 1.5,
-          borderBottom: `1px solid ${theme.palette.divider}`,
-          flexShrink: 0,
-          mt: '2px',
-        }}>
+        {collapsed ? (
           <Box sx={{
-            width: 32, height: 32, borderRadius: 2,
-            bgcolor: alpha('#4F46E5', 0.12),
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
+            height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            borderBottom: `1px solid ${theme.palette.divider}`, flexShrink: 0, mt: '2px',
           }}>
-            <HexagonIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+            <IconButton size="small" onClick={() => setCollapsed(false)}
+              sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main', bgcolor: alpha('#4F46E5', 0.08) } }}>
+              <ChevronRightIcon fontSize="small" />
+            </IconButton>
           </Box>
-          {!collapsed && (
+        ) : (
+          <Box sx={{
+            height: 60, display: 'flex', alignItems: 'center',
+            px: 2.5, gap: 1.5,
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            flexShrink: 0, mt: '2px',
+          }}>
+            <Box sx={{
+              width: 32, height: 32, borderRadius: 2,
+              bgcolor: alpha('#4F46E5', 0.12),
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <HexagonIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+            </Box>
             <Typography variant="h6" fontWeight={900} sx={{ letterSpacing: -0.5, fontSize: '1rem' }}>
               Cerulea
             </Typography>
-          )}
-          <Box sx={{ flex: 1 }} />
-          <IconButton size="small" onClick={() => setCollapsed((c) => !c)}
-            sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
-            {collapsed ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
-          </IconButton>
-        </Box>
+            <Box sx={{ flex: 1 }} />
+            <IconButton size="small" onClick={() => setCollapsed(true)}
+              sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
+              <ChevronLeftIcon fontSize="small" />
+            </IconButton>
+          </Box>
+        )}
 
         {/* New Project CTA */}
         <Box sx={{ px: collapsed ? 1 : 2, py: 1.5, flexShrink: 0 }}>

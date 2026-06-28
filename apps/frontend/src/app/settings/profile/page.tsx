@@ -5,20 +5,23 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
   Box, Typography, Paper, Stack, Button, TextField, Avatar,
-  Chip, Divider, Alert, CircularProgress, IconButton, Tooltip,
+  Chip, Alert, CircularProgress, IconButton, Tooltip,
   LinearProgress, Dialog, DialogTitle, DialogContent, DialogActions,
+  Switch, FormControlLabel,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
 import CheckIcon from '@mui/icons-material/Check';
+import CloseIcon from '@mui/icons-material/Close';
 import LogoutIcon from '@mui/icons-material/Logout';
 import SecurityIcon from '@mui/icons-material/Security';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import PersonIcon from '@mui/icons-material/Person';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import HexagonIcon from '@mui/icons-material/Hexagon';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import LinkIcon from '@mui/icons-material/Link';
 
 const PLAN_META: Record<string, { label: string; color: string; features: string[] }> = {
   developer: { label: 'Developer', color: '#4F46E5', features: ['5 projects', '20 deployments/mo', '100K API calls/mo', '10 GB storage'] },
@@ -31,7 +34,6 @@ export default function ProfilePage() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
   const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
 
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState('');
@@ -40,6 +42,10 @@ export default function ProfilePage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [copiedId, setCopiedId] = useState(false);
+  const [notifyDeployments, setNotifyDeployments] = useState(true);
+  const [notifySnapshots, setNotifySnapshots] = useState(true);
+  const [notifyAlerts, setNotifyAlerts] = useState(true);
+  const [notifyMarketing, setNotifyMarketing] = useState(false);
 
   useEffect(() => {
     if (session?.user?.name) setName(session.user.name);
@@ -47,7 +53,7 @@ export default function ProfilePage() {
 
   if (status === 'loading') {
     return (
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
         <CircularProgress />
       </Box>
     );
@@ -79,13 +85,13 @@ export default function ProfilePage() {
       });
       if (r.ok) {
         await update({ name });
-        setSaveMsg('Name updated');
+        setSaveMsg('Name updated successfully');
         setEditingName(false);
       } else {
-        setSaveMsg('Update failed');
+        setSaveMsg('Update failed — please try again');
       }
     } catch {
-      setSaveMsg('Update failed');
+      setSaveMsg('Update failed — please try again');
     } finally {
       setSaving(false);
     }
@@ -98,212 +104,273 @@ export default function ProfilePage() {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      {/* Top bar */}
-      <Box sx={{
-        px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider',
-        bgcolor: 'background.paper', display: 'flex', alignItems: 'center', gap: 2,
-        position: 'sticky', top: 0, zIndex: 10,
-      }}>
-        <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <HexagonIcon sx={{ fontSize: 18, color: 'primary.main' }} />
-        </Box>
-        <Typography variant="subtitle1" fontWeight={800}>Cerulea</Typography>
-        <Box sx={{ flex: 1 }} />
-        <Button startIcon={<ArrowBackIcon />} onClick={() => router.back()} sx={{ fontWeight: 600, color: 'text.secondary' }}>
+    <Box sx={{ maxWidth: 760, mx: 'auto', px: 3, py: 5 }}>
+      {/* Page header — inline, no sticky conflicts */}
+      <Stack direction="row" alignItems="center" mb={4}>
+        <Button startIcon={<ArrowBackIcon />} onClick={() => router.back()} sx={{ fontWeight: 600, color: 'text.secondary', mr: 'auto' }}>
           Back
         </Button>
         <Button variant="outlined" startIcon={<LogoutIcon />} size="small" onClick={() => signOut({ callbackUrl: '/' })} sx={{ borderRadius: 1 }}>
           Sign out
         </Button>
-      </Box>
+      </Stack>
 
-      <Box sx={{ maxWidth: 760, mx: 'auto', px: 3, py: 5 }}>
-        {saveMsg && (
-          <Alert severity={saveMsg.includes('failed') ? 'error' : 'success'} sx={{ mb: 3 }} onClose={() => setSaveMsg(null)}>
-            {saveMsg}
-          </Alert>
-        )}
+      {saveMsg && (
+        <Alert severity={saveMsg.includes('failed') ? 'error' : 'success'} sx={{ mb: 3 }} onClose={() => setSaveMsg(null)}>
+          {saveMsg}
+        </Alert>
+      )}
 
-        {/* Identity Card */}
-        <Paper variant="outlined" sx={{ p: 4, mb: 3 }}>
-          <Stack direction="row" spacing={3} alignItems="flex-start">
-            <Avatar sx={{
-              width: 72, height: 72, fontSize: '1.5rem', fontWeight: 900,
-              bgcolor: alpha('#4F46E5', 0.15), color: 'primary.main',
-              border: `2px solid ${alpha('#4F46E5', 0.2)}`,
-            }}>
-              {initials}
-            </Avatar>
-            <Box sx={{ flex: 1 }}>
-              <Stack direction="row" alignItems="center" spacing={1.5} mb={0.5}>
-                {editingName ? (
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <TextField
-                      value={name} onChange={(e) => setName(e.target.value)}
-                      size="small" autoFocus
-                      sx={{ '& .MuiInputBase-root': { fontSize: '1.1rem', fontWeight: 700 } }}
-                    />
-                    <IconButton size="small" color="primary" onClick={handleSaveName} disabled={saving}>
-                      {saving ? <CircularProgress size={16} /> : <CheckIcon fontSize="small" />}
-                    </IconButton>
-                  </Stack>
-                ) : (
-                  <>
-                    <Typography variant="h6" fontWeight={800}>{user?.name || '—'}</Typography>
-                    <IconButton size="small" onClick={() => setEditingName(true)} sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}>
-                      <EditIcon sx={{ fontSize: 14 }} />
-                    </IconButton>
-                  </>
-                )}
-              </Stack>
-              <Typography variant="body2" color="text.secondary" mb={1}>{user?.email}</Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <Chip
-                  label={planMeta.label}
-                  size="small"
-                  sx={{ height: 20, fontSize: '0.65rem', fontWeight: 800, bgcolor: alpha(planMeta.color, 0.12), color: planMeta.color, border: `1px solid ${alpha(planMeta.color, 0.25)}` }}
-                />
-                <Chip label={`Member since ${memberSince}`} size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 600, bgcolor: alpha('#6b7280', 0.1), color: 'text.secondary' }} />
-              </Stack>
-            </Box>
+      {/* Identity Card */}
+      <Paper variant="outlined" sx={{ p: 4, mb: 3, borderRadius: 3 }}>
+        <Stack direction="row" spacing={3} alignItems="flex-start">
+          <Avatar sx={{
+            width: 72, height: 72, fontSize: '1.5rem', fontWeight: 900,
+            bgcolor: alpha('#4F46E5', 0.15), color: 'primary.main',
+            border: `2px solid ${alpha('#4F46E5', 0.2)}`,
+          }}>
+            {initials}
+          </Avatar>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Stack direction="row" alignItems="center" spacing={1} mb={0.75}>
+              {editingName ? (
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ flex: 1 }}>
+                  <TextField
+                    value={name} onChange={(e) => setName(e.target.value)}
+                    size="small" autoFocus
+                    sx={{ flex: 1, '& .MuiInputBase-root': { fontSize: '1rem', fontWeight: 700 } }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setEditingName(false); }}
+                  />
+                  <IconButton size="small" color="primary" onClick={handleSaveName} disabled={saving}>
+                    {saving ? <CircularProgress size={16} /> : <CheckIcon fontSize="small" />}
+                  </IconButton>
+                  <IconButton size="small" onClick={() => { setEditingName(false); setName(user?.name || ''); }}>
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+              ) : (
+                <>
+                  <Typography variant="h6" fontWeight={800}>{user?.name || '—'}</Typography>
+                  <IconButton size="small" onClick={() => setEditingName(true)} sx={{ opacity: 0.45, '&:hover': { opacity: 1 } }}>
+                    <EditIcon sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </>
+              )}
+            </Stack>
+            <Typography variant="body2" color="text.secondary" mb={1.5}>{user?.email}</Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Chip
+                label={planMeta.label}
+                size="small"
+                sx={{ height: 20, fontSize: '0.65rem', fontWeight: 800, bgcolor: alpha(planMeta.color, 0.12), color: planMeta.color, border: `1px solid ${alpha(planMeta.color, 0.25)}` }}
+              />
+              <Chip label={`Member since ${memberSince}`} size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 600, bgcolor: alpha('#6b7280', 0.1), color: 'text.secondary' }} />
+            </Stack>
+          </Box>
+        </Stack>
+      </Paper>
+
+      {/* Account Details */}
+      <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden', borderRadius: 3 }}>
+        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <PersonIcon sx={{ fontSize: 17, color: 'primary.main' }} />
+            <Typography variant="subtitle2" fontWeight={800}>Account Details</Typography>
           </Stack>
-        </Paper>
-
-        {/* Account Details */}
-        <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden' }}>
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
-            <Stack direction="row" alignItems="center" spacing={1.5}>
-              <PersonIcon sx={{ fontSize: 17, color: 'primary.main' }} />
-              <Typography variant="subtitle2" fontWeight={800}>Account Details</Typography>
-            </Stack>
-          </Box>
-          <Box sx={{ px: 3, py: 2 }}>
-            <Stack spacing={2}>
-              {[
-                { label: 'Full Name', value: user?.name || '—' },
-                { label: 'Email', value: user?.email || '—' },
-                {
-                  label: 'User ID', value: userId,
-                  action: (
-                    <Tooltip title={copiedId ? 'Copied!' : 'Copy'}>
-                      <IconButton size="small" onClick={copyUserId}>
-                        {copiedId ? <CheckIcon sx={{ fontSize: 13, color: '#10b981' }} /> : <ContentCopyIcon sx={{ fontSize: 13 }} />}
-                      </IconButton>
-                    </Tooltip>
-                  )
-                },
-                { label: 'Plan', value: planMeta.label },
-                { label: 'Member Since', value: memberSince },
-              ].map((row) => (
-                <Box key={row.label} sx={{ display: 'grid', gridTemplateColumns: '160px 1fr auto', alignItems: 'center', gap: 2 }}>
-                  <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.62rem' }}>
-                    {row.label}
-                  </Typography>
-                  <Typography variant="body2" fontWeight={500} sx={{ fontFamily: row.label === 'User ID' ? 'monospace' : undefined, fontSize: '0.82rem' }}>
-                    {row.value}
-                  </Typography>
-                  {row.action ?? null}
-                </Box>
-              ))}
-            </Stack>
-          </Box>
-        </Paper>
-
-        {/* Plan & Usage */}
-        <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden' }}>
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha(planMeta.color, 0.02) }}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Stack direction="row" alignItems="center" spacing={1.5}>
-                <CreditCardIcon sx={{ fontSize: 17, color: planMeta.color }} />
-                <Typography variant="subtitle2" fontWeight={800}>Plan & Usage</Typography>
-              </Stack>
-              <Button size="small" variant="outlined" sx={{ borderRadius: 1, borderColor: alpha(planMeta.color, 0.4), color: planMeta.color, fontSize: '0.72rem' }}
-                onClick={() => router.push('/dashboard/billing')}>
-                Upgrade Plan
-              </Button>
-            </Stack>
-          </Box>
-          <Box sx={{ px: 3, py: 2.5 }}>
-            <Box sx={{ mb: 2.5, p: 2, borderRadius: 1, border: `1px solid ${alpha(planMeta.color, 0.2)}`, bgcolor: alpha(planMeta.color, 0.04) }}>
-              <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
-                <Typography variant="subtitle2" fontWeight={800} sx={{ color: planMeta.color }}>{planMeta.label} Plan</Typography>
-              </Stack>
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                {planMeta.features.map((f) => (
-                  <Box key={f} sx={{ px: 1.25, py: 0.3, borderRadius: 0.5, bgcolor: alpha(planMeta.color, 0.1), color: planMeta.color, fontSize: '0.65rem', fontWeight: 700 }}>
-                    {f}
-                  </Box>
-                ))}
-              </Stack>
-            </Box>
-
-            <Stack spacing={2}>
-              {[
-                { label: 'Projects', used: 3, limit: plan === 'developer' ? 5 : plan === 'pro' ? 20 : 1 },
-                { label: 'Deployments this month', used: 12, limit: plan === 'developer' ? 20 : plan === 'pro' ? 100 : 5 },
-                { label: 'API calls this month', used: 48200, limit: plan === 'developer' ? 100000 : plan === 'pro' ? 1000000 : 10000 },
-              ].map((u) => {
-                const pct = Math.min((u.used / u.limit) * 100, 100);
-                const color = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#10b981';
-                return (
-                  <Box key={u.label}>
-                    <Stack direction="row" justifyContent="space-between" mb={0.5}>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>{u.label}</Typography>
-                      <Typography variant="caption" fontWeight={700} sx={{ color }}>{u.used.toLocaleString()} / {u.limit.toLocaleString()}</Typography>
-                    </Stack>
-                    <LinearProgress variant="determinate" value={pct} sx={{ height: 4, borderRadius: 2, bgcolor: alpha(color, 0.12), '& .MuiLinearProgress-bar': { bgcolor: color, borderRadius: 2 } }} />
-                  </Box>
-                );
-              })}
-            </Stack>
-          </Box>
-        </Paper>
-
-        {/* Security */}
-        <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden' }}>
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-            <Stack direction="row" alignItems="center" spacing={1.5}>
-              <SecurityIcon sx={{ fontSize: 17, color: '#10b981' }} />
-              <Typography variant="subtitle2" fontWeight={800}>Security</Typography>
-            </Stack>
-          </Box>
-          <Box sx={{ px: 3, py: 2 }}>
-            <Stack spacing={1.5}>
-              {[
-                { label: 'Password', value: '••••••••••••', action: <Button size="small" sx={{ borderRadius: 1, fontSize: '0.72rem' }}>Change</Button> },
-                { label: 'Two-factor authentication', value: 'Not enabled', action: <Button size="small" variant="outlined" sx={{ borderRadius: 1, fontSize: '0.72rem', borderColor: alpha('#10b981', 0.4), color: '#10b981' }}>Enable</Button> },
-                { label: 'Active sessions', value: '1 session', action: <Button size="small" color="error" sx={{ borderRadius: 1, fontSize: '0.72rem' }} onClick={() => signOut()}>Sign out all</Button> },
-              ].map((row) => (
-                <Box key={row.label} sx={{ display: 'grid', gridTemplateColumns: '200px 1fr auto', alignItems: 'center', gap: 2, py: 0.75, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { border: 'none' } }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>{row.label}</Typography>
-                  <Typography variant="body2" fontWeight={500} color="text.secondary" sx={{ fontSize: '0.8rem' }}>{row.value}</Typography>
-                  {row.action}
-                </Box>
-              ))}
-            </Stack>
-          </Box>
-        </Paper>
-
-        {/* Danger zone */}
-        <Paper variant="outlined" sx={{ overflow: 'hidden', borderColor: alpha('#ef4444', 0.2) }}>
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: alpha('#ef4444', 0.15), bgcolor: alpha('#ef4444', 0.02) }}>
-            <Typography variant="subtitle2" fontWeight={800} color="error">Danger Zone</Typography>
-          </Box>
-          <Box sx={{ px: 3, py: 2.5 }}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Box>
-                <Typography variant="body2" fontWeight={600}>Delete account</Typography>
-                <Typography variant="caption" color="text.secondary">Permanently remove your account and all associated data. This cannot be undone.</Typography>
+        </Box>
+        <Box sx={{ px: 3, py: 2.5 }}>
+          <Stack spacing={2.5}>
+            {[
+              { label: 'Full Name', value: user?.name || '—' },
+              { label: 'Email', value: user?.email || '—' },
+              {
+                label: 'User ID', value: userId,
+                action: (
+                  <Tooltip title={copiedId ? 'Copied!' : 'Copy'}>
+                    <IconButton size="small" onClick={copyUserId}>
+                      {copiedId ? <CheckIcon sx={{ fontSize: 13, color: '#10b981' }} /> : <ContentCopyIcon sx={{ fontSize: 13 }} />}
+                    </IconButton>
+                  </Tooltip>
+                )
+              },
+              { label: 'Plan', value: planMeta.label },
+              { label: 'Member Since', value: memberSince },
+            ].map((row) => (
+              <Box key={row.label} sx={{ display: 'grid', gridTemplateColumns: '160px 1fr auto', alignItems: 'center', gap: 2 }}>
+                <Typography variant="caption" color="text.disabled" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 0.8, fontSize: '0.6rem' }}>
+                  {row.label}
+                </Typography>
+                <Typography variant="body2" fontWeight={500} sx={{ fontFamily: row.label === 'User ID' ? 'monospace' : undefined, fontSize: '0.82rem', wordBreak: 'break-all' }}>
+                  {row.value}
+                </Typography>
+                {row.action ?? <Box />}
               </Box>
-              <Button variant="outlined" color="error" startIcon={<DeleteForeverIcon />} onClick={() => setDeleteOpen(true)}
-                sx={{ borderRadius: 1, flexShrink: 0, ml: 3 }}>
-                Delete
-              </Button>
+            ))}
+          </Stack>
+        </Box>
+      </Paper>
+
+      {/* Plan & Usage */}
+      <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden', borderRadius: 3 }}>
+        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha(planMeta.color, 0.02) }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <CreditCardIcon sx={{ fontSize: 17, color: planMeta.color }} />
+              <Typography variant="subtitle2" fontWeight={800}>Plan & Usage</Typography>
+            </Stack>
+            <Button size="small" variant="outlined" sx={{ borderRadius: 1, borderColor: alpha(planMeta.color, 0.4), color: planMeta.color, fontSize: '0.72rem' }}
+              onClick={() => router.push('/dashboard/billing')}>
+              Upgrade Plan
+            </Button>
+          </Stack>
+        </Box>
+        <Box sx={{ px: 3, py: 2.5 }}>
+          <Box sx={{ mb: 2.5, p: 2, borderRadius: 1.5, border: `1px solid ${alpha(planMeta.color, 0.2)}`, bgcolor: alpha(planMeta.color, 0.04) }}>
+            <Typography variant="subtitle2" fontWeight={800} sx={{ color: planMeta.color, mb: 1 }}>{planMeta.label} Plan</Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              {planMeta.features.map((f) => (
+                <Box key={f} sx={{ px: 1.25, py: 0.3, borderRadius: 0.5, bgcolor: alpha(planMeta.color, 0.1), color: planMeta.color, fontSize: '0.65rem', fontWeight: 700 }}>
+                  {f}
+                </Box>
+              ))}
             </Stack>
           </Box>
-        </Paper>
-      </Box>
+          <Stack spacing={2}>
+            {[
+              { label: 'Projects', used: 3, limit: plan === 'developer' ? 5 : plan === 'pro' ? 20 : 1 },
+              { label: 'Deployments this month', used: 12, limit: plan === 'developer' ? 20 : plan === 'pro' ? 100 : 5 },
+              { label: 'API calls this month', used: 48200, limit: plan === 'developer' ? 100000 : plan === 'pro' ? 1000000 : 10000 },
+            ].map((u) => {
+              const pct = Math.min((u.used / u.limit) * 100, 100);
+              const color = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#10b981';
+              return (
+                <Box key={u.label}>
+                  <Stack direction="row" justifyContent="space-between" mb={0.5}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>{u.label}</Typography>
+                    <Typography variant="caption" fontWeight={700} sx={{ color }}>{u.used.toLocaleString()} / {u.limit.toLocaleString()}</Typography>
+                  </Stack>
+                  <LinearProgress variant="determinate" value={pct} sx={{ height: 4, borderRadius: 2, bgcolor: alpha(color, 0.12), '& .MuiLinearProgress-bar': { bgcolor: color, borderRadius: 2 } }} />
+                </Box>
+              );
+            })}
+          </Stack>
+        </Box>
+      </Paper>
+
+      {/* Notification Preferences */}
+      <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden', borderRadius: 3 }}>
+        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#06b6d4', 0.02) }}>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <NotificationsIcon sx={{ fontSize: 17, color: '#06b6d4' }} />
+            <Typography variant="subtitle2" fontWeight={800}>Notification Preferences</Typography>
+          </Stack>
+        </Box>
+        <Box sx={{ px: 3, py: 2 }}>
+          <Stack spacing={0}>
+            {[
+              { label: 'Deployment events', description: 'Notify when a deployment completes or fails', value: notifyDeployments, set: setNotifyDeployments },
+              { label: 'State snapshots', description: 'Notify when a snapshot is created or fails', value: notifySnapshots, set: setNotifySnapshots },
+              { label: 'Security alerts', description: 'Notify on new sign-ins or API key usage anomalies', value: notifyAlerts, set: setNotifyAlerts },
+              { label: 'Product updates', description: 'News, tips, and feature announcements from Cerulea', value: notifyMarketing, set: setNotifyMarketing },
+            ].map((n, i, arr) => (
+              <Box key={n.label} sx={{ py: 1.5, borderBottom: i < arr.length - 1 ? '1px solid' : 'none', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.85rem' }}>{n.label}</Typography>
+                  <Typography variant="caption" color="text.secondary">{n.description}</Typography>
+                </Box>
+                <Switch
+                  size="small"
+                  checked={n.value}
+                  onChange={(e) => n.set(e.target.checked)}
+                  sx={{ '& .MuiSwitch-thumb': { bgcolor: n.value ? '#06b6d4' : undefined } }}
+                />
+              </Box>
+            ))}
+          </Stack>
+        </Box>
+      </Paper>
+
+      {/* Connected Accounts */}
+      <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden', borderRadius: 3 }}>
+        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#8b5cf6', 0.02) }}>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <LinkIcon sx={{ fontSize: 17, color: '#8b5cf6' }} />
+            <Typography variant="subtitle2" fontWeight={800}>Connected Accounts</Typography>
+          </Stack>
+        </Box>
+        <Box sx={{ px: 3, py: 2 }}>
+          <Stack spacing={0}>
+            {[
+              { name: 'Google', connected: true, email: user?.email, color: '#ea4335' },
+              { name: 'GitHub', connected: false, email: null, color: '#24292e' },
+              { name: 'Discord', connected: false, email: null, color: '#5865f2' },
+            ].map((acc, i, arr) => (
+              <Box key={acc.name} sx={{ py: 1.5, borderBottom: i < arr.length - 1 ? '1px solid' : 'none', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: alpha(acc.color, 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 15, color: acc.color, flexShrink: 0 }}>
+                  {acc.name[0]}
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="body2" fontWeight={700}>{acc.name}</Typography>
+                  {acc.connected && acc.email && (
+                    <Typography variant="caption" color="text.secondary">{acc.email}</Typography>
+                  )}
+                </Box>
+                {acc.connected ? (
+                  <Chip label="Connected" size="small" sx={{ height: 20, fontSize: '0.62rem', fontWeight: 700, bgcolor: alpha('#10b981', 0.1), color: '#10b981', border: 'none' }} />
+                ) : (
+                  <Button size="small" variant="outlined" sx={{ borderRadius: 1, fontSize: '0.7rem', borderColor: alpha(acc.color, 0.3), color: acc.color }}>
+                    Connect
+                  </Button>
+                )}
+              </Box>
+            ))}
+          </Stack>
+        </Box>
+      </Paper>
+
+      {/* Security */}
+      <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden', borderRadius: 3 }}>
+        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <SecurityIcon sx={{ fontSize: 17, color: '#10b981' }} />
+            <Typography variant="subtitle2" fontWeight={800}>Security</Typography>
+          </Stack>
+        </Box>
+        <Box sx={{ px: 3, py: 2 }}>
+          <Stack spacing={0}>
+            {[
+              { label: 'Password', value: '••••••••••••', action: <Button size="small" sx={{ borderRadius: 1, fontSize: '0.72rem' }}>Change</Button> },
+              { label: 'Two-factor authentication', value: 'Not enabled', action: <Button size="small" variant="outlined" sx={{ borderRadius: 1, fontSize: '0.72rem', borderColor: alpha('#10b981', 0.4), color: '#10b981' }}>Enable 2FA</Button> },
+              { label: 'Active sessions', value: '1 device', action: <Button size="small" color="error" sx={{ borderRadius: 1, fontSize: '0.72rem' }} onClick={() => signOut()}>Sign out all</Button> },
+            ].map((row, i, arr) => (
+              <Box key={row.label} sx={{ py: 1.5, borderBottom: i < arr.length - 1 ? '1px solid' : 'none', borderColor: 'divider', display: 'grid', gridTemplateColumns: '200px 1fr auto', alignItems: 'center', gap: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>{row.label}</Typography>
+                <Typography variant="body2" fontWeight={500} color="text.secondary" sx={{ fontSize: '0.8rem' }}>{row.value}</Typography>
+                {row.action}
+              </Box>
+            ))}
+          </Stack>
+        </Box>
+      </Paper>
+
+      {/* Danger zone */}
+      <Paper variant="outlined" sx={{ overflow: 'hidden', borderRadius: 3, borderColor: alpha('#ef4444', 0.2) }}>
+        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: alpha('#ef4444', 0.15), bgcolor: alpha('#ef4444', 0.02) }}>
+          <Typography variant="subtitle2" fontWeight={800} color="error">Danger Zone</Typography>
+        </Box>
+        <Box sx={{ px: 3, py: 2.5 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Box>
+              <Typography variant="body2" fontWeight={600}>Delete account</Typography>
+              <Typography variant="caption" color="text.secondary">Permanently remove your account and all associated data. This cannot be undone.</Typography>
+            </Box>
+            <Button variant="outlined" color="error" startIcon={<DeleteForeverIcon />} onClick={() => setDeleteOpen(true)}
+              sx={{ borderRadius: 1, flexShrink: 0, ml: 3 }}>
+              Delete
+            </Button>
+          </Stack>
+        </Box>
+      </Paper>
 
       {/* Delete account dialog */}
       <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} maxWidth="xs" fullWidth>

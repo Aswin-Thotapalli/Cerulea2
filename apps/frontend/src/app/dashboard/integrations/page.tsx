@@ -44,13 +44,20 @@ const CAT_ICON: Record<string, React.ReactNode> = {
   Storage: <StorageIcon sx={{ fontSize: 16 }} />,
 };
 
+const PROJECT_TOKEN = 'ce5f2a8d1b4e7c9f3a6d2e8b1c4f7a9e';
+
+const API_ENDPOINTS = [
+  { label: 'JSON-RPC', value: `https://rpc.cerulea.app/v1/${PROJECT_TOKEN}/mainnet`, desc: 'Ethereum-compatible JSON-RPC' },
+  { label: 'REST', value: `https://api.cerulea.app/v1/${PROJECT_TOKEN}/mainnet`, desc: 'REST API for off-chain queries' },
+  { label: 'WebSocket', value: `wss://ws.cerulea.app/v1/${PROJECT_TOKEN}/mainnet`, desc: 'Real-time subscriptions' },
+  { label: 'GraphQL', value: `https://gql.cerulea.app/v1/${PROJECT_TOKEN}/mainnet`, desc: 'Flexible GraphQL queries' },
+];
+
 const STUB_WEBHOOK = {
-  url: 'https://api.cerulea.app/webhooks/****...****c7e8',
-  secret: 'whsec_****...****d4f9',
+  url: `https://hooks.cerulea.app/events/${PROJECT_TOKEN}`,
+  secret: `whsec_${PROJECT_TOKEN}`,
   events: ['project.deployed', 'snapshot.created', 'node.status_changed', 'proposal.finalized'],
 };
-
-const REST_ENDPOINT = 'https://rpc.cerulea.app/v1/****...****e1b2/mainnet';
 
 function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
@@ -201,21 +208,31 @@ export default function IntegrationsPage() {
 
       {/* Endpoints */}
       <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2.5 }}>
-        {/* REST endpoint */}
+        {/* API Endpoints */}
         <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
           <Stack direction="row" alignItems="center" spacing={1} mb={0.75}>
             <Box sx={{ width: 28, height: 28, borderRadius: 1.5, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <LinkIcon sx={{ fontSize: 14, color: '#4F46E5' }} />
             </Box>
-            <Typography variant="subtitle2" fontWeight={800}>REST API Endpoint</Typography>
+            <Typography variant="subtitle2" fontWeight={800}>API Endpoints</Typography>
           </Stack>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-            Connect external services to your deployed network's RPC interface.
+            Connect your dApp to the deployed network using any of the protocols below.
           </Typography>
-          <Stack direction="row" alignItems="center" spacing={0.5}
-            sx={{ px: 1.5, py: 1, borderRadius: 1.5, bgcolor: alpha('#4F46E5', 0.04), border: `1px solid ${alpha('#4F46E5', 0.15)}` }}>
-            <Typography variant="caption" sx={{ fontFamily: 'monospace', flex: 1, color: 'text.secondary' }} noWrap>{REST_ENDPOINT}</Typography>
-            <CopyButton value={REST_ENDPOINT} />
+          <Stack spacing={1.25}>
+            {API_ENDPOINTS.map((ep) => (
+              <Box key={ep.label}>
+                <Stack direction="row" alignItems="center" spacing={1} mb={0.4}>
+                  <Box sx={{ px: 0.75, py: 0.2, borderRadius: 0.75, bgcolor: alpha('#4F46E5', 0.1), color: '#4F46E5', fontSize: '0.58rem', fontWeight: 800 }}>{ep.label}</Box>
+                  <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.62rem' }}>{ep.desc}</Typography>
+                </Stack>
+                <Stack direction="row" alignItems="center" spacing={0.5}
+                  sx={{ px: 1.5, py: 0.75, borderRadius: 1.5, bgcolor: alpha('#4F46E5', 0.03), border: `1px solid ${alpha('#4F46E5', 0.12)}` }}>
+                  <Typography variant="caption" sx={{ fontFamily: 'monospace', flex: 1, color: 'text.secondary', fontSize: '0.68rem' }} noWrap>{ep.value}</Typography>
+                  <CopyButton value={ep.value} />
+                </Stack>
+              </Box>
+            ))}
           </Stack>
         </Paper>
 
