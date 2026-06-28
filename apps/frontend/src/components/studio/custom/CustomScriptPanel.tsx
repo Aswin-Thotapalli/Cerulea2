@@ -49,8 +49,8 @@ export default function CustomScriptPanel({ projectId }: { projectId: string }) 
     <Box sx={{
       display: "flex",
       flexDirection: "column",
-      height: "calc(100vh - 320px)",
-      minHeight: 360,
+      height: "100%",
+      minHeight: 400,
       border: `1px solid ${borderColor}`,
       bgcolor: isDark ? "#080E24" : "#fafafa",
     }}>

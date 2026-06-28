@@ -287,6 +287,11 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [logicMode, setLogicMode] = useState<'visual' | 'code'>('visual');
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [customTriggers, setCustomTriggers] = useState<Record<string, Array<{ event: string; action: string; description: string; color: string }>>>({});
+  const [customTriggerModuleId, setCustomTriggerModuleId] = useState<string | null>(null);
+  const [newTriggerEvent, setNewTriggerEvent] = useState('');
+  const [newTriggerAction, setNewTriggerAction] = useState('');
+  const [newTriggerDesc, setNewTriggerDesc] = useState('');
 
   /* ---------- derived ---------- */
   const allEntities = useMemo(
@@ -1335,7 +1340,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
           <Stack spacing={2.5}>
             {blueprintModules.map((mod) => {
               const mode = getTriggerMode(mod.id);
-              const seeds = TRIGGER_SEEDS[mod.id] || TRIGGER_SEEDS['_default'];
+              const seeds = [...(TRIGGER_SEEDS[mod.id] || TRIGGER_SEEDS['_default'] || []), ...(customTriggers[mod.id] || [])];
               return (
                 <Paper
                   key={mod.id}
@@ -1452,6 +1457,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                           startIcon={<AddIcon />}
                           variant="outlined"
                           size="small"
+                          onClick={() => { setCustomTriggerModuleId(mod.id); setNewTriggerEvent(''); setNewTriggerAction(''); setNewTriggerDesc(''); }}
                           sx={{ borderRadius: 2, alignSelf: 'flex-start', mt: 0.5, fontWeight: 700 }}
                         >
                           Add Custom Trigger
@@ -1503,7 +1509,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                           <Box sx={{ flex: 1 }} />
                           <Chip label="TypeScript" size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: alpha('#3b82f6', 0.15), color: '#60a5fa', border: 'none' }} />
                         </Box>
-                        <Box sx={{ height: 360, bgcolor: theme.palette.mode === 'dark' ? '#0d1117' : '#1e1e2e' }}>
+                        <Box sx={{ height: 480, bgcolor: theme.palette.mode === 'dark' ? '#0d1117' : '#1e1e2e' }}>
                           <CustomScriptPanel projectId="" />
                         </Box>
                       </Box>
@@ -1789,6 +1795,55 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => { setAddEntityOpen(false); setEntitySearch(''); }} sx={{ borderRadius: 1 }}>
             Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ADD CUSTOM TRIGGER DIALOG */}
+      <Dialog open={!!customTriggerModuleId} onClose={() => setCustomTriggerModuleId(null)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+        <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Add Custom Trigger</span>
+          <IconButton size="small" onClick={() => setCustomTriggerModuleId(null)}><CloseIcon /></IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2.5} pt={1}>
+            <TextField
+              label="When (Event)" size="small" fullWidth
+              placeholder="e.g. User.SignedUp, Payment.Completed"
+              value={newTriggerEvent} onChange={(e) => setNewTriggerEvent(e.target.value)}
+              helperText="The event that triggers this rule"
+            />
+            <TextField
+              label="Then (Action)" size="small" fullWidth
+              placeholder="e.g. Send Welcome Email, Mint NFT"
+              value={newTriggerAction} onChange={(e) => setNewTriggerAction(e.target.value)}
+              helperText="What happens when the event fires"
+            />
+            <TextField
+              label="Why (Description)" size="small" fullWidth multiline rows={2}
+              placeholder="Explain the business purpose of this trigger..."
+              value={newTriggerDesc} onChange={(e) => setNewTriggerDesc(e.target.value)}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setCustomTriggerModuleId(null)} sx={{ borderRadius: 1 }}>Cancel</Button>
+          <Button variant="contained" disabled={!newTriggerEvent.trim() || !newTriggerAction.trim()}
+            onClick={() => {
+              if (!customTriggerModuleId) return;
+              setCustomTriggers(prev => ({
+                ...prev,
+                [customTriggerModuleId]: [...(prev[customTriggerModuleId] || []), {
+                  event: newTriggerEvent.trim(),
+                  action: newTriggerAction.trim(),
+                  description: newTriggerDesc.trim() || 'Custom trigger',
+                  color: '#8b5cf6',
+                }],
+              }));
+              setCustomTriggerModuleId(null);
+            }}
+            sx={{ borderRadius: 1, fontWeight: 700 }}>
+            Add Trigger
           </Button>
         </DialogActions>
       </Dialog>

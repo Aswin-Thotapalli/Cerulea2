@@ -312,12 +312,12 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
     <Stack spacing={4}>
        <Box>
           <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <MonetizationOnIcon sx={{ color: 'primary.main' }} />
             </Box>
-            <Typography variant="h4" fontWeight={800}>Monetization Strategy</Typography>
+            <Typography variant="h5" fontWeight={800}>Monetization Strategy</Typography>
           </Stack>
-          <Typography variant="body1" color="text.secondary">Define pricing models, tiers, and billing cycles.</Typography>
+          <Typography variant="body2" color="text.secondary">Define pricing models, tiers, and billing cycles.</Typography>
        </Box>
 
        {/* Set 1: Core Strategy */}
@@ -407,12 +407,12 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
     <Stack spacing={4}>
        <Box>
           <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha(theme.palette.secondary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha(theme.palette.secondary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <TokenIcon sx={{ color: 'secondary.main' }} />
             </Box>
-            <Typography variant="h4" fontWeight={800}>Asset Configuration</Typography>
+            <Typography variant="h5" fontWeight={800}>Asset Configuration</Typography>
           </Stack>
-          <Typography variant="body1" color="text.secondary">Manage token standards, supplies, and metadata storage.</Typography>
+          <Typography variant="body2" color="text.secondary">Manage token standards, supplies, and metadata storage.</Typography>
        </Box>
 
        {/* Set 1: Token Identity */}
@@ -502,12 +502,12 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
     <Stack spacing={4}>
        <Box>
           <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ReceiptLongIcon sx={{ color: 'primary.main' }} />
             </Box>
-            <Typography variant="h4" fontWeight={800}>Revenue Splits</Typography>
+            <Typography variant="h5" fontWeight={800}>Revenue Splits</Typography>
           </Stack>
-          <Typography variant="body1" color="text.secondary">Manage platform fees and automatic payouts.</Typography>
+          <Typography variant="body2" color="text.secondary">Manage platform fees and automatic payouts.</Typography>
        </Box>
        
        {/* Set 1: Platform Fees */}
@@ -587,12 +587,12 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
     <Stack spacing={4}>
        <Box>
           <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <AccountBalanceWalletIcon sx={{ color: 'primary.main' }} />
             </Box>
-            <Typography variant="h4" fontWeight={800}>Payment Gateways</Typography>
+            <Typography variant="h5" fontWeight={800}>Payment Gateways</Typography>
           </Stack>
-          <Typography variant="body1" color="text.secondary">Manage fiat and crypto acceptance methods.</Typography>
+          <Typography variant="body2" color="text.secondary">Manage fiat and crypto acceptance methods.</Typography>
        </Box>
        
        {/* Set 1: Fiat */}
@@ -663,12 +663,12 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
     <Stack spacing={4}>
        <Box>
           <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha('#8b5cf6', 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha('#8b5cf6', 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <GavelIcon sx={{ color: '#8b5cf6' }} />
             </Box>
-            <Typography variant="h4" fontWeight={800}>Compliance & Legal</Typography>
+            <Typography variant="h5" fontWeight={800}>Compliance & Legal</Typography>
           </Stack>
-          <Typography variant="body1" color="text.secondary">Set up geographic restrictions, KYC, and tax collection.</Typography>
+          <Typography variant="body2" color="text.secondary">Set up geographic restrictions, KYC, and tax collection.</Typography>
        </Box>
        
        {/* Set 1: Identity */}
@@ -746,12 +746,12 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
       <Stack spacing={4}>
          <Box>
           <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <PieChartIcon sx={{ color: 'primary.main' }} />
             </Box>
-            <Typography variant="h4" fontWeight={800}>Tokenomics Engine</Typography>
+            <Typography variant="h5" fontWeight={800}>Tokenomics Engine</Typography>
           </Stack>
-          <Typography variant="body1" color="text.secondary">Configure supply, distribution, and vesting schedules.</Typography>
+          <Typography variant="body2" color="text.secondary">Configure supply, distribution, and vesting schedules.</Typography>
          </Box>
 
          {/* Set 1: Core Asset */}
@@ -817,12 +817,12 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
     <Stack spacing={4}>
        <Box>
           <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ShowChartIcon sx={{ color: 'primary.main' }} />
             </Box>
-            <Typography variant="h4" fontWeight={800}>Gas & Fees</Typography>
+            <Typography variant="h5" fontWeight={800}>Gas & Fees</Typography>
           </Stack>
-          <Typography variant="body1" color="text.secondary">Configure transaction costs and burn mechanisms.</Typography>
+          <Typography variant="body2" color="text.secondary">Configure transaction costs and burn mechanisms.</Typography>
        </Box>
 
        {/* Set 1: Gas Model */}
@@ -882,12 +882,12 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
     <Stack spacing={4}>
        <Box>
           <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha('#8b5cf6', 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha('#8b5cf6', 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <VerifiedUserIcon sx={{ color: '#8b5cf6' }} />
             </Box>
-            <Typography variant="h4" fontWeight={800}>Staking & Security</Typography>
+            <Typography variant="h5" fontWeight={800}>Staking & Security</Typography>
           </Stack>
-          <Typography variant="body1" color="text.secondary">Set validator requirements and slashing conditions.</Typography>
+          <Typography variant="body2" color="text.secondary">Set validator requirements and slashing conditions.</Typography>
        </Box>
 
        {/* Set 1: Requirements */}
@@ -941,12 +941,12 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
     <Stack spacing={4}>
        <Box>
           <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <AccountBalanceIcon sx={{ color: 'primary.main' }} />
             </Box>
-            <Typography variant="h4" fontWeight={800}>On-Chain Governance</Typography>
+            <Typography variant="h5" fontWeight={800}>On-Chain Governance</Typography>
           </Stack>
-          <Typography variant="body1" color="text.secondary">Set the rules for protocol upgrades and treasury spending.</Typography>
+          <Typography variant="body2" color="text.secondary">Set the rules for protocol upgrades and treasury spending.</Typography>
        </Box>
 
        {/* Set 1: Voting Config */}
