@@ -16,6 +16,7 @@ import CodeIcon from '@mui/icons-material/Code';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import SendIcon from '@mui/icons-material/Send';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import SearchBar from './SearchBar';
@@ -96,22 +97,18 @@ export default function ExplorerNav() {
           <Box
             component={Link}
             href={`/explorer/${chain}`}
-            sx={{ display: 'flex', alignItems: 'center', gap: 1, textDecoration: 'none', flexShrink: 0 }}
+            sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none', flexShrink: 0 }}
           >
-            <Box
-              sx={{
-                width: 28, height: 28, borderRadius: 1,
-                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary?.main ?? '#7c4dff'})`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              <Typography variant="caption" fontWeight={900} sx={{ color: '#fff', fontSize: '0.7rem' }}>C</Typography>
-            </Box>
-            <Typography fontWeight={800} fontSize="1rem" sx={{ color: 'text.primary', letterSpacing: '-0.02em' }}>
-              Cerulea
-              <Typography component="span" fontWeight={400} sx={{ color: 'text.secondary', ml: 0.5 }}>
-                Explorer
-              </Typography>
+            <Image
+              src="/brand/logo-studio.png"
+              alt="Cerulea"
+              width={120}
+              height={36}
+              style={{ objectFit: 'contain', width: 'auto', height: 32 }}
+              priority
+            />
+            <Typography fontWeight={600} fontSize="0.85rem" sx={{ color: 'text.secondary', letterSpacing: '-0.01em' }}>
+              Explorer
             </Typography>
           </Box>
 

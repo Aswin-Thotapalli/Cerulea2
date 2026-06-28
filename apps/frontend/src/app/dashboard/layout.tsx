@@ -9,6 +9,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
@@ -25,7 +26,6 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import AddIcon from '@mui/icons-material/Add';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import HexagonIcon from '@mui/icons-material/Hexagon';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 
 const DRAWER_WIDTH = 248;
@@ -129,18 +129,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             borderBottom: `1px solid ${theme.palette.divider}`,
             flexShrink: 0, mt: '2px',
           }}>
-            <Box sx={{
-              width: 32, height: 32, borderRadius: 2,
-              bgcolor: alpha('#4F46E5', 0.12),
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <HexagonIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+            <Box component={Link} href="/" sx={{ flex: 1, display: 'flex', alignItems: 'center', textDecoration: 'none', minWidth: 0 }}>
+              <Image
+                src="/brand/logo-studio.png"
+                alt="Cerulea Studio"
+                width={120}
+                height={36}
+                style={{ objectFit: 'contain', width: 'auto', height: 28 }}
+                priority
+              />
             </Box>
-            <Typography variant="h6" fontWeight={900} sx={{ letterSpacing: -0.5, fontSize: '1rem' }}>
-              Cerulea
-            </Typography>
-            <Box sx={{ flex: 1 }} />
             <IconButton size="small" onClick={() => setCollapsed(true)}
               sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
               <ChevronLeftIcon fontSize="small" />
