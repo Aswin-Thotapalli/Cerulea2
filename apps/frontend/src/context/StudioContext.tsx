@@ -49,6 +49,7 @@ export interface StudioState {
 
   // Step 0
   projectType: 'dapp' | 'blockchain' | null;
+  dappVisibility: 'public' | 'private' | null;
   templateId: string | null;
   workspaceId: string;
 
@@ -72,6 +73,7 @@ export interface StudioContextType extends StudioState {
 
 const initialState: StudioState = {
   projectType: null,
+  dappVisibility: null,
   templateId: null,
   workspaceId: 'personal',
   appMetadata: { appName: '', appDescription: '' },

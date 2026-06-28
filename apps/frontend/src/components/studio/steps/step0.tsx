@@ -38,8 +38,9 @@ type Template = {
   preinstalledModules: string[];
 };
 
-type Step0Phase = 'choose-type' | 'legacy-question' | 'gallery' | 'details';
+type Step0Phase = 'choose-type' | 'dapp-type' | 'legacy-question' | 'gallery' | 'details';
 type LegacyMode = 'none' | 'connect' | 'port';
+type DappVisibility = 'public' | 'private';
 
 /* ---------- Utils ---------- */
 function slugify(raw: string) {
@@ -48,6 +49,7 @@ function slugify(raw: string) {
 
 const PHASE_TO_SUBSTEP: Record<Step0Phase, number> = {
   'choose-type': 0,
+  'dapp-type': 1,
   'legacy-question': 1,
   'gallery': 2,
   'details': 3,
@@ -165,11 +167,16 @@ export default function Step0({
   const { projectType, templateId, appMetadata, workspaceId, setStudioState } = useStudio();
   const { data: session } = useSession();
 
+  const userPlan = (session?.user as any)?.plan as string | undefined;
+  const canUsePrivateDapp = userPlan === 'pro' || userPlan === 'enterprise';
+
   /* ---- State ---- */
   const [phase, setPhaseRaw] = React.useState<Step0Phase>(projectType ? 'gallery' : 'choose-type');
   const [dType, setDType] = React.useState<ProjectType | null>(projectType);
+  const [dappVisibility, setDappVisibility] = React.useState<DappVisibility | null>(null);
   const [authModalOpen, setAuthModalOpen] = React.useState(false);
   const [pendingType, setPendingType] = React.useState<ProjectType | null>(null);
+  const [pendingPrivateDapp, setPendingPrivateDapp] = React.useState(false);
   const [legacyMode, setLegacyMode] = React.useState<LegacyMode>('none');
   const [legacyStep, setLegacyStep] = React.useState<'has-legacy' | 'how-to-proceed'>('has-legacy');
   const [templates, setTemplates] = React.useState<Template[]>([]);
@@ -239,14 +246,15 @@ export default function Step0({
   React.useEffect(() => { if (!slugDirty) setSlug(slugify(name)); }, [name, slugDirty]);
 
   /* ---- Handlers ---- */
-  const proceedToGallery = (ptype: ProjectType, lmode: LegacyMode = 'none') => {
+  const proceedToGallery = (ptype: ProjectType, lmode: LegacyMode = 'none', visibility: DappVisibility = 'public') => {
     setDType(ptype);
-    setStudioState({ projectType: ptype, templateId: null, legacyMode: lmode } as any);
+    setStudioState({ projectType: ptype, dappVisibility: ptype === 'dapp' ? visibility : null, templateId: null, legacyMode: lmode } as any);
     setSelectedTemplate(null);
     setSearch('');
     if (typeof window !== 'undefined') {
       localStorage.removeItem('cerulea.templateModules');
       localStorage.setItem('cerulea.projectType', ptype);
+      if (ptype === 'dapp') localStorage.setItem('cerulea.dappVisibility', visibility);
       localStorage.removeItem('cerulea.templateId');
     }
     setPhase('gallery');
@@ -260,8 +268,20 @@ export default function Step0({
       setLegacyStep('has-legacy');
       setPhase('legacy-question');
     } else {
-      proceedToGallery(ptype);
+      // dApp — ask public vs private
+      setDType(ptype);
+      setPhase('dapp-type');
     }
+  };
+
+  const chooseDappVisibility = (visibility: DappVisibility) => {
+    if (visibility === 'private' && !canUsePrivateDapp) {
+      // Gate: redirect to upgrade
+      if (typeof window !== 'undefined') window.location.href = '/dashboard/billing?upgrade=private-dapp';
+      return;
+    }
+    setDappVisibility(visibility);
+    proceedToGallery('dapp', 'none', visibility);
   };
 
   const handleLegacyChoice = (hasLegacy: boolean) => {
@@ -298,8 +318,9 @@ export default function Step0({
     if (!dType || !name || name.trim().length < 3 || !slug) return;
     const payload: any = {
       name, slug, description, projectType: dType,
+      dappVisibility: dType === 'dapp' ? (dappVisibility ?? 'public') : null,
       templateId: selectedTemplate ?? null, workspaceId: wsId || null,
-      details: dType === 'dapp' ? { dapp: dappDetails } : { blockchain: chainDetails },
+      details: dType === 'dapp' ? { dapp: { ...dappDetails, visibility: dappVisibility ?? 'public' } } : { blockchain: chainDetails },
     };
     try {
       const res = await fetch('/api/projects', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
@@ -315,6 +336,7 @@ export default function Step0({
         }
         localStorage.setItem('cerulea.templateModules', JSON.stringify(modulesToLoad));
         localStorage.setItem('cerulea.projectType', dType);
+        if (dType === 'dapp') localStorage.setItem('cerulea.dappVisibility', dappVisibility ?? 'public');
       }
       goNext();
     } catch (e) { console.error(e); }
@@ -357,7 +379,7 @@ export default function Step0({
   /* ---- Helpers for back navigation ---- */
   const goBackFromGallery = () => {
     if (dType === 'blockchain') setPhase('legacy-question');
-    else setPhase('choose-type');
+    else setPhase('dapp-type');
   };
 
   /* ================================================================ */
@@ -381,6 +403,9 @@ export default function Step0({
             setDType('blockchain');
             setLegacyStep('has-legacy');
             setPhase('legacy-question');
+          } else if (pendingType === 'dapp') {
+            setDType('dapp');
+            setPhase('dapp-type');
           } else if (pendingType) {
             proceedToGallery(pendingType);
           }
@@ -512,6 +537,140 @@ export default function Step0({
                   </Box>
                 </PortalCard>
               </Stack>
+            </Stack>
+          </Fade>
+        )}
+
+        {/* ─── PHASE: DAPP TYPE (public vs private) ─── */}
+        {phase === 'dapp-type' && (
+          <Fade in mountOnEnter unmountOnExit timeout={350}>
+            <Stack spacing={5} alignItems="center" justifyContent="center"
+              sx={{ width: '100%', maxWidth: 580, px: 3, my: 'auto' }}>
+
+              <Stack spacing={1.5} alignItems="center" textAlign="center">
+                <Box sx={{
+                  display: 'inline-flex', alignItems: 'center', gap: 0.6,
+                  bgcolor: 'background.paper', border: '0.5px solid', borderColor: 'divider',
+                  borderRadius: 99, px: 1.5, py: 0.4,
+                }}>
+                  <Typography sx={{ fontSize: '0.65rem', color: 'primary.main', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                    dApp · Step 1 of 6
+                  </Typography>
+                </Box>
+                <Typography variant="h4" fontWeight={500} sx={{ letterSpacing: '-0.5px', color: 'text.primary', lineHeight: 1.2 }}>
+                  Who can access your dApp?
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7, maxWidth: 400 }}>
+                  Public dApps deploy on Cerulea's shared network — open to all wallets. Private dApps run on your own isolated environment with access control.
+                </Typography>
+              </Stack>
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} width="100%">
+                {/* Public dApp */}
+                <PortalCard selected={dappVisibility === 'public'} onClick={() => chooseDappVisibility('public')} elevation={0} sx={{ flex: 1 }}>
+                  {dappVisibility === 'public' && (
+                    <Box sx={{
+                      position: 'absolute', top: 10, right: 10, zIndex: 1,
+                      width: 20, height: 20, borderRadius: '50%', bgcolor: 'primary.main',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <CheckIcon sx={{ fontSize: 11, color: '#fff' }} />
+                    </Box>
+                  )}
+                  <Box sx={{
+                    height: 108,
+                    bgcolor: dappVisibility === 'public' ? alpha(theme.palette.primary.main, 0.07) : alpha(theme.palette.primary.main, 0.03),
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'background 0.15s',
+                  }}>
+                    <AutoAwesomeMosaicIcon sx={{ fontSize: 48, color: dappVisibility === 'public' ? 'primary.main' : 'text.disabled' }} />
+                  </Box>
+                  <Box sx={{ p: '14px 14px 16px' }}>
+                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.5 }}>Public dApp</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.7, display: 'block', mb: 1.5 }}>
+                      Open to all users on Cerulea's public network. Anyone with a wallet can interact.
+                    </Typography>
+                    <Stack direction="row" gap={0.5} flexWrap="wrap">
+                      {['NFT', 'DeFi', 'DAO', 'Marketplace'].map(tag => (
+                        <Chip key={tag} label={tag} size="small" sx={{
+                          height: 20, fontSize: '0.65rem', fontWeight: 500,
+                          bgcolor: alpha(theme.palette.primary.main, 0.08),
+                          color: 'primary.main', border: 'none',
+                        }} />
+                      ))}
+                    </Stack>
+                    <Chip label="All plans" size="small" sx={{
+                      mt: 1.5, height: 20, fontSize: '0.62rem', fontWeight: 600,
+                      bgcolor: alpha('#10b981', 0.1), color: '#10b981', border: 'none',
+                    }} />
+                  </Box>
+                </PortalCard>
+
+                {/* Private dApp */}
+                <PortalCard
+                  selected={dappVisibility === 'private'}
+                  onClick={() => chooseDappVisibility('private')}
+                  elevation={0}
+                  sx={{ flex: 1, opacity: canUsePrivateDapp ? 1 : 0.75 }}
+                >
+                  {dappVisibility === 'private' && (
+                    <Box sx={{
+                      position: 'absolute', top: 10, right: 10, zIndex: 1,
+                      width: 20, height: 20, borderRadius: '50%', bgcolor: 'primary.main',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <CheckIcon sx={{ fontSize: 11, color: '#fff' }} />
+                    </Box>
+                  )}
+                  <Box sx={{
+                    height: 108,
+                    bgcolor: dappVisibility === 'private' ? alpha('#8b5cf6', 0.1) : alpha('#8b5cf6', 0.04),
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'background 0.15s',
+                  }}>
+                    <DomainIcon sx={{ fontSize: 48, color: dappVisibility === 'private' ? '#8b5cf6' : 'text.disabled' }} />
+                  </Box>
+                  <Box sx={{ p: '14px 14px 16px' }}>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                      <Typography variant="subtitle1" fontWeight={600}>Private dApp</Typography>
+                      {!canUsePrivateDapp && (
+                        <Chip label="Pro+" size="small" sx={{
+                          height: 18, fontSize: '0.6rem', fontWeight: 700,
+                          bgcolor: alpha('#f59e0b', 0.12), color: '#f59e0b', border: 'none',
+                        }} />
+                      )}
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.7, display: 'block', mb: 1.5 }}>
+                      Isolated environment with permissioned access. Only invited wallets can interact.
+                    </Typography>
+                    <Stack direction="row" gap={0.5} flexWrap="wrap">
+                      {['Enterprise', 'Internal Tools', 'Permissioned'].map(tag => (
+                        <Chip key={tag} label={tag} size="small" sx={{
+                          height: 20, fontSize: '0.65rem', fontWeight: 500,
+                          bgcolor: alpha('#8b5cf6', 0.08),
+                          color: '#8b5cf6', border: 'none',
+                        }} />
+                      ))}
+                    </Stack>
+                    {!canUsePrivateDapp && (
+                      <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: '#f59e0b', fontWeight: 600, fontSize: '0.65rem' }}>
+                        Upgrade to Pro to unlock private dApps →
+                      </Typography>
+                    )}
+                  </Box>
+                </PortalCard>
+              </Stack>
+
+              <Box>
+                <Button
+                  size="small"
+                  startIcon={<ArrowBackIcon />}
+                  onClick={() => setPhase('choose-type')}
+                  sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+                >
+                  Back
+                </Button>
+              </Box>
             </Stack>
           </Fade>
         )}

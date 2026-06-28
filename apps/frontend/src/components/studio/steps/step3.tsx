@@ -35,10 +35,10 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
 // 1. Navigation Dock
 const FloatingIsland = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(8, 14, 36, 0.95)',
+  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.95)' : 'rgba(13,21,53,0.97)',
   backdropFilter: 'blur(16px)',
-  border: `1px solid ${theme.palette.divider}`,
-  boxShadow: '0 20px 40px -8px rgba(0, 0, 0, 0.3)',
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
+  boxShadow: '0 20px 40px -8px rgba(0,0,0,0.4)',
   borderRadius: 100,
   padding: '8px 24px',
   display: 'flex',
@@ -50,15 +50,15 @@ const FloatingIsland = styled(Paper)(({ theme }) => ({
 
 // 2. Step Indicator Pill
 const StepPill = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(8, 14, 36, 0.9)',
+  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(13,21,53,0.9)',
   backdropFilter: 'blur(10px)',
-  border: `1px solid ${theme.palette.divider}`,
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
   borderRadius: 100,
   padding: '8px 20px',
   display: 'flex',
   alignItems: 'center',
   gap: 12,
-  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
   pointerEvents: 'auto',
 }));
 
@@ -66,27 +66,30 @@ const StepPill = styled(Paper)(({ theme }) => ({
 const PhaseSidebar = styled(Box)(({ theme }) => ({
   width: 260,
   height: '100%',
-  borderRight: `1px solid ${theme.palette.divider}`,
+  borderRight: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
   display: 'flex',
   flexDirection: 'column',
-  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.5)' : 'rgba(8,14,36,0.4)',
+  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.6)' : 'rgba(13,21,53,0.6)',
   backdropFilter: 'blur(20px)',
   paddingTop: 16,
 }));
 
 // 4. Sidebar Item
 const PhaseItem = styled(Box, { shouldForwardProp: (p) => p !== 'active' })<{ active?: boolean }>(({ theme, active }) => ({
-  padding: '16px 24px',
+  padding: '14px 20px',
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',
-  gap: 16,
+  gap: 12,
+  borderRadius: 8,
+  margin: '2px 8px',
   borderLeft: `3px solid ${active ? theme.palette.primary.main : 'transparent'}`,
-  background: active ? alpha(theme.palette.primary.main, 0.05) : 'transparent',
+  background: active ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
   color: active ? theme.palette.primary.main : theme.palette.text.secondary,
   transition: 'all 0.2s ease',
+  fontWeight: active ? 700 : 500,
   '&:hover': {
-    background: active ? alpha(theme.palette.primary.main, 0.08) : alpha(theme.palette.action.hover, 0.5),
+    background: active ? alpha(theme.palette.primary.main, 0.1) : alpha(theme.palette.primary.main, 0.04),
     color: active ? theme.palette.primary.main : theme.palette.text.primary,
   }
 }));
@@ -108,11 +111,22 @@ const Workspace = styled(Box)(({ theme }) => ({
 // 6. Section Card
 const SectionCard = styled(Paper)(({ theme }) => ({
   padding: 32,
-  borderRadius: 24,
-  border: `1px solid ${theme.palette.divider}`,
-  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.6)' : 'rgba(8,14,36,0.6)',
-  backdropFilter: 'blur(12px)',
+  borderRadius: 16,
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+  background: theme.palette.background.paper,
   marginBottom: 24,
+  position: 'relative',
+  overflow: 'hidden',
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    background: 'linear-gradient(to bottom, #4F46E5, #8b5cf6)',
+    borderRadius: '16px 0 0 16px',
+  },
 }));
 
 // Opaque Menu
@@ -122,8 +136,9 @@ const OPAQUE_MENU_PROPS = {
       backgroundImage: 'none',
       backgroundColor: (t: any) => t.palette.mode === 'light' ? '#ffffff' : '#0D1535',
       border: '1px solid',
-      borderColor: 'divider',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+      borderColor: (t: any) => alpha(t.palette.primary.main, 0.15),
+      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+      borderRadius: 2,
     }
   }
 };
@@ -356,7 +371,12 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
   const renderDappRevenue = () => (
     <Stack spacing={4}>
        <Box>
-          <Typography variant="h4" fontWeight={900} gutterBottom>Monetization Strategy</Typography>
+          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
+            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <MonetizationOnIcon sx={{ color: 'primary.main' }} />
+            </Box>
+            <Typography variant="h4" fontWeight={800}>Monetization Strategy</Typography>
+          </Stack>
           <Typography variant="body1" color="text.secondary">Define pricing models, tiers, and billing cycles.</Typography>
        </Box>
 
@@ -410,16 +430,21 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
 
        {/* Set 3: Tiers */}
        <SectionCard>
-          <Stack direction="row" justifyContent="space-between" mb={3}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
              <Typography variant="h6" fontWeight={800}>3. Subscription Tiers</Typography>
-             <Button startIcon={<AddIcon />} variant="outlined" size="small" onClick={() => setDappRevenue(p => ({...p, tiers: [...p.tiers, {name:'New', monthly:0, annual:0, limit:''}]}))}>Add Tier</Button>
+             <Button startIcon={<AddIcon />} variant="outlined" size="small" onClick={() => setDappRevenue(p => ({...p, tiers: [...p.tiers, {name:'New', monthly:0, annual:0, limit:''}]}))} sx={{ borderRadius: 2, borderColor: alpha(theme.palette.primary.main, 0.4), '&:hover': { borderColor: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.04) } }}>Add Tier</Button>
           </Stack>
           <Grid container spacing={3}>
              {dappRevenue.tiers.map((t, i) => (
                 <Grid xs={12} md={4} key={i}>
-                   <Paper variant="outlined" sx={{ p: 3, borderRadius: 4, position: 'relative' }}>
-                      <IconButton size="small" sx={{ position: 'absolute', top: 5, right: 5 }} onClick={() => setDappRevenue(p => ({...p, tiers: p.tiers.filter((_, idx) => idx !== i)}))}><CloseIcon fontSize="small" /></IconButton>
-                      <TextField variant="standard" fullWidth value={t.name} onChange={e => { const n = [...dappRevenue.tiers]; n[i].name = e.target.value; setDappRevenue(p => ({...p, tiers: n}))}} InputProps={{ disableUnderline: true, style: { fontSize: '1.2rem', fontWeight: 800 } }} />
+                   <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, position: 'relative', borderColor: alpha(theme.palette.primary.main, 0.18), bgcolor: alpha(theme.palette.primary.main, 0.02), transition: 'border-color 0.2s', '&:hover': { borderColor: alpha(theme.palette.primary.main, 0.4) } }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                        <Box sx={{ width: 36, height: 36, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <ShowChartIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                        </Box>
+                        <IconButton size="small" sx={{ color: 'text.disabled', '&:hover': { color: 'error.main' } }} onClick={() => setDappRevenue(p => ({...p, tiers: p.tiers.filter((_, idx) => idx !== i)}))}><CloseIcon fontSize="small" /></IconButton>
+                      </Box>
+                      <TextField variant="standard" fullWidth value={t.name} onChange={e => { const n = [...dappRevenue.tiers]; n[i].name = e.target.value; setDappRevenue(p => ({...p, tiers: n}))}} InputProps={{ disableUnderline: true, style: { fontSize: '1.1rem', fontWeight: 800 } }} />
                       <Stack spacing={2} mt={2}>
                          <TextField label="Monthly Price" size="small" type="number" value={t.monthly} onChange={e => { const n = [...dappRevenue.tiers]; n[i].monthly = safeNum(e.target.value); setDappRevenue(p => ({...p, tiers: n}))}} />
                          <TextField label="Annual Price" size="small" type="number" value={t.annual} onChange={e => { const n = [...dappRevenue.tiers]; n[i].annual = safeNum(e.target.value); setDappRevenue(p => ({...p, tiers: n}))}} />
@@ -436,7 +461,12 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
   const renderDappAssets = () => (
     <Stack spacing={4}>
        <Box>
-          <Typography variant="h4" fontWeight={900} gutterBottom>Asset Configuration</Typography>
+          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
+            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha(theme.palette.secondary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <TokenIcon sx={{ color: 'secondary.main' }} />
+            </Box>
+            <Typography variant="h4" fontWeight={800}>Asset Configuration</Typography>
+          </Stack>
           <Typography variant="body1" color="text.secondary">Manage token standards, supplies, and metadata storage.</Typography>
        </Box>
 
@@ -526,7 +556,12 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
   const renderDappFees = () => (
     <Stack spacing={4}>
        <Box>
-          <Typography variant="h4" fontWeight={900} gutterBottom>Revenue Splits</Typography>
+          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
+            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ReceiptLongIcon sx={{ color: 'primary.main' }} />
+            </Box>
+            <Typography variant="h4" fontWeight={800}>Revenue Splits</Typography>
+          </Stack>
           <Typography variant="body1" color="text.secondary">Manage platform fees and automatic payouts.</Typography>
        </Box>
        
@@ -576,10 +611,10 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
        {/* Set 3: Recipients */}
        <SectionCard>
           <Typography variant="h6" fontWeight={800} mb={2}>3. Split Recipients</Typography>
-          <TableContainer component={Paper} variant="outlined">
+          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, borderColor: alpha(theme.palette.primary.main, 0.15) }}>
              <Table>
                 <TableHead>
-                   <TableRow>
+                   <TableRow sx={{ '& .MuiTableCell-head': { fontWeight: 700, bgcolor: alpha(theme.palette.primary.main, 0.04) } }}>
                       <TableCell>Label</TableCell>
                       <TableCell>Wallet Address</TableCell>
                       <TableCell width="20%">Share (%)</TableCell>
@@ -606,7 +641,12 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
   const renderDappPayments = () => (
     <Stack spacing={4}>
        <Box>
-          <Typography variant="h4" fontWeight={900} gutterBottom>Payment Gateways</Typography>
+          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
+            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <AccountBalanceWalletIcon sx={{ color: 'primary.main' }} />
+            </Box>
+            <Typography variant="h4" fontWeight={800}>Payment Gateways</Typography>
+          </Stack>
           <Typography variant="body1" color="text.secondary">Manage fiat and crypto acceptance methods.</Typography>
        </Box>
        
@@ -677,7 +717,12 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
   const renderDappCompliance = () => (
     <Stack spacing={4}>
        <Box>
-          <Typography variant="h4" fontWeight={900} gutterBottom>Compliance & Legal</Typography>
+          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
+            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha('#8b5cf6', 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <GavelIcon sx={{ color: '#8b5cf6' }} />
+            </Box>
+            <Typography variant="h4" fontWeight={800}>Compliance & Legal</Typography>
+          </Stack>
           <Typography variant="body1" color="text.secondary">Set up geographic restrictions, KYC, and tax collection.</Typography>
        </Box>
        
@@ -755,8 +800,13 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
     return (
       <Stack spacing={4}>
          <Box>
-            <Typography variant="h4" fontWeight={900} gutterBottom>Tokenomics Engine</Typography>
-            <Typography variant="body1" color="text.secondary">Configure supply, distribution, and vesting schedules.</Typography>
+          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
+            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <PieChartIcon sx={{ color: 'primary.main' }} />
+            </Box>
+            <Typography variant="h4" fontWeight={800}>Tokenomics Engine</Typography>
+          </Stack>
+          <Typography variant="body1" color="text.secondary">Configure supply, distribution, and vesting schedules.</Typography>
          </Box>
 
          {/* Set 1: Core Asset */}
@@ -821,7 +871,12 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
   const renderChainFees = () => (
     <Stack spacing={4}>
        <Box>
-          <Typography variant="h4" fontWeight={900} gutterBottom>Gas & Fees</Typography>
+          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
+            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ShowChartIcon sx={{ color: 'primary.main' }} />
+            </Box>
+            <Typography variant="h4" fontWeight={800}>Gas & Fees</Typography>
+          </Stack>
           <Typography variant="body1" color="text.secondary">Configure transaction costs and burn mechanisms.</Typography>
        </Box>
 
@@ -881,7 +936,12 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
   const renderChainStaking = () => (
     <Stack spacing={4}>
        <Box>
-          <Typography variant="h4" fontWeight={900} gutterBottom>Staking & Security</Typography>
+          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
+            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha('#8b5cf6', 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <VerifiedUserIcon sx={{ color: '#8b5cf6' }} />
+            </Box>
+            <Typography variant="h4" fontWeight={800}>Staking & Security</Typography>
+          </Stack>
           <Typography variant="body1" color="text.secondary">Set validator requirements and slashing conditions.</Typography>
        </Box>
 
@@ -935,7 +995,12 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
   const renderChainGov = () => (
     <Stack spacing={4}>
        <Box>
-          <Typography variant="h4" fontWeight={900} gutterBottom>On-Chain Governance</Typography>
+          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
+            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <AccountBalanceIcon sx={{ color: 'primary.main' }} />
+            </Box>
+            <Typography variant="h4" fontWeight={800}>On-Chain Governance</Typography>
+          </Stack>
           <Typography variant="body1" color="text.secondary">Set the rules for protocol upgrades and treasury spending.</Typography>
        </Box>
 
@@ -1011,28 +1076,36 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
         tip="If you're not sure about exact numbers, use the suggested defaults. These can be adjusted before deployment via a governance proposal."
       />
 
-       {/* Background */}
-       <Box sx={{ position: 'absolute', inset: 0, opacity: 0.5, zIndex: -1,
-          backgroundImage: theme.palette.mode === 'light' ? 'radial-gradient(rgba(79,70,229,0.07) 1px, transparent 1px)' : 'radial-gradient(rgba(79,70,229,0.13) 1px, transparent 1px)',
-          backgroundSize: '24px 24px'
+       {/* Background dot grid */}
+       <Box sx={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none',
+          backgroundImage: 'radial-gradient(rgba(79,70,229,0.12) 1px, transparent 1px)',
+          backgroundSize: '28px 28px'
        }} />
 
        {/* Layout */}
-       <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+       <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
           {/* Left Rail */}
           <PhaseSidebar>
-             <Box sx={{ px: 3, pb: 2 }}>
-               <Typography variant="subtitle1" fontWeight={800}>Economics</Typography>
-               <Typography variant="caption" color="text.secondary">
+             <Box sx={{ px: 3, pb: 3, pt: 1 }}>
+               <Stack direction="row" alignItems="center" spacing={1.5} mb={1}>
+                 <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                   <MonetizationOnIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                 </Box>
+                 <Typography variant="subtitle1" fontWeight={800} color="text.primary">Economics</Typography>
+               </Stack>
+               <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
                  {projectType === 'blockchain'
                    ? 'Define your token, staking rules, gas policy, and governance model.'
                    : 'Set up monetization, payments, asset configuration, and compliance.'}
                </Typography>
              </Box>
-             <Stack spacing={1} sx={{ px: 2 }}>
+             <Divider sx={{ borderColor: alpha(theme.palette.primary.main, 0.1), mb: 1 }} />
+             <Stack spacing={0} sx={{ px: 1, pt: 1 }}>
                 {tabs.map(t => (
                    <PhaseItem key={t.key} active={activeTab === t.key} onClick={() => setActiveTab(t.key)}>
-                      {t.icon}
+                      <Box sx={{ width: 32, height: 32, borderRadius: 1, bgcolor: activeTab === t.key ? alpha(theme.palette.primary.main, 0.15) : alpha(theme.palette.action.hover, 0.3), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: activeTab === t.key ? 'primary.main' : 'text.secondary', transition: 'all 0.2s' }}>
+                        {t.icon}
+                      </Box>
                       <Typography variant="subtitle2" fontWeight={700}>{t.label}</Typography>
                    </PhaseItem>
                 ))}
