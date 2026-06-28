@@ -100,7 +100,7 @@ export default function IntegrationsPage() {
   const enabledCount = integrations.filter((i) => i.enabled).length;
 
   return (
-    <Box sx={{ p: 4, maxWidth: 1100 }}>
+    <Box sx={{ p: 4, maxWidth: 1100, mx: 'auto' }}>
       {/* Header */}
       <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={4}>
         <Box>

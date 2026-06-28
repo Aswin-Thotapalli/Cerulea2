@@ -907,8 +907,8 @@ export default function Step5({
           {/* Left: Palette (Fix #5) */}
           <Paper
             sx={{
-              width: 320,
-              minWidth: 320,
+              width: 240,
+              minWidth: 240,
               borderRadius: 1,
               p: 1.5,
               border: "1px solid rgba(255,255,255,0.12)",
@@ -1121,8 +1121,8 @@ export default function Step5({
           {/* Right: Inspector */}
           <Paper
             sx={{
-              width: 360,
-              minWidth: 360,
+              width: 440,
+              minWidth: 440,
               borderRadius: 1,
               p: 1.5,
               border: "1px solid rgba(255,255,255,0.12)",

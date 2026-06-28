@@ -151,16 +151,29 @@ const sharedComponents = (mode: 'light' | 'dark') => {
     },
     MuiSwitch: {
       styleOverrides: {
-        root: { width: 36, height: 20, padding: 0 },
+        root: { width: 42, height: 24, padding: 0 },
         switchBase: {
-          padding: 2,
+          padding: 3,
           '&.Mui-checked': {
-            transform: 'translateX(16px)',
-            '& + .MuiSwitch-track': { opacity: 1 },
+            transform: 'translateX(18px)',
+            color: '#fff',
+            '& + .MuiSwitch-track': {
+              opacity: 1,
+              backgroundColor: '#4F46E5',
+            },
           },
+          '&.Mui-disabled + .MuiSwitch-track': { opacity: 0.3 },
         },
-        thumb: { width: 16, height: 16, boxShadow: 'none' },
-        track: { borderRadius: 10, opacity: isDark ? 0.3 : 0.2 },
+        thumb: {
+          width: 18, height: 18,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+          backgroundColor: '#fff',
+        },
+        track: {
+          borderRadius: 12,
+          opacity: 1,
+          backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.18)',
+        },
       },
     },
     MuiTooltip: {
@@ -212,7 +225,7 @@ let lightTheme = createTheme({
     mode: 'light',
     primary: { main: '#4F46E5' },
     secondary: { main: '#7C3AED' },
-    background: { default: '#F5F7FF', paper: '#ffffff' },
+    background: { default: '#ffffff', paper: '#ffffff' },
     text: { primary: '#0F1629', secondary: '#5B6B8D' },
     divider: 'rgba(0,0,0,0.08)',
     error: { main: '#DC2626' },
