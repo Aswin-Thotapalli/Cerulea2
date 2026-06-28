@@ -130,9 +130,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             flexShrink: 0, mt: '2px',
           }}>
             <Box component={Link} href="/" sx={{ flex: 1, display: 'flex', alignItems: 'center', textDecoration: 'none', minWidth: 0 }}>
-              <Box sx={{ ...(isDark && { bgcolor: '#ffffff', borderRadius: '7px', px: 1, py: 0.4 }) }}>
+              <Box sx={{
+                borderRadius: isDark ? '0 7px 7px 0' : 0,
+                background: isDark ? 'linear-gradient(to right, transparent 22%, rgba(255,255,255,0.96) 28%)' : 'transparent',
+              }}>
                 <Image
-                  src="/brand/logo-light.png"
+                  src="/brand/logo-dark.png"
                   alt="Cerulea Studio"
                   width={160}
                   height={44}

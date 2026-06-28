@@ -38,9 +38,12 @@ export default function NavBar() {
       <Toolbar sx={{ gap: 0.5 }}>
         {/* Logo */}
         <Box component={Link} href="/" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-          <Box sx={{ ...(isDark && { bgcolor: '#ffffff', borderRadius: '8px', px: 1.25, py: 0.5 }) }}>
+          <Box sx={{
+            borderRadius: isDark ? '0 8px 8px 0' : 0,
+            background: isDark ? 'linear-gradient(to right, transparent 22%, rgba(255,255,255,0.96) 28%)' : 'transparent',
+          }}>
             <Image
-              src="/brand/logo-light.png"
+              src="/brand/logo-dark.png"
               alt="Cerulea Studio"
               width={200}
               height={55}
