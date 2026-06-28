@@ -129,20 +129,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             borderBottom: `1px solid ${theme.palette.divider}`,
             flexShrink: 0, mt: '2px',
           }}>
-            <Box component={Link} href="/" sx={{ flex: 1, display: 'flex', alignItems: 'center', textDecoration: 'none', minWidth: 0 }}>
+            <Box component={Link} href="/" sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1.25, textDecoration: 'none', minWidth: 0 }}>
               <Box sx={{
-                display: 'inline-flex', alignItems: 'center',
-                ...(isDark && { bgcolor: 'rgba(255,255,255,0.93)', borderRadius: '7px', px: 0.75, py: 0.25 }),
+                display: 'inline-flex', alignItems: 'center', flexShrink: 0,
+                ...(isDark && { bgcolor: 'rgba(255,255,255,0.93)', borderRadius: '6px', p: 0.25 }),
               }}>
                 <Image
-                  src="/brand/logo-studio.png"
-                  alt="Cerulea Studio"
-                  width={150}
-                  height={45}
-                  style={{ objectFit: 'contain', width: 'auto', height: 34 }}
+                  src="/brand/icon.png"
+                  alt="Cerulea"
+                  width={34}
+                  height={34}
+                  style={{ objectFit: 'contain', width: 34, height: 34 }}
                   priority
                 />
               </Box>
+              <Typography variant="h6" fontWeight={900} sx={{ letterSpacing: -0.5, fontSize: '1rem' }}>
+                Cerulea
+              </Typography>
             </Box>
             <IconButton size="small" onClick={() => setCollapsed(true)}
               sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
