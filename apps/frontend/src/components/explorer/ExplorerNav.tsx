@@ -98,7 +98,7 @@ export default function ExplorerNav() {
           <Box
             component={Link}
             href={`/explorer/${chain}`}
-            sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none', flexShrink: 0 }}
+            sx={{ display: 'flex', alignItems: 'center', gap: 1, textDecoration: 'none', flexShrink: 0 }}
           >
             <Image
               src={isDark ? '/brand/logo-dark.png' : '/brand/logo-light.png'}
@@ -108,8 +108,11 @@ export default function ExplorerNav() {
               style={{ objectFit: 'contain', width: 'auto', height: 36 }}
               priority
             />
-            <Typography fontWeight={400} fontSize="0.85rem" sx={{ color: 'text.secondary' }}>
-              Explorer
+            <Typography fontWeight={800} fontSize="1rem" sx={{ color: 'text.primary', letterSpacing: '-0.02em' }}>
+              Cerulea Studio
+              <Typography component="span" fontWeight={400} sx={{ color: 'text.secondary', ml: 0.5 }}>
+                Explorer
+              </Typography>
             </Typography>
           </Box>
 
