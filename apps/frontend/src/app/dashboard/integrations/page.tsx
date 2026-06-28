@@ -114,7 +114,7 @@ export default function IntegrationsPage() {
           </Typography>
         </Box>
         <Button variant="outlined" startIcon={<HubIcon />} endIcon={<OpenInNewIcon sx={{ fontSize: 13 }} />}
-          sx={{ borderRadius: 999, fontWeight: 700 }} onClick={goToStudio}>
+          sx={{ borderRadius: 1, fontWeight: 700 }} onClick={goToStudio}>
           Configure in Studio
         </Button>
       </Stack>
@@ -191,7 +191,7 @@ export default function IntegrationsPage() {
               </Stack>
               <Button size="small" variant="outlined" startIcon={<SettingsIcon sx={{ fontSize: 12 }} />}
                 onClick={() => setReConfigId(intg.id)}
-                sx={{ borderRadius: 999, fontSize: '0.7rem', fontWeight: 700, borderColor: alpha(intg.logoColor, 0.3), color: intg.logoColor }}>
+                sx={{ borderRadius: 1, fontSize: '0.7rem', fontWeight: 700, borderColor: alpha(intg.logoColor, 0.3), color: intg.logoColor }}>
                 Configure
               </Button>
             </Stack>
@@ -259,8 +259,8 @@ export default function IntegrationsPage() {
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setReConfigId(null)} sx={{ borderRadius: 999 }}>Cancel</Button>
-          <Button variant="contained" endIcon={<OpenInNewIcon sx={{ fontSize: 13 }} />} onClick={goToStudio} sx={{ borderRadius: 999, fontWeight: 700 }}>
+          <Button onClick={() => setReConfigId(null)} sx={{ borderRadius: 1 }}>Cancel</Button>
+          <Button variant="contained" endIcon={<OpenInNewIcon sx={{ fontSize: 13 }} />} onClick={goToStudio} sx={{ borderRadius: 1, fontWeight: 700 }}>
             Open Studio
           </Button>
         </DialogActions>

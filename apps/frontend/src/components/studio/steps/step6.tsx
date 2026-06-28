@@ -692,7 +692,7 @@ export default function Step6({ goPrev }: { goPrev?: () => void }) {
               onClick={startDeployment}
               startIcon={<RocketLaunchIcon />}
               sx={{
-                borderRadius: 100, px: 4, fontWeight: 800,
+                borderRadius: 1, px: 4, fontWeight: 800,
                 background: 'linear-gradient(135deg, #4F46E5 0%, #7c3aed 100%)',
                 boxShadow: '0 4px 20px rgba(79,70,229,0.4)'
               }}
@@ -707,7 +707,7 @@ export default function Step6({ goPrev }: { goPrev?: () => void }) {
                   size="large"
                   disabled
                   startIcon={<LockIcon />}
-                  sx={{ borderRadius: 100, px: 4, fontWeight: 700 }}
+                  sx={{ borderRadius: 1, px: 4, fontWeight: 700 }}
                 >
                   Deploying...
                 </Button>

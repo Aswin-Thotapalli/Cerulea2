@@ -892,10 +892,10 @@ export default function Step5({
         </Stack>
 
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" startIcon={<SaveIcon />} onClick={saveUi} sx={{ borderRadius: 999 }}>
+          <Button variant="outlined" startIcon={<SaveIcon />} onClick={saveUi} sx={{ borderRadius: 1 }}>
             Save
           </Button>
-          <Button variant="contained" onClick={handleNext} sx={{ borderRadius: 999 }} disabled={!goNext}>
+          <Button variant="contained" onClick={handleNext} sx={{ borderRadius: 1 }} disabled={!goNext}>
             Next
           </Button>
         </Stack>
@@ -909,7 +909,7 @@ export default function Step5({
             sx={{
               width: 320,
               minWidth: 320,
-              borderRadius: 4,
+              borderRadius: 1,
               p: 1.5,
               border: "1px solid rgba(255,255,255,0.12)",
               background: "rgba(255,255,255,0.03)",
@@ -1000,7 +1000,7 @@ export default function Step5({
           <Paper
             sx={{
               flex: 1,
-              borderRadius: 4,
+              borderRadius: 1,
               p: 1.5,
               border: "1px solid rgba(255,255,255,0.12)",
               background: "rgba(255,255,255,0.02)",
@@ -1015,7 +1015,7 @@ export default function Step5({
               </Stack>
 
               <Stack direction="row" spacing={1} alignItems="center">
-                <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={addPage} sx={{ borderRadius: 999 }}>
+                <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={addPage} sx={{ borderRadius: 1 }}>
                   Add Page
                 </Button>
                 <TextField
@@ -1043,7 +1043,7 @@ export default function Step5({
                   {...provided.droppableProps}
                   sx={{
                     height: "calc(78vh - 96px)",
-                    borderRadius: 4,
+                    borderRadius: 1,
                     border: snap.isDraggingOver ? "1px dashed rgba(255,255,255,0.35)" : "1px dashed rgba(255,255,255,0.14)",
                     background: snap.isDraggingOver ? "rgba(255,255,255,0.03)" : "transparent",
                     overflow: "auto",
@@ -1080,7 +1080,7 @@ export default function Step5({
                               onClick={() => setSelectedId(el.id)}
                               sx={{
                                 height: "100%",
-                                borderRadius: 4,
+                                borderRadius: 1,
                                 p: 1.2,
                                 border: isSel ? "1px solid rgba(120,180,255,0.75)" : "1px solid rgba(255,255,255,0.12)",
                                 background: isSel ? "rgba(120,180,255,0.06)" : "rgba(255,255,255,0.02)",
@@ -1123,7 +1123,7 @@ export default function Step5({
             sx={{
               width: 360,
               minWidth: 360,
-              borderRadius: 4,
+              borderRadius: 1,
               p: 1.5,
               border: "1px solid rgba(255,255,255,0.12)",
               background: "rgba(255,255,255,0.03)",
@@ -1141,7 +1141,7 @@ export default function Step5({
               <Stack spacing={1.4} sx={{ maxHeight: "72vh", overflow: "auto", pr: 0.5 }}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between">
                   <Typography sx={{ fontWeight: 900 }}>{selectedElement.type}</Typography>
-                  <Button size="small" variant="outlined" onClick={deleteSelected} startIcon={<DeleteIcon />} sx={{ borderRadius: 999 }}>
+                  <Button size="small" variant="outlined" onClick={deleteSelected} startIcon={<DeleteIcon />} sx={{ borderRadius: 1 }}>
                     Delete
                   </Button>
                 </Stack>
@@ -1331,7 +1331,7 @@ export default function Step5({
                     fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
                   }}
                 />
-                <Button variant="outlined" onClick={applySxDraft} sx={{ borderRadius: 999 }}>
+                <Button variant="outlined" onClick={applySxDraft} sx={{ borderRadius: 1 }}>
                   Apply sx
                 </Button>
               </Stack>

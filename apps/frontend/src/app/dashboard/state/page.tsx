@@ -86,7 +86,7 @@ export default function StatePage() {
           </Typography>
         </Box>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateDialogOpen(true)}
-          sx={{ borderRadius: 999, fontWeight: 700, background: 'linear-gradient(135deg, #4F46E5 0%, #6366f1 100%)' }}>
+          sx={{ fontWeight: 700 }}>
           Create Snapshot
         </Button>
       </Stack>
@@ -138,7 +138,7 @@ export default function StatePage() {
               <MenuItem value="30">Keep last 30</MenuItem>
             </Select>
           </FormControl>
-          <Button variant="outlined" startIcon={<SaveIcon />} sx={{ borderRadius: 999, fontWeight: 700, borderColor: alpha('#4F46E5', 0.4) }}>
+          <Button variant="outlined" startIcon={<SaveIcon />} sx={{ borderRadius: 1, fontWeight: 700, borderColor: alpha('#4F46E5', 0.4) }}>
             Save Schedule
           </Button>
         </Stack>
@@ -207,7 +207,7 @@ export default function StatePage() {
                 {/* Action */}
                 <Button size="small" variant="outlined" startIcon={<RestoreIcon sx={{ fontSize: 13 }} />}
                   disabled={snap.status !== 'ready'} onClick={() => setRestoreId(snap.id)}
-                  sx={{ borderRadius: 999, fontSize: '0.7rem', flexShrink: 0 }}>
+                  sx={{ borderRadius: 1, fontSize: '0.7rem', flexShrink: 0 }}>
                   Restore
                 </Button>
               </Box>
@@ -233,8 +233,8 @@ export default function StatePage() {
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setCreateDialogOpen(false)} sx={{ borderRadius: 999 }}>Cancel</Button>
-          <Button variant="contained" onClick={handleCreate} sx={{ borderRadius: 999, fontWeight: 700 }}>Create</Button>
+          <Button onClick={() => setCreateDialogOpen(false)} sx={{ borderRadius: 1 }}>Cancel</Button>
+          <Button variant="contained" onClick={handleCreate} sx={{ borderRadius: 1, fontWeight: 700 }}>Create</Button>
         </DialogActions>
       </Dialog>
 
@@ -250,8 +250,8 @@ export default function StatePage() {
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setRestoreId(null)} sx={{ borderRadius: 999 }}>Cancel</Button>
-          <Button variant="contained" color="warning" onClick={() => setRestoreId(null)} sx={{ borderRadius: 999, fontWeight: 700 }}>Restore</Button>
+          <Button onClick={() => setRestoreId(null)} sx={{ borderRadius: 1 }}>Cancel</Button>
+          <Button variant="contained" color="warning" onClick={() => setRestoreId(null)} sx={{ borderRadius: 1, fontWeight: 700 }}>Restore</Button>
         </DialogActions>
       </Dialog>
     </Box>

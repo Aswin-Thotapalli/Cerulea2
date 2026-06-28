@@ -106,7 +106,7 @@ export default function ProjectTrackBar({ currentStepKey }: ProjectTrackBarProps
       sx={{
         px: 2,
         py: 0.75,
-        borderRadius: 999,
+        borderRadius: 2,
         width: 'max-content',
         maxWidth: '90vw',
         bgcolor: isDark ? 'rgba(16,16,20,0.92)' : 'rgba(255,255,255,0.93)',

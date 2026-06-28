@@ -160,7 +160,7 @@ export default function StepGuidance({ stepKey, title, subtitle, description, st
           variant="contained"
           onClick={handleDismiss}
           endIcon={<CheckCircleOutlineIcon sx={{ fontSize: 16 }} />}
-          sx={{ borderRadius: 999, fontWeight: 500, px: 3, boxShadow: 'none' }}
+          sx={{ borderRadius: 1, fontWeight: 500, px: 3, boxShadow: 'none' }}
         >
           Got it, let's go
         </Button>

@@ -93,7 +93,7 @@ export default function ProjectsPage() {
           </Typography>
         </Box>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => { window.location.href = getStudioUrl('new'); }}
-          sx={{ borderRadius: 999, fontWeight: 700, background: 'linear-gradient(135deg, #4F46E5 0%, #6366f1 100%)' }}>
+          sx={{ borderRadius: 1, fontWeight: 700, background: 'linear-gradient(135deg, #4F46E5 0%, #6366f1 100%)' }}>
           New Project
         </Button>
       </Stack>
@@ -139,7 +139,7 @@ export default function ProjectsPage() {
             {projects.length === 0 ? 'No projects yet' : 'No projects match your filters'}
           </Typography>
           {projects.length === 0 && (
-            <Button variant="contained" startIcon={<AddIcon />} sx={{ mt: 1.5, borderRadius: 999 }} onClick={() => { window.location.href = getStudioUrl('new'); }}>
+            <Button variant="contained" startIcon={<AddIcon />} sx={{ mt: 1.5, borderRadius: 1 }} onClick={() => { window.location.href = getStudioUrl('new'); }}>
               Create First Project
             </Button>
           )}

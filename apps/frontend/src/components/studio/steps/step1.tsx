@@ -664,7 +664,7 @@ function Step1Inner({ goPrev, goNext }: { goPrev?: () => void; goNext?: () => vo
              variant="contained"
              startIcon={<AddIcon />}
              onClick={() => setIsSpotlightOpen(true)}
-             sx={{ borderRadius: 100, px: 3, py: 1, fontWeight: 700, boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)' }}
+             sx={{ borderRadius: 1, px: 3, py: 1, fontWeight: 700, boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)' }}
            >
              Add Extra Modules
            </Button>
@@ -748,7 +748,7 @@ function Step1Inner({ goPrev, goNext }: { goPrev?: () => void; goNext?: () => vo
       <HelpDialog 
          open={isHelpOpen} 
          onClose={() => setIsHelpOpen(false)}
-         PaperProps={{ sx: { borderRadius: 4, maxWidth: 500 } }}
+         PaperProps={{ sx: { borderRadius: 1, maxWidth: 500 } }}
       >
          <Box sx={{ p: 3 }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>

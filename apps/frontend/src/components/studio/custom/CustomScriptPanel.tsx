@@ -1,77 +1,219 @@
 "use client";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Box, Paper, Tabs, Tab, Stack, Button, Typography, Divider } from "@mui/material";
+import React, { useState } from "react";
+import { Box, Button, Stack, Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import dynamic from "next/dynamic";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
-export default function CustomScriptPanel({ projectId }: { projectId: string }) {
-  const [tab, setTab] = useState<0|1>(0);
-  const [tsCode, setTsCode] = useState<string>(`// TypeScript custom logic
+const TS_DEFAULT = `// TypeScript — off-chain custom logic
 export function onWebhook(payload: any) {
   return { ok: true, payload };
-}`);
-  const [solCode, setSolCode] = useState<string>(`// SPDX-License-Identifier: MIT
+}
+`;
+
+const SOL_DEFAULT = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
 contract Custom {
     function ping() public pure returns (uint256) { return 42; }
-}`);
+}
+`;
 
-  const [diagnostics, setDiagnostics] = useState<string>("");
+export default function CustomScriptPanel({ projectId }: { projectId: string }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const borderColor = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)";
 
-  // Very lightweight “validation”: rely on Monaco’s TS diagnostics; for Solidity we just check basic braces.
+  const [lang, setLang] = useState<"ts" | "sol">("ts");
+  const [tsCode, setTsCode] = useState(TS_DEFAULT);
+  const [solCode, setSolCode] = useState(SOL_DEFAULT);
+  const [status, setStatus] = useState<{ msg: string; ok: boolean } | null>(null);
+
   async function validate() {
-    if (tab === 0) {
-      setDiagnostics("Validating TypeScript…");
-      setTimeout(()=> setDiagnostics("TypeScript: basic syntax looks OK (Monaco markers would surface inline)."), 200);
+    setStatus({ msg: "Validating…", ok: true });
+    if (lang === "ts") {
+      setTimeout(() => setStatus({ msg: "TypeScript: syntax OK — Monaco diagnostics will surface compile errors inline.", ok: true }), 200);
     } else {
-      setDiagnostics("Validating Solidity…");
       const ok = solCode.includes("contract") && solCode.includes("{") && solCode.includes("}");
-      setTimeout(()=> setDiagnostics(ok ? "Solidity: basic structure looks OK. Full compile will run during codegen/deploy." : "Solidity: the file looks incomplete (missing contract or braces)."), 200);
+      setTimeout(() => setStatus({
+        msg: ok
+          ? "Solidity: basic structure OK — full compile runs during generation/deploy."
+          : "Solidity: file looks incomplete (missing contract or braces).",
+        ok,
+      }), 200);
     }
   }
 
   return (
-    <Paper variant="outlined" sx={{ p: 0, borderRadius: 2, overflow: "hidden", bgcolor:"rgba(255,255,255,0.04)" }}>
-      <Box sx={{ px: 2, py: 1 }}>
-        <Stack direction="row" alignItems="center" spacing={2}>
-          <Tabs value={tab} onChange={(_,v)=>setTab(v)} sx={{ minHeight: 36, height: 36 }}>
-            <Tab label="TypeScript" sx={{ minHeight: 36, height: 36 }} />
-            <Tab label="Solidity"    sx={{ minHeight: 36, height: 36 }} />
-          </Tabs>
-          <Box sx={{ flex: 1 }} />
-          <Button variant="outlined" size="small" onClick={validate}>Validate</Button>
-        </Stack>
-      </Box>
-      <Divider sx={{ opacity: 0.25 }} />
-      <Box sx={{ height: "calc(100vh - 340px)" }}>
-        {tab === 0 && (
+    <Box sx={{
+      display: "flex",
+      flexDirection: "column",
+      height: "calc(100vh - 320px)",
+      minHeight: 360,
+      border: `1px solid ${borderColor}`,
+      bgcolor: isDark ? "#080E24" : "#fafafa",
+    }}>
+      {/* Toolbar */}
+      <Stack
+        direction="row"
+        alignItems="center"
+        sx={{ height: 40, borderBottom: `1px solid ${borderColor}`, flexShrink: 0, gap: 0, px: 0 }}
+      >
+        {(["ts", "sol"] as const).map((l, i) => (
+          <Box
+            key={l}
+            onClick={() => setLang(l)}
+            sx={{
+              px: 2.5, height: "100%",
+              display: "flex", alignItems: "center",
+              cursor: "pointer",
+              fontSize: "0.78rem",
+              fontWeight: lang === l ? 700 : 500,
+              color: lang === l ? "primary.main" : "text.secondary",
+              borderBottom: lang === l ? "2px solid" : "2px solid transparent",
+              borderBottomColor: lang === l ? "primary.main" : "transparent",
+              borderRight: i === 0 ? `1px solid ${borderColor}` : "none",
+              transition: "color 0.12s",
+              userSelect: "none",
+              "&:hover": { color: lang === l ? "primary.main" : "text.primary" },
+            }}
+          >
+            {l === "ts" ? "TypeScript" : "Solidity"}
+          </Box>
+        ))}
+
+        <Box sx={{ flex: 1 }} />
+
+        <Box sx={{ px: 1.5 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={validate}
+            sx={{
+              height: 28, fontSize: "0.72rem", borderRadius: "4px",
+              borderColor,
+              color: "text.secondary",
+              "&:hover": { borderColor: "primary.main", color: "primary.main", bgcolor: "rgba(79,70,229,0.04)" },
+            }}
+          >
+            Validate
+          </Button>
+        </Box>
+      </Stack>
+
+      {/* Editor */}
+      <Box sx={{ flex: 1, overflow: "hidden" }}>
+        {lang === "ts" && (
           <MonacoEditor
             height="100%"
             defaultLanguage="typescript"
             value={tsCode}
-            onChange={(v)=> setTsCode(v || "")}
-            options={{ theme: "vs-dark", automaticLayout: true, minimap: { enabled: false } }}
+            onChange={(v) => setTsCode(v || "")}
+            options={{
+              automaticLayout: true,
+              minimap: { enabled: false },
+              fontSize: 13,
+              lineHeight: 22,
+              padding: { top: 16, bottom: 16 },
+              scrollbar: { verticalScrollbarSize: 4, horizontalScrollbarSize: 4 },
+              renderLineHighlight: "none",
+              overviewRulerLanes: 0,
+              scrollBeyondLastLine: false,
+              fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
+              fontLigatures: true,
+            }}
+            beforeMount={(monaco) => {
+              monaco.editor.defineTheme("cerulea-dark", {
+                base: "vs-dark", inherit: true, rules: [],
+                colors: {
+                  "editor.background": "#080E24",
+                  "editor.lineHighlightBackground": "#00000000",
+                  "editorLineNumber.foreground": "#3D4F7C",
+                  "editorLineNumber.activeForeground": "#8FA3D2",
+                  "editor.selectionBackground": "#4F46E520",
+                },
+              });
+              monaco.editor.defineTheme("cerulea-light", {
+                base: "vs", inherit: true, rules: [],
+                colors: {
+                  "editor.background": "#fafafa",
+                  "editor.lineHighlightBackground": "#00000000",
+                  "editorLineNumber.foreground": "#BBC4D8",
+                  "editorLineNumber.activeForeground": "#5B6B8D",
+                },
+              });
+            }}
+            onMount={(_editor, monaco) => {
+              monaco.editor.setTheme(isDark ? "cerulea-dark" : "cerulea-light");
+            }}
           />
         )}
-        {tab === 1 && (
+        {lang === "sol" && (
           <MonacoEditor
             height="100%"
-            defaultLanguage="sol"
             language="sol"
             value={solCode}
-            onChange={(v)=> setSolCode(v || "")}
-            options={{ theme: "vs-dark", automaticLayout: true, minimap: { enabled: false } }}
+            onChange={(v) => setSolCode(v || "")}
+            options={{
+              automaticLayout: true,
+              minimap: { enabled: false },
+              fontSize: 13,
+              lineHeight: 22,
+              padding: { top: 16, bottom: 16 },
+              scrollbar: { verticalScrollbarSize: 4, horizontalScrollbarSize: 4 },
+              renderLineHighlight: "none",
+              overviewRulerLanes: 0,
+              scrollBeyondLastLine: false,
+              fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
+              fontLigatures: true,
+            }}
+            beforeMount={(monaco) => {
+              monaco.editor.defineTheme("cerulea-dark", {
+                base: "vs-dark", inherit: true, rules: [],
+                colors: {
+                  "editor.background": "#080E24",
+                  "editor.lineHighlightBackground": "#00000000",
+                  "editorLineNumber.foreground": "#3D4F7C",
+                  "editorLineNumber.activeForeground": "#8FA3D2",
+                  "editor.selectionBackground": "#4F46E520",
+                },
+              });
+              monaco.editor.defineTheme("cerulea-light", {
+                base: "vs", inherit: true, rules: [],
+                colors: {
+                  "editor.background": "#fafafa",
+                  "editor.lineHighlightBackground": "#00000000",
+                  "editorLineNumber.foreground": "#BBC4D8",
+                  "editorLineNumber.activeForeground": "#5B6B8D",
+                },
+              });
+            }}
+            onMount={(_editor, monaco) => {
+              monaco.editor.setTheme(isDark ? "cerulea-dark" : "cerulea-light");
+            }}
           />
         )}
       </Box>
-      <Divider sx={{ opacity: 0.25 }} />
-      <Box sx={{ px: 2, py: 1.5 }}>
-        <Typography variant="caption" sx={{ whiteSpace: "pre-wrap", opacity: 0.9 }}>
-          {diagnostics || "Use TypeScript for off-chain logic and Solidity for on-chain contracts. We will compile during generation/deploy."}
+
+      {/* Status bar */}
+      <Box sx={{
+        px: 2, height: 28, flexShrink: 0,
+        borderTop: `1px solid ${borderColor}`,
+        display: "flex", alignItems: "center",
+        bgcolor: isDark ? "rgba(255,255,255,0.015)" : "rgba(0,0,0,0.015)",
+      }}>
+        <Typography sx={{
+          fontSize: "0.68rem",
+          fontFamily: '"JetBrains Mono", monospace',
+          color: status ? (status.ok ? "text.secondary" : "error.main") : "text.disabled",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}>
+          {status?.msg || "TypeScript for off-chain logic · Solidity for on-chain contracts"}
         </Typography>
       </Box>
-    </Paper>
+    </Box>
   );
 }

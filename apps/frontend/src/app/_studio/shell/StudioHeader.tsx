@@ -66,7 +66,7 @@ export default function StudioHeader({
               size="small"
               startIcon={<HexagonOutlinedIcon />}
               onClick={() => setContractsOpen(true)}
-              sx={{ borderRadius: 999, fontSize: '0.7rem', fontWeight: 700, px: 1.5, py: 0.5 }}
+              sx={{ borderRadius: 1, fontSize: '0.7rem', fontWeight: 700, px: 1.5, py: 0.5 }}
             >
               Contracts
             </Button>

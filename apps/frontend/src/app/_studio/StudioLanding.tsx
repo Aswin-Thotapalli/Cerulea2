@@ -123,11 +123,10 @@ export default function StudioLanding({
             startIcon={<AddIcon />}
             onClick={onNewProject}
             sx={{
-              mt: 1, borderRadius: 999, fontWeight: 800, px: 5, py: 1.5,
+              mt: 1, fontWeight: 800, px: 5, py: 1.5,
               background: 'linear-gradient(135deg, #4F46E5 0%, #6366f1 100%)',
-              boxShadow: '0 4px 24px rgba(79,70,229,0.45)',
-              '&:hover': { boxShadow: '0 6px 32px rgba(79,70,229,0.6)', transform: 'translateY(-1px)' },
-              transition: 'all 0.2s',
+              boxShadow: '0 4px 20px rgba(79,70,229,0.35)',
+              '&:hover': { boxShadow: '0 6px 28px rgba(79,70,229,0.5)' },
             }}
           >
             New Project
@@ -141,21 +140,21 @@ export default function StudioLanding({
           </Box>
         ) : projects.length === 0 ? (
           /* Empty state — two option cards */
-          <Grid container spacing={3} justifyContent="center">
+          <Grid container spacing={2} justifyContent="center">
             {[
               {
-                icon: <AutoAwesomeMosaicIcon sx={{ fontSize: 52 }} />,
+                icon: <AutoAwesomeMosaicIcon sx={{ fontSize: 44 }} />,
                 title: 'dApp',
                 subtitle: 'Deploy on Cerulea\'s public chain. NFTs, DeFi, DAO, Marketplace.',
                 tags: ['Public dApp', 'Private dApp', 'NFT', 'DeFi'],
-                color: '#6366f1',
+                color: '#4F46E5',
               },
               {
-                icon: <LanIcon sx={{ fontSize: 52 }} />,
+                icon: <LanIcon sx={{ fontSize: 44 }} />,
                 title: 'Private Blockchain',
                 subtitle: 'A sovereign network you control end to end. CBDC, Enterprise.',
                 tags: ['Enterprise', 'CBDC', 'PoA / PoS'],
-                color: '#8b5cf6',
+                color: '#7C3AED',
               },
             ].map((card) => (
               <Grid key={card.title} xs={12} sm={6} md={5}>
@@ -163,35 +162,35 @@ export default function StudioLanding({
                   onClick={onNewProject}
                   variant="outlined"
                   sx={{
-                    p: 4, borderRadius: 2, cursor: 'pointer', textAlign: 'center',
-                    borderColor: alpha(card.color, 0.18),
+                    p: 4, cursor: 'pointer', textAlign: 'center',
+                    borderColor: alpha(card.color, isDark ? 0.15 : 0.18),
                     bgcolor: alpha(card.color, isDark ? 0.04 : 0.02),
-                    transition: 'all 0.2s',
+                    transition: 'border-color 0.15s, background-color 0.15s, box-shadow 0.15s',
                     '&:hover': {
-                      borderColor: alpha(card.color, 0.45),
-                      boxShadow: `0 8px 32px ${alpha(card.color, 0.15)}`,
-                      transform: 'translateY(-3px)',
+                      borderColor: alpha(card.color, 0.4),
+                      bgcolor: alpha(card.color, isDark ? 0.07 : 0.04),
+                      boxShadow: `0 4px 20px ${alpha(card.color, isDark ? 0.18 : 0.1)}`,
                     },
                   }}
                 >
                   <Box sx={{
-                    width: 80, height: 80, borderRadius: 2, mx: 'auto', mb: 3,
-                    bgcolor: alpha(card.color, 0.1),
+                    width: 64, height: 64, mx: 'auto', mb: 2.5,
+                    bgcolor: alpha(card.color, isDark ? 0.12 : 0.08),
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: card.color,
+                    color: card.color, borderRadius: 1,
                   }}>
                     {card.icon}
                   </Box>
-                  <Typography variant="h5" fontWeight={800} sx={{ mb: 1 }}>{card.title}</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5, lineHeight: 1.6 }}>
+                  <Typography variant="h6" fontWeight={800} sx={{ mb: 0.75 }}>{card.title}</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5, lineHeight: 1.6, fontSize: '0.82rem' }}>
                     {card.subtitle}
                   </Typography>
                   <Stack direction="row" spacing={0.75} flexWrap="wrap" justifyContent="center" useFlexGap>
                     {card.tags.map(t => (
-                      <Chip key={t} label={t} size="small" sx={{
-                        height: 22, fontSize: '0.67rem', fontWeight: 600,
-                        bgcolor: alpha(card.color, 0.1), color: card.color, border: 'none',
-                      }} />
+                      <Box key={t} sx={{
+                        px: 1.25, py: 0.3, fontSize: '0.65rem', fontWeight: 700,
+                        bgcolor: alpha(card.color, 0.08), color: card.color, borderRadius: 0.5,
+                      }}>{t}</Box>
                     ))}
                   </Stack>
                 </Paper>
@@ -199,100 +198,132 @@ export default function StudioLanding({
             ))}
           </Grid>
         ) : (
-          /* Project list */
+          /* Project card grid */
           <>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2.5 }}>
               <Stack direction="row" alignItems="center" spacing={1.5}>
                 <Typography variant="h6" fontWeight={800}>Your Projects</Typography>
-                <Box sx={{ px: 1.25, py: 0.25, borderRadius: 1, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', fontSize: '0.7rem', fontWeight: 700 }}>
+                <Box sx={{
+                  px: 1.25, py: 0.25, borderRadius: 0.5,
+                  bgcolor: alpha(theme.palette.primary.main, 0.1),
+                  color: 'primary.main', fontSize: '0.7rem', fontWeight: 700,
+                }}>
                   {projects.length}
                 </Box>
               </Stack>
             </Stack>
 
-            <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', borderColor: alpha(theme.palette.primary.main, 0.12) }}>
-              {/* List header */}
-              <Box sx={{
-                px: 3, py: 1.25,
-                display: 'grid', gridTemplateColumns: '1fr 130px 110px 140px 40px',
-                gap: 2, alignItems: 'center',
-                bgcolor: alpha(theme.palette.primary.main, 0.04),
-                borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
-              }}>
-                {['Project', 'Type', 'Status', 'Updated', ''].map((h, i) => (
-                  <Typography key={i} variant="caption" fontWeight={800} sx={{ fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: 0.8, color: 'text.disabled' }}>{h}</Typography>
-                ))}
-              </Box>
-
-              {projects.map((p, idx) => {
+            <Grid container spacing={2}>
+              {projects.map((p) => {
                 const isChain = p.projectType === 'blockchain';
-                const typeColor = isChain ? '#8b5cf6' : '#6366f1';
-                const statusCfg = STATUS_CONFIG[p.status] ?? { color: '#6366f1', icon: null, label: p.status };
+                const typeColor = isChain ? '#7C3AED' : '#4F46E5';
+                const statusCfg = STATUS_CONFIG[p.status] ?? { color: '#6366f1', icon: undefined, label: p.status };
                 return (
-                  <Box
-                    key={p.id}
-                    onClick={() => onOpenProject(p.id)}
-                    sx={{
-                      px: 3, py: 1.75, cursor: 'pointer',
-                      display: 'grid', gridTemplateColumns: '1fr 130px 110px 140px 40px',
-                      gap: 2, alignItems: 'center',
-                      borderBottom: idx < projects.length - 1 ? `1px solid ${alpha(typeColor, 0.08)}` : 'none',
-                      borderLeft: `3px solid ${typeColor}`,
-                      transition: 'all 0.12s',
-                      '&:hover': { bgcolor: alpha(typeColor, 0.04) },
-                    }}
-                  >
-                    {/* Name + slug */}
-                    <Stack direction="row" alignItems="center" spacing={1.5}>
-                      <Box sx={{ width: 36, height: 36, borderRadius: 1.5, bgcolor: alpha(typeColor, 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', color: typeColor, flexShrink: 0 }}>
-                        {isChain ? <LanIcon sx={{ fontSize: 18 }} /> : <AutoAwesomeMosaicIcon sx={{ fontSize: 18 }} />}
+                  <Grid key={p.id} xs={12} sm={6} md={4}>
+                    <Paper
+                      variant="outlined"
+                      onClick={() => onOpenProject(p.id)}
+                      sx={{
+                        p: 0, cursor: 'pointer', overflow: 'hidden',
+                        borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)',
+                        borderLeft: `3px solid ${typeColor}`,
+                        transition: 'border-color 0.15s, background-color 0.15s',
+                        '&:hover': {
+                          borderColor: alpha(typeColor, 0.45),
+                          bgcolor: isDark ? alpha(typeColor, 0.04) : alpha(typeColor, 0.02),
+                        },
+                      }}
+                    >
+                      <Box sx={{ p: 2.5 }}>
+                        <Stack direction="row" alignItems="flex-start" spacing={1.5} sx={{ mb: 2 }}>
+                          <Box sx={{
+                            width: 36, height: 36, flexShrink: 0,
+                            bgcolor: alpha(typeColor, isDark ? 0.12 : 0.08),
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: typeColor, borderRadius: 1,
+                          }}>
+                            {isChain ? <LanIcon sx={{ fontSize: 18 }} /> : <AutoAwesomeMosaicIcon sx={{ fontSize: 18 }} />}
+                          </Box>
+                          <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Typography variant="subtitle2" fontWeight={800} noWrap>{p.name}</Typography>
+                            <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'monospace', fontSize: '0.62rem' }}>
+                              /{p.slug}
+                            </Typography>
+                          </Box>
+                          <Tooltip title="Open in Studio">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => { e.stopPropagation(); onOpenProject(p.id); }}
+                              sx={{
+                                width: 28, height: 28, borderRadius: 1,
+                                bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+                                '&:hover': { bgcolor: alpha(typeColor, 0.12) },
+                              }}
+                            >
+                              <OpenInNewIcon sx={{ fontSize: 14 }} />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+
+                        <Stack direction="row" alignItems="center" justifyContent="space-between">
+                          <Box sx={{
+                            px: 1.25, py: 0.3, borderRadius: 0.5,
+                            bgcolor: alpha(typeColor, 0.08), color: typeColor,
+                            fontSize: '0.63rem', fontWeight: 700,
+                          }}>
+                            {isChain ? 'Blockchain' : 'dApp'}
+                          </Box>
+                          <Stack direction="row" alignItems="center" spacing={0.75}>
+                            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: statusCfg.color }} />
+                            <Typography variant="caption" fontWeight={700} sx={{ color: statusCfg.color, fontSize: '0.7rem' }}>
+                              {statusCfg.label}
+                            </Typography>
+                          </Stack>
+                        </Stack>
                       </Box>
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="subtitle2" fontWeight={800} noWrap>{p.name}</Typography>
-                        <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'monospace', fontSize: '0.62rem' }}>/{p.slug}</Typography>
+
+                      <Box sx={{
+                        px: 2.5, py: 1,
+                        borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'}`,
+                        bgcolor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
+                      }}>
+                        <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>
+                          Updated {new Date(p.updatedAt || p.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </Typography>
                       </Box>
-                    </Stack>
-
-                    {/* Type */}
-                    <Box sx={{ px: 1.25, py: 0.35, borderRadius: 1, bgcolor: alpha(typeColor, 0.1), color: typeColor, fontSize: '0.65rem', fontWeight: 700, display: 'inline-block', width: 'fit-content' }}>
-                      {isChain ? 'Blockchain' : 'dApp'}
-                    </Box>
-
-                    {/* Status */}
-                    <Stack direction="row" alignItems="center" spacing={0.75}>
-                      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: statusCfg.color, flexShrink: 0 }} />
-                      <Typography variant="caption" fontWeight={700} sx={{ color: statusCfg.color }}>{statusCfg.label}</Typography>
-                    </Stack>
-
-                    {/* Updated */}
-                    <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.72rem' }}>
-                      {new Date(p.updatedAt || p.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </Typography>
-
-                    {/* Open */}
-                    <Tooltip title="Open in Studio">
-                      <IconButton size="small" onClick={(e) => { e.stopPropagation(); onOpenProject(p.id); }}
-                        sx={{ bgcolor: alpha(typeColor, 0.08), '&:hover': { bgcolor: alpha(typeColor, 0.2) } }}>
-                        <OpenInNewIcon sx={{ fontSize: 14, color: typeColor }} />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
+                    </Paper>
+                  </Grid>
                 );
               })}
 
-              {/* Add new project row */}
-              <Box onClick={onNewProject} sx={{
-                px: 3, py: 1.75, display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer',
-                borderTop: `1px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
-                transition: 'all 0.12s',
-                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.03) },
-              }}>
-                <Box sx={{ width: 36, height: 36, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.07), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <AddIcon sx={{ fontSize: 18, color: 'primary.main' }} />
-                </Box>
-                <Typography variant="body2" fontWeight={700} color="primary.main" sx={{ opacity: 0.8 }}>New Project</Typography>
-              </Box>
-            </Paper>
+              {/* New project tile */}
+              <Grid xs={12} sm={6} md={4}>
+                <Paper
+                  variant="outlined"
+                  onClick={onNewProject}
+                  sx={{
+                    p: 2.5, cursor: 'pointer', minHeight: 120,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    gap: 1, borderStyle: 'dashed',
+                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(79,70,229,0.2)',
+                    transition: 'border-color 0.15s, background-color 0.15s',
+                    '&:hover': {
+                      borderColor: alpha(theme.palette.primary.main, 0.45),
+                      bgcolor: alpha(theme.palette.primary.main, 0.03),
+                    },
+                  }}
+                >
+                  <Box sx={{
+                    width: 32, height: 32, borderRadius: 1,
+                    bgcolor: alpha(theme.palette.primary.main, 0.08),
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <AddIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                  </Box>
+                  <Typography variant="body2" fontWeight={700} color="primary.main">New Project</Typography>
+                </Paper>
+              </Grid>
+            </Grid>
           </>
         )}
       </Box>
