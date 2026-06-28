@@ -425,13 +425,13 @@ function LogicCanvasInner() {
   }, []);
 
   return (
-    <Stack spacing={0}>
+    <Stack spacing={0} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Toolbar */}
       <Stack
         direction="row"
         alignItems="center"
         justifyContent="space-between"
-        sx={{ px: 2, height: 40, borderBottom: `1px solid ${borderColor}`, bgcolor: isDark ? "rgba(255,255,255,0.01)" : "rgba(0,0,0,0.01)" }}
+        sx={{ px: 2, height: 40, flexShrink: 0, borderBottom: `1px solid ${borderColor}`, bgcolor: isDark ? "rgba(255,255,255,0.01)" : "rgba(0,0,0,0.01)" }}
       >
         <Typography sx={{ fontWeight: 700, fontSize: "0.82rem" }}>Logic & Actions</Typography>
         <Button
@@ -451,7 +451,7 @@ function LogicCanvasInner() {
       </Stack>
 
       {/* Main area */}
-      <Stack direction="row" sx={{ height: "calc(100vh - 340px)", minHeight: 400 }}>
+      <Stack direction="row" sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {/* Palette */}
         <Box
           sx={{

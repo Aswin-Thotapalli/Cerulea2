@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Box, Typography, Avatar, Menu, MenuItem, ListItemIcon, Divider } from '@mui/material';
+import { Box, Typography, Avatar, Menu, MenuItem, ListItemIcon, Divider, Tooltip } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import Link from 'next/link';
 import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
@@ -14,6 +14,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import PersonIcon from '@mui/icons-material/Person';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import LogoutIcon from '@mui/icons-material/Logout';
+import HexagonOutlinedIcon from '@mui/icons-material/HexagonOutlined';
 import { useSession } from 'next-auth/react';
 
 /* ---- Step definitions ---- */
@@ -48,9 +49,11 @@ export interface StudioSidebarProps {
   subStepIndex: number;
   projectType: string | null;
   onStepChange?: (index: number) => void;
+  onSmartContractsOpen?: () => void;
+  smartContractsActive?: boolean;
 }
 
-export default function StudioSidebar({ stepIndex, subStepIndex, projectType, onStepChange }: StudioSidebarProps) {
+export default function StudioSidebar({ stepIndex, subStepIndex, projectType, onStepChange, onSmartContractsOpen, smartContractsActive }: StudioSidebarProps) {
   const theme = useTheme();
   const { data: session } = useSession();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -235,6 +238,35 @@ export default function StudioSidebar({ stepIndex, subStepIndex, projectType, on
           );
         })}
       </Box>
+
+      {/* ── Smart Contracts ── */}
+      <Tooltip title="View and manage smart contracts derived from your blueprint" placement="right">
+        <Box
+          onClick={onSmartContractsOpen}
+          sx={{
+            borderTop: '0.5px solid', borderColor: 'divider',
+            p: '10px 14px', display: 'flex', alignItems: 'center', gap: 1,
+            cursor: 'pointer',
+            bgcolor: smartContractsActive ? alpha(PRIMARY, 0.08) : 'transparent',
+            transition: 'background 0.15s',
+            '&:hover': { bgcolor: smartContractsActive ? alpha(PRIMARY, 0.12) : alpha(PRIMARY, 0.04) },
+          }}
+        >
+          <Box sx={{
+            width: 24, height: 24, borderRadius: '7px', flexShrink: 0,
+            bgcolor: smartContractsActive ? PRIMARY : alpha(PRIMARY, 0.1),
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <HexagonOutlinedIcon sx={{ fontSize: 13, color: smartContractsActive ? '#fff' : PRIMARY }} />
+          </Box>
+          <Typography sx={{
+            fontSize: '0.72rem', fontWeight: smartContractsActive ? 700 : 500,
+            color: smartContractsActive ? PRIMARY : 'text.secondary',
+          }}>
+            Smart Contracts
+          </Typography>
+        </Box>
+      </Tooltip>
 
       {/* ── User pill ── */}
       <Box

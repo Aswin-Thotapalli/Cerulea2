@@ -1,8 +1,7 @@
 'use client';
 
 import React, { Component, ErrorInfo, useEffect, useMemo, useState, useCallback, Suspense } from 'react';
-import { Box, Typography, Paper, Button, Fab, Tooltip } from '@mui/material';
-import HexagonOutlinedIcon from '@mui/icons-material/HexagonOutlined';
+import { Box, Typography, Paper, Button } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { ALL_STEPS, StepMeta } from './StepRegistry';
 import StudioSidebar from './StudioSidebar';
@@ -213,6 +212,8 @@ export default function StudioShell({
           subStepIndex={subStepIndex}
           projectType={projectType ?? null}
           onStepChange={setStepIndex}
+          onSmartContractsOpen={() => setContractsOpen((o) => !o)}
+          smartContractsActive={contractsOpen}
         />
 
         {/* Step content area */}
@@ -240,31 +241,6 @@ export default function StudioShell({
         </Box>
       </Box>
 
-      {/* Smart Contracts FAB */}
-      <Fab
-        variant="extended"
-        size="small"
-        onClick={() => setContractsOpen((o) => !o)}
-        sx={{
-          position: 'fixed',
-          bottom: 24,
-          left: 232, // clears the sidebar
-          zIndex: 1302,
-          bgcolor: contractsOpen ? 'primary.main' : 'background.paper',
-          color: contractsOpen ? 'white' : 'primary.main',
-          border: (t) => `1px solid ${alpha(t.palette.primary.main, 0.4)}`,
-          boxShadow: (t) => `0 4px 20px ${alpha(t.palette.primary.main, 0.25)}`,
-          fontWeight: 600,
-          fontSize: '0.72rem',
-          letterSpacing: 0.3,
-          gap: 0.75,
-          px: 2,
-          '&:hover': { bgcolor: 'primary.main', color: 'white' },
-        }}
-      >
-        <HexagonOutlinedIcon sx={{ fontSize: 15 }} />
-        Smart Contracts
-      </Fab>
 
       {/* Autosave indicator */}
       <Box sx={{
