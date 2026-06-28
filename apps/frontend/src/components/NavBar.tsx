@@ -38,17 +38,32 @@ export default function NavBar() {
       <Toolbar sx={{ gap: 0.5 }}>
         {/* Logo */}
         <Box component={Link} href="/" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-          <Image
-            src="/brand/logo-dark.png"
-            alt="Cerulea Studio"
-            width={200}
-            height={55}
-            style={{
-              objectFit: 'contain', width: 'auto', height: 44, display: 'block',
-              filter: isDark ? 'drop-shadow(0 0 6px rgba(255,255,255,0.9)) drop-shadow(0 0 3px rgba(255,255,255,1))' : 'none',
-            }}
-            priority
-          />
+          <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+            <Image
+              src="/brand/logo-dark.png"
+              alt="Cerulea Studio"
+              width={200}
+              height={55}
+              style={{ objectFit: 'contain', width: 'auto', height: 44, display: 'block' }}
+              priority
+            />
+            {isDark && (
+              <Image
+                src="/brand/logo-dark.png"
+                alt=""
+                aria-hidden
+                width={200}
+                height={55}
+                style={{
+                  position: 'absolute', top: 0, left: 0,
+                  objectFit: 'contain', width: 'auto', height: 44, display: 'block',
+                  filter: 'brightness(0) invert(1)',
+                  clipPath: 'inset(0 0 0 22%)',
+                }}
+                priority
+              />
+            )}
+          </Box>
         </Box>
 
         {/* Theme toggle */}
