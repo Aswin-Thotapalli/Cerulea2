@@ -181,7 +181,9 @@ const PhaseSidebar = styled(Box)(({ theme }) => ({
   borderRight: `1px solid ${theme.palette.divider}`,
   display: 'flex',
   flexDirection: 'column',
-  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.5)' : 'rgba(8,14,36,0.4)',
+  background: theme.palette.mode === 'light'
+    ? 'rgba(255,255,255,0.85)'
+    : `linear-gradient(180deg, ${alpha('#4F46E5', 0.08)} 0%, ${alpha('#0D1535', 0.95)} 100%)`,
   backdropFilter: 'blur(20px)',
   paddingTop: 16,
   overflowY: 'auto',
@@ -193,12 +195,21 @@ const PhaseItem = styled(Box, { shouldForwardProp: (p) => p !== 'active' })<{ ac
   display: 'flex',
   alignItems: 'center',
   gap: 12,
+  borderRadius: '0 8px 8px 0',
+  marginRight: 8,
   borderLeft: `3px solid ${active ? theme.palette.primary.main : 'transparent'}`,
-  background: active ? alpha(theme.palette.primary.main, 0.05) : 'transparent',
+  background: active
+    ? alpha(theme.palette.primary.main, 0.12)
+    : 'transparent',
   color: active ? theme.palette.primary.main : theme.palette.text.secondary,
   transition: 'all 0.2s ease',
+  boxShadow: active
+    ? `inset 0 0 12px ${alpha(theme.palette.primary.main, 0.08)}`
+    : 'none',
   '&:hover': {
-    background: active ? alpha(theme.palette.primary.main, 0.08) : alpha(theme.palette.action.hover, 0.5),
+    background: active
+      ? alpha(theme.palette.primary.main, 0.15)
+      : alpha(theme.palette.primary.main, 0.04),
     color: active ? theme.palette.primary.main : theme.palette.text.primary,
   },
 }));
@@ -590,14 +601,28 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
         sx={{
           width: 200, flexShrink: 0,
           borderRight: `1px solid ${theme.palette.divider}`,
-          bgcolor: alpha(theme.palette.background.default, 0.4),
+          bgcolor: theme.palette.mode === 'dark'
+            ? alpha('#0D1535', 0.7)
+            : alpha(theme.palette.background.paper, 0.6),
           display: 'flex', flexDirection: 'column', overflowY: 'auto',
         }}
       >
-        <Box sx={{ p: 2, pb: 1, borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <Stack direction="row" alignItems="center" spacing={0.5} mb={0.25}>
-            <HexagonOutlinedIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-            <Typography variant="overline" fontWeight={800} fontSize="0.6rem" color="text.secondary">
+        <Box sx={{
+          p: 2, pb: 1.5,
+          borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+          background: theme.palette.mode === 'dark'
+            ? `linear-gradient(135deg, ${alpha('#4F46E5', 0.1)} 0%, transparent 100%)`
+            : alpha(theme.palette.primary.main, 0.03),
+        }}>
+          <Stack direction="row" alignItems="center" spacing={0.75} mb={0.5}>
+            <Box sx={{
+              width: 20, height: 20, borderRadius: 1,
+              bgcolor: alpha(theme.palette.primary.main, 0.15),
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <HexagonOutlinedIcon sx={{ fontSize: 12, color: 'primary.main' }} />
+            </Box>
+            <Typography variant="overline" fontWeight={800} fontSize="0.6rem" color="primary.main" sx={{ letterSpacing: 1 }}>
               BLUEPRINT MODULES
             </Typography>
           </Stack>
@@ -626,9 +651,15 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                   }}
                   sx={{
                     mx: 1, mb: 0.5, px: 1.5, py: 1.25, borderRadius: 2, cursor: 'pointer',
-                    bgcolor: isActive ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
-                    border: `1px solid ${isActive ? alpha(theme.palette.primary.main, 0.3) : 'transparent'}`,
-                    '&:hover': { bgcolor: isActive ? alpha(theme.palette.primary.main, 0.12) : alpha(theme.palette.action.hover, 0.5) },
+                    bgcolor: isActive ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
+                    border: `1px solid ${isActive ? alpha(theme.palette.primary.main, 0.35) : alpha(theme.palette.divider, 0.5)}`,
+                    borderLeft: `3px solid ${isActive ? theme.palette.primary.main : 'transparent'}`,
+                    boxShadow: isActive ? `0 0 12px ${alpha(theme.palette.primary.main, 0.15)}` : 'none',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      bgcolor: isActive ? alpha(theme.palette.primary.main, 0.15) : alpha(theme.palette.primary.main, 0.04),
+                      borderColor: isActive ? alpha(theme.palette.primary.main, 0.4) : alpha(theme.palette.primary.main, 0.2),
+                    },
                   }}
                 >
                   <Typography
@@ -663,14 +694,22 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
         sx={{
           width: 260, flexShrink: 0,
           borderRight: `1px solid ${theme.palette.divider}`,
-          bgcolor: alpha(theme.palette.background.default, 0.2),
+          bgcolor: theme.palette.mode === 'dark'
+            ? alpha(theme.palette.background.paper, 0.5)
+            : alpha(theme.palette.background.default, 0.5),
           display: 'flex', flexDirection: 'column', overflowY: 'auto',
         }}
       >
-        <Box sx={{ p: 2, pb: 1, borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <Typography variant="overline" fontWeight={800} fontSize="0.6rem" color="text.secondary">
-            ENTITIES
-          </Typography>
+        <Box sx={{
+          p: 2, pb: 1.5,
+          borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+        }}>
+          <Stack direction="row" alignItems="center" spacing={0.75} mb={0.5}>
+            <StorageIcon sx={{ fontSize: 13, color: 'primary.main' }} />
+            <Typography variant="overline" fontWeight={800} fontSize="0.6rem" color="primary.main" sx={{ letterSpacing: 1 }}>
+              ENTITIES
+            </Typography>
+          </Stack>
           <Tooltip
             title="An entity is a entity representing a core object in your app (like User, Token, or Order). Each entity becomes a database table or smart contract struct."
             placement="right"
@@ -701,9 +740,15 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                   onClick={() => setSelectedEntityId(ent.id)}
                   sx={{
                     mx: 1, mb: 0.5, px: 1.5, py: 1, borderRadius: 2, cursor: 'pointer',
-                    bgcolor: isActive ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
+                    bgcolor: isActive ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
                     border: `1px solid ${isActive ? alpha(theme.palette.primary.main, 0.3) : 'transparent'}`,
-                    '&:hover': { bgcolor: isActive ? alpha(theme.palette.primary.main, 0.12) : alpha(theme.palette.action.hover, 0.4) },
+                    borderLeft: `3px solid ${isActive ? theme.palette.primary.main : 'transparent'}`,
+                    boxShadow: isActive ? `0 2px 8px ${alpha(theme.palette.primary.main, 0.12)}` : 'none',
+                    transition: 'all 0.18s ease',
+                    '&:hover': {
+                      bgcolor: isActive ? alpha(theme.palette.primary.main, 0.15) : alpha(theme.palette.primary.main, 0.04),
+                      borderColor: isActive ? alpha(theme.palette.primary.main, 0.35) : alpha(theme.palette.primary.main, 0.15),
+                    },
                   }}
                 >
                   <Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -723,7 +768,12 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                             <Chip
                               label="Core"
                               size="small"
-                              sx={{ ml: 0.5, height: 14, fontSize: '0.55rem', fontWeight: 700, bgcolor: alpha(theme.palette.success.main, 0.12), color: 'success.main' }}
+                              sx={{
+                                ml: 0.5, height: 14, fontSize: '0.55rem', fontWeight: 700,
+                                bgcolor: alpha('#6366F1', 0.12),
+                                color: '#6366F1',
+                                border: `1px solid ${alpha('#6366F1', 0.25)}`,
+                              }}
                             />
                           )}
                         </Typography>
@@ -747,14 +797,22 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
         </Box>
 
         {selectedModuleId && (
-          <Box sx={{ p: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>
+          <Box sx={{ p: 1.5, borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.12)}` }}>
             <Button
               startIcon={<AddIcon />}
               variant="outlined"
               size="small"
               fullWidth
               onClick={() => setAddEntityOpen(true)}
-              sx={{ borderRadius: 2, mb: 0.75, fontWeight: 700 }}
+              sx={{
+                borderRadius: 2, mb: 0.75, fontWeight: 700,
+                borderColor: alpha(theme.palette.primary.main, 0.4),
+                color: 'primary.main',
+                '&:hover': {
+                  borderColor: theme.palette.primary.main,
+                  bgcolor: alpha(theme.palette.primary.main, 0.06),
+                },
+              }}
             >
               Add More Entities
             </Button>
@@ -763,7 +821,12 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
               size="small"
               fullWidth
               onClick={addBlankEntity}
-              sx={{ borderRadius: 2, color: 'text.secondary' }}
+              sx={{
+                borderRadius: 2,
+                color: 'primary.main',
+                opacity: 0.75,
+                '&:hover': { opacity: 1, bgcolor: alpha(theme.palette.primary.main, 0.06) },
+              }}
             >
               Add Custom Entity
             </Button>
@@ -777,8 +840,14 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
           {/* Entity Header */}
           <Box
             sx={{
-              px: 3, py: 2, borderBottom: `1px solid ${theme.palette.divider}`,
-              bgcolor: alpha(theme.palette.background.paper, 0.6), flexShrink: 0,
+              px: 3, py: 2, borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+              bgcolor: theme.palette.mode === 'dark'
+                ? alpha('#0D1535', 0.8)
+                : alpha(theme.palette.background.paper, 0.9),
+              flexShrink: 0,
+              background: theme.palette.mode === 'dark'
+                ? `linear-gradient(135deg, ${alpha('#4F46E5', 0.06)} 0%, ${alpha('#0D1535', 0.8)} 100%)`
+                : undefined,
             }}
           >
             <Stack direction="row" alignItems="center" spacing={2}>
@@ -794,7 +863,16 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
               <Chip
                 label={selectedEntity.isCore ? 'Core Entity' : 'Custom Entity'}
                 size="small"
-                color={selectedEntity.isCore ? 'primary' : 'default'}
+                sx={selectedEntity.isCore ? {
+                  color: '#6366F1',
+                  bgcolor: alpha('#6366F1', 0.12),
+                  border: `1px solid ${alpha('#6366F1', 0.25)}`,
+                  fontWeight: 700,
+                  fontSize: '0.7rem',
+                } : {
+                  fontWeight: 700,
+                  fontSize: '0.7rem',
+                }}
                 variant="outlined"
               />
             </Stack>
@@ -818,13 +896,32 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                   <InfoOutlinedIcon sx={{ fontSize: 13, color: 'text.secondary', ml: 0.5, cursor: 'help', verticalAlign: 'middle' }} />
                 </Tooltip>
               </Typography>
-              <Button startIcon={<AddIcon />} size="small" onClick={addField} sx={{ borderRadius: 2 }}>
+              <Button
+                startIcon={<AddIcon />}
+                size="small"
+                onClick={addField}
+                variant="contained"
+                sx={{
+                  borderRadius: 2, fontWeight: 700,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, #8b5cf6 100%)`,
+                  boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.35)}`,
+                  '&:hover': { boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.45)}` },
+                }}
+              >
                 Add Field
               </Button>
             </Stack>
-            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+            <TableContainer component={Paper} variant="outlined" sx={{
+              borderRadius: 2,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+              bgcolor: 'background.paper',
+            }}>
               <Table size="small">
-                <TableHead sx={{ bgcolor: alpha(theme.palette.action.hover, 0.05) }}>
+                <TableHead sx={{
+                  bgcolor: theme.palette.mode === 'dark'
+                    ? alpha(theme.palette.primary.main, 0.07)
+                    : alpha(theme.palette.primary.main, 0.04),
+                }}>
                   <TableRow>
                     <TableCell width="22%">
                       Field Name
@@ -852,8 +949,17 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {selectedEntity.fields.map((f) => (
-                    <TableRow key={f.id} hover>
+                  {selectedEntity.fields.map((f, idx) => (
+                    <TableRow
+                      key={f.id}
+                      hover
+                      sx={{
+                        bgcolor: idx % 2 === 0
+                          ? 'transparent'
+                          : alpha(theme.palette.primary.main, 0.02),
+                        '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.05) },
+                      }}
+                    >
                       <TableCell>
                         <TextField
                           size="small" fullWidth value={f.name} variant="standard"
@@ -893,7 +999,14 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                           size="small" fullWidth value={f.storage} variant="standard" disableUnderline
                           onChange={(e) => updateField(f.id, { storage: e.target.value as StorageStrategy })}
                           MenuProps={OPAQUE_MENU_PROPS as any}
-                          sx={{ color: f.storage === 'on-chain' ? 'warning.main' : f.storage === 'ipfs' ? 'info.main' : 'text.primary' }}
+                          sx={{
+                            color: f.storage === 'on-chain'
+                              ? theme.palette.mode === 'dark' ? '#818cf8' : theme.palette.primary.main
+                              : f.storage === 'ipfs'
+                              ? 'info.main'
+                              : 'text.primary',
+                            fontWeight: f.storage === 'on-chain' ? 700 : 400,
+                          }}
                         >
                           <MenuItem value="database">Database</MenuItem>
                           <MenuItem value="on-chain">On-Chain</MenuItem>
@@ -905,20 +1018,35 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                           <Chip
                             label="Req" size="small" clickable
                             onClick={() => updateField(f.id, { required: !f.required })}
-                            color={f.required ? "primary" : "default"}
-                            variant={f.required ? "filled" : "outlined"}
+                            sx={{
+                              height: 22, fontWeight: 700, fontSize: '0.65rem', cursor: 'pointer',
+                              bgcolor: f.required ? alpha(theme.palette.primary.main, 0.15) : 'transparent',
+                              color: f.required ? 'primary.main' : 'text.disabled',
+                              border: `1px solid ${f.required ? alpha(theme.palette.primary.main, 0.4) : theme.palette.divider}`,
+                              '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) },
+                            }}
                           />
                           <Chip
                             label="Unq" size="small" clickable
                             onClick={() => updateField(f.id, { unique: !f.unique })}
-                            color={f.unique ? "secondary" : "default"}
-                            variant={f.unique ? "filled" : "outlined"}
+                            sx={{
+                              height: 22, fontWeight: 700, fontSize: '0.65rem', cursor: 'pointer',
+                              bgcolor: f.unique ? alpha('#8b5cf6', 0.15) : 'transparent',
+                              color: f.unique ? '#8b5cf6' : 'text.disabled',
+                              border: `1px solid ${f.unique ? alpha('#8b5cf6', 0.4) : theme.palette.divider}`,
+                              '&:hover': { bgcolor: alpha('#8b5cf6', 0.1) },
+                            }}
                           />
                           <Chip
                             label="Priv" size="small" clickable
                             onClick={() => updateField(f.id, { encrypted: !f.encrypted })}
-                            color={f.encrypted ? "success" : "default"}
-                            variant={f.encrypted ? "filled" : "outlined"}
+                            sx={{
+                              height: 22, fontWeight: 700, fontSize: '0.65rem', cursor: 'pointer',
+                              bgcolor: f.encrypted ? alpha(theme.palette.success.main, 0.15) : 'transparent',
+                              color: f.encrypted ? 'success.main' : 'text.disabled',
+                              border: `1px solid ${f.encrypted ? alpha(theme.palette.success.main, 0.4) : theme.palette.divider}`,
+                              '&:hover': { bgcolor: alpha(theme.palette.success.main, 0.1) },
+                            }}
                           />
                         </Stack>
                       </TableCell>
@@ -942,9 +1070,17 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
           </Box>
         </Box>
       ) : (
-        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 1, opacity: 0.5 }}>
-          <StorageIcon sx={{ fontSize: 40 }} />
-          <Typography variant="body2">Select an entity to edit its fields</Typography>
+        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{
+            width: 56, height: 56, borderRadius: 3,
+            bgcolor: alpha(theme.palette.primary.main, 0.1),
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            opacity: 0.7,
+          }}>
+            <StorageIcon sx={{ fontSize: 28, color: 'primary.main' }} />
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.6 }}>Select an entity to edit its fields</Typography>
         </Box>
       )}
     </Box>
@@ -954,7 +1090,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
   /* Render: GOVERNANCE                                               */
   /* ---------------------------------------------------------------- */
   const renderGovernance = () => (
-    <Box sx={{ p: 4, height: '100%', overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
+    <Box sx={{ p: 4, height: '100%', overflowY: 'auto', display: 'flex', justifyContent: 'center', bgcolor: 'background.default' }}>
       <Box sx={{ width: '100%', maxWidth: 1000 }}>
         <Typography variant="h5" fontWeight={800}>Access Control Rules</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3, mt: 0.5 }}>
@@ -977,7 +1113,12 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                 variant="outlined"
                 sx={{ mb: 1.5, borderRadius: '12px !important', overflow: 'hidden', '&:before': { display: 'none' } }}
               >
-                <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.04) }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{
+                  bgcolor: theme.palette.mode === 'dark'
+                    ? alpha(theme.palette.primary.main, 0.08)
+                    : alpha(theme.palette.primary.main, 0.04),
+                  borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                }}>
                   <Stack direction="row" alignItems="center" spacing={1.5}>
                     <HexagonOutlinedIcon sx={{ fontSize: 16, color: 'primary.main' }} />
                     <Typography variant="subtitle2" fontWeight={800}>{mod.label}</Typography>
@@ -1290,11 +1431,15 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
     setTriggerModeMap((prev) => ({ ...prev, [modId]: mode }));
 
   const renderBehavior = () => (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflowY: 'auto', bgcolor: 'background.default' }}>
       {/* Header */}
       <Box sx={{
-        px: 4, py: 2.5, borderBottom: `1px solid ${theme.palette.divider}`,
-        bgcolor: 'background.paper', flexShrink: 0,
+        px: 4, py: 2.5, borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+        bgcolor: 'background.paper',
+        background: theme.palette.mode === 'dark'
+          ? `linear-gradient(135deg, ${alpha('#4F46E5', 0.07)} 0%, transparent 100%)`
+          : alpha(theme.palette.primary.main, 0.02),
+        flexShrink: 0,
       }}>
         <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
           <Box>
@@ -1337,12 +1482,19 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                 <Paper
                   key={mod.id}
                   variant="outlined"
-                  sx={{ borderRadius: 3, overflow: 'hidden' }}
+                  sx={{
+                    borderRadius: 3, overflow: 'hidden',
+                    borderColor: alpha(theme.palette.primary.main, 0.15),
+                    '&:hover': { borderColor: alpha(theme.palette.primary.main, 0.25) },
+                    transition: 'border-color 0.2s ease',
+                  }}
                 >
                   {/* Module header */}
                   <Box sx={{
-                    px: 3, py: 2, borderBottom: `1px solid ${theme.palette.divider}`,
-                    bgcolor: alpha(theme.palette.primary.main, 0.03),
+                    px: 3, py: 2, borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+                    background: theme.palette.mode === 'dark'
+                      ? `linear-gradient(135deg, ${alpha('#4F46E5', 0.1)} 0%, ${alpha(theme.palette.background.paper, 0.8)} 100%)`
+                      : alpha(theme.palette.primary.main, 0.04),
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   }}>
                     <Stack direction="row" alignItems="center" spacing={1.5}>
@@ -1457,12 +1609,23 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                       </Stack>
                     )}
                     {mode === 'visual' && (
-                      <Box sx={{ height: 380 }}>
+                      <Box sx={{
+                        height: 380,
+                        bgcolor: 'background.default',
+                        backgroundImage: theme.palette.mode === 'dark'
+                          ? 'radial-gradient(rgba(79,70,229,0.12) 1px, transparent 1px)'
+                          : 'radial-gradient(rgba(79,70,229,0.07) 1px, transparent 1px)',
+                        backgroundSize: '28px 28px',
+                      }}>
                         <LogicCanvas />
                       </Box>
                     )}
                     {mode === 'code' && (
-                      <Box sx={{ height: 380, bgcolor: theme.palette.mode === 'dark' ? '#080E24' : '#1e1e1e' }}>
+                      <Box sx={{
+                        height: 380,
+                        bgcolor: theme.palette.mode === 'dark' ? '#080E24' : '#1e1e1e',
+                        borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+                      }}>
                         <CustomScriptPanel projectId="" />
                       </Box>
                     )}
@@ -1480,7 +1643,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
   /* Render: EXPOSURE                                                 */
   /* ---------------------------------------------------------------- */
   const renderExposure = () => (
-    <Box sx={{ p: 4, height: '100%', overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
+    <Box sx={{ p: 4, height: '100%', overflowY: 'auto', display: 'flex', justifyContent: 'center', bgcolor: 'background.default' }}>
       <Box sx={{ width: '100%', maxWidth: 1000 }}>
         <Typography variant="h5" fontWeight={800}>API &amp; Visibility</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3, mt: 0.5 }}>
@@ -1503,7 +1666,12 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                 variant="outlined"
                 sx={{ mb: 1.5, borderRadius: '12px !important', overflow: 'hidden', '&:before': { display: 'none' } }}
               >
-                <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.04) }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{
+                  bgcolor: theme.palette.mode === 'dark'
+                    ? alpha(theme.palette.primary.main, 0.08)
+                    : alpha(theme.palette.primary.main, 0.04),
+                  borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                }}>
                   <Stack direction="row" alignItems="center" spacing={1.5}>
                     <HexagonOutlinedIcon sx={{ fontSize: 16, color: 'primary.main' }} />
                     <Typography variant="subtitle2" fontWeight={800}>{mod.label}</Typography>
@@ -1578,7 +1746,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
   /* Main render                                                      */
   /* ---------------------------------------------------------------- */
   return (
-    <Box sx={{ width: '100%', height: '100%', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ width: '100%', height: '100%', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', position: 'relative' }}>
 
       <StepGuidance
         stepKey="step2"
@@ -1605,11 +1773,29 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
 
         {/* LEFT NAVIGATION SIDEBAR */}
         <PhaseSidebar>
-          <Box sx={{ px: 2.5, pb: 2 }}>
-            <Typography variant="subtitle1" fontWeight={800}>Data &amp; Logic</Typography>
-            <Typography variant="caption" color="text.secondary">Define what your app stores and how it behaves.</Typography>
+          <Box sx={{ px: 2.5, pb: 2.5, borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}` }}>
+            <Box
+              sx={{
+                width: 36, height: 36, borderRadius: 2,
+                bgcolor: alpha(theme.palette.primary.main, 0.15),
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.25)}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                mb: 1.5,
+              }}
+            >
+              <StorageIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+            </Box>
+            <Typography variant="subtitle1" fontWeight={800} sx={{ lineHeight: 1.2, mb: 0.25 }}>Data &amp; Logic</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.3 }}>
+              Define what your app stores and how it behaves.
+            </Typography>
+            <Box sx={{ mt: 1.5, px: 1.25, py: 0.75, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.07), border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}` }}>
+              <Typography variant="caption" color="primary.main" fontWeight={700} sx={{ fontSize: '0.65rem' }}>
+                {allEntities.length} entities · {blueprintModules.length} modules
+              </Typography>
+            </Box>
           </Box>
-          <Stack spacing={0.5} sx={{ px: 1.5 }}>
+          <Stack spacing={0.25} sx={{ px: 1, pt: 1.5 }}>
             <PhaseItem active={phase === 'data'} onClick={() => setPhase('data')}>
               <StorageIcon fontSize="small" />
               <Box>
@@ -1763,7 +1949,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
             {phase === 'behavior' && "Design the logic of your application. Triggers allow you to automate workflows, like sending an email when a user signs up or minting an NFT when a payment is received."}
             {phase === 'exposure' && "Control the interface of your application. Toggle which APIs are generated (GraphQL/REST) and ensure sensitive data is encrypted."}
           </Typography>
-          <Box bgcolor={alpha(theme.palette.info.main, 0.1)} p={2} borderRadius={2}>
+          <Box bgcolor={alpha(theme.palette.primary.main, 0.08)} p={2} borderRadius={2} border={`1px solid ${alpha(theme.palette.primary.main, 0.15)}`}>
             <Typography variant="subtitle2" fontWeight={700} gutterBottom>Pro Tip</Typography>
             <Typography variant="body2" fontSize={13}>
               {phase === 'data' && "Core entities (green badge) come from your module presets and are pre-configured. Custom entities (no badge) are entities you created manually."}
