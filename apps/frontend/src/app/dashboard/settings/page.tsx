@@ -93,7 +93,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <Box sx={{ p: 4, maxWidth: 860 }}>
+    <Box sx={{ p: 4, maxWidth: 860, mx: 'auto' }}>
       {/* Header */}
       <Box mb={4}>
         <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 800, letterSpacing: 1.5, fontSize: '0.62rem' }}>ACCOUNT</Typography>

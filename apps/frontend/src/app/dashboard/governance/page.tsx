@@ -5,6 +5,8 @@ import {
   Box, Typography, Paper, Stack, Chip, Button,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Tabs, Tab, LinearProgress, CircularProgress,
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  TextField, Alert,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import HowToVoteIcon from '@mui/icons-material/HowToVote';
@@ -73,6 +75,62 @@ export default function GovernancePage() {
   const theme = useTheme();
   const [tab, setTab] = useState(0);
   const [hasBlockchain, setHasBlockchain] = useState<boolean | null>(null);
+
+  // Vote dialog
+  const [voteTarget, setVoteTarget] = useState<Proposal | null>(null);
+  const [voteChoice, setVoteChoice] = useState<'For' | 'Against' | 'Abstain' | null>(null);
+  const [voteCast, setVoteCast] = useState<string | null>(null);
+
+  // Sign dialog
+  const [signTarget, setSignTarget] = useState<MultiSigTx | null>(null);
+  const [signDone, setSignDone] = useState<string | null>(null);
+
+  // Create Proposal dialog
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [proposals, setProposals] = useState<Proposal[]>(STUB_PROPOSALS);
+  const [multisigTxs, setMultisigTxs] = useState<MultiSigTx[]>(STUB_MULTISIG);
+
+  const handleCastVote = () => {
+    if (!voteTarget || !voteChoice) return;
+    setProposals(prev => prev.map(p => {
+      if (p.id !== voteTarget.id) return p;
+      return {
+        ...p,
+        votesFor: voteChoice === 'For' ? p.votesFor + 1 : p.votesFor,
+        votesAgainst: voteChoice === 'Against' ? p.votesAgainst + 1 : p.votesAgainst,
+      };
+    }));
+    setVoteCast(voteTarget.id);
+    setVoteTarget(null);
+    setVoteChoice(null);
+  };
+
+  const handleSign = () => {
+    if (!signTarget) return;
+    setMultisigTxs(prev => prev.map(tx => {
+      if (tx.id !== signTarget.id) return tx;
+      const newApprovals = tx.approvals + 1;
+      return { ...tx, approvals: newApprovals, status: newApprovals >= tx.threshold ? 'executed' : 'pending' };
+    }));
+    setSignDone(signTarget.id);
+    setSignTarget(null);
+  };
+
+  const handleCreateProposal = () => {
+    if (!newTitle.trim()) return;
+    const newProp: Proposal = {
+      id: `prop-${Date.now()}`, title: newTitle, description: newDesc,
+      votesFor: 0, votesAgainst: 0,
+      deadline: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+      status: 'active',
+    };
+    setProposals(prev => [newProp, ...prev]);
+    setCreateOpen(false);
+    setNewTitle('');
+    setNewDesc('');
+  };
 
   useEffect(() => {
     fetch('/api/projects')
@@ -145,7 +203,7 @@ export default function GovernancePage() {
   }
 
   return (
-    <Box sx={{ p: 4, maxWidth: 1100 }}>
+    <Box sx={{ p: 4, maxWidth: 1100, mx: 'auto' }}>
       {/* Header */}
       <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={4}>
         <Box>
@@ -158,7 +216,7 @@ export default function GovernancePage() {
             Vote on proposals and manage multi-signature transactions for your network.
           </Typography>
         </Box>
-        <Button variant="outlined" startIcon={<HowToVoteIcon />} sx={{ borderRadius: 1, fontWeight: 700 }}>
+        <Button variant="outlined" startIcon={<HowToVoteIcon />} sx={{ borderRadius: 1, fontWeight: 700 }} onClick={() => setCreateOpen(true)}>
           Create Proposal
         </Button>
       </Stack>
@@ -173,7 +231,7 @@ export default function GovernancePage() {
       {/* Tab 0: Proposals */}
       {tab === 0 && (
         <Stack spacing={2.5}>
-          {STUB_PROPOSALS.map((p) => {
+          {proposals.map((p) => {
             const total = p.votesFor + p.votesAgainst;
             const forPct = total > 0 ? (p.votesFor / total) * 100 : 0;
             const sc = STATUS_COLOR[p.status];
@@ -197,9 +255,10 @@ export default function GovernancePage() {
                     <Typography variant="body2" color="text.secondary">{p.description}</Typography>
                   </Box>
                   <Button variant="contained" size="small" startIcon={<HowToVoteIcon />}
-                    disabled={p.status !== 'active'}
+                    disabled={p.status !== 'active' || voteCast === p.id}
+                    onClick={() => setVoteTarget(p)}
                     sx={{ borderRadius: 1, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                    Vote
+                    {voteCast === p.id ? 'Voted' : 'Vote'}
                   </Button>
                 </Stack>
 
@@ -268,14 +327,14 @@ export default function GovernancePage() {
       {/* Tab 1: Multi-sig */}
       {tab === 1 && (
         <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden' }}>
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#8b5cf6', 0.03) }}>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: alpha('#8b5cf6', 0.03) }}>
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <LockIcon sx={{ fontSize: 16, color: '#8b5cf6' }} />
               <Typography variant="overline" sx={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: 1, color: '#8b5cf6' }}>MULTI-SIG TRANSACTIONS</Typography>
             </Stack>
           </Box>
           <Box>
-            {STUB_MULTISIG.map((tx, idx) => {
+            {multisigTxs.map((tx, idx) => {
               const sc = STATUS_COLOR[tx.status];
               const pct = (tx.approvals / tx.threshold) * 100;
               return (
@@ -311,9 +370,10 @@ export default function GovernancePage() {
                   </Box>
 
                   <Button size="small" variant={tx.status === 'pending' ? 'contained' : 'outlined'}
-                    disabled={tx.status !== 'pending'}
+                    disabled={tx.status !== 'pending' || signDone === tx.id}
+                    onClick={() => setSignTarget(tx)}
                     sx={{ borderRadius: 1, fontWeight: 700, fontSize: '0.72rem', flexShrink: 0 }}>
-                    Sign
+                    {signDone === tx.id ? 'Signed' : 'Sign'}
                   </Button>
                 </Box>
               );
@@ -321,6 +381,75 @@ export default function GovernancePage() {
           </Box>
         </Paper>
       )}
+
+      {/* Vote Dialog */}
+      <Dialog open={!!voteTarget} onClose={() => { setVoteTarget(null); setVoteChoice(null); }} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>Cast Your Vote</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" mb={2}>{voteTarget?.title}</Typography>
+          <Stack spacing={1.5}>
+            {(['For', 'Against', 'Abstain'] as const).map((choice) => {
+              const colors: Record<string, string> = { For: '#10b981', Against: '#ef4444', Abstain: '#6b7db3' };
+              const c = colors[choice];
+              const isSelected = voteChoice === choice;
+              return (
+                <Box key={choice} onClick={() => setVoteChoice(choice)} sx={{
+                  p: 2, borderRadius: 2, cursor: 'pointer', border: `2px solid ${isSelected ? c : alpha(c, 0.2)}`,
+                  bgcolor: isSelected ? alpha(c, 0.08) : 'transparent',
+                  transition: 'all 0.12s',
+                  '&:hover': { bgcolor: alpha(c, 0.06), borderColor: c },
+                }}>
+                  <Typography fontWeight={700} sx={{ color: c }}>{choice}</Typography>
+                </Box>
+              );
+            })}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => { setVoteTarget(null); setVoteChoice(null); }} sx={{ borderRadius: 1 }}>Cancel</Button>
+          <Button variant="contained" disabled={!voteChoice} onClick={handleCastVote} sx={{ borderRadius: 1, fontWeight: 700 }}>
+            Confirm Vote
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Sign Dialog */}
+      <Dialog open={!!signTarget} onClose={() => setSignTarget(null)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>Sign Transaction</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ borderRadius: 2, mb: 2 }}>This will add your cryptographic signature to the multi-sig transaction.</Alert>
+          <Typography variant="body2" color="text.secondary"><strong>{signTarget?.description}</strong></Typography>
+          <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1 }}>
+            Amount: {signTarget?.value} → {signTarget?.to}
+          </Typography>
+          <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.5 }}>
+            Signatures: {signTarget?.approvals}/{signTarget?.threshold}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setSignTarget(null)} sx={{ borderRadius: 1 }}>Cancel</Button>
+          <Button variant="contained" onClick={handleSign} sx={{ borderRadius: 1, fontWeight: 700 }}>Sign</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create Proposal Dialog */}
+      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>Create Proposal</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2.5} pt={1}>
+            <TextField label="Proposal Title" fullWidth size="small" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="e.g. Increase block gas limit to 40M" />
+            <TextField label="Description" fullWidth size="small" multiline rows={3} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Describe the change and its rationale..." />
+            <Typography variant="caption" color="text.secondary">
+              Voting will open immediately with a 7-day deadline. You need sufficient governance tokens to submit.
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setCreateOpen(false)} sx={{ borderRadius: 1 }}>Cancel</Button>
+          <Button variant="contained" disabled={!newTitle.trim()} onClick={handleCreateProposal} sx={{ borderRadius: 1, fontWeight: 700 }}>Submit Proposal</Button>
+        </DialogActions>
+      </Dialog>
+
     </Box>
   );
 }

@@ -553,6 +553,86 @@ const CATALOG: IntegrationDef[] = [
   },
 ];
 
+/* ------------------ Brand Logos ------------------ */
+
+const BRAND_META: Record<string, { logoUrl?: string; color: string; initials: string }> = {
+  stripe: { logoUrl: 'https://cdn.simpleicons.org/stripe/635BFF', color: '#635BFF', initials: 'ST' },
+  paypal: { logoUrl: 'https://cdn.simpleicons.org/paypal/00457C', color: '#00457C', initials: 'PP' },
+  coinbase: { logoUrl: 'https://cdn.simpleicons.org/coinbase/1652F0', color: '#1652F0', initials: 'CB' },
+  lemonsqueezy: { color: '#FFC233', initials: 'LS' },
+  razorpay: { logoUrl: 'https://cdn.simpleicons.org/razorpay/3395FF', color: '#3395FF', initials: 'RZ' },
+  clerk: { logoUrl: 'https://cdn.simpleicons.org/clerk/6C47FF', color: '#6C47FF', initials: 'CL' },
+  privy: { color: '#6B5CE7', initials: 'PR' },
+  dynamic: { color: '#4F46E5', initials: 'DY' },
+  auth0: { logoUrl: 'https://cdn.simpleicons.org/auth0/EB5424', color: '#EB5424', initials: 'A0' },
+  firebase: { logoUrl: 'https://cdn.simpleicons.org/firebase/FFCA28', color: '#FFA000', initials: 'FB' },
+  sumsub: { color: '#00B77A', initials: 'SS' },
+  chainalysis: { color: '#0B8EE5', initials: 'CA' },
+  docusign: { logoUrl: 'https://cdn.simpleicons.org/docusign/E04646', color: '#E04646', initials: 'DS' },
+  sendgrid: { logoUrl: 'https://cdn.simpleicons.org/sendgrid/1A82E2', color: '#1A82E2', initials: 'SG' },
+  resend: { logoUrl: 'https://cdn.simpleicons.org/resend/000000', color: '#6366F1', initials: 'RS' },
+  twilio: { logoUrl: 'https://cdn.simpleicons.org/twilio/F22F46', color: '#F22F46', initials: 'TW' },
+  xmtp: { color: '#FC4F37', initials: 'XM' },
+  push: { color: '#DD44B9', initials: 'PU' },
+  s3: { logoUrl: 'https://cdn.simpleicons.org/amazons3/569A31', color: '#569A31', initials: 'S3' },
+  pinata: { color: '#E5A732', initials: 'PI' },
+  arweave: { logoUrl: 'https://cdn.simpleicons.org/arweave/222222', color: '#4B5563', initials: 'AR' },
+  filecoin: { logoUrl: 'https://cdn.simpleicons.org/filecoin/0090FF', color: '#0090FF', initials: 'FC' },
+  supabase_storage: { logoUrl: 'https://cdn.simpleicons.org/supabase/3ECF8E', color: '#3ECF8E', initials: 'SB' },
+  chainlink: { logoUrl: 'https://cdn.simpleicons.org/chainlink/375BD2', color: '#375BD2', initials: 'CL' },
+  graph: { logoUrl: 'https://cdn.simpleicons.org/thegraph/6747ED', color: '#6747ED', initials: 'GR' },
+  alchemy: { color: '#363FF9', initials: 'AL' },
+  moralis: { color: '#2D3748', initials: 'MR' },
+  pyth: { color: '#E6007A', initials: 'PY' },
+  apeda_agriexchange: { color: '#2E7D32', initials: 'AP' },
+  icegate_api: { color: '#1565C0', initials: 'IC' },
+  nppo_dppq: { color: '#558B2F', initials: 'NP' },
+  posthog: { logoUrl: 'https://cdn.simpleicons.org/posthog/F54E00', color: '#F54E00', initials: 'PH' },
+  segment: { logoUrl: 'https://cdn.simpleicons.org/segment/52BD94', color: '#52BD94', initials: 'SG' },
+  dune: { color: '#E84142', initials: 'DN' },
+  ga4: { logoUrl: 'https://cdn.simpleicons.org/googleanalytics/E37400', color: '#E37400', initials: 'GA' },
+  mixpanel: { logoUrl: 'https://cdn.simpleicons.org/mixpanel/7856FF', color: '#7856FF', initials: 'MX' },
+  cloudwatch_elk: { logoUrl: 'https://cdn.simpleicons.org/amazonaws/FF9900', color: '#FF9900', initials: 'CW' },
+  prometheus_grafana: { logoUrl: 'https://cdn.simpleicons.org/grafana/F46800', color: '#F46800', initials: 'GF' },
+  slack_webhook: { logoUrl: 'https://cdn.simpleicons.org/slack/4A154B', color: '#4A154B', initials: 'SL' },
+  discord_webhook: { logoUrl: 'https://cdn.simpleicons.org/discord/5865F2', color: '#5865F2', initials: 'DC' },
+  telegram_bot: { logoUrl: 'https://cdn.simpleicons.org/telegram/26A5E4', color: '#26A5E4', initials: 'TG' },
+  zapier: { logoUrl: 'https://cdn.simpleicons.org/zapier/FF4A00', color: '#FF4A00', initials: 'ZP' },
+  custom_webhook: { color: '#6B7280', initials: 'CW' },
+  pagerduty: { logoUrl: 'https://cdn.simpleicons.org/pagerduty/06AC38', color: '#06AC38', initials: 'PD' },
+  aws_kms: { logoUrl: 'https://cdn.simpleicons.org/amazonaws/FF9900', color: '#FF9900', initials: 'KM' },
+};
+
+function BrandLogo({ id, size = 42 }: { id: string; size?: number }) {
+  const meta = BRAND_META[id];
+  const [err, setErr] = useState(false);
+  const imgSize = Math.round(size * 0.55);
+  if (meta?.logoUrl && !err) {
+    return (
+      <img
+        src={meta.logoUrl}
+        alt={id}
+        width={imgSize}
+        height={imgSize}
+        style={{ objectFit: 'contain', display: 'block' }}
+        onError={() => setErr(true)}
+      />
+    );
+  }
+  return (
+    <Typography sx={{
+      fontSize: Math.round(size * 0.36),
+      fontWeight: 900,
+      color: meta?.color || '#4F46E5',
+      lineHeight: 1,
+      letterSpacing: -0.5,
+      userSelect: 'none',
+    }}>
+      {meta?.initials || id.slice(0, 2).toUpperCase()}
+    </Typography>
+  );
+}
+
 /* ------------------ Styled Components ------------------ */
 
 const FloatingIsland = styled(Paper)(({ theme }) => ({
@@ -838,12 +918,12 @@ export default function Step4({ goPrev, goNext, projectId }: { goPrev?: () => vo
                   {/* Icon */}
                   <Box sx={{
                     width: 42, height: 42, borderRadius: 2, flexShrink: 0,
-                    bgcolor: alpha(catColor, 0.1),
+                    bgcolor: alpha(catColor, 0.08),
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: catColor,
-                    border: isSelected ? `1px solid ${alpha(catColor, 0.3)}` : '1px solid transparent',
+                    border: isSelected ? `1px solid ${alpha(catColor, 0.3)}` : `1px solid ${alpha(catColor, 0.12)}`,
+                    overflow: 'hidden',
                   }}>
-                    {getIcon(def.category)}
+                    <BrandLogo id={def.id} size={42} />
                   </Box>
 
                   {/* Name + desc */}
@@ -893,11 +973,12 @@ export default function Step4({ goPrev, goNext, projectId }: { goPrev?: () => vo
                   <Stack direction="row" alignItems="center" spacing={2} mb={1.5}>
                     <Box sx={{
                       width: 48, height: 48, borderRadius: 2.5,
-                      bgcolor: alpha(CAT_COLOR[activeDef.category], 0.12),
+                      bgcolor: alpha(CAT_COLOR[activeDef.category], 0.08),
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: CAT_COLOR[activeDef.category],
+                      border: `1px solid ${alpha(CAT_COLOR[activeDef.category], 0.18)}`,
+                      overflow: 'hidden',
                     }}>
-                      {getIcon(activeDef.category)}
+                      <BrandLogo id={activeDef.id} size={48} />
                     </Box>
                     <Box sx={{ flex: 1 }}>
                       <Typography variant="h6" fontWeight={800}>{activeDef.name}</Typography>
