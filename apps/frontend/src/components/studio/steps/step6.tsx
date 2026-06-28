@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from "react";
+import StepGuidance from '@/components/studio/StepGuidance';
 import {
   Box, Button, Divider, LinearProgress, Paper, Stack, Typography,
   Chip, Fade, IconButton, Tooltip, Alert, CircularProgress
@@ -418,20 +419,25 @@ export default function Step6({ goPrev }: { goPrev?: () => void }) {
     <>
       <Box sx={{ width: '100%', height: '100%', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
 
-         <Box sx={{ position: 'absolute', inset: 0, opacity: 0.3, zIndex: -1,
+         <StepGuidance
+           stepKey="step6"
+           title="Review & Deploy"
+           subtitle="Step 6 of 6"
+           description="Review your complete project configuration and deploy it to production. Cerulea validates your setup, generates all smart contracts and infrastructure, and provisions your live environment."
+           steps={[
+             { first: 'Review the summary', next: 'Check your selected modules, token configuration, and integrations in the left panel.' },
+             { first: 'Click Deploy', next: 'Cerulea will validate your config, compile contracts, provision infrastructure, and go live.' },
+             { first: 'Access your project', next: 'Once deployed, you\'ll get an RPC endpoint, dashboard URL, and API access for your app.' },
+           ]}
+           tip="Deployment typically takes 2–5 minutes. You'll see real-time progress logs as each phase completes."
+         />
+
+         <Box sx={{ position: 'absolute', inset: 0, opacity: 0.5, zIndex: -1,
             backgroundImage: theme.palette.mode === 'light' ? 'radial-gradient(rgba(79,70,229,0.07) 1px, transparent 1px)' : 'radial-gradient(rgba(79,70,229,0.13) 1px, transparent 1px)',
             backgroundSize: '24px 24px'
          }} />
 
-         <Box sx={{ position: 'absolute', top: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'none' }}>
-            <StepPill>
-               <Typography variant="overline" fontWeight={800} color="primary" sx={{ letterSpacing: 1, lineHeight: 1 }}>STEP 6 OF 6</Typography>
-               <Divider orientation="vertical" flexItem sx={{ height: 14, my: 'auto', opacity: 0.5 }} />
-               <Typography variant="subtitle2" fontWeight={700}>Review & Deploy</Typography>
-            </StepPill>
-         </Box>
-
-         <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', pt: 10, px: 4, pb: 14 }}>
+         <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', pt: 3, px: 4, pb: 14 }}>
             <Grid container spacing={4} sx={{ height: '100%' }}>
                
                <Grid xs={12} md={4} sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 3 }}>

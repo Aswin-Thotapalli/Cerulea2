@@ -212,6 +212,7 @@ export default function StudioShell({
           stepIndex={stepIndex}
           subStepIndex={subStepIndex}
           projectType={projectType ?? null}
+          onStepChange={setStepIndex}
         />
 
         {/* Step content area */}

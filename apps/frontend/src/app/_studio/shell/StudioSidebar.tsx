@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
-import { Box, Typography, Avatar } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Typography, Avatar, Menu, MenuItem, ListItemIcon, Divider } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
+import Link from 'next/link';
 import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
@@ -10,6 +11,9 @@ import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalance
 import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import CheckIcon from '@mui/icons-material/Check';
+import PersonIcon from '@mui/icons-material/Person';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import LogoutIcon from '@mui/icons-material/Logout';
 import { useSession } from 'next-auth/react';
 
 /* ---- Step definitions ---- */
@@ -31,8 +35,7 @@ function getSubSteps(projectType: string | null): string[] {
 
 /* Maps raw phase index (0-3) to display sub-step index based on project type */
 function displaySubStep(phase: number, projectType: string | null): number {
-  if (projectType === 'blockchain') return phase; // 0,1,2,3 maps directly
-  // dApp: phase 0→0, phase 2→1, phase 3→2
+  if (projectType === 'blockchain') return phase;
   if (phase === 0) return 0;
   if (phase === 2) return 1;
   if (phase === 3) return 2;
@@ -41,14 +44,16 @@ function displaySubStep(phase: number, projectType: string | null): number {
 
 /* ---- Props ---- */
 export interface StudioSidebarProps {
-  stepIndex: number;   // 0-based main step (0 = Foundation)
-  subStepIndex: number; // raw phase index from step0 (0-3)
+  stepIndex: number;
+  subStepIndex: number;
   projectType: string | null;
+  onStepChange?: (index: number) => void;
 }
 
-export default function StudioSidebar({ stepIndex, subStepIndex, projectType }: StudioSidebarProps) {
+export default function StudioSidebar({ stepIndex, subStepIndex, projectType, onStepChange }: StudioSidebarProps) {
   const theme = useTheme();
   const { data: session } = useSession();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   const subSteps = getSubSteps(projectType);
   const activeSubStep = displaySubStep(subStepIndex, projectType);
@@ -94,14 +99,24 @@ export default function StudioSidebar({ stepIndex, subStepIndex, projectType }: 
             : 'transparent',
           mb: 0.5,
           overflow: 'hidden',
+          cursor: onStepChange ? 'pointer' : 'default',
+          transition: 'background 0.15s',
+          '&:hover': onStepChange ? {
+            background: stepIndex === 0
+              ? alpha(PRIMARY, isDark ? 0.09 : 0.05)
+              : alpha(PRIMARY, isDark ? 0.03 : 0.015),
+          } : {},
         }}>
           {/* Foundation header row */}
-          <Box sx={{
-            display: 'flex', alignItems: 'center', gap: 1,
-            p: '9px 10px',
-            borderBottom: stepIndex === 0 ? '0.5px solid' : '0.5px solid transparent',
-            borderColor: alpha(PRIMARY, 0.12),
-          }}>
+          <Box
+            sx={{
+              display: 'flex', alignItems: 'center', gap: 1,
+              p: '9px 10px',
+              borderBottom: stepIndex === 0 ? '0.5px solid' : '0.5px solid transparent',
+              borderColor: alpha(PRIMARY, 0.12),
+            }}
+            onClick={() => onStepChange?.(0)}
+          >
             <Avatar sx={{
               width: 24, height: 24, borderRadius: '7px',
               bgcolor: stepIndex === 0 ? PRIMARY : 'action.disabledBackground',
@@ -168,28 +183,37 @@ export default function StudioSidebar({ stepIndex, subStepIndex, projectType }: 
           )}
         </Box>
 
-        {/* ── Steps 2–6: locked/upcoming ── */}
+        {/* ── Steps 2–6 ── */}
         {MAIN_STEPS.slice(1).map((step, i) => {
-          const realIdx = i + 1; // 1–5 relative to MAIN_STEPS, but step numbers 2–6
+          const realIdx = i + 1;
           const isDone   = stepIndex > realIdx;
           const isActive = stepIndex === realIdx;
           const opacity  = isDone ? 1 : isActive ? 1 : Math.max(0.07, 0.30 - i * 0.06);
 
           return (
-            <Box key={step.label} sx={{
-              display: 'flex', alignItems: 'center', gap: 1,
-              p: '8px 10px', borderRadius: '9px', mb: 0.25,
-              bgcolor: isActive ? alpha(PRIMARY, 0.04) : 'transparent',
-              border: isActive ? `0.5px solid ${alpha(PRIMARY, 0.2)}` : '0.5px solid transparent',
-              opacity,
-              transition: 'opacity 0.2s',
-            }}>
+            <Box
+              key={step.label}
+              onClick={() => onStepChange?.(realIdx)}
+              sx={{
+                display: 'flex', alignItems: 'center', gap: 1,
+                p: '8px 10px', borderRadius: '9px', mb: 0.25,
+                bgcolor: isActive ? alpha(PRIMARY, 0.04) : 'transparent',
+                border: isActive ? `0.5px solid ${alpha(PRIMARY, 0.2)}` : '0.5px solid transparent',
+                opacity,
+                transition: 'all 0.2s',
+                cursor: onStepChange ? 'pointer' : 'default',
+                '&:hover': onStepChange ? {
+                  bgcolor: isActive ? alpha(PRIMARY, 0.07) : alpha(PRIMARY, 0.035),
+                  opacity: 1,
+                } : {},
+              }}
+            >
               <Avatar sx={{
                 width: 24, height: 24, borderRadius: '7px',
-                bgcolor: isActive ? PRIMARY : 'action.disabledBackground',
-                color: isActive ? '#fff' : 'text.secondary',
+                bgcolor: isActive ? PRIMARY : isDone ? alpha(PRIMARY, 0.2) : 'action.disabledBackground',
+                color: isActive ? '#fff' : isDone ? PRIMARY : 'text.secondary',
               }}>
-                <step.Icon sx={{ fontSize: 11 }} />
+                {isDone ? <CheckIcon sx={{ fontSize: 11 }} /> : <step.Icon sx={{ fontSize: 11 }} />}
               </Avatar>
               <Box>
                 <Typography sx={{
@@ -201,8 +225,8 @@ export default function StudioSidebar({ stepIndex, subStepIndex, projectType }: 
                 </Typography>
                 <Typography sx={{
                   fontSize: '0.72rem',
-                  color: isActive ? PRIMARY : 'text.secondary',
-                  fontWeight: isActive ? 500 : 400,
+                  color: isActive ? PRIMARY : isDone ? 'text.primary' : 'text.secondary',
+                  fontWeight: isActive ? 500 : isDone ? 500 : 400,
                 }}>
                   {step.label}
                 </Typography>
@@ -213,10 +237,16 @@ export default function StudioSidebar({ stepIndex, subStepIndex, projectType }: 
       </Box>
 
       {/* ── User pill ── */}
-      <Box sx={{
-        borderTop: '0.5px solid', borderColor: 'divider',
-        p: '10px 14px', display: 'flex', alignItems: 'center', gap: 1,
-      }}>
+      <Box
+        onClick={(e) => setAnchorEl(e.currentTarget)}
+        sx={{
+          borderTop: '0.5px solid', borderColor: 'divider',
+          p: '10px 14px', display: 'flex', alignItems: 'center', gap: 1,
+          cursor: 'pointer',
+          transition: 'background 0.15s',
+          '&:hover': { bgcolor: alpha(PRIMARY, 0.04) },
+        }}
+      >
         <Avatar sx={{
           width: 24, height: 24,
           bgcolor: alpha(PRIMARY, 0.12),
@@ -237,6 +267,58 @@ export default function StudioSidebar({ stepIndex, subStepIndex, projectType }: 
           </Typography>
         </Box>
       </Box>
+
+      {/* ── User account menu ── */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={() => setAnchorEl(null)}
+        anchorOrigin={{ horizontal: 'left', vertical: 'top' }}
+        transformOrigin={{ horizontal: 'left', vertical: 'bottom' }}
+        PaperProps={{
+          elevation: 4,
+          sx: { minWidth: 200, borderRadius: 2, mb: 0.5, border: '1px solid', borderColor: 'divider' },
+        }}
+      >
+        <Box sx={{ px: 2, py: 1.5 }}>
+          <Typography variant="subtitle2" fontWeight={700} noWrap>
+            {session?.user?.name || 'Studio User'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {session?.user?.email}
+          </Typography>
+        </Box>
+        <Divider />
+        <MenuItem
+          component={Link}
+          href="/settings/profile"
+          onClick={() => setAnchorEl(null)}
+          dense
+        >
+          <ListItemIcon><PersonIcon fontSize="small" /></ListItemIcon>
+          My Profile
+        </MenuItem>
+        <MenuItem
+          component={Link}
+          href="/dashboard"
+          onClick={() => setAnchorEl(null)}
+          dense
+        >
+          <ListItemIcon><DashboardIcon fontSize="small" /></ListItemIcon>
+          Dashboard
+        </MenuItem>
+        <Divider />
+        <MenuItem
+          onClick={() => {
+            setAnchorEl(null);
+            window.location.href = '/api/auth/force-signout?next=/auth/login';
+          }}
+          dense
+        >
+          <ListItemIcon><LogoutIcon fontSize="small" /></ListItemIcon>
+          Sign Out
+        </MenuItem>
+      </Menu>
     </Box>
   );
 }
