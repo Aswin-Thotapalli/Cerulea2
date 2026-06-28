@@ -565,7 +565,7 @@ export default function Step0({
                   Who can access your dApp?
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7, maxWidth: 400 }}>
-                  Public dApps deploy on Cerulea's shared network — open to all wallets. Private dApps run on your own isolated environment with access control.
+                  Public dApps deploy on Cerulea's shared public network and are accessible to any wallet — requires the Public Dapps plan. Private dApps run on your own isolated environment with permissioned access — requires the Private Dapps plan.
                 </Typography>
               </Stack>
 
@@ -652,7 +652,7 @@ export default function Step0({
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
                       <Typography variant="subtitle1" fontWeight={600}>Private dApp</Typography>
                       {!canUsePrivateDapp && (
-                        <Chip label="Pro+" size="small" sx={{
+                        <Chip label="Private Dapps plan" size="small" sx={{
                           height: 18, fontSize: '0.6rem', fontWeight: 700,
                           bgcolor: alpha('#f59e0b', 0.12), color: '#f59e0b', border: 'none',
                         }} />
@@ -670,9 +670,14 @@ export default function Step0({
                         }} />
                       ))}
                     </Stack>
-                    {!canUsePrivateDapp && (
+                    {canUsePrivateDapp ? (
+                      <Chip label="Private Dapps plan" size="small" sx={{
+                        mt: 1.5, height: 20, fontSize: '0.62rem', fontWeight: 600,
+                        bgcolor: alpha('#10b981', 0.1), color: '#10b981', border: 'none',
+                      }} />
+                    ) : (
                       <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: '#f59e0b', fontWeight: 600, fontSize: '0.65rem' }}>
-                        Upgrade to Pro to unlock private dApps →
+                        Requires Private Dapps plan →
                       </Typography>
                     )}
                   </Box>

@@ -27,11 +27,11 @@ type Project = {
   updatedAt?: string;
 };
 
-const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
+const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactElement | undefined; label: string }> = {
   active: { color: '#10b981', icon: <CheckCircleIcon sx={{ fontSize: 11 }} />, label: 'Live' },
   deploying: { color: '#f59e0b', icon: <PendingIcon sx={{ fontSize: 11 }} />, label: 'Deploying' },
   draft: { color: '#6366f1', icon: <StorageIcon sx={{ fontSize: 11 }} />, label: 'Draft' },
-  failed: { color: '#ef4444', icon: null, label: 'Failed' },
+  failed: { color: '#ef4444', icon: undefined, label: 'Failed' },
 };
 
 export default function StudioLanding({
@@ -211,7 +211,7 @@ export default function StudioLanding({
               </Stack>
             </Stack>
 
-            <Grid container spacing={2.5}>
+            <Grid container spacing={3}>
               {projects.map((p) => {
                 const isChain = p.projectType === 'blockchain';
                 const typeColor = isChain ? '#8b5cf6' : '#6366f1';

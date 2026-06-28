@@ -750,98 +750,73 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
             />
           </Box>
 
-          {/* Fields Table */}
-          <Box sx={{ flex: 1, overflow: 'auto', p: 2.5 }}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1.5}>
-              <Typography variant="subtitle2" fontWeight={800}>
-                Fields
-                <Tooltip title="A field is a single piece of data on this entity (like a name, email address, or token balance). Each field has a type, storage location, and constraints." arrow>
-                  <InfoOutlinedIcon sx={{ fontSize: 13, color: 'text.secondary', ml: 0.5, cursor: 'help', verticalAlign: 'middle' }} />
+          {/* Fields */}
+          <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
+            {/* header */}
+            <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+              <Stack direction="row" alignItems="center" spacing={0.75}>
+                <Typography variant="subtitle1" fontWeight={800}>Fields</Typography>
+                <Chip label={selectedEntity.fields.length} size="small" sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }} />
+                <Tooltip title="A field is a column on this entity. Set a type, where data lives (database vs on-chain vs IPFS), and optional constraints." arrow>
+                  <InfoOutlinedIcon sx={{ fontSize: 13, color: 'text.secondary', cursor: 'help', verticalAlign: 'middle' }} />
                 </Tooltip>
-              </Typography>
-              <Button
-                startIcon={<AddIcon />}
-                size="small"
-                onClick={addField}
-                variant="contained"
-                sx={{
-                  borderRadius: 2, fontWeight: 700,
-                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, #8b5cf6 100%)`,
-                  boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.35)}`,
-                  '&:hover': { boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.45)}` },
-                }}
-              >
+              </Stack>
+              <Button startIcon={<AddIcon />} size="small" onClick={addField} variant="contained" sx={{ borderRadius: 2, fontWeight: 700, background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, #8b5cf6 100%)`, boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}` }}>
                 Add Field
               </Button>
             </Stack>
-            <TableContainer component={Paper} variant="outlined" sx={{
-              borderRadius: 2,
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-              bgcolor: 'background.paper',
-            }}>
-              <Table size="small">
-                <TableHead sx={{
-                  bgcolor: theme.palette.mode === 'dark'
-                    ? alpha(theme.palette.primary.main, 0.07)
-                    : alpha(theme.palette.primary.main, 0.04),
-                }}>
-                  <TableRow>
-                    <TableCell width="22%">
-                      Field Name
-                    </TableCell>
-                    <TableCell width="16%">
-                      Type
-                      <Tooltip title="The data type: UUID (unique ID), String (text), Int (number), Address (crypto wallet), Uint256 (large number for token amounts), DateTime, Boolean (true/false), JSON (structured data)." arrow>
-                        <InfoOutlinedIcon sx={{ fontSize: 11, color: 'text.secondary', ml: 0.5, cursor: 'help', verticalAlign: 'middle' }} />
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell width="16%">
-                      Storage
-                      <Tooltip title="Database: stored off-chain in your app's database (free, fast). On-Chain: stored on the blockchain (costs gas, immutable, auditable). IPFS: stored on a decentralized file system (for files and metadata)." arrow>
-                        <InfoOutlinedIcon sx={{ fontSize: 11, color: 'text.secondary', ml: 0.5, cursor: 'help', verticalAlign: 'middle' }} />
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell width="28%">
-                      Constraints
-                      <Tooltip title="Req = Required (can't be empty). Unq = Unique (no two records can have the same value). Priv = Private (data is encrypted at rest)." arrow>
-                        <InfoOutlinedIcon sx={{ fontSize: 11, color: 'text.secondary', ml: 0.5, cursor: 'help', verticalAlign: 'middle' }} />
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell width="13%">Default</TableCell>
-                    <TableCell width="5%"></TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {selectedEntity.fields.map((f, idx) => (
-                    <TableRow
-                      key={f.id}
-                      hover
-                      sx={{
-                        bgcolor: idx % 2 === 0
-                          ? 'transparent'
-                          : alpha(theme.palette.primary.main, 0.02),
-                        '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.05) },
-                      }}
-                    >
-                      <TableCell>
-                        <TextField
-                          size="small" fullWidth value={f.name} variant="standard"
-                          onChange={(e) => updateField(f.id, { name: e.target.value })}
-                          InputProps={{
-                            disableUnderline: true,
-                            startAdornment: f.name === 'id'
-                              ? <KeyIcon sx={{ fontSize: 14, color: 'warning.main', mr: 0.5 }} />
-                              : null,
-                            style: { fontWeight: 600 },
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          size="small" fullWidth value={f.type} variant="standard" disableUnderline
+
+            {/* Field rows container */}
+            <Paper variant="outlined" sx={{ borderRadius: 2.5, overflow: 'hidden', borderColor: alpha(theme.palette.primary.main, 0.12) }}>
+              {/* Column header */}
+              <Box sx={{
+                display: 'grid',
+                gridTemplateColumns: '4px minmax(140px,1.2fr) 110px 110px 120px 80px 36px',
+                alignItems: 'center', px: 2, py: 1,
+                bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.07 : 0.04),
+                borderBottom: `1px solid ${theme.palette.divider}`,
+              }}>
+                {['', 'Field Name', 'Type', 'Storage', 'Constraints', 'Default', ''].map((h, i) => (
+                  <Typography key={i} variant="caption" fontWeight={800} sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.7, color: 'text.disabled' }}>{h}</Typography>
+                ))}
+              </Box>
+
+              {/* Rows */}
+              {selectedEntity.fields.map((f, idx) => {
+                const accentC = f.storage === 'on-chain' ? '#06b6d4' : f.storage === 'ipfs' ? '#10b981' : '#4F46E5';
+                const TYPE_COLORS: Record<string, string> = { uuid: '#f97316', address: '#06b6d4', uint256: '#06b6d4', 'bytes32': '#06b6d4', 'ipfs-hash': '#10b981', datetime: '#f59e0b', boolean: '#10b981', json: '#8b5cf6' };
+                const tC = TYPE_COLORS[f.type] || theme.palette.primary.main;
+                return (
+                  <Box key={f.id} sx={{
+                    display: 'grid',
+                    gridTemplateColumns: '4px minmax(140px,1.2fr) 110px 110px 120px 80px 36px',
+                    alignItems: 'center', minHeight: 50,
+                    borderBottom: idx < selectedEntity.fields.length - 1 ? `1px solid ${theme.palette.divider}` : 'none',
+                    transition: 'background-color 0.1s',
+                    '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.025) },
+                  }}>
+                    {/* Left accent */}
+                    <Box sx={{ height: '100%', bgcolor: accentC, opacity: 0.65, alignSelf: 'stretch' }} />
+
+                    {/* Field name */}
+                    <Box sx={{ px: 1.5, py: 0.75 }}>
+                      <TextField size="small" fullWidth value={f.name} variant="standard"
+                        onChange={(e) => updateField(f.id, { name: e.target.value })}
+                        InputProps={{
+                          disableUnderline: true,
+                          startAdornment: f.name === 'id' ? <KeyIcon sx={{ fontSize: 13, color: '#f59e0b', mr: 0.5 }} /> : null,
+                          style: { fontWeight: 700, fontSize: '0.87rem' },
+                        }}
+                      />
+                    </Box>
+
+                    {/* Type select — color-coded pill */}
+                    <Box sx={{ px: 1 }}>
+                      <Box sx={{ px: 1, py: 0.3, borderRadius: 1.5, bgcolor: alpha(tC, 0.1), display: 'inline-flex', minWidth: 86 }}>
+                        <Select size="small" value={f.type} variant="standard" disableUnderline fullWidth
                           onChange={(e) => updateField(f.id, { type: e.target.value as DataType })}
                           MenuProps={OPAQUE_MENU_PROPS as any}
-                        >
+                          sx={{ color: tC, fontWeight: 700, fontSize: '0.75rem', '& .MuiSelect-icon': { color: tC } }}>
                           <MenuItem value="uuid">UUID</MenuItem>
                           <MenuItem value="string">String</MenuItem>
                           <MenuItem value="text">Text</MenuItem>
@@ -856,80 +831,65 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                           <MenuItem value="bytes32">Bytes32</MenuItem>
                           <MenuItem value="ipfs-hash">IPFS Hash</MenuItem>
                         </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          size="small" fullWidth value={f.storage} variant="standard" disableUnderline
-                          onChange={(e) => updateField(f.id, { storage: e.target.value as StorageStrategy })}
-                          MenuProps={OPAQUE_MENU_PROPS as any}
-                          sx={{
-                            color: f.storage === 'on-chain'
-                              ? theme.palette.mode === 'dark' ? '#818cf8' : theme.palette.primary.main
-                              : f.storage === 'ipfs'
-                              ? 'info.main'
-                              : 'text.primary',
-                            fontWeight: f.storage === 'on-chain' ? 700 : 400,
-                          }}
-                        >
-                          <MenuItem value="database">Database</MenuItem>
-                          <MenuItem value="on-chain">On-Chain</MenuItem>
-                          <MenuItem value="ipfs">IPFS</MenuItem>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Stack direction="row" spacing={0.5}>
-                          <Chip
-                            label="Req" size="small" clickable
-                            onClick={() => updateField(f.id, { required: !f.required })}
-                            sx={{
-                              height: 22, fontWeight: 700, fontSize: '0.65rem', cursor: 'pointer',
-                              bgcolor: f.required ? alpha(theme.palette.primary.main, 0.15) : 'transparent',
-                              color: f.required ? 'primary.main' : 'text.disabled',
-                              border: `1px solid ${f.required ? alpha(theme.palette.primary.main, 0.4) : theme.palette.divider}`,
-                              '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) },
-                            }}
-                          />
-                          <Chip
-                            label="Unq" size="small" clickable
-                            onClick={() => updateField(f.id, { unique: !f.unique })}
-                            sx={{
-                              height: 22, fontWeight: 700, fontSize: '0.65rem', cursor: 'pointer',
-                              bgcolor: f.unique ? alpha('#8b5cf6', 0.15) : 'transparent',
-                              color: f.unique ? '#8b5cf6' : 'text.disabled',
-                              border: `1px solid ${f.unique ? alpha('#8b5cf6', 0.4) : theme.palette.divider}`,
-                              '&:hover': { bgcolor: alpha('#8b5cf6', 0.1) },
-                            }}
-                          />
-                          <Chip
-                            label="Priv" size="small" clickable
-                            onClick={() => updateField(f.id, { encrypted: !f.encrypted })}
-                            sx={{
-                              height: 22, fontWeight: 700, fontSize: '0.65rem', cursor: 'pointer',
-                              bgcolor: f.encrypted ? alpha(theme.palette.success.main, 0.15) : 'transparent',
-                              color: f.encrypted ? 'success.main' : 'text.disabled',
-                              border: `1px solid ${f.encrypted ? alpha(theme.palette.success.main, 0.4) : theme.palette.divider}`,
-                              '&:hover': { bgcolor: alpha(theme.palette.success.main, 0.1) },
-                            }}
-                          />
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        <TextField
-                          size="small" fullWidth placeholder="-"
-                          value={f.defaultValue || ''}
-                          onChange={(e) => updateField(f.id, { defaultValue: e.target.value })}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <IconButton size="small" color="error" onClick={() => deleteField(f.id)}>
-                          <DeleteOutlineIcon sx={{ fontSize: 14 }} />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                      </Box>
+                    </Box>
+
+                    {/* Storage */}
+                    <Box sx={{ px: 1 }}>
+                      <Select size="small" value={f.storage} variant="standard" disableUnderline
+                        onChange={(e) => updateField(f.id, { storage: e.target.value as StorageStrategy })}
+                        MenuProps={OPAQUE_MENU_PROPS as any}
+                        sx={{ color: accentC, fontWeight: 700, fontSize: '0.78rem' }}>
+                        <MenuItem value="database">Database</MenuItem>
+                        <MenuItem value="on-chain">On-Chain</MenuItem>
+                        <MenuItem value="ipfs">IPFS</MenuItem>
+                      </Select>
+                    </Box>
+
+                    {/* Constraints */}
+                    <Box sx={{ px: 1 }}>
+                      <Stack direction="row" spacing={0.4}>
+                        {[
+                          { label: 'Req', active: f.required, color: theme.palette.primary.main, toggle: () => updateField(f.id, { required: !f.required }) },
+                          { label: 'Unq', active: f.unique,   color: '#8b5cf6',                    toggle: () => updateField(f.id, { unique: !f.unique }) },
+                          { label: 'Priv', active: f.encrypted, color: '#10b981',                  toggle: () => updateField(f.id, { encrypted: !f.encrypted }) },
+                        ].map(c => (
+                          <Box key={c.label} onClick={c.toggle} sx={{
+                            px: 0.85, py: 0.2, borderRadius: 1, cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700, userSelect: 'none',
+                            bgcolor: c.active ? alpha(c.color, 0.15) : 'transparent',
+                            color: c.active ? c.color : 'text.disabled',
+                            border: `1px solid ${c.active ? alpha(c.color, 0.4) : theme.palette.divider}`,
+                            transition: 'all 0.12s',
+                            '&:hover': { bgcolor: alpha(c.color, 0.1) },
+                          }}>{c.label}</Box>
+                        ))}
+                      </Stack>
+                    </Box>
+
+                    {/* Default */}
+                    <Box sx={{ px: 1 }}>
+                      <TextField size="small" placeholder="—" value={f.defaultValue || ''}
+                        onChange={(e) => updateField(f.id, { defaultValue: e.target.value })}
+                        sx={{ '& .MuiInputBase-root': { fontSize: '0.78rem', borderRadius: 1.5 } }} />
+                    </Box>
+
+                    {/* Delete */}
+                    <Box sx={{ pr: 0.5, display: 'flex', justifyContent: 'center' }}>
+                      <IconButton size="small" color="error" onClick={() => deleteField(f.id)}
+                        sx={{ opacity: 0.5, '&:hover': { opacity: 1, bgcolor: alpha('#ef4444', 0.08) } }}>
+                        <DeleteOutlineIcon sx={{ fontSize: 15 }} />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                );
+              })}
+
+              {selectedEntity.fields.length === 0 && (
+                <Box sx={{ py: 5, textAlign: 'center', color: 'text.disabled' }}>
+                  <Typography variant="body2">No fields yet. Click "Add Field" to start.</Typography>
+                </Box>
+              )}
+            </Paper>
           </Box>
         </Box>
       ) : (
@@ -952,13 +912,35 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
   /* ---------------------------------------------------------------- */
   /* Render: GOVERNANCE                                               */
   /* ---------------------------------------------------------------- */
+  const ROLE_ORDER = ['public', 'auth', 'owner', 'admin'] as const;
+  type RoleVal = 'public' | 'auth' | 'owner' | 'admin';
+  const ROLE_META: Record<RoleVal, { color: string; label: string }> = {
+    public: { color: '#10b981', label: 'Public' },
+    auth:   { color: '#3b82f6', label: 'Auth User' },
+    owner:  { color: '#8b5cf6', label: 'Owner' },
+    admin:  { color: '#ef4444', label: 'Admin' },
+  };
+  const ACTION_DEFAULTS: Record<string, RoleVal> = { create: 'owner', read: 'public', update: 'owner', delete: 'admin' };
+  const cycleRole = (cur: string): RoleVal => {
+    const idx = ROLE_ORDER.indexOf(cur as RoleVal);
+    return ROLE_ORDER[(idx + 1) % ROLE_ORDER.length];
+  };
+
   const renderGovernance = () => (
-    <Box sx={{ p: 4, height: '100%', overflowY: 'auto', display: 'flex', justifyContent: 'center', bgcolor: 'background.default' }}>
-      <Box sx={{ width: '100%', maxWidth: 1000 }}>
-        <Typography variant="h5" fontWeight={800}>Access Control Rules</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3, mt: 0.5 }}>
-          Define who can perform each action on your data. "Public" means anyone. "Owner" means only the record's creator. "Admin" means only privileged users.
-        </Typography>
+    <Box sx={{ height: '100%', overflowY: 'auto', bgcolor: 'background.default' }}>
+      <Box sx={{ maxWidth: 1000, mx: 'auto', p: 4 }}>
+        {/* Header */}
+        <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={3}>
+          <Box>
+            <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
+              <SecurityIcon sx={{ fontSize: 20, color: '#8b5cf6' }} />
+              <Typography variant="h5" fontWeight={800}>Access Control Rules</Typography>
+            </Stack>
+            <Typography variant="body2" color="text.secondary">
+              Click any role pill to cycle it: <b style={{ color: '#10b981' }}>Public</b> → <b style={{ color: '#3b82f6' }}>Auth User</b> → <b style={{ color: '#8b5cf6' }}>Owner</b> → <b style={{ color: '#ef4444' }}>Admin</b>
+            </Typography>
+          </Box>
+        </Stack>
 
         {blueprintModules.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 10, opacity: 0.5 }}>
@@ -966,78 +948,93 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
             <Typography>No entities yet. Add modules in the Blueprint Builder first.</Typography>
           </Box>
         ) : (
-          blueprintModules.map((mod) => {
-            const modEnts = moduleEntities[mod.id] || [];
-            if (!modEnts.length) return null;
-            return (
-              <Accordion
-                key={mod.id}
-                defaultExpanded
-                variant="outlined"
-                sx={{ mb: 1.5, borderRadius: '12px !important', overflow: 'hidden', '&:before': { display: 'none' } }}
-              >
-                <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{
-                  bgcolor: theme.palette.mode === 'dark'
-                    ? alpha(theme.palette.primary.main, 0.08)
-                    : alpha(theme.palette.primary.main, 0.04),
-                  borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
-                }}>
-                  <Stack direction="row" alignItems="center" spacing={1.5}>
-                    <HexagonOutlinedIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-                    <Typography variant="subtitle2" fontWeight={800}>{mod.label}</Typography>
-                    {mod.category && (
-                      <Chip label={mod.category} size="small" variant="outlined" sx={{ fontSize: '0.6rem', height: 16 }} />
-                    )}
-                    <Typography variant="caption" color="text.secondary">{modEnts.length} {modEnts.length === 1 ? 'entity' : 'entities'}</Typography>
-                  </Stack>
-                </AccordionSummary>
-                <AccordionDetails sx={{ p: 0 }}>
-                  <TableContainer>
-                    <Table>
-                      <TableHead sx={{ bgcolor: alpha(theme.palette.action.hover, 0.05) }}>
-                        <TableRow>
-                          <TableCell width="25%">ENTITY</TableCell>
-                          <TableCell width="20%">CREATE</TableCell>
-                          <TableCell width="20%">READ</TableCell>
-                          <TableCell width="20%">UPDATE</TableCell>
-                          <TableCell width="15%">DELETE</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {modEnts.map((ent) => (
-                          <TableRow key={ent.id}>
-                            <TableCell sx={{ fontWeight: 700 }}>{ent.name}</TableCell>
-                            {(['create', 'read', 'update', 'delete'] as const).map((action, i) => (
-                              <TableCell key={action}>
-                                <Select
-                                  size="small" fullWidth
-                                  value={ent.access?.[action] ?? (i === 1 ? 'public' : i === 3 ? 'admin' : 'owner')}
-                                  onChange={(e) => updateEntity(mod.id, ent.id, {
-                                    access: {
-                                      create: ent.access?.create ?? 'owner',
-                                      read: ent.access?.read ?? 'public',
-                                      update: ent.access?.update ?? 'owner',
-                                      delete: ent.access?.delete ?? 'admin',
-                                      [action]: e.target.value as string,
-                                    },
-                                  })}
-                                  MenuProps={OPAQUE_MENU_PROPS as any} sx={{ borderRadius: 2 }}>
-                                  <MenuItem value="public">Public</MenuItem>
-                                  <MenuItem value="auth">Auth User</MenuItem>
-                                  <MenuItem value="owner">Owner</MenuItem>
-                                  <MenuItem value="admin">Admin</MenuItem>
-                                </Select>
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </AccordionDetails>
-              </Accordion>
-            );
-          })
+          <Stack spacing={2}>
+            {blueprintModules.map((mod) => {
+              const modEnts = moduleEntities[mod.id] || [];
+              if (!modEnts.length) return null;
+              return (
+                <Accordion key={mod.id} defaultExpanded variant="outlined"
+                  sx={{ borderRadius: '14px !important', overflow: 'hidden', '&:before': { display: 'none' }, borderColor: alpha('#8b5cf6', 0.15) }}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{
+                    bgcolor: alpha('#8b5cf6', theme.palette.mode === 'dark' ? 0.08 : 0.04),
+                    borderBottom: `1px solid ${alpha('#8b5cf6', 0.12)}`,
+                    minHeight: 48,
+                  }}>
+                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                      <Box sx={{ width: 28, height: 28, borderRadius: 1.5, bgcolor: alpha('#8b5cf6', 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <HexagonOutlinedIcon sx={{ fontSize: 14, color: '#8b5cf6' }} />
+                      </Box>
+                      <Typography variant="subtitle2" fontWeight={800}>{mod.label}</Typography>
+                      {mod.category && <Chip label={mod.category} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: alpha('#8b5cf6', 0.08), color: '#8b5cf6', border: 'none' }} />}
+                      <Chip label={`${modEnts.length} ${modEnts.length === 1 ? 'entity' : 'entities'}`} size="small" variant="outlined" sx={{ height: 18, fontSize: '0.6rem' }} />
+                    </Stack>
+                  </AccordionSummary>
+                  <AccordionDetails sx={{ p: 0 }}>
+                    {/* Column headers */}
+                    <Box sx={{
+                      display: 'grid', gridTemplateColumns: '1.5fr repeat(4, 1fr)',
+                      px: 3, py: 1.25,
+                      bgcolor: alpha(theme.palette.action.hover, 0.03),
+                      borderBottom: `1px solid ${theme.palette.divider}`,
+                    }}>
+                      {['Entity', 'Create', 'Read', 'Update', 'Delete'].map(h => (
+                        <Typography key={h} variant="caption" fontWeight={800} sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.7, color: 'text.disabled' }}>{h}</Typography>
+                      ))}
+                    </Box>
+
+                    {/* Entity rows */}
+                    {modEnts.map((ent, i) => (
+                      <Box key={ent.id} sx={{
+                        display: 'grid', gridTemplateColumns: '1.5fr repeat(4, 1fr)',
+                        alignItems: 'center', px: 3, py: 1.5, minHeight: 52,
+                        borderBottom: i < modEnts.length - 1 ? `1px solid ${theme.palette.divider}` : 'none',
+                        '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.02) },
+                      }}>
+                        {/* Entity name */}
+                        <Box>
+                          <Typography variant="body2" fontWeight={700}>{ent.name}</Typography>
+                          {ent.description && <Typography variant="caption" color="text.disabled" noWrap sx={{ fontSize: '0.68rem', display: 'block' }}>{ent.description}</Typography>}
+                        </Box>
+
+                        {/* 4 action pills */}
+                        {(['create', 'read', 'update', 'delete'] as const).map((action, ai) => {
+                          const val: RoleVal = (ent.access?.[action] as RoleVal) ?? ACTION_DEFAULTS[action];
+                          const meta = ROLE_META[val];
+                          return (
+                            <Box key={action}>
+                              <Box
+                                onClick={() => updateEntity(mod.id, ent.id, {
+                                  access: {
+                                    create: ent.access?.create ?? 'owner',
+                                    read: ent.access?.read ?? 'public',
+                                    update: ent.access?.update ?? 'owner',
+                                    delete: ent.access?.delete ?? 'admin',
+                                    [action]: cycleRole(val),
+                                  },
+                                })}
+                                sx={{
+                                  display: 'inline-flex', alignItems: 'center',
+                                  px: 1.5, py: 0.5, borderRadius: 2, cursor: 'pointer',
+                                  fontSize: '0.75rem', fontWeight: 700, userSelect: 'none',
+                                  color: meta.color,
+                                  bgcolor: alpha(meta.color, 0.1),
+                                  border: `1px solid ${alpha(meta.color, 0.25)}`,
+                                  transition: 'all 0.12s',
+                                  '&:hover': { bgcolor: alpha(meta.color, 0.2), borderColor: alpha(meta.color, 0.45) },
+                                }}
+                              >
+                                {meta.label}
+                              </Box>
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    ))}
+                  </AccordionDetails>
+                </Accordion>
+              );
+            })}
+          </Stack>
         )}
       </Box>
     </Box>
@@ -1472,24 +1469,53 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                       </Stack>
                     )}
                     {mode === 'visual' && (
-                      <Box sx={{
-                        height: 380,
-                        bgcolor: 'background.default',
-                        backgroundImage: theme.palette.mode === 'dark'
-                          ? 'radial-gradient(rgba(79,70,229,0.12) 1px, transparent 1px)'
-                          : 'radial-gradient(rgba(79,70,229,0.07) 1px, transparent 1px)',
-                        backgroundSize: '28px 28px',
-                      }}>
-                        <LogicCanvas />
+                      <Box sx={{ position: 'relative', height: 400 }}>
+                        {/* dot-grid background */}
+                        <Box sx={{
+                          position: 'absolute', inset: 0, zIndex: 0,
+                          bgcolor: theme.palette.mode === 'dark' ? alpha('#080E24', 0.9) : alpha('#f8f9ff', 0.95),
+                          backgroundImage: 'radial-gradient(rgba(79,70,229,0.15) 1px, transparent 1px)',
+                          backgroundSize: '24px 24px',
+                        }} />
+                        {/* Toolbar bar */}
+                        <Box sx={{
+                          position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2,
+                          display: 'flex', alignItems: 'center', gap: 1, px: 2, py: 1,
+                          bgcolor: alpha(theme.palette.background.paper, 0.85),
+                          borderBottom: `1px solid ${theme.palette.divider}`,
+                          backdropFilter: 'blur(8px)',
+                        }}>
+                          <Chip label="DAPP" size="small" sx={{ height: 20, fontSize: '0.6rem', fontWeight: 800, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', border: 'none' }} />
+                          <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ fontSize: '0.68rem' }}>Visual Flow Editor</Typography>
+                          <Box sx={{ flex: 1 }} />
+                          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>Click + drag to connect trigger nodes</Typography>
+                        </Box>
+                        {/* Canvas */}
+                        <Box sx={{ position: 'absolute', top: 40, left: 0, right: 0, bottom: 0, zIndex: 1 }}>
+                          <LogicCanvas />
+                        </Box>
                       </Box>
                     )}
                     {mode === 'code' && (
-                      <Box sx={{
-                        height: 380,
-                        bgcolor: theme.palette.mode === 'dark' ? '#080E24' : '#1e1e1e',
-                        borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-                      }}>
-                        <CustomScriptPanel projectId="" />
+                      <Box sx={{ position: 'relative' }}>
+                        {/* Code editor header */}
+                        <Box sx={{
+                          display: 'flex', alignItems: 'center', gap: 1, px: 2.5, py: 1.25,
+                          bgcolor: '#1a1f3a',
+                          borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+                        }}>
+                          <Box sx={{ display: 'flex', gap: 0.5 }}>
+                            {['#ef4444', '#f59e0b', '#10b981'].map(c => <Box key={c} sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c }} />)}
+                          </Box>
+                          <Typography variant="caption" sx={{ color: '#6b7db3', fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                            trigger.{mod.id.replace(/-/g, '_')}.ts
+                          </Typography>
+                          <Box sx={{ flex: 1 }} />
+                          <Chip label="TypeScript" size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: alpha('#3b82f6', 0.15), color: '#60a5fa', border: 'none' }} />
+                        </Box>
+                        <Box sx={{ height: 360, bgcolor: theme.palette.mode === 'dark' ? '#0d1117' : '#1e1e2e' }}>
+                          <CustomScriptPanel projectId="" />
+                        </Box>
                       </Box>
                     )}
                   </Box>

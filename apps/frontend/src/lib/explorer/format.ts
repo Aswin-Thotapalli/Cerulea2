@@ -21,7 +21,8 @@ export function shortAddress(addr: string): string {
 export function formatUnits(value: bigint | string, decimals: number): string {
   const n = BigInt(value);
   if (decimals === 0) return n.toString();
-  const divisor = BigInt(10) ** BigInt(decimals);
+  let divisor = BigInt(1);
+  for (let i = 0; i < decimals; i++) divisor *= BigInt(10);
   const whole = n / divisor;
   const frac = n % divisor;
   if (frac === BigInt(0)) return whole.toString();
