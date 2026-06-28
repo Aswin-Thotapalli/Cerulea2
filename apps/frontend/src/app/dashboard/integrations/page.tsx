@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box, Typography, Paper, Stack, Switch, Button,
-  TextField, IconButton, Tooltip, Divider,
+  TextField, IconButton, Tooltip, Divider, MenuItem, Select, FormControl, InputLabel,
   Dialog, DialogTitle, DialogContent, DialogActions, Alert,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -44,20 +44,24 @@ const CAT_ICON: Record<string, React.ReactNode> = {
   Storage: <StorageIcon sx={{ fontSize: 16 }} />,
 };
 
-const PROJECT_TOKEN = 'ce5f2a8d1b4e7c9f3a6d2e8b1c4f7a9e';
+const WEBHOOK_EVENTS = ['project.deployed', 'snapshot.created', 'node.status_changed', 'proposal.finalized'];
 
-const API_ENDPOINTS = [
-  { label: 'JSON-RPC', value: `https://rpc.cerulea.app/v1/${PROJECT_TOKEN}/mainnet`, desc: 'Ethereum-compatible JSON-RPC' },
-  { label: 'REST', value: `https://api.cerulea.app/v1/${PROJECT_TOKEN}/mainnet`, desc: 'REST API for off-chain queries' },
-  { label: 'WebSocket', value: `wss://ws.cerulea.app/v1/${PROJECT_TOKEN}/mainnet`, desc: 'Real-time subscriptions' },
-  { label: 'GraphQL', value: `https://gql.cerulea.app/v1/${PROJECT_TOKEN}/mainnet`, desc: 'Flexible GraphQL queries' },
-];
+function makeEndpoints(projectId: string) {
+  return [
+    { label: 'JSON-RPC', value: `https://rpc.cerulea.app/v1/${projectId}/mainnet`, desc: 'Ethereum-compatible JSON-RPC' },
+    { label: 'REST', value: `https://api.cerulea.app/v1/${projectId}/mainnet`, desc: 'REST API for off-chain queries' },
+    { label: 'WebSocket', value: `wss://ws.cerulea.app/v1/${projectId}/mainnet`, desc: 'Real-time subscriptions' },
+    { label: 'GraphQL', value: `https://gql.cerulea.app/v1/${projectId}/mainnet`, desc: 'Flexible GraphQL queries' },
+  ];
+}
 
-const STUB_WEBHOOK = {
-  url: `https://hooks.cerulea.app/events/${PROJECT_TOKEN}`,
-  secret: `whsec_${PROJECT_TOKEN}`,
-  events: ['project.deployed', 'snapshot.created', 'node.status_changed', 'proposal.finalized'],
-};
+function makeWebhook(projectId: string) {
+  return {
+    url: `https://hooks.cerulea.app/events/${projectId}`,
+    secret: `whsec_${projectId}`,
+    events: WEBHOOK_EVENTS,
+  };
+}
 
 function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
@@ -93,6 +97,22 @@ export default function IntegrationsPage() {
   const theme = useTheme();
   const [integrations, setIntegrations] = useState(STUB_INTEGRATIONS);
   const [reConfigId, setReConfigId] = useState<string | null>(null);
+  const [userProjects, setUserProjects] = useState<{ id: string; name: string }[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+
+  useEffect(() => {
+    fetch('/api/projects')
+      .then((r) => r.json())
+      .then((j) => {
+        const projs: { id: string; name: string }[] = j.projects || [];
+        setUserProjects(projs);
+        if (projs.length > 0) setSelectedProjectId(projs[0].id);
+      })
+      .catch(() => {});
+  }, []);
+
+  const apiEndpoints = selectedProjectId ? makeEndpoints(selectedProjectId) : [];
+  const webhookConfig = selectedProjectId ? makeWebhook(selectedProjectId) : null;
 
   const toggle = (id: string) => {
     setIntegrations((prev) => prev.map((i) => (i.id === id ? { ...i, enabled: !i.enabled } : i)));
@@ -206,6 +226,27 @@ export default function IntegrationsPage() {
         ))}
       </Paper>
 
+      {/* Project selector for endpoints */}
+      {userProjects.length > 0 && (
+        <Stack direction="row" alignItems="center" spacing={2} mb={2}>
+          <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: 0.5, flexShrink: 0 }}>
+            Showing endpoints for:
+          </Typography>
+          {userProjects.length === 1 ? (
+            <Typography variant="caption" fontWeight={700} color="primary.main">{userProjects[0].name}</Typography>
+          ) : (
+            <FormControl size="small" sx={{ minWidth: 200 }}>
+              <Select value={selectedProjectId} onChange={(e) => setSelectedProjectId(e.target.value)}
+                sx={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                {userProjects.map((p) => (
+                  <MenuItem key={p.id} value={p.id} sx={{ fontSize: '0.8rem' }}>{p.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+        </Stack>
+      )}
+
       {/* Endpoints */}
       <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2.5 }}>
         {/* API Endpoints */}
@@ -217,23 +258,27 @@ export default function IntegrationsPage() {
             <Typography variant="subtitle2" fontWeight={800}>API Endpoints</Typography>
           </Stack>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-            Connect your dApp to the deployed network using any of the protocols below.
+            Connect your dApp to the deployed network. Each project has its own unique endpoint set.
           </Typography>
-          <Stack spacing={1.25}>
-            {API_ENDPOINTS.map((ep) => (
-              <Box key={ep.label}>
-                <Stack direction="row" alignItems="center" spacing={1} mb={0.4}>
-                  <Box sx={{ px: 0.75, py: 0.2, borderRadius: 0.75, bgcolor: alpha('#4F46E5', 0.1), color: '#4F46E5', fontSize: '0.58rem', fontWeight: 800 }}>{ep.label}</Box>
-                  <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.62rem' }}>{ep.desc}</Typography>
-                </Stack>
-                <Stack direction="row" alignItems="center" spacing={0.5}
-                  sx={{ px: 1.5, py: 0.75, borderRadius: 1.5, bgcolor: alpha('#4F46E5', 0.03), border: `1px solid ${alpha('#4F46E5', 0.12)}` }}>
-                  <Typography variant="caption" sx={{ fontFamily: 'monospace', flex: 1, color: 'text.secondary', fontSize: '0.68rem' }} noWrap>{ep.value}</Typography>
-                  <CopyButton value={ep.value} />
-                </Stack>
-              </Box>
-            ))}
-          </Stack>
+          {apiEndpoints.length === 0 ? (
+            <Typography variant="caption" color="text.disabled">No deployed projects found.</Typography>
+          ) : (
+            <Stack spacing={1.25}>
+              {apiEndpoints.map((ep) => (
+                <Box key={ep.label}>
+                  <Stack direction="row" alignItems="center" spacing={1} mb={0.4}>
+                    <Box sx={{ px: 0.75, py: 0.2, borderRadius: 0.75, bgcolor: alpha('#4F46E5', 0.1), color: '#4F46E5', fontSize: '0.58rem', fontWeight: 800 }}>{ep.label}</Box>
+                    <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.62rem' }}>{ep.desc}</Typography>
+                  </Stack>
+                  <Stack direction="row" alignItems="center" spacing={0.5}
+                    sx={{ px: 1.5, py: 0.75, borderRadius: 1.5, bgcolor: alpha('#4F46E5', 0.03), border: `1px solid ${alpha('#4F46E5', 0.12)}` }}>
+                    <Typography variant="caption" sx={{ fontFamily: 'monospace', flex: 1, color: 'text.secondary', fontSize: '0.68rem' }} noWrap>{ep.value}</Typography>
+                    <CopyButton value={ep.value} />
+                  </Stack>
+                </Box>
+              ))}
+            </Stack>
+          )}
         </Paper>
 
         {/* Webhook config */}
@@ -247,20 +292,24 @@ export default function IntegrationsPage() {
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
             Receive real-time event notifications at your endpoint.
           </Typography>
-          <Stack spacing={1.25}>
-            <EndpointRow label="Webhook URL" value={STUB_WEBHOOK.url} />
-            <EndpointRow label="Signing Secret" value={STUB_WEBHOOK.secret} />
-            <Box>
-              <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 800, letterSpacing: 0.8, fontSize: '0.6rem' }}>SUBSCRIBED EVENTS</Typography>
-              <Stack direction="row" spacing={0.5} flexWrap="wrap" mt={0.5}>
-                {STUB_WEBHOOK.events.map((e) => (
-                  <Box key={e} sx={{ px: 1, py: 0.25, borderRadius: 1, border: '1px solid', borderColor: 'divider', fontSize: '0.62rem', fontWeight: 600, color: 'text.secondary', my: 0.25 }}>
-                    {e}
-                  </Box>
-                ))}
-              </Stack>
-            </Box>
-          </Stack>
+          {!webhookConfig ? (
+            <Typography variant="caption" color="text.disabled">No deployed projects found.</Typography>
+          ) : (
+            <Stack spacing={1.25}>
+              <EndpointRow label="Webhook URL" value={webhookConfig.url} />
+              <EndpointRow label="Signing Secret" value={webhookConfig.secret} />
+              <Box>
+                <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 800, letterSpacing: 0.8, fontSize: '0.6rem' }}>SUBSCRIBED EVENTS</Typography>
+                <Stack direction="row" spacing={0.5} flexWrap="wrap" mt={0.5}>
+                  {webhookConfig.events.map((e) => (
+                    <Box key={e} sx={{ px: 1, py: 0.25, borderRadius: 1, border: '1px solid', borderColor: 'divider', fontSize: '0.62rem', fontWeight: 600, color: 'text.secondary', my: 0.25 }}>
+                      {e}
+                    </Box>
+                  ))}
+                </Stack>
+              </Box>
+            </Stack>
+          )}
         </Paper>
       </Box>
 
