@@ -134,7 +134,7 @@ export default function StudioLanding({
           <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 480, lineHeight: 1.7 }}>
             {projects.length > 0
               ? 'Continue working on a project or start something new.'
-              : 'Build your first blockchain app or dApp — no code required.'}
+              : 'Build your first blockchain app or dApp. No code required.'}
           </Typography>
 
           <Button
@@ -160,7 +160,7 @@ export default function StudioLanding({
           </Box>
         ) : projects.length === 0 ? (
           /* Empty state — two option cards */
-          <Grid container spacing={2} justifyContent="center">
+          <Grid container spacing={4} justifyContent="center">
             {[
               {
                 icon: <AutoAwesomeMosaicIcon sx={{ fontSize: 44 }} />,
