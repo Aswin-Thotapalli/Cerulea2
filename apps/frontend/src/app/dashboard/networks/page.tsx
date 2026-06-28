@@ -116,7 +116,7 @@ export default function NetworksPage() {
           </Typography>
         </Box>
         <Button variant="contained" startIcon={<AddIcon />} onClick={goToStudio}
-          sx={{ borderRadius: 999, fontWeight: 700, background: 'linear-gradient(135deg, #4F46E5 0%, #6366f1 100%)' }}>
+          sx={{ fontWeight: 700, bgcolor: 'primary.main' }}>
           Deploy New Network
         </Button>
       </Stack>
@@ -129,7 +129,7 @@ export default function NetworksPage() {
             <NetworkCheckIcon sx={{ fontSize: 36, color: '#4F46E5', opacity: 0.5 }} />
           </Box>
           <Typography variant="subtitle1" fontWeight={700} gutterBottom>No deployed networks yet</Typography>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={goToStudio} sx={{ mt: 1.5, borderRadius: 999 }}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={goToStudio} sx={{ mt: 1.5, borderRadius: 1 }}>
             Deploy Your First Network
           </Button>
         </Paper>
@@ -216,7 +216,7 @@ export default function NetworksPage() {
                           <Typography variant="body2" color="text.secondary">{net.region}</Typography>
                         </TableCell>
                         <TableCell align="right">
-                          <Button size="small" variant="outlined" disabled={net.status !== 'live'} sx={{ borderRadius: 999, fontSize: '0.68rem' }}>
+                          <Button size="small" variant="outlined" disabled={net.status !== 'live'} sx={{ borderRadius: 1, fontSize: '0.68rem' }}>
                             View
                           </Button>
                         </TableCell>

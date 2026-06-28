@@ -952,7 +952,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
               if (!modEnts.length) return null;
               return (
                 <Accordion key={mod.id} defaultExpanded variant="outlined"
-                  sx={{ borderRadius: '14px !important', overflow: 'hidden', '&:before': { display: 'none' }, borderColor: alpha('#8b5cf6', 0.15) }}>
+                  sx={{ borderRadius: '4px !important', overflow: 'hidden', '&:before': { display: 'none' }, borderColor: alpha('#8b5cf6', 0.15) }}>
                   <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{
                     bgcolor: alpha('#8b5cf6', theme.palette.mode === 'dark' ? 0.08 : 0.04),
                     borderBottom: `1px solid ${alpha('#8b5cf6', 0.12)}`,
@@ -1369,7 +1369,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                           variant="outlined"
                           onClick={() => setTriggerMode(mod.id, m)}
                           sx={{
-                            px: 1.5, py: 0.5, borderRadius: 999, cursor: 'pointer',
+                            px: 1.5, py: 0.5, borderRadius: 1, cursor: 'pointer',
                             fontWeight: 700, fontSize: '0.7rem',
                             bgcolor: mode === m ? 'primary.main' : 'background.paper',
                             color: mode === m ? 'white' : 'text.secondary',
@@ -1543,7 +1543,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                 key={mod.id}
                 defaultExpanded
                 variant="outlined"
-                sx={{ mb: 1.5, borderRadius: '12px !important', overflow: 'hidden', '&:before': { display: 'none' } }}
+                sx={{ mb: 1.5, borderRadius: '4px !important', overflow: 'hidden', '&:before': { display: 'none' } }}
               >
                 <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{
                   bgcolor: theme.palette.mode === 'dark'
@@ -1715,7 +1715,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
             </IconButton>
           </Tooltip>
           <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
-          <Button variant="contained" onClick={handleSave} endIcon={<ArrowForwardIcon />} sx={{ borderRadius: 100, px: 3, fontWeight: 700 }}>
+          <Button variant="contained" onClick={handleSave} endIcon={<ArrowForwardIcon />} sx={{ borderRadius: 1, px: 3, fontWeight: 700 }}>
             Save &amp; Next
           </Button>
         </FloatingIsland>
@@ -1727,7 +1727,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
         onClose={() => { setAddEntityOpen(false); setEntitySearch(''); }}
         maxWidth="md"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 3, height: '75vh' } }}
+        PaperProps={{ sx: { borderRadius: 1, height: '75vh' } }}
       >
         <DialogTitle sx={{ pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box>
@@ -1761,7 +1761,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
               </Box>
             ) : (
               Object.entries(catalogGroups).map(([groupLabel, entries]) => (
-                <Accordion key={groupLabel} defaultExpanded={Object.keys(catalogGroups).length <= 3} disableGutters elevation={0} sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: '8px !important', mb: 1, '&:before': { display: 'none' } }}>
+                <Accordion key={groupLabel} defaultExpanded={Object.keys(catalogGroups).length <= 3} disableGutters elevation={0} sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: '4px !important', mb: 1, '&:before': { display: 'none' } }}>
                   <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 44, py: 0 }}>
                     <Typography variant="subtitle2" fontWeight={700}>{groupLabel}</Typography>
                     <Chip label={entries.length} size="small" sx={{ ml: 1, height: 18, fontSize: '0.65rem' }} />
@@ -1787,14 +1787,14 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => { setAddEntityOpen(false); setEntitySearch(''); }} sx={{ borderRadius: 999 }}>
+          <Button onClick={() => { setAddEntityOpen(false); setEntitySearch(''); }} sx={{ borderRadius: 1 }}>
             Close
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* HELP DIALOG */}
-      <Dialog open={isHelpOpen} onClose={() => setIsHelpOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+      <Dialog open={isHelpOpen} onClose={() => setIsHelpOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 1 } }}>
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 3 }}>
           <Typography variant="h6" fontWeight={800}>
             {phase === 'data' && 'Entities Guide'}

@@ -106,10 +106,10 @@ export default function NodesPage() {
         <Stack direction="row" spacing={1.5}>
           <Tooltip title="Available after deployment" arrow>
             <span>
-              <Button variant="contained" disabled sx={{ borderRadius: 999, fontWeight: 700 }}>Provision Node</Button>
+              <Button variant="contained" disabled sx={{ fontWeight: 700 }}>Provision Node</Button>
             </span>
           </Tooltip>
-          <Button variant="outlined" startIcon={<VpnKeyIcon />} sx={{ borderRadius: 999, fontWeight: 700 }}>Rotate Keys</Button>
+          <Button variant="outlined" startIcon={<VpnKeyIcon />} sx={{ borderRadius: 1, fontWeight: 700 }}>Rotate Keys</Button>
         </Stack>
       </Stack>
 
@@ -146,7 +146,7 @@ export default function NodesPage() {
                 <Typography variant="caption" sx={{ color: '#f59e0b', fontWeight: 800, letterSpacing: 0.8, fontSize: '0.62rem' }}>FAULT TOLERANCE</Typography>
                 <Typography variant="h3" fontWeight={900} sx={{ color: '#f59e0b', lineHeight: 1, mt: 0.5 }}>{faultTolerance}%</Typography>
                 <LinearProgress variant="determinate" value={faultTolerance}
-                  sx={{ mt: 1.5, mb: 0.75, borderRadius: 999, height: 6, bgcolor: alpha('#f59e0b', 0.15), '& .MuiLinearProgress-bar': { bgcolor: faultTolerance >= 90 ? '#10b981' : faultTolerance >= 66 ? '#f59e0b' : '#ef4444' } }} />
+                  sx={{ mt: 1.5, mb: 0.75, borderRadius: 1, height: 6, bgcolor: alpha('#f59e0b', 0.15), '& .MuiLinearProgress-bar': { bgcolor: faultTolerance >= 90 ? '#10b981' : faultTolerance >= 66 ? '#f59e0b' : '#ef4444' } }} />
                 <Stack direction="row" alignItems="center" gap={0.5}>
                   <ShieldIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
                   <Typography variant="caption" color="text.secondary">{activeValidators.length}/{validators.length} validators active</Typography>
@@ -220,15 +220,15 @@ export default function NodesPage() {
                               {node.uptime.toFixed(2)}%
                             </Typography>
                             <LinearProgress variant="determinate" value={node.uptime}
-                              sx={{ mt: 0.5, borderRadius: 999, height: 4, bgcolor: alpha('#10b981', 0.12), '& .MuiLinearProgress-bar': { bgcolor: node.uptime >= 99 ? '#10b981' : node.uptime >= 90 ? '#f59e0b' : '#ef4444' } }} />
+                              sx={{ mt: 0.5, borderRadius: 1, height: 4, bgcolor: alpha('#10b981', 0.12), '& .MuiLinearProgress-bar': { bgcolor: node.uptime >= 99 ? '#10b981' : node.uptime >= 90 ? '#f59e0b' : '#ef4444' } }} />
                           </Box>
                         </TableCell>
                         <TableCell>
                           <Stack direction="row" spacing={0.75}>
                             <Tooltip title="Available after deployment" arrow>
-                              <span><Button size="small" variant="outlined" disabled sx={{ borderRadius: 999, fontSize: '0.68rem' }}>SSH</Button></span>
+                              <span><Button size="small" variant="outlined" disabled sx={{ borderRadius: 1, fontSize: '0.68rem' }}>SSH</Button></span>
                             </Tooltip>
-                            <Button size="small" variant="outlined" startIcon={<VpnKeyIcon sx={{ fontSize: 11 }} />} sx={{ borderRadius: 999, fontSize: '0.68rem' }}>Rotate</Button>
+                            <Button size="small" variant="outlined" startIcon={<VpnKeyIcon sx={{ fontSize: 11 }} />} sx={{ borderRadius: 1, fontSize: '0.68rem' }}>Rotate</Button>
                           </Stack>
                         </TableCell>
                       </TableRow>

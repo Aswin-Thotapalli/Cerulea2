@@ -108,7 +108,7 @@ export default function AuditPage() {
           variant="outlined"
           startIcon={<DownloadIcon />}
           onClick={() => exportCSV(filtered)}
-          sx={{ borderRadius: 999, fontWeight: 700, borderColor: alpha(theme.palette.primary.main, 0.4) }}
+          sx={{ fontWeight: 700, borderColor: alpha(theme.palette.primary.main, 0.4) }}
         >
           Export CSV
         </Button>

@@ -556,7 +556,7 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
        {/* Set 3: Recipients */}
        <SectionCard>
           <Typography variant="h6" fontWeight={800} mb={2}>3. Split Recipients</Typography>
-          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, borderColor: alpha(theme.palette.primary.main, 0.15) }}>
+          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 1, borderColor: alpha(theme.palette.primary.main, 0.15) }}>
              <Table>
                 <TableHead>
                    <TableRow sx={{ '& .MuiTableCell-head': { fontWeight: 700, bgcolor: alpha(theme.palette.primary.main, 0.04) } }}>
@@ -1109,7 +1109,7 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
               </IconButton>
             </Tooltip>
             <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
-            <Button variant="contained" onClick={handleSave} endIcon={<ArrowForwardIcon />} sx={{ borderRadius: 100, px: 3, fontWeight: 700 }}>
+            <Button variant="contained" onClick={handleSave} endIcon={<ArrowForwardIcon />} sx={{ borderRadius: 1, px: 3, fontWeight: 700 }}>
               Save & Continue
             </Button>
           </FloatingIsland>
@@ -1117,7 +1117,7 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
       </Box>
 
       {/* Help Dialog */}
-      <Dialog open={isHelpOpen} onClose={() => setIsHelpOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2, bgcolor: 'background.paper', color: 'text.primary' } }}>
+      <Dialog open={isHelpOpen} onClose={() => setIsHelpOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 1, bgcolor: 'background.paper', color: 'text.primary' } }}>
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 3 }}>
           <Typography variant="h6" fontWeight={800}>{helpContent.title}</Typography>
           <IconButton onClick={() => setIsHelpOpen(false)}><CloseIcon /></IconButton>

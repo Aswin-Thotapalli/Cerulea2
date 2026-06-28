@@ -207,7 +207,7 @@ export default function SmartContractsScreen({ onClose, fullPage, onGoToBlueprin
               size="small"
               onClick={onGoToBlueprint}
               startIcon={<ArticleIcon sx={{ fontSize: 15 }} />}
-              sx={{ borderRadius: 999, fontWeight: 700, fontSize: '0.72rem', px: 2 }}
+              sx={{ borderRadius: 1, fontWeight: 700, fontSize: '0.72rem', px: 2 }}
             >
               Add via Blueprint
             </Button>

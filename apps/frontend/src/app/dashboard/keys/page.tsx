@@ -111,7 +111,7 @@ export default function KeysPage() {
         </Box>
         <Button variant="contained" startIcon={<AddIcon />}
           onClick={() => { setGeneratedKey(null); setDialogOpen(true); }}
-          sx={{ borderRadius: 999, fontWeight: 700, background: 'linear-gradient(135deg, #4F46E5 0%, #6366f1 100%)' }}>
+          sx={{ fontWeight: 700 }}>
           Generate API Key
         </Button>
       </Stack>
@@ -136,7 +136,6 @@ export default function KeysPage() {
             <Box key={key.id} sx={{
               px: 3, py: 2, borderBottom: idx < apiKeys.length - 1 ? '1px solid' : 'none', borderColor: 'divider',
               display: 'flex', alignItems: 'center', gap: 2,
-              '&:hover': { bgcolor: alpha('#4F46E5', 0.02) },
               borderLeft: '3px solid transparent',
               '&:hover': { bgcolor: alpha('#4F46E5', 0.02), borderLeftColor: alpha('#4F46E5', 0.3) },
             }}>
@@ -234,7 +233,7 @@ export default function KeysPage() {
               {/* Added */}
               <Typography variant="caption" color="text.disabled" sx={{ flexShrink: 0 }}>Added {vk.added}</Typography>
 
-              <Button size="small" variant="outlined" sx={{ borderRadius: 999, fontSize: '0.7rem', borderColor: alpha('#8b5cf6', 0.3), color: '#8b5cf6', flexShrink: 0 }}>
+              <Button size="small" variant="outlined" sx={{ borderRadius: 1, fontSize: '0.7rem', borderColor: alpha('#8b5cf6', 0.3), color: '#8b5cf6', flexShrink: 0 }}>
                 Export
               </Button>
             </Box>
@@ -267,9 +266,9 @@ export default function KeysPage() {
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDialogOpen(false)} sx={{ borderRadius: 999 }}>{generatedKey ? 'Done' : 'Cancel'}</Button>
+          <Button onClick={() => setDialogOpen(false)} sx={{ borderRadius: 1 }}>{generatedKey ? 'Done' : 'Cancel'}</Button>
           {!generatedKey && (
-            <Button variant="contained" onClick={handleGenerate} disabled={!newKeyName.trim()} sx={{ borderRadius: 999, fontWeight: 700 }}>
+            <Button variant="contained" onClick={handleGenerate} disabled={!newKeyName.trim()} sx={{ borderRadius: 1, fontWeight: 700 }}>
               Generate
             </Button>
           )}
@@ -285,8 +284,8 @@ export default function KeysPage() {
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setRevokeId(null)} sx={{ borderRadius: 999 }}>Cancel</Button>
-          <Button variant="contained" color="error" onClick={() => revokeId && handleRevoke(revokeId)} sx={{ borderRadius: 999, fontWeight: 700 }}>
+          <Button onClick={() => setRevokeId(null)} sx={{ borderRadius: 1 }}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={() => revokeId && handleRevoke(revokeId)} sx={{ borderRadius: 1, fontWeight: 700 }}>
             Revoke
           </Button>
         </DialogActions>

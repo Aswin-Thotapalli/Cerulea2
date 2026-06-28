@@ -110,14 +110,14 @@ export default function GovernancePage() {
             a Private Blockchain project with a native token and governance module.
           </Typography>
           <Stack direction="row" spacing={2} justifyContent="center">
-            <Button variant="contained" startIcon={<RocketLaunchIcon />} sx={{ borderRadius: 999, fontWeight: 700 }}
+            <Button variant="contained" startIcon={<RocketLaunchIcon />} sx={{ fontWeight: 700 }}
               onClick={() => {
                 const isLocal = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
                 window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
               }}>
               Create a Blockchain Project
             </Button>
-            <Button variant="outlined" sx={{ borderRadius: 999, fontWeight: 700 }} component={Link} href="/dashboard">
+            <Button variant="outlined" sx={{ borderRadius: 1, fontWeight: 700 }} component={Link} href="/dashboard">
               Back to Overview
             </Button>
           </Stack>
@@ -158,7 +158,7 @@ export default function GovernancePage() {
             Vote on proposals and manage multi-signature transactions for your network.
           </Typography>
         </Box>
-        <Button variant="outlined" startIcon={<HowToVoteIcon />} sx={{ borderRadius: 999, fontWeight: 700 }}>
+        <Button variant="outlined" startIcon={<HowToVoteIcon />} sx={{ borderRadius: 1, fontWeight: 700 }}>
           Create Proposal
         </Button>
       </Stack>
@@ -198,7 +198,7 @@ export default function GovernancePage() {
                   </Box>
                   <Button variant="contained" size="small" startIcon={<HowToVoteIcon />}
                     disabled={p.status !== 'active'}
-                    sx={{ borderRadius: 999, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    sx={{ borderRadius: 1, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
                     Vote
                   </Button>
                 </Stack>
@@ -208,8 +208,8 @@ export default function GovernancePage() {
                     <Typography variant="caption" fontWeight={700} sx={{ color: '#10b981' }}>For: {p.votesFor.toLocaleString()}</Typography>
                     <Typography variant="caption" fontWeight={700} sx={{ color: '#ef4444' }}>Against: {p.votesAgainst.toLocaleString()}</Typography>
                   </Stack>
-                  <Box sx={{ position: 'relative', height: 6, borderRadius: 999, overflow: 'hidden', bgcolor: alpha('#ef4444', 0.12) }}>
-                    <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${forPct}%`, bgcolor: '#10b981', borderRadius: 999, transition: 'width 0.4s ease' }} />
+                  <Box sx={{ position: 'relative', height: 6, borderRadius: 1, overflow: 'hidden', bgcolor: alpha('#ef4444', 0.12) }}>
+                    <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${forPct}%`, bgcolor: '#10b981', borderRadius: 1, transition: 'width 0.4s ease' }} />
                   </Box>
                   <Stack direction="row" justifyContent="space-between">
                     <Typography variant="caption" color="text.secondary">{forPct.toFixed(1)}% in favor</Typography>
@@ -299,7 +299,7 @@ export default function GovernancePage() {
                       {tx.approvals}/{tx.threshold} signatures
                     </Typography>
                     <LinearProgress variant="determinate" value={pct} sx={{
-                      borderRadius: 999, height: 5,
+                      borderRadius: 1, height: 5,
                       bgcolor: alpha(sc, 0.15),
                       '& .MuiLinearProgress-bar': { bgcolor: sc },
                     }} />
@@ -312,7 +312,7 @@ export default function GovernancePage() {
 
                   <Button size="small" variant={tx.status === 'pending' ? 'contained' : 'outlined'}
                     disabled={tx.status !== 'pending'}
-                    sx={{ borderRadius: 999, fontWeight: 700, fontSize: '0.72rem', flexShrink: 0 }}>
+                    sx={{ borderRadius: 1, fontWeight: 700, fontSize: '0.72rem', flexShrink: 0 }}>
                     Sign
                   </Button>
                 </Box>

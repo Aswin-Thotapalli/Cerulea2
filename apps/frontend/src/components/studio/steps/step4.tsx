@@ -991,14 +991,14 @@ export default function Step4({ goPrev, goNext, projectId }: { goPrev?: () => vo
             <IconButton size="small" color="primary" onClick={() => setIsHelpOpen(true)}><QuestionMarkIcon fontSize="small" /></IconButton>
           </Tooltip>
           <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
-          <Button variant="contained" onClick={handleSave} endIcon={<ArrowForwardIcon />} sx={{ borderRadius: 100, px: 3, fontWeight: 700 }}>
+          <Button variant="contained" onClick={handleSave} endIcon={<ArrowForwardIcon />} sx={{ borderRadius: 1, px: 3, fontWeight: 700 }}>
             Complete
           </Button>
         </FloatingIsland>
       </Box>
 
       {/* Help Dialog */}
-      <Dialog open={isHelpOpen} onClose={() => setIsHelpOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4, bgcolor: 'background.paper', color: 'text.primary' } }}>
+      <Dialog open={isHelpOpen} onClose={() => setIsHelpOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 1, bgcolor: 'background.paper', color: 'text.primary' } }}>
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 3 }}>
           <Typography variant="h6" fontWeight={800}>Integrations Guide</Typography>
           <IconButton onClick={() => setIsHelpOpen(false)}><CloseIcon /></IconButton>

@@ -42,9 +42,9 @@ function UsageMeter({ label, used, limit, unit }: { label: string; used: number;
         </Typography>
       </Stack>
       <LinearProgress variant="determinate" value={pct} sx={{
-        borderRadius: 999, height: 7,
+        borderRadius: 1, height: 7,
         bgcolor: alpha(color, 0.12),
-        '& .MuiLinearProgress-bar': { bgcolor: color, borderRadius: 999 },
+        '& .MuiLinearProgress-bar': { bgcolor: color, borderRadius: 1 },
       }} />
     </Box>
   );
@@ -133,7 +133,7 @@ export default function SettingsPage() {
           </Grid>
           <Box mt={2.5}>
             <Button variant="contained" startIcon={saved ? <CheckCircleIcon /> : <SaveIcon />}
-              onClick={handleSave} color={saved ? 'success' : 'primary'} sx={{ borderRadius: 999, fontWeight: 700 }}>
+              onClick={handleSave} color={saved ? 'success' : 'primary'} sx={{ fontWeight: 700 }}>
               {saved ? 'Saved!' : 'Save Changes'}
             </Button>
           </Box>
@@ -168,7 +168,7 @@ export default function SettingsPage() {
             <Typography variant="body2" color="text.secondary">Interested in upgrading your plan or enterprise pricing?</Typography>
             <Button variant="outlined" startIcon={<ContactSupportIcon />} href="https://cerulea.io/company/contact-sales"
               target="_blank" rel="noopener noreferrer"
-              sx={{ borderRadius: 999, fontWeight: 700, whiteSpace: 'nowrap', ml: 2, borderColor: alpha(planColor, 0.4), color: planColor }}>
+              sx={{ borderRadius: 1, fontWeight: 700, whiteSpace: 'nowrap', ml: 2, borderColor: alpha(planColor, 0.4), color: planColor }}>
               Contact Sales
             </Button>
           </Stack>
@@ -198,7 +198,7 @@ export default function SettingsPage() {
                   </Typography>
                 </Box>
                 <Button variant="outlined" color="warning" startIcon={<RefreshIcon />} onClick={handleResetTestAccount}
-                  disabled={resetLoading} sx={{ borderRadius: 999, fontWeight: 700, whiteSpace: 'nowrap', ml: 2 }}>
+                  disabled={resetLoading} sx={{ borderRadius: 1, fontWeight: 700, whiteSpace: 'nowrap', ml: 2 }}>
                   {resetDone ? 'Reset!' : resetLoading ? 'Resetting…' : 'Reset Account'}
                 </Button>
               </Stack>
@@ -214,7 +214,7 @@ export default function SettingsPage() {
                 </Typography>
               </Box>
               <Button variant="outlined" color="error" startIcon={<DeleteForeverIcon />} onClick={() => setDeleteDialogOpen(true)}
-                sx={{ borderRadius: 999, fontWeight: 700, whiteSpace: 'nowrap', ml: 2 }}>
+                sx={{ borderRadius: 1, fontWeight: 700, whiteSpace: 'nowrap', ml: 2 }}>
                 Delete Account
               </Button>
             </Stack>
@@ -244,8 +244,8 @@ export default function SettingsPage() {
             error={deleteConfirm.length > 0 && deleteConfirm !== 'DELETE'} />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => { setDeleteDialogOpen(false); setDeleteConfirm(''); }} sx={{ borderRadius: 999 }}>Cancel</Button>
-          <Button variant="contained" color="error" disabled={deleteConfirm !== 'DELETE'} startIcon={<DeleteForeverIcon />} sx={{ borderRadius: 999, fontWeight: 700 }}>
+          <Button onClick={() => { setDeleteDialogOpen(false); setDeleteConfirm(''); }} sx={{ borderRadius: 1 }}>Cancel</Button>
+          <Button variant="contained" color="error" disabled={deleteConfirm !== 'DELETE'} startIcon={<DeleteForeverIcon />} sx={{ borderRadius: 1, fontWeight: 700 }}>
             Delete My Account
           </Button>
         </DialogActions>
