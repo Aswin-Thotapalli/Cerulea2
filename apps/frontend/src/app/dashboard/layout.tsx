@@ -129,7 +129,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             borderBottom: `1px solid ${theme.palette.divider}`,
             flexShrink: 0, mt: '2px',
           }}>
-            <Box component={Link} href="/" sx={{ flex: 1, display: 'flex', alignItems: 'center', textDecoration: 'none', minWidth: 0 }}>
+            <Box component={Link} href="/" sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1.25, textDecoration: 'none', minWidth: 0 }}>
               <Image
                 src={isDark ? '/brand/logo-dark.png' : '/brand/logo-light.png'}
                 alt="Cerulea Studio"
@@ -138,6 +138,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 style={{ objectFit: 'contain', width: 'auto', height: 36 }}
                 priority
               />
+              <Typography variant="h6" fontWeight={900} sx={{ letterSpacing: -0.5, fontSize: '1rem', whiteSpace: 'nowrap' }}>
+                Cerulea Studio
+              </Typography>
             </Box>
             <IconButton size="small" onClick={() => setCollapsed(true)}
               sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
