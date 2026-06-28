@@ -38,7 +38,7 @@ export default function NavBar() {
         {/* Logo */}
         <Box component={Link} href="/" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1.25, textDecoration: 'none' }}>
           <Image
-            src="/brand/icon.png"
+            src="/brand/logo.png"
             alt="Cerulea"
             width={36}
             height={36}

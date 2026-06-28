@@ -89,7 +89,7 @@ export default function StudioLanding({
         <Stack alignItems="center" spacing={2} sx={{ mb: 8, textAlign: 'center' }}>
           <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1 }}>
             <Image
-              src="/brand/icon.png"
+              src="/brand/logo.png"
               alt="Cerulea"
               width={40}
               height={40}
