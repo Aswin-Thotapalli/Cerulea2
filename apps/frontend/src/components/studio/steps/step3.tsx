@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import StepGuidance from '@/components/studio/StepGuidance';
 import {
   Box, Button, Divider, IconButton, Stack, Typography, TextField,
-  Select, MenuItem, Chip, Checkbox, FormControlLabel, Switch, Paper, 
+  Select, MenuItem, Chip, FormControlLabel, Switch, Paper,
   Tooltip, Fade,  FormControl, InputLabel, Slider, Autocomplete,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Dialog, DialogTitle, DialogContent
@@ -48,67 +48,7 @@ const FloatingIsland = styled(Paper)(({ theme }) => ({
   pointerEvents: 'auto',
 }));
 
-// 2. Step Indicator Pill
-const StepPill = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(13,21,53,0.9)',
-  backdropFilter: 'blur(10px)',
-  border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
-  borderRadius: 100,
-  padding: '8px 20px',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 12,
-  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-  pointerEvents: 'auto',
-}));
-
-// 3. The Left Sidebar (Navigation)
-const PhaseSidebar = styled(Box)(({ theme }) => ({
-  width: 260,
-  height: '100%',
-  borderRight: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-  display: 'flex',
-  flexDirection: 'column',
-  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.6)' : 'rgba(13,21,53,0.6)',
-  backdropFilter: 'blur(20px)',
-  paddingTop: 16,
-}));
-
-// 4. Sidebar Item
-const PhaseItem = styled(Box, { shouldForwardProp: (p) => p !== 'active' })<{ active?: boolean }>(({ theme, active }) => ({
-  padding: '14px 20px',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 12,
-  borderRadius: 8,
-  margin: '2px 8px',
-  borderLeft: `3px solid ${active ? theme.palette.primary.main : 'transparent'}`,
-  background: active ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
-  color: active ? theme.palette.primary.main : theme.palette.text.secondary,
-  transition: 'all 0.2s ease',
-  fontWeight: active ? 700 : 500,
-  '&:hover': {
-    background: active ? alpha(theme.palette.primary.main, 0.1) : alpha(theme.palette.primary.main, 0.04),
-    color: active ? theme.palette.primary.main : theme.palette.text.primary,
-  }
-}));
-
-// 5. Main Workspace
-const Workspace = styled(Box)(({ theme }) => ({
-  flex: 1,
-  height: '100%',
-  position: 'relative',
-  overflow: 'auto',
-  display: 'flex',
-  flexDirection: 'column',
-  paddingTop: 24,
-  paddingBottom: 100,
-  paddingLeft: 40,
-  paddingRight: 40,
-}));
-
-// 6. Section Card
+// Section Card
 const SectionCard = styled(Paper)(({ theme }) => ({
   padding: 32,
   borderRadius: 16,
@@ -1062,106 +1002,127 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
   );
 
   return (
-    <Box sx={{ width: '100%', height: '100%', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
-      <StepGuidance
-        stepKey="step3"
-        title="Token Economics"
-        subtitle="Step 4 of 6"
-        description="Configure the economic model for your application: token supply, staking rules, governance parameters, and fee structures. These settings define how value flows through your system."
-        steps={[
-          { first: 'Set up your token', next: 'Configure name, symbol, total supply, and whether the token is mintable or has a burn mechanism.' },
-          { first: 'Configure staking', next: 'Set APY rates, lock-up periods, and slashing conditions if your app involves validators or stakers.' },
-          { first: 'Set governance rules', next: 'Define quorum percentages, voting periods, and proposal thresholds for on-chain governance.' },
-        ]}
-        tip="If you're not sure about exact numbers, use the suggested defaults. These can be adjusted before deployment via a governance proposal."
-      />
+    <Box sx={{ width: '100%', height: '100%', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', position: 'relative' }}>
 
-       {/* Background dot grid */}
-       <Box sx={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none',
-          backgroundImage: 'radial-gradient(rgba(79,70,229,0.12) 1px, transparent 1px)',
-          backgroundSize: '28px 28px'
-       }} />
+      {/* Background dot grid */}
+      <Box sx={{
+        position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none',
+        backgroundImage: 'radial-gradient(rgba(79,70,229,0.10) 1px, transparent 1px)',
+        backgroundSize: '28px 28px',
+      }} />
 
-       {/* Layout */}
-       <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
-          {/* Left Rail */}
-          <PhaseSidebar>
-             <Box sx={{ px: 3, pb: 3, pt: 1 }}>
-               <Stack direction="row" alignItems="center" spacing={1.5} mb={1}>
-                 <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                   <MonetizationOnIcon sx={{ fontSize: 18, color: 'primary.main' }} />
-                 </Box>
-                 <Typography variant="subtitle1" fontWeight={800} color="text.primary">Economics</Typography>
-               </Stack>
-               <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-                 {projectType === 'blockchain'
-                   ? 'Define your token, staking rules, gas policy, and governance model.'
-                   : 'Set up monetization, payments, asset configuration, and compliance.'}
-               </Typography>
-             </Box>
-             <Divider sx={{ borderColor: alpha(theme.palette.primary.main, 0.1), mb: 1 }} />
-             <Stack spacing={0} sx={{ px: 1, pt: 1 }}>
-                {tabs.map(t => (
-                   <PhaseItem key={t.key} active={activeTab === t.key} onClick={() => setActiveTab(t.key)}>
-                      <Box sx={{ width: 32, height: 32, borderRadius: 1, bgcolor: activeTab === t.key ? alpha(theme.palette.primary.main, 0.15) : alpha(theme.palette.action.hover, 0.3), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: activeTab === t.key ? 'primary.main' : 'text.secondary', transition: 'all 0.2s' }}>
-                        {t.icon}
-                      </Box>
-                      <Typography variant="subtitle2" fontWeight={700}>{t.label}</Typography>
-                   </PhaseItem>
-                ))}
-             </Stack>
-          </PhaseSidebar>
+      {/* Content sits above dot grid */}
+      <Box sx={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        <StepGuidance
+          stepKey="step3"
+          title="Token Economics"
+          subtitle="Step 4 of 6"
+          description="Configure the economic model for your application: token supply, staking rules, governance parameters, and fee structures. These settings define how value flows through your system."
+          steps={[
+            { first: 'Set up your token', next: 'Configure name, symbol, total supply, and whether the token is mintable or has a burn mechanism.' },
+            { first: 'Configure staking', next: 'Set APY rates, lock-up periods, and slashing conditions if your app involves validators or stakers.' },
+            { first: 'Set governance rules', next: 'Define quorum percentages, voting periods, and proposal thresholds for on-chain governance.' },
+          ]}
+          tip="If you're not sure about exact numbers, use the suggested defaults. These can be adjusted before deployment via a governance proposal."
+        />
 
-          {/* Workspace */}
-          <Workspace>
-             <Fade in={true} key={activeTab}>
-                <Box>
-                   {activeTab === 'rev' && renderDappRevenue()}
-                   {activeTab === 'assets' && renderDappAssets()}
-                   {activeTab === 'fees' && projectType === 'dapp' && renderDappFees()}
-                   {activeTab === 'pay' && renderDappPayments()}
-                   {activeTab === 'comp' && renderDappCompliance()}
-                   
-                   {activeTab === 'tok' && renderChainTokenomics()}
-                   {activeTab === 'fees' && projectType === 'blockchain' && renderChainFees()}
-                   {activeTab === 'stk' && renderChainStaking()}
-                   {activeTab === 'gov' && renderChainGov()}
-                </Box>
-             </Fade>
-          </Workspace>
-       </Box>
+        {/* Horizontal tab rail */}
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          px: 3,
+          py: 1.5,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+          flexShrink: 0,
+          overflowX: 'auto',
+          '&::-webkit-scrollbar': { height: 4 },
+        }}>
+          {tabs.map(tab => {
+            const isActive = activeTab === tab.key;
+            return (
+              <Box
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                sx={{
+                  display: 'flex', alignItems: 'center', gap: 1,
+                  px: 2.5, py: 1, borderRadius: 2, cursor: 'pointer',
+                  whiteSpace: 'nowrap', flexShrink: 0,
+                  bgcolor: isActive ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
+                  color: isActive ? 'primary.main' : 'text.secondary',
+                  border: `1px solid ${isActive ? alpha(theme.palette.primary.main, 0.3) : 'transparent'}`,
+                  fontWeight: isActive ? 700 : 500,
+                  fontSize: '0.825rem',
+                  transition: 'all 0.15s',
+                  '&:hover': {
+                    bgcolor: isActive ? alpha(theme.palette.primary.main, 0.15) : alpha(theme.palette.primary.main, 0.05),
+                    color: isActive ? 'primary.main' : 'text.primary',
+                  },
+                }}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+              </Box>
+            );
+          })}
 
-       {/* Dock */}
-       <Box sx={{ position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+          {/* Help button pushed to right */}
+          <Box sx={{ flex: 1 }} />
+          <Tooltip title="Help">
+            <IconButton size="small" onClick={() => setIsHelpOpen(true)} sx={{ color: 'text.secondary' }}>
+              <QuestionMarkIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+
+        {/* Tab content */}
+        <Box sx={{ flex: 1, overflowY: 'auto', px: 4, py: 3, pb: 12 }}>
+          <Fade in={true} key={activeTab}>
+            <Box>
+              {activeTab === 'rev' && renderDappRevenue()}
+              {activeTab === 'assets' && renderDappAssets()}
+              {activeTab === 'fees' && projectType === 'dapp' && renderDappFees()}
+              {activeTab === 'pay' && renderDappPayments()}
+              {activeTab === 'comp' && renderDappCompliance()}
+
+              {activeTab === 'tok' && renderChainTokenomics()}
+              {activeTab === 'fees' && projectType === 'blockchain' && renderChainFees()}
+              {activeTab === 'stk' && renderChainStaking()}
+              {activeTab === 'gov' && renderChainGov()}
+            </Box>
+          </Fade>
+        </Box>
+
+        {/* Dock */}
+        <Box sx={{ position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
           <FloatingIsland elevation={6}>
-             <Tooltip title="Back">
-               <IconButton onClick={goPrev ? goPrev : () => router.back()} size="small" sx={{border: '1px solid', borderColor:'divider'}}>
-                  <ArrowBackIcon />
-               </IconButton>
-             </Tooltip>
-             <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
-             <Tooltip title="Help">
-                <IconButton size="small" color="primary" onClick={() => setIsHelpOpen(true)}><QuestionMarkIcon fontSize="small" /></IconButton>
-             </Tooltip>
-             <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
-             <Button variant="contained" onClick={handleSave} endIcon={<ArrowForwardIcon />} sx={{ borderRadius: 100, px: 3, fontWeight: 700 }}>
-                Save & Continue
-             </Button>
+            <Tooltip title="Back">
+              <IconButton onClick={goPrev ? goPrev : () => router.back()} size="small" sx={{ border: '1px solid', borderColor: 'divider' }}>
+                <ArrowBackIcon />
+              </IconButton>
+            </Tooltip>
+            <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
+            <Button variant="contained" onClick={handleSave} endIcon={<ArrowForwardIcon />} sx={{ borderRadius: 100, px: 3, fontWeight: 700 }}>
+              Save & Continue
+            </Button>
           </FloatingIsland>
-       </Box>
+        </Box>
+      </Box>
 
-       {/* Help Dialog (Fixed High Contrast) */}
-       <Dialog open={isHelpOpen} onClose={() => setIsHelpOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4, bgcolor: 'background.paper', color: 'text.primary' } }}>
-          <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 3 }}>
-             <Typography variant="h6" fontWeight={800}>{helpContent.title}</Typography>
-             <IconButton onClick={() => setIsHelpOpen(false)}><CloseIcon /></IconButton>
-          </DialogTitle>
-          <DialogContent dividers sx={{ p: 4 }}>
-             <Typography variant="body1" sx={{ color: 'text.primary', fontWeight: 500 }} paragraph>
-                {helpContent.text}
-             </Typography>
-          </DialogContent>
-       </Dialog>
+      {/* Help Dialog */}
+      <Dialog open={isHelpOpen} onClose={() => setIsHelpOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4, bgcolor: 'background.paper', color: 'text.primary' } }}>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 3 }}>
+          <Typography variant="h6" fontWeight={800}>{helpContent.title}</Typography>
+          <IconButton onClick={() => setIsHelpOpen(false)}><CloseIcon /></IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 4 }}>
+          <Typography variant="body1" sx={{ color: 'text.primary', fontWeight: 500 }} paragraph>
+            {helpContent.text}
+          </Typography>
+        </DialogContent>
+      </Dialog>
 
     </Box>
   );

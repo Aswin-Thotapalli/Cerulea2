@@ -162,66 +162,15 @@ const FloatingIsland = styled(Paper)(({ theme }) => ({
   pointerEvents: 'auto',
 }));
 
-const StepPill = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(8,14,36,0.9)',
-  backdropFilter: 'blur(10px)',
-  border: `1px solid ${theme.palette.divider}`,
-  borderRadius: 100,
-  padding: '8px 20px',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 12,
-  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-  pointerEvents: 'auto',
-}));
-
-const PhaseSidebar = styled(Box)(({ theme }) => ({
-  width: 220,
+const EntityPanel = styled(Box)(({ theme }) => ({
+  width: 240,
+  flexShrink: 0,
   height: '100%',
   borderRight: `1px solid ${theme.palette.divider}`,
   display: 'flex',
   flexDirection: 'column',
-  background: theme.palette.mode === 'light'
-    ? 'rgba(255,255,255,0.85)'
-    : `linear-gradient(180deg, ${alpha('#4F46E5', 0.08)} 0%, ${alpha('#0D1535', 0.95)} 100%)`,
-  backdropFilter: 'blur(20px)',
-  paddingTop: 16,
   overflowY: 'auto',
-}));
-
-const PhaseItem = styled(Box, { shouldForwardProp: (p) => p !== 'active' })<{ active?: boolean }>(({ theme, active }) => ({
-  padding: '12px 20px',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 12,
-  borderRadius: '0 8px 8px 0',
-  marginRight: 8,
-  borderLeft: `3px solid ${active ? theme.palette.primary.main : 'transparent'}`,
-  background: active
-    ? alpha(theme.palette.primary.main, 0.12)
-    : 'transparent',
-  color: active ? theme.palette.primary.main : theme.palette.text.secondary,
-  transition: 'all 0.2s ease',
-  boxShadow: active
-    ? `inset 0 0 12px ${alpha(theme.palette.primary.main, 0.08)}`
-    : 'none',
-  '&:hover': {
-    background: active
-      ? alpha(theme.palette.primary.main, 0.15)
-      : alpha(theme.palette.primary.main, 0.04),
-    color: active ? theme.palette.primary.main : theme.palette.text.primary,
-  },
-}));
-
-const Workspace = styled(Box)(() => ({
-  flex: 1,
-  height: '100%',
-  position: 'relative',
-  overflow: 'hidden',
-  display: 'flex',
-  flexDirection: 'column',
-  paddingTop: 0,
+  background: theme.palette.mode === 'dark' ? 'rgba(8,14,36,0.8)' : theme.palette.background.paper,
 }));
 
 const OPAQUE_MENU_PROPS = {
@@ -591,213 +540,130 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
   }, [filteredCatalog]);
 
   /* ---------------------------------------------------------------- */
-  /* Render: DATA LAYER (3-column)                                    */
+  /* Render: DATA LAYER (2-column)                                    */
   /* ---------------------------------------------------------------- */
   const renderDataLayer = () => (
     <Box sx={{ height: '100%', display: 'flex', overflow: 'hidden' }}>
 
-      {/* COLUMN 1: Blueprint Modules */}
-      <Box
-        sx={{
-          width: 200, flexShrink: 0,
-          borderRight: `1px solid ${theme.palette.divider}`,
-          bgcolor: theme.palette.mode === 'dark'
-            ? alpha('#0D1535', 0.7)
-            : alpha(theme.palette.background.paper, 0.6),
-          display: 'flex', flexDirection: 'column', overflowY: 'auto',
-        }}
-      >
+      {/* LEFT PANEL: Modules & Entities combined */}
+      <EntityPanel>
+        {/* Panel header */}
         <Box sx={{
-          p: 2, pb: 1.5,
+          px: 2, py: 1.5,
           borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-          background: theme.palette.mode === 'dark'
-            ? `linear-gradient(135deg, ${alpha('#4F46E5', 0.1)} 0%, transparent 100%)`
-            : alpha(theme.palette.primary.main, 0.03),
+          flexShrink: 0,
         }}>
-          <Stack direction="row" alignItems="center" spacing={0.75} mb={0.5}>
-            <Box sx={{
-              width: 20, height: 20, borderRadius: 1,
-              bgcolor: alpha(theme.palette.primary.main, 0.15),
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}>
-              <HexagonOutlinedIcon sx={{ fontSize: 12, color: 'primary.main' }} />
-            </Box>
-            <Typography variant="overline" fontWeight={800} fontSize="0.6rem" color="primary.main" sx={{ letterSpacing: 1 }}>
-              BLUEPRINT MODULES
-            </Typography>
-          </Stack>
-          <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.3 }}>
-            Entities pre-filled from your Blueprint selections.
+          <Typography variant="overline" fontWeight={800} fontSize="0.6rem" color="primary.main" sx={{ letterSpacing: 1 }}>
+            MODULES &amp; ENTITIES
           </Typography>
         </Box>
-        <Box sx={{ flex: 1, py: 1 }}>
+
+        {/* Module sections with indented entity items */}
+        <Box sx={{ flex: 1, overflowY: 'auto', py: 0.5 }}>
           {blueprintModules.length === 0 ? (
             <Box sx={{ p: 2 }}>
               <Typography variant="caption" color="text.disabled">
-                Add modules in Blueprint Builder (Step 2) first.
+                Add modules in Blueprint Builder first.
               </Typography>
             </Box>
           ) : (
             blueprintModules.map((mod) => {
-              const count = moduleEntities[mod.id]?.length || 0;
-              const isActive = selectedModuleId === mod.id;
+              const modEnts = moduleEntities[mod.id] || [];
+              const isModActive = selectedModuleId === mod.id;
               return (
-                <Box
-                  key={mod.id}
-                  onClick={() => {
-                    setSelectedModuleId(mod.id);
-                    const first = moduleEntities[mod.id]?.[0];
-                    if (first) setSelectedEntityId(first.id);
-                  }}
-                  sx={{
-                    mx: 1, mb: 0.5, px: 1.5, py: 1.25, borderRadius: 2, cursor: 'pointer',
-                    bgcolor: isActive ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
-                    border: `1px solid ${isActive ? alpha(theme.palette.primary.main, 0.35) : alpha(theme.palette.divider, 0.5)}`,
-                    borderLeft: `3px solid ${isActive ? theme.palette.primary.main : 'transparent'}`,
-                    boxShadow: isActive ? `0 0 12px ${alpha(theme.palette.primary.main, 0.15)}` : 'none',
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      bgcolor: isActive ? alpha(theme.palette.primary.main, 0.15) : alpha(theme.palette.primary.main, 0.04),
-                      borderColor: isActive ? alpha(theme.palette.primary.main, 0.4) : alpha(theme.palette.primary.main, 0.2),
-                    },
-                  }}
-                >
-                  <Typography
-                    variant="body2"
-                    fontWeight={700}
-                    color={isActive ? 'primary.main' : 'text.primary'}
-                    sx={{ lineHeight: 1.3 }}
+                <Box key={mod.id}>
+                  {/* Module section header */}
+                  <Box
+                    onClick={() => {
+                      setSelectedModuleId(mod.id);
+                      const first = moduleEntities[mod.id]?.[0];
+                      if (first) setSelectedEntityId(first.id);
+                    }}
+                    sx={{
+                      px: 2, py: 1, cursor: 'pointer',
+                      bgcolor: alpha('#4F46E5', 0.06),
+                      borderLeft: `3px solid ${isModActive ? theme.palette.primary.main : 'transparent'}`,
+                      borderBottom: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+                      '&:hover': {
+                        bgcolor: alpha('#4F46E5', 0.1),
+                      },
+                    }}
                   >
-                    {mod.label}
-                  </Typography>
-                  <Stack direction="row" alignItems="center" spacing={0.5} mt={0.25}>
-                    <Typography variant="caption" color="text.secondary">
-                      {count} {count === 1 ? 'entity' : 'entities'}
-                    </Typography>
-                    {mod.category && (
-                      <Chip
-                        label={mod.category.replace(/-/g, ' ')}
-                        size="small"
-                        sx={{ height: 14, fontSize: '0.55rem', fontWeight: 700, opacity: 0.7 }}
-                      />
-                    )}
-                  </Stack>
-                </Box>
-              );
-            })
-          )}
-        </Box>
-      </Box>
-
-      {/* COLUMN 2: Entity List for selected module */}
-      <Box
-        sx={{
-          width: 260, flexShrink: 0,
-          borderRight: `1px solid ${theme.palette.divider}`,
-          bgcolor: theme.palette.mode === 'dark'
-            ? alpha(theme.palette.background.paper, 0.5)
-            : alpha(theme.palette.background.default, 0.5),
-          display: 'flex', flexDirection: 'column', overflowY: 'auto',
-        }}
-      >
-        <Box sx={{
-          p: 2, pb: 1.5,
-          borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
-        }}>
-          <Stack direction="row" alignItems="center" spacing={0.75} mb={0.5}>
-            <StorageIcon sx={{ fontSize: 13, color: 'primary.main' }} />
-            <Typography variant="overline" fontWeight={800} fontSize="0.6rem" color="primary.main" sx={{ letterSpacing: 1 }}>
-              ENTITIES
-            </Typography>
-          </Stack>
-          <Tooltip
-            title="An entity is a entity representing a core object in your app (like User, Token, or Order). Each entity becomes a database table or smart contract struct."
-            placement="right"
-            arrow
-          >
-            <InfoOutlinedIcon sx={{ fontSize: 12, color: 'text.secondary', ml: 0.5, cursor: 'help', verticalAlign: 'middle' }} />
-          </Tooltip>
-          {selectedModuleId && blueprintModules.find((m) => m.id === selectedModuleId) && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-              {blueprintModules.find((m) => m.id === selectedModuleId)?.label}
-            </Typography>
-          )}
-        </Box>
-
-        <Box sx={{ flex: 1, py: 1 }}>
-          {currentModuleEntities.length === 0 && selectedModuleId ? (
-            <Box sx={{ p: 2 }}>
-              <Typography variant="caption" color="text.disabled">
-                No entities yet. Add one below.
-              </Typography>
-            </Box>
-          ) : (
-            currentModuleEntities.map((ent) => {
-              const isActive = selectedEntityId === ent.id;
-              return (
-                <Box
-                  key={ent.id}
-                  onClick={() => setSelectedEntityId(ent.id)}
-                  sx={{
-                    mx: 1, mb: 0.5, px: 1.5, py: 1, borderRadius: 2, cursor: 'pointer',
-                    bgcolor: isActive ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
-                    border: `1px solid ${isActive ? alpha(theme.palette.primary.main, 0.3) : 'transparent'}`,
-                    borderLeft: `3px solid ${isActive ? theme.palette.primary.main : 'transparent'}`,
-                    boxShadow: isActive ? `0 2px 8px ${alpha(theme.palette.primary.main, 0.12)}` : 'none',
-                    transition: 'all 0.18s ease',
-                    '&:hover': {
-                      bgcolor: isActive ? alpha(theme.palette.primary.main, 0.15) : alpha(theme.palette.primary.main, 0.04),
-                      borderColor: isActive ? alpha(theme.palette.primary.main, 0.35) : alpha(theme.palette.primary.main, 0.15),
-                    },
-                  }}
-                >
-                  <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <StorageIcon sx={{ fontSize: 14, color: isActive ? 'primary.main' : 'text.secondary' }} />
-                      <Box>
-                        <Typography
-                          variant="body2"
-                          fontWeight={700}
-                          color={isActive ? 'primary.main' : 'text.primary'}
-                        >
-                          {ent.name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {ent.fields.length} fields
-                          {ent.isCore && (
-                            <Chip
-                              label="Core"
-                              size="small"
-                              sx={{
-                                ml: 0.5, height: 14, fontSize: '0.55rem', fontWeight: 700,
-                                bgcolor: alpha('#6366F1', 0.12),
-                                color: '#6366F1',
-                                border: `1px solid ${alpha('#6366F1', 0.25)}`,
-                              }}
-                            />
-                          )}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                    {!ent.isCore && (
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={(ev) => { ev.stopPropagation(); deleteEntity(selectedModuleId!, ent.id); }}
-                        sx={{ opacity: 0, '.MuiBox-root:hover > * > &': { opacity: 1 } }}
+                    <Stack direction="row" alignItems="center" spacing={0.75}>
+                      <HexagonOutlinedIcon sx={{ fontSize: 12, color: isModActive ? 'primary.main' : 'text.secondary', flexShrink: 0 }} />
+                      <Typography
+                        variant="caption"
+                        fontWeight={700}
+                        color={isModActive ? 'primary.main' : 'text.primary'}
+                        sx={{ lineHeight: 1.3, fontSize: '0.75rem' }}
                       >
-                        <DeleteOutlineIcon sx={{ fontSize: 14 }} />
-                      </IconButton>
-                    )}
-                  </Stack>
+                        {mod.label}
+                      </Typography>
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary" sx={{ pl: 2.5, fontSize: '0.65rem' }}>
+                      {modEnts.length} {modEnts.length === 1 ? 'entity' : 'entities'}
+                    </Typography>
+                  </Box>
+
+                  {/* Entity items — indented */}
+                  {modEnts.map((ent) => {
+                    const isActive = selectedEntityId === ent.id;
+                    return (
+                      <Box
+                        key={ent.id}
+                        onClick={() => {
+                          setSelectedModuleId(mod.id);
+                          setSelectedEntityId(ent.id);
+                        }}
+                        sx={{
+                          pl: 3.5, pr: 1.5, py: 0.75, cursor: 'pointer',
+                          bgcolor: isActive ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
+                          borderLeft: `3px solid ${isActive ? theme.palette.primary.main : 'transparent'}`,
+                          transition: 'all 0.15s',
+                          '&:hover': {
+                            bgcolor: isActive ? alpha(theme.palette.primary.main, 0.15) : alpha(theme.palette.primary.main, 0.04),
+                          },
+                        }}
+                      >
+                        <Stack direction="row" alignItems="center" justifyContent="space-between">
+                          <Stack direction="row" alignItems="center" spacing={0.75}>
+                            <Box sx={{
+                              width: 10, height: 10, borderRadius: 0.5,
+                              border: `1.5px solid ${isActive ? theme.palette.primary.main : alpha(theme.palette.text.secondary, 0.4)}`,
+                              flexShrink: 0,
+                            }} />
+                            <Typography
+                              variant="caption"
+                              fontWeight={isActive ? 700 : 500}
+                              color={isActive ? 'primary.main' : 'text.secondary'}
+                              sx={{ fontSize: '0.78rem', lineHeight: 1.3 }}
+                            >
+                              {ent.name}
+                            </Typography>
+                          </Stack>
+                          {!ent.isCore && (
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={(ev) => { ev.stopPropagation(); deleteEntity(mod.id, ent.id); }}
+                              sx={{ p: 0.25, opacity: 0, '&:hover': { opacity: 1 }, '.MuiBox-root:hover &': { opacity: 0.6 } }}
+                            >
+                              <DeleteOutlineIcon sx={{ fontSize: 12 }} />
+                            </IconButton>
+                          )}
+                        </Stack>
+                      </Box>
+                    );
+                  })}
                 </Box>
               );
             })
           )}
         </Box>
 
+        {/* Add Entity buttons at bottom */}
         {selectedModuleId && (
-          <Box sx={{ p: 1.5, borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.12)}` }}>
+          <Box sx={{ p: 1.5, borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`, flexShrink: 0 }}>
             <Button
               startIcon={<AddIcon />}
               variant="outlined"
@@ -832,32 +698,30 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
             </Button>
           </Box>
         )}
-      </Box>
+      </EntityPanel>
 
-      {/* COLUMN 3: Field Editor */}
+      {/* RIGHT PANEL: Entity editor */}
       {selectedEntity ? (
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {/* Entity Header */}
+          {/* Entity name + description (inline editable) */}
           <Box
             sx={{
-              px: 3, py: 2, borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-              bgcolor: theme.palette.mode === 'dark'
-                ? alpha('#0D1535', 0.8)
-                : alpha(theme.palette.background.paper, 0.9),
+              px: 3, py: 2,
+              borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
               flexShrink: 0,
               background: theme.palette.mode === 'dark'
                 ? `linear-gradient(135deg, ${alpha('#4F46E5', 0.06)} 0%, ${alpha('#0D1535', 0.8)} 100%)`
-                : undefined,
+                : alpha(theme.palette.background.paper, 0.9),
             }}
           >
-            <Stack direction="row" alignItems="center" spacing={2}>
+            <Stack direction="row" alignItems="center" spacing={2} mb={0.5}>
               <TextField
                 variant="standard"
                 value={selectedEntity.name}
                 onChange={(e) => updateEntity(selectedEntityModuleId!, selectedEntity.id, { name: e.target.value })}
                 InputProps={{
                   disableUnderline: true,
-                  style: { fontSize: '1.3rem', fontWeight: 800 },
+                  style: { fontSize: '1.4rem', fontWeight: 800 },
                 }}
               />
               <Chip
@@ -883,7 +747,6 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
               onChange={(e) => updateEntity(selectedEntityModuleId!, selectedEntity.id, { description: e.target.value })}
               InputProps={{ disableUnderline: true, style: { fontSize: '0.82rem' } }}
               fullWidth
-              sx={{ mt: 0.5 }}
             />
           </Box>
 
@@ -1743,6 +1606,16 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
   );
 
   /* ---------------------------------------------------------------- */
+  /* Phase tab definitions                                            */
+  /* ---------------------------------------------------------------- */
+  const PHASES = [
+    { id: 'data' as Phase, label: 'Data Model', icon: <StorageIcon sx={{ fontSize: 22 }} />, color: '#4F46E5' },
+    { id: 'governance' as Phase, label: 'Access & Roles', icon: <SecurityIcon sx={{ fontSize: 22 }} />, color: '#8b5cf6' },
+    { id: 'behavior' as Phase, label: 'Logic', icon: <BoltIcon sx={{ fontSize: 22 }} />, color: '#06b6d4' },
+    { id: 'exposure' as Phase, label: 'API Schema', icon: <PublicIcon sx={{ fontSize: 22 }} />, color: '#10b981' },
+  ];
+
+  /* ---------------------------------------------------------------- */
   /* Main render                                                      */
   /* ---------------------------------------------------------------- */
   return (
@@ -1768,74 +1641,47 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
         backgroundSize: '24px 24px',
       }} />
 
-      {/* Layout: sidebar + workspace */}
-      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-
-        {/* LEFT NAVIGATION SIDEBAR */}
-        <PhaseSidebar>
-          <Box sx={{ px: 2.5, pb: 2.5, borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}` }}>
+      {/* Horizontal phase tab bar */}
+      <Box sx={{
+        display: 'flex', gap: 1, px: 3, py: 1.5,
+        borderBottom: '1px solid', borderColor: 'divider',
+        bgcolor: 'background.paper',
+        flexShrink: 0,
+      }}>
+        {PHASES.map((p) => {
+          const isActive = phase === p.id;
+          return (
             <Box
+              key={p.id}
+              onClick={() => setPhase(p.id)}
               sx={{
-                width: 36, height: 36, borderRadius: 2,
-                bgcolor: alpha(theme.palette.primary.main, 0.15),
-                border: `1px solid ${alpha(theme.palette.primary.main, 0.25)}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                mb: 1.5,
+                px: 2, py: 1, borderRadius: 2, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 1,
+                fontSize: '0.82rem', fontWeight: isActive ? 700 : 400,
+                transition: 'all 0.15s',
+                bgcolor: isActive ? alpha(p.color, 0.12) : 'transparent',
+                color: isActive ? p.color : 'text.secondary',
+                border: `1px solid ${isActive ? alpha(p.color, 0.3) : 'transparent'}`,
+                '&:hover': {
+                  bgcolor: alpha(p.color, isActive ? 0.15 : 0.06),
+                  color: p.color,
+                  border: `1px solid ${alpha(p.color, isActive ? 0.35 : 0.15)}`,
+                },
               }}
             >
-              <StorageIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+              {p.icon}
+              {p.label}
             </Box>
-            <Typography variant="subtitle1" fontWeight={800} sx={{ lineHeight: 1.2, mb: 0.25 }}>Data &amp; Logic</Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.3 }}>
-              Define what your app stores and how it behaves.
-            </Typography>
-            <Box sx={{ mt: 1.5, px: 1.25, py: 0.75, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.07), border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}` }}>
-              <Typography variant="caption" color="primary.main" fontWeight={700} sx={{ fontSize: '0.65rem' }}>
-                {allEntities.length} entities · {blueprintModules.length} modules
-              </Typography>
-            </Box>
-          </Box>
-          <Stack spacing={0.25} sx={{ px: 1, pt: 1.5 }}>
-            <PhaseItem active={phase === 'data'} onClick={() => setPhase('data')}>
-              <StorageIcon fontSize="small" />
-              <Box>
-                <Typography variant="subtitle2" fontWeight={700}>Entities</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2 }}>
-                  {allEntities.length} entities across {blueprintModules.length} modules
-                </Typography>
-              </Box>
-            </PhaseItem>
-            <PhaseItem active={phase === 'governance'} onClick={() => setPhase('governance')}>
-              <SecurityIcon fontSize="small" />
-              <Box>
-                <Typography variant="subtitle2" fontWeight={700}>Access Rules</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2 }}>Who can read / write data</Typography>
-              </Box>
-            </PhaseItem>
-            <PhaseItem active={phase === 'behavior'} onClick={() => setPhase('behavior')}>
-              <BoltIcon fontSize="small" />
-              <Box>
-                <Typography variant="subtitle2" fontWeight={700}>Logic &amp; Triggers</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2 }}>Automate actions on events</Typography>
-              </Box>
-            </PhaseItem>
-            <PhaseItem active={phase === 'exposure'} onClick={() => setPhase('exposure')}>
-              <PublicIcon fontSize="small" />
-              <Box>
-                <Typography variant="subtitle2" fontWeight={700}>API &amp; Visibility</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2 }}>On-chain vs database exposure</Typography>
-              </Box>
-            </PhaseItem>
-          </Stack>
-        </PhaseSidebar>
+          );
+        })}
+      </Box>
 
-        {/* MAIN WORKSPACE */}
-        <Workspace>
-          <Fade in={phase === 'data'} mountOnEnter unmountOnExit><Box height="100%">{renderDataLayer()}</Box></Fade>
-          <Fade in={phase === 'governance'} mountOnEnter unmountOnExit><Box height="100%">{renderGovernance()}</Box></Fade>
-          <Fade in={phase === 'behavior'} mountOnEnter unmountOnExit><Box height="100%">{renderBehavior()}</Box></Fade>
-          <Fade in={phase === 'exposure'} mountOnEnter unmountOnExit><Box height="100%">{renderExposure()}</Box></Fade>
-        </Workspace>
+      {/* Content area */}
+      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <Fade in={phase === 'data'} mountOnEnter unmountOnExit><Box sx={{ width: '100%', height: '100%' }}>{renderDataLayer()}</Box></Fade>
+        <Fade in={phase === 'governance'} mountOnEnter unmountOnExit><Box sx={{ width: '100%', height: '100%' }}>{renderGovernance()}</Box></Fade>
+        <Fade in={phase === 'behavior'} mountOnEnter unmountOnExit><Box sx={{ width: '100%', height: '100%' }}>{renderBehavior()}</Box></Fade>
+        <Fade in={phase === 'exposure'} mountOnEnter unmountOnExit><Box sx={{ width: '100%', height: '100%' }}>{renderExposure()}</Box></Fade>
       </Box>
 
       {/* FLOATING DOCK */}

@@ -168,7 +168,8 @@ export default function Step0({
   const { data: session } = useSession();
 
   const userPlan = (session?.user as any)?.plan as string | undefined;
-  const canUsePrivateDapp = userPlan === 'pro' || userPlan === 'enterprise';
+  const canUsePublicDapp = userPlan === 'public_dapps' || userPlan === 'pro';
+  const canUsePrivateDapp = userPlan === 'private_dapps' || userPlan === 'private_dapps_pro' || userPlan === 'pro' || userPlan === 'enterprise';
 
   /* ---- State ---- */
   const [phase, setPhaseRaw] = React.useState<Step0Phase>(projectType ? 'gallery' : 'choose-type');
@@ -275,8 +276,11 @@ export default function Step0({
   };
 
   const chooseDappVisibility = (visibility: DappVisibility) => {
+    if (visibility === 'public' && !canUsePublicDapp) {
+      if (typeof window !== 'undefined') window.location.href = '/dashboard/billing?upgrade=public-dapp';
+      return;
+    }
     if (visibility === 'private' && !canUsePrivateDapp) {
-      // Gate: redirect to upgrade
       if (typeof window !== 'undefined') window.location.href = '/dashboard/billing?upgrade=private-dapp';
       return;
     }
@@ -567,7 +571,7 @@ export default function Step0({
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} width="100%">
                 {/* Public dApp */}
-                <PortalCard selected={dappVisibility === 'public'} onClick={() => chooseDappVisibility('public')} elevation={0} sx={{ flex: 1 }}>
+                <PortalCard selected={dappVisibility === 'public'} onClick={() => chooseDappVisibility('public')} elevation={0} sx={{ flex: 1, opacity: canUsePublicDapp ? 1 : 0.75 }}>
                   {dappVisibility === 'public' && (
                     <Box sx={{
                       position: 'absolute', top: 10, right: 10, zIndex: 1,
@@ -586,7 +590,15 @@ export default function Step0({
                     <AutoAwesomeMosaicIcon sx={{ fontSize: 48, color: dappVisibility === 'public' ? 'primary.main' : 'text.disabled' }} />
                   </Box>
                   <Box sx={{ p: '14px 14px 16px' }}>
-                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.5 }}>Public dApp</Typography>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                      <Typography variant="subtitle1" fontWeight={600}>Public dApp</Typography>
+                      {!canUsePublicDapp && (
+                        <Chip label="Public Dapps plan" size="small" sx={{
+                          height: 18, fontSize: '0.6rem', fontWeight: 700,
+                          bgcolor: alpha('#f59e0b', 0.12), color: '#f59e0b', border: 'none',
+                        }} />
+                      )}
+                    </Stack>
                     <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.7, display: 'block', mb: 1.5 }}>
                       Open to all users on Cerulea's public network. Anyone with a wallet can interact.
                     </Typography>
@@ -599,10 +611,16 @@ export default function Step0({
                         }} />
                       ))}
                     </Stack>
-                    <Chip label="All plans" size="small" sx={{
-                      mt: 1.5, height: 20, fontSize: '0.62rem', fontWeight: 600,
-                      bgcolor: alpha('#10b981', 0.1), color: '#10b981', border: 'none',
-                    }} />
+                    {canUsePublicDapp ? (
+                      <Chip label="Public Dapps plan" size="small" sx={{
+                        mt: 1.5, height: 20, fontSize: '0.62rem', fontWeight: 600,
+                        bgcolor: alpha('#10b981', 0.1), color: '#10b981', border: 'none',
+                      }} />
+                    ) : (
+                      <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: '#f59e0b', fontWeight: 600, fontSize: '0.65rem' }}>
+                        Requires Public Dapps plan →
+                      </Typography>
+                    )}
                   </Box>
                 </PortalCard>
 

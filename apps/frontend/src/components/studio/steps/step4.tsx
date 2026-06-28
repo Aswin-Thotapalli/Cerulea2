@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import StepGuidance from '@/components/studio/StepGuidance';
 import {
   Box, Button, Divider, IconButton, Stack, Typography, Paper, TextField,
-  Switch, FormControlLabel, Chip, Fade, InputAdornment,
+  Switch, Chip, Fade, InputAdornment,
   CircularProgress, Tooltip, Link
 } from "@mui/material";
 import { useTheme, styled, alpha } from "@mui/material/styles";
@@ -569,85 +569,6 @@ const FloatingIsland = styled(Paper)(({ theme }) => ({
   pointerEvents: 'auto',
 }));
 
-const StepPill = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(13,21,53,0.9)',
-  backdropFilter: 'blur(10px)',
-  border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
-  borderRadius: 100,
-  padding: '8px 20px',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 12,
-  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-  pointerEvents: 'auto',
-}));
-
-const CategoryRail = styled(Box)(({ theme }: { theme: any }) => ({
-  width: 260,
-  height: '100%',
-  borderRight: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-  display: 'flex',
-  flexDirection: 'column',
-  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.6)' : 'rgba(13,21,53,0.7)',
-  backdropFilter: 'blur(20px)',
-  paddingTop: 16,
-}));
-
-const CategoryItem = styled(Box, { shouldForwardProp: (p) => p !== 'active' })<{ active?: boolean }>(({ theme, active }) => ({
-  padding: '12px 20px',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 12,
-  borderRadius: 8,
-  margin: '2px 8px',
-  borderLeft: `3px solid ${active ? theme.palette.primary.main : 'transparent'}`,
-  background: active ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
-  color: active ? theme.palette.primary.main : theme.palette.text.secondary,
-  transition: 'all 0.2s ease',
-  fontWeight: active ? 700 : 500,
-  '&:hover': {
-    background: active ? alpha(theme.palette.primary.main, 0.1) : alpha(theme.palette.primary.main, 0.04),
-    color: active ? theme.palette.primary.main : theme.palette.text.primary,
-  }
-}));
-
-const ProviderList = styled(Box)(({ theme }) => ({
-  width: 300,
-  height: '100%',
-  borderRight: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
-  display: 'flex',
-  flexDirection: 'column',
-  background: theme.palette.background.paper,
-  paddingTop: 16,
-  overflowY: 'auto',
-}));
-
-const ProviderItem = styled(Box, { shouldForwardProp: (p) => p !== 'active' })<{ active?: boolean }>(({ theme, active }) => ({
-  padding: '16px 20px',
-  cursor: 'pointer',
-  borderBottom: `1px solid ${alpha(theme.palette.divider, 0.6)}`,
-  background: active ? alpha(theme.palette.primary.main, 0.06) : 'transparent',
-  borderLeft: `3px solid ${active ? theme.palette.primary.main : 'transparent'}`,
-  transition: 'all 0.2s',
-  '&:hover': {
-    background: active ? alpha(theme.palette.primary.main, 0.08) : alpha(theme.palette.primary.main, 0.03),
-    borderLeft: `3px solid ${active ? theme.palette.primary.main : alpha(theme.palette.primary.main, 0.3)}`,
-  }
-}));
-
-const ConfigPanel = styled(Box)(({ theme }) => ({
-  flex: 1,
-  height: '100%',
-  paddingTop: 24,
-  paddingBottom: 100,
-  overflowY: 'auto',
-  background: theme.palette.background.default,
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-}));
-
 /* ------------------ Components ------------------ */
 
 function getIcon(cat: IntegrationCategory) {
@@ -809,7 +730,7 @@ export default function Step4({ goPrev, goNext, projectId }: { goPrev?: () => vo
   };
 
   return (
-    <Box sx={{ width: '100%', height: '100%', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
       <StepGuidance
         stepKey="step4"
         title="Integrations"
@@ -823,200 +744,250 @@ export default function Step4({ goPrev, goNext, projectId }: { goPrev?: () => vo
         tip="Only enable integrations your app actually uses. Each enabled integration adds to your deployment footprint and monthly costs."
       />
 
-       <Box sx={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none',
-          backgroundImage: 'radial-gradient(rgba(79,70,229,0.12) 1px, transparent 1px)',
-          backgroundSize: '28px 28px'
-       }} />
+      {/* Category filter chips row */}
+      <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'background.paper', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+        {(['Payments', 'Auth', 'Communication', 'Storage', 'Data', 'Analytics', 'Webhooks'] as IntegrationCategory[]).map(cat => {
+          const isActive = activeCat === cat;
+          const enabledCount = CATALOG.filter(c => c.category === cat && configs[c.id]?.enabled).length;
+          return (
+            <Box
+              key={cat}
+              onClick={() => { setActiveCat(cat); setSelectedId(''); }}
+              sx={{
+                display: 'flex', alignItems: 'center', gap: 0.75,
+                px: 2, py: 0.75, borderRadius: 2, cursor: 'pointer',
+                bgcolor: isActive ? alpha(theme.palette.primary.main, 0.12) : alpha(theme.palette.divider, 0.3),
+                color: isActive ? 'primary.main' : 'text.secondary',
+                border: `1px solid ${isActive ? alpha(theme.palette.primary.main, 0.3) : 'transparent'}`,
+                fontWeight: isActive ? 700 : 500,
+                fontSize: '0.8rem',
+                transition: 'all 0.15s',
+                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08), color: 'primary.main' },
+              }}
+            >
+              <Box sx={{ display: 'flex', color: 'inherit' }}>{getIcon(cat)}</Box>
+              <span>{cat}</span>
+              {enabledCount > 0 && (
+                <Box sx={{ width: 18, height: 18, borderRadius: '50%', bgcolor: '#10b981', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 800 }}>
+                  {enabledCount}
+                </Box>
+              )}
+            </Box>
+          );
+        })}
+      </Box>
 
-       <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
+      {/* Main split: card grid (left) + config panel (right) */}
+      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
 
-          {/* 1. Category Rail */}
-          <CategoryRail>
-             <Box sx={{ px: 3, pb: 3, pt: 1 }}>
-               <Stack direction="row" alignItems="center" spacing={1.5} mb={1}>
-                 <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                   <HubIcon sx={{ fontSize: 18, color: 'primary.main' }} />
-                 </Box>
-                 <Typography variant="subtitle1" fontWeight={800} color="text.primary">Integrations</Typography>
-               </Stack>
-               <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-                 Connect your app to third-party services. Credentials are stored encrypted.
-               </Typography>
-             </Box>
-             <Divider sx={{ borderColor: alpha(theme.palette.primary.main, 0.1), mb: 1 }} />
-             <Stack spacing={0} sx={{ px: 1, pt: 1 }}>
-                {(["Payments", "Auth", "Communication", "Storage", "Data", "Analytics", "Webhooks"] as IntegrationCategory[]).map(cat => (
-                   <CategoryItem key={cat} active={activeCat === cat} onClick={() => { setActiveCat(cat); const first = CATALOG.find(c => c.category === cat); if (first) setSelectedId(first.id); }}>
-                      <Box sx={{ width: 30, height: 30, borderRadius: 1, bgcolor: activeCat === cat ? alpha(theme.palette.primary.main, 0.15) : alpha(theme.palette.action.hover, 0.3), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: activeCat === cat ? 'primary.main' : 'text.secondary', transition: 'all 0.2s' }}>
-                        {getIcon(cat)}
-                      </Box>
-                      <Typography variant="subtitle2" fontWeight={700}>{cat}</Typography>
-                   </CategoryItem>
-                ))}
-             </Stack>
-          </CategoryRail>
+        {/* Left: Integration card grid */}
+        <Box sx={{ flex: 1, overflowY: 'auto', p: 3, pb: 14 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 2 }}>
+            {providers.map(def => {
+              const cfg = configs[def.id];
+              const isEnabled = cfg?.enabled || false;
+              const isSelected = selectedId === def.id;
+              return (
+                <Paper
+                  key={def.id}
+                  onClick={() => setSelectedId(def.id)}
+                  variant="outlined"
+                  sx={{
+                    p: 2.5, borderRadius: 3, cursor: 'pointer',
+                    borderColor: isSelected
+                      ? alpha(theme.palette.primary.main, 0.5)
+                      : isEnabled
+                        ? alpha('#10b981', 0.3)
+                        : alpha(theme.palette.divider, 0.8),
+                    bgcolor: isSelected
+                      ? alpha(theme.palette.primary.main, 0.04)
+                      : isEnabled
+                        ? alpha('#10b981', 0.03)
+                        : 'background.paper',
+                    transition: 'all 0.15s',
+                    '&:hover': {
+                      borderColor: alpha(theme.palette.primary.main, 0.4),
+                      boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.1)}`,
+                      transform: 'translateY(-2px)',
+                    },
+                    boxShadow: isSelected ? `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}` : 'none',
+                  }}
+                >
+                  <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={1.5}>
+                    <Box sx={{
+                      width: 40, height: 40, borderRadius: 2,
+                      bgcolor: alpha(theme.palette.primary.main, 0.1),
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'primary.main',
+                    }}>
+                      {getIcon(def.category)}
+                    </Box>
+                    {isEnabled && (
+                      <CheckCircleIcon sx={{ fontSize: 16, color: '#10b981' }} />
+                    )}
+                  </Stack>
+                  <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>{def.name}</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.4, display: 'block', mb: 1.5 }}>
+                    {def.description}
+                  </Typography>
+                  <Chip
+                    label={def.category}
+                    size="small"
+                    sx={{
+                      height: 20, fontSize: '0.62rem', fontWeight: 600,
+                      bgcolor: alpha(theme.palette.primary.main, 0.08),
+                      color: 'primary.main', border: 'none',
+                    }}
+                  />
+                </Paper>
+              );
+            })}
+          </Box>
+        </Box>
 
-          {/* 2. Provider List */}
-          <ProviderList>
-             <Box sx={{ px: 3, pt: 2, pb: 1.5 }}>
-               <Typography variant="overline" fontWeight={800} color="primary" sx={{ fontSize: '0.65rem', letterSpacing: 1.5 }}>{activeCat} PROVIDERS</Typography>
-             </Box>
-             <Divider sx={{ borderColor: alpha(theme.palette.primary.main, 0.08), mb: 0.5 }} />
-             {providers.map(p => {
-               const isEnabled = configs[p.id]?.enabled;
-               const isActive = selectedId === p.id;
-               return (
-                 <ProviderItem key={p.id} active={isActive} onClick={() => setSelectedId(p.id)}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={0.5}>
-                       <Stack direction="row" alignItems="center" spacing={1.5}>
-                         <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: isActive ? alpha(theme.palette.primary.main, 0.12) : alpha(theme.palette.action.hover, 0.4), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: isActive ? 'primary.main' : 'text.secondary', transition: 'all 0.2s' }}>
-                           {getIcon(p.category)}
-                         </Box>
-                         <Typography variant="body2" fontWeight={700} color={isActive ? 'primary.main' : 'text.primary'}>{p.name}</Typography>
-                       </Stack>
-                       {isEnabled && <CheckCircleIcon fontSize="small" color="primary" sx={{ width: 16, mt: 0.5, flexShrink: 0 }} />}
+        {/* Right: Config panel */}
+        <Box sx={{
+          width: 320, flexShrink: 0, borderLeft: '1px solid', borderColor: 'divider',
+          bgcolor: 'background.paper', display: 'flex', flexDirection: 'column',
+          overflowY: 'auto', pb: 14,
+        }}>
+          {!activeDef ? (
+            <Box sx={{ p: 4, textAlign: 'center', mt: 4, color: 'text.secondary' }}>
+              <HubIcon sx={{ fontSize: 48, mb: 2, opacity: 0.3 }} />
+              <Typography variant="body2">Select an integration to configure it</Typography>
+            </Box>
+          ) : (
+            <Fade in key={activeDef.id}>
+              <Box sx={{ p: 3 }}>
+                {/* Header */}
+                <Stack direction="row" alignItems="center" spacing={2} mb={3}>
+                  <Box sx={{ width: 44, height: 44, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'primary.main' }}>
+                    {getIcon(activeDef.category)}
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="h6" fontWeight={800}>{activeDef.name}</Typography>
+                    <Typography variant="caption" color="text.secondary">{activeDef.category}</Typography>
+                  </Box>
+                </Stack>
+
+                {/* Docs link */}
+                {activeDef.docsUrl && (
+                  <Link href={activeDef.docsUrl} target="_blank" underline="hover" color="primary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: 13, fontWeight: 600, mb: 2 }}>
+                    Documentation <OpenInNewIcon sx={{ fontSize: 14 }} />
+                  </Link>
+                )}
+
+                {/* Enable toggle */}
+                <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3} p={2} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.04), borderRadius: 2, border: '1px solid', borderColor: alpha(theme.palette.primary.main, 0.1) }}>
+                  <Typography variant="body2" fontWeight={700}>Enable Integration</Typography>
+                  <Switch
+                    checked={activeConfig.enabled}
+                    onChange={e => updateConfig({ enabled: e.target.checked })}
+                    color="primary"
+                    size="small"
+                  />
+                </Stack>
+
+                {/* Credentials form — only if enabled */}
+                {activeConfig.enabled && (
+                  <Stack spacing={2.5}>
+                    {/* Environment selector */}
+                    <Stack direction="row" spacing={0.5} bgcolor={alpha(theme.palette.primary.main, 0.06)} p={0.5} borderRadius={2} border={`1px solid ${alpha(theme.palette.primary.main, 0.1)}`}>
+                      <Button
+                        size="small" fullWidth variant={activeConfig.environment === 'dev' ? 'contained' : 'text'}
+                        onClick={() => updateConfig({ environment: 'dev' })}
+                        sx={{ borderRadius: 1.5, fontWeight: 700, fontSize: '0.72rem' }}
+                      >
+                        Test Mode
+                      </Button>
+                      <Button
+                        size="small" fullWidth variant={activeConfig.environment === 'prod' ? 'contained' : 'text'}
+                        onClick={() => updateConfig({ environment: 'prod' })}
+                        color="secondary"
+                        sx={{ borderRadius: 1.5, fontWeight: 700, fontSize: '0.72rem' }}
+                      >
+                        Live Mode
+                      </Button>
                     </Stack>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, lineHeight: 1.4, pl: 0.5 }}>
-                       {p.description}
-                    </Typography>
-                 </ProviderItem>
-               );
-             })}
-          </ProviderList>
 
-          {/* 3. Config Panel */}
-          <ConfigPanel>
-             {activeDef && (
-               <Fade in key={activeDef.id}>
-                 <Box sx={{ width: '100%', maxWidth: 700, p: 4 }}>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between" mb={4}>
-                       <Stack direction="row" alignItems="center" spacing={2}>
-                          <Box sx={{ width: 48, height: 48, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}` }}>
-                            {getIcon(activeDef.category)}
-                          </Box>
-                          <Box>
-                            <Typography variant="h5" fontWeight={800}>{activeDef.name}</Typography>
-                            {activeConfig.enabled && <Chip label="Active" color="success" size="small" sx={{ mt: 0.5 }} />}
-                          </Box>
-                       </Stack>
-                       <FormControlLabel
-                          control={<Switch checked={activeConfig.enabled} onChange={e => updateConfig({ enabled: e.target.checked })} color="primary" />}
-                          label={<Typography fontWeight={700} color={activeConfig.enabled ? 'primary.main' : 'text.secondary'}>Enable</Typography>}
-                          labelPlacement="start"
-                       />
-                    </Stack>
+                    <Typography variant="subtitle2" fontWeight={700} color="text.secondary" sx={{ fontSize: '0.7rem', letterSpacing: 1 }}>CREDENTIALS</Typography>
 
-                    <Paper variant="outlined" sx={{ p: 4, borderRadius: 3, borderColor: alpha(theme.palette.primary.main, 0.15), bgcolor: alpha(theme.palette.background.paper, 0.8), opacity: activeConfig.enabled ? 1 : 0.55, pointerEvents: activeConfig.enabled ? 'auto' : 'none', transition: 'opacity 0.2s' }}>
-                       {/* Header Controls */}
-                       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
-                          <Stack direction="row" spacing={0.5} bgcolor={alpha(theme.palette.primary.main, 0.06)} p={0.5} borderRadius={2} border={`1px solid ${alpha(theme.palette.primary.main, 0.1)}`}>
-                             <Button
-                                size="small" variant={activeConfig.environment === 'dev' ? 'contained' : 'text'}
-                                onClick={() => updateConfig({ environment: 'dev' })}
-                                sx={{ borderRadius: 1.5, px: 2, fontWeight: 700 }}
-                             >
-                                Test Mode
-                             </Button>
-                             <Button
-                                size="small" variant={activeConfig.environment === 'prod' ? 'contained' : 'text'}
-                                onClick={() => updateConfig({ environment: 'prod' })}
-                                color="secondary"
-                                sx={{ borderRadius: 1.5, px: 2, fontWeight: 700 }}
-                             >
-                                Live Mode
-                             </Button>
-                          </Stack>
-                          {activeDef.docsUrl && (
-                             <Link href={activeDef.docsUrl} target="_blank" underline="hover" color="primary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: 13, fontWeight: 600 }}>
-                                Documentation <OpenInNewIcon sx={{ fontSize: 14 }} />
-                             </Link>
-                          )}
-                       </Stack>
+                    {activeDef.fields.map(field => {
+                      const envKey = `${activeConfig.environment || 'dev'}_${field.key}`;
+                      const val = activeConfig.credentials?.[envKey] || '';
+                      const err = field.validate ? field.validate(val) : null;
+                      return (
+                        <IntegrationFieldRow
+                          key={field.key}
+                          field={field}
+                          value={val}
+                          onChange={v => updateCred(field.key, v)}
+                          error={err}
+                        />
+                      );
+                    })}
 
-                       <Divider sx={{ mb: 4 }} />
+                    {/* Test button */}
+                    <Button
+                      fullWidth variant="outlined" size="small"
+                      onClick={handleTest}
+                      disabled={testing}
+                      startIcon={testing ? <CircularProgress size={14} /> : <PlayArrowIcon />}
+                      sx={{ borderRadius: 2, borderColor: alpha(theme.palette.primary.main, 0.4) }}
+                    >
+                      {testing ? 'Testing...' : 'Test Connection'}
+                    </Button>
+                    {testResult === 'success' && (
+                      <Typography variant="caption" color="success.main" fontWeight={700}>✓ Connection successful</Typography>
+                    )}
+                    {testResult === 'error' && (
+                      <Typography variant="caption" color="error.main" fontWeight={700}>✗ Check your credentials</Typography>
+                    )}
+                  </Stack>
+                )}
+              </Box>
+            </Fade>
+          )}
+        </Box>
 
-                       {/* Fields */}
-                       <Stack spacing={3}>
-                          {activeDef.fields.map(field => {
-                             // Fix: Access safely with Optional Chaining/Nullish Coalescing
-                             const envKey = `${activeConfig.environment || 'dev'}_${field.key}`;
-                             const val = activeConfig.credentials?.[envKey] ?? '';
-                             const error = val && field.validate ? field.validate(val) : null;
-                             
-                             return (
-                                <IntegrationFieldRow 
-                                  key={field.key}
-                                  field={field}
-                                  value={val}
-                                  onChange={(v) => updateCred(field.key, v)}
-                                  error={error}
-                                />
-                             );
-                          })}
-                       </Stack>
+      </Box>
 
-                       {/* Test Action */}
-                       <Box sx={{ mt: 4, pt: 3, borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`, display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Button
-                             variant="outlined" startIcon={testing ? <CircularProgress size={16} /> : <PlayArrowIcon />}
-                             onClick={handleTest}
-                             disabled={testing}
-                             sx={{ borderRadius: 999, px: 3, fontWeight: 700, borderColor: alpha(theme.palette.primary.main, 0.4), '&:hover': { borderColor: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.04) } }}
-                          >
-                             Test Connection
-                          </Button>
-                          
-                          {testResult === 'success' && (
-                             <Fade in><Chip icon={<CheckCircleIcon />} label="Connected Successfully" color="success" variant="outlined" /></Fade>
-                          )}
-                          {testResult === 'error' && (
-                             <Fade in><Chip icon={<CloseIcon />} label="Connection Failed" color="error" variant="outlined" /></Fade>
-                          )}
-                       </Box>
-                    </Paper>
-                 </Box>
-               </Fade>
-             )}
-          </ConfigPanel>
+      {/* Dock */}
+      <Box sx={{ position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+        <FloatingIsland elevation={6}>
+          <Tooltip title="Back">
+            <IconButton onClick={goPrev ? goPrev : () => router.back()} size="small" sx={{ border: '1px solid', borderColor: 'divider' }}>
+              <ArrowBackIcon />
+            </IconButton>
+          </Tooltip>
+          <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
+          <Tooltip title="Help">
+            <IconButton size="small" color="primary" onClick={() => setIsHelpOpen(true)}><QuestionMarkIcon fontSize="small" /></IconButton>
+          </Tooltip>
+          <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
+          <Button variant="contained" onClick={handleSave} endIcon={<ArrowForwardIcon />} sx={{ borderRadius: 100, px: 3, fontWeight: 700 }}>
+            Complete
+          </Button>
+        </FloatingIsland>
+      </Box>
 
-       </Box>
-
-       {/* Dock */}
-       <Box sx={{ position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
-          <FloatingIsland elevation={6}>
-             <Tooltip title="Back">
-               <IconButton onClick={goPrev ? goPrev : () => router.back()} size="small" sx={{border: '1px solid', borderColor:'divider'}}>
-                  <ArrowBackIcon />
-               </IconButton>
-             </Tooltip>
-             <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
-             <Tooltip title="Help">
-                <IconButton size="small" color="primary" onClick={() => setIsHelpOpen(true)}><QuestionMarkIcon fontSize="small" /></IconButton>
-             </Tooltip>
-             <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
-             <Button variant="contained" onClick={handleSave} endIcon={<ArrowForwardIcon />} sx={{ borderRadius: 100, px: 3, fontWeight: 700 }}>
-                Complete
-             </Button>
-          </FloatingIsland>
-       </Box>
-
-       {/* Help Dialog */}
-       <Dialog open={isHelpOpen} onClose={() => setIsHelpOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4, bgcolor: 'background.paper', color: 'text.primary' } }}>
-          <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 3 }}>
-             <Typography variant="h6" fontWeight={800}>Integrations Guide</Typography>
-             <IconButton onClick={() => setIsHelpOpen(false)}><CloseIcon /></IconButton>
-          </DialogTitle>
-          <DialogContent dividers sx={{ p: 4 }}>
-             <Typography variant="body1" paragraph>
-                Connect your application to external services.
-             </Typography>
-             <Typography variant="body2" color="text.secondary">
-                • <b>Dev vs Prod:</b> Use 'Test Mode' keys for local development. Switch to 'Live Mode' before deploying.<br/>
-                • <b>Webhooks:</b> Ensure your webhook secret matches what is in your provider dashboard to verify signatures.<br/>
-                • <b>Validation:</b> Use the 'Test Connection' button to verify your API keys are active and have correct permissions.
-             </Typography>
-          </DialogContent>
-       </Dialog>
+      {/* Help Dialog */}
+      <Dialog open={isHelpOpen} onClose={() => setIsHelpOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4, bgcolor: 'background.paper', color: 'text.primary' } }}>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 3 }}>
+          <Typography variant="h6" fontWeight={800}>Integrations Guide</Typography>
+          <IconButton onClick={() => setIsHelpOpen(false)}><CloseIcon /></IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 4 }}>
+          <Typography variant="body1" paragraph>
+            Connect your application to external services.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            • <b>Dev vs Prod:</b> Use 'Test Mode' keys for local development. Switch to 'Live Mode' before deploying.<br/>
+            • <b>Webhooks:</b> Ensure your webhook secret matches what is in your provider dashboard to verify signatures.<br/>
+            • <b>Validation:</b> Use the 'Test Connection' button to verify your API keys are active and have correct permissions.
+          </Typography>
+        </DialogContent>
+      </Dialog>
 
     </Box>
   );
