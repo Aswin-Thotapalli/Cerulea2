@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  AppBar, Toolbar, Typography, Button, IconButton, Box, Tooltip,
+  AppBar, Toolbar, Button, IconButton, Box, Tooltip,
 } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import { useEffect } from 'react';
@@ -17,6 +17,7 @@ import { useThemeToggle } from '@/app/providers';
 
 export default function NavBar() {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { toggleTheme } = useThemeToggle();
   const { data: session, status, update } = useSession();
 
@@ -36,18 +37,20 @@ export default function NavBar() {
     >
       <Toolbar sx={{ gap: 0.5 }}>
         {/* Logo */}
-        <Box component={Link} href="/" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1.25, textDecoration: 'none' }}>
-          <Image
-            src="/brand/logo.png"
-            alt="Cerulea"
-            width={36}
-            height={36}
-            style={{ objectFit: 'contain' }}
-            priority
-          />
-          <Typography variant="h6" fontWeight={800} sx={{ color: 'text.primary', letterSpacing: -0.5 }}>
-            Cerulea Studio
-          </Typography>
+        <Box component={Link} href="/" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+          <Box sx={{
+            display: 'inline-flex', alignItems: 'center',
+            ...(isDark && { bgcolor: 'rgba(255,255,255,0.93)', borderRadius: '8px', px: 1, py: 0.25 }),
+          }}>
+            <Image
+              src="/brand/logo-studio.png"
+              alt="Cerulea Studio"
+              width={180}
+              height={54}
+              style={{ objectFit: 'contain', width: 'auto', height: 44 }}
+              priority
+            />
+          </Box>
         </Box>
 
         {/* Theme toggle */}
