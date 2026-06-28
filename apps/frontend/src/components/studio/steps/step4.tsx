@@ -556,7 +556,7 @@ const CATALOG: IntegrationDef[] = [
 /* ------------------ Styled Components ------------------ */
 
 const FloatingIsland = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(20, 20, 23, 0.95)',
+  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(8, 14, 36, 0.95)',
   backdropFilter: 'blur(16px)',
   border: `1px solid ${theme.palette.divider}`,
   boxShadow: '0 20px 40px -8px rgba(0, 0, 0, 0.3)',
@@ -570,7 +570,7 @@ const FloatingIsland = styled(Paper)(({ theme }) => ({
 }));
 
 const StepPill = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(20, 20, 23, 0.9)',
+  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(8, 14, 36, 0.9)',
   backdropFilter: 'blur(10px)',
   border: `1px solid ${theme.palette.divider}`,
   borderRadius: 100,
@@ -588,7 +588,7 @@ const CategoryRail = styled(Box)(({ theme }) => ({
   borderRight: `1px solid ${theme.palette.divider}`,
   display: 'flex',
   flexDirection: 'column',
-  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.5)' : 'rgba(10,10,12,0.5)',
+  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.5)' : 'rgba(8,14,36,0.4)',
   backdropFilter: 'blur(20px)',
   paddingTop: 80, 
 }));
@@ -616,7 +616,7 @@ const ProviderList = styled(Box)(({ theme }) => ({
   borderRight: `1px solid ${theme.palette.divider}`,
   display: 'flex',
   flexDirection: 'column',
-  background: theme.palette.mode === 'light' ? '#fff' : '#0a0a0c',
+  background: theme.palette.mode === 'light' ? '#fff' : '#0D1535',
   paddingTop: 80,
   overflowY: 'auto',
 }));
@@ -638,7 +638,7 @@ const ConfigPanel = styled(Box)(({ theme }) => ({
   paddingTop: 80,
   paddingBottom: 100,
   overflowY: 'auto',
-  background: theme.palette.mode === 'light' ? '#f8fafc' : '#121214',
+  background: theme.palette.mode === 'light' ? '#f8fafc' : '#080E24',
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
@@ -804,11 +804,11 @@ export default function Step4({ goPrev, goNext, projectId }: { goPrev?: () => vo
   };
 
   return (
-    <Box sx={{ width: '100%', position: 'fixed', inset: 0, top: 64, bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ width: '100%', height: '100%', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
       <StepGuidance
         stepKey="step4"
         title="Integrations"
-        subtitle="STEP 5 OF 7"
+        subtitle="Step 5 of 6"
         description="Connect your application to external services: payment processors, KYC providers, storage, oracles, and more. Each integration adds a pre-built connector to your deployment."
         steps={[
           { first: 'Review available integrations', next: 'Browse the list of supported services like Stripe, Sumsub KYC, Chainlink Oracle, and IPFS.' },
@@ -818,8 +818,8 @@ export default function Step4({ goPrev, goNext, projectId }: { goPrev?: () => vo
         tip="Only enable integrations your app actually uses. Each enabled integration adds to your deployment footprint and monthly costs."
       />
 
-       <Box sx={{ position: 'absolute', inset: 0, opacity: 0.3, zIndex: -1,
-          backgroundImage: theme.palette.mode === 'light' ? 'radial-gradient(#ccc 1px, transparent 1px)' : 'radial-gradient(#333 1px, transparent 1px)',
+       <Box sx={{ position: 'absolute', inset: 0, opacity: 0.5, zIndex: -1,
+          backgroundImage: theme.palette.mode === 'light' ? 'radial-gradient(rgba(79,70,229,0.07) 1px, transparent 1px)' : 'radial-gradient(rgba(79,70,229,0.13) 1px, transparent 1px)',
           backgroundSize: '24px 24px'
        }} />
 

@@ -325,7 +325,7 @@ function PlanCard({
       sx={{
         flex: 1,
         borderRadius: 3,
-        border: `1px solid ${selected ? accentColor : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+        border: `1px solid ${selected ? accentColor : theme.palette.divider}`,
         borderTop: `3px solid ${accentColor}`,
         background: isDark ? alpha(theme.palette.background.paper, 0.8) : theme.palette.background.paper,
         position: 'relative',
@@ -343,7 +343,7 @@ function PlanCard({
             </Typography>
           )}
 
-          <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.75, color: isDark ? 'text.primary' : '#0f172a' }}>
+          <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.75, color: 'text.primary' }}>
             {plan.planName}
           </Typography>
 
@@ -354,12 +354,12 @@ function PlanCard({
           )}
 
           {plan.period && (
-            <Typography variant="body2" sx={{ mb: 2.5, fontWeight: 500, color: isFree ? (isDark ? 'text.secondary' : '#64748b') : alpha(accentColor, 0.85) }}>
+            <Typography variant="body2" sx={{ mb: 2.5, fontWeight: 500, color: isFree ? 'text.secondary' : alpha(accentColor, 0.85) }}>
               {plan.period}
             </Typography>
           )}
 
-          <Typography variant="body1" sx={{ color: isDark ? 'text.secondary' : '#334155', lineHeight: 1.65 }}>
+          <Typography variant="body1" sx={{ color: 'text.secondary', lineHeight: 1.65 }}>
             {plan.tagline}
           </Typography>
         </Box>

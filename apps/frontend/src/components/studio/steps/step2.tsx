@@ -148,7 +148,7 @@ const MODULE_CATEGORIES: Record<string, string> = {};
 /* Styled Components                                                   */
 /* ------------------------------------------------------------------ */
 const FloatingIsland = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.95)' : 'rgba(20,20,23,0.95)',
+  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.95)' : 'rgba(8,14,36,0.95)',
   backdropFilter: 'blur(16px)',
   border: `1px solid ${theme.palette.divider}`,
   boxShadow: '0 20px 40px -8px rgba(0,0,0,0.3)',
@@ -162,7 +162,7 @@ const FloatingIsland = styled(Paper)(({ theme }) => ({
 }));
 
 const StepPill = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(20,20,23,0.9)',
+  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(8,14,36,0.9)',
   backdropFilter: 'blur(10px)',
   border: `1px solid ${theme.palette.divider}`,
   borderRadius: 100,
@@ -180,7 +180,7 @@ const PhaseSidebar = styled(Box)(({ theme }) => ({
   borderRight: `1px solid ${theme.palette.divider}`,
   display: 'flex',
   flexDirection: 'column',
-  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.5)' : 'rgba(10,10,12,0.5)',
+  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.5)' : 'rgba(8,14,36,0.4)',
   backdropFilter: 'blur(20px)',
   paddingTop: 80,
   overflowY: 'auto',
@@ -216,7 +216,7 @@ const OPAQUE_MENU_PROPS = {
   PaperProps: {
     sx: {
       backgroundImage: 'none',
-      backgroundColor: (t: any) => t.palette.mode === 'light' ? '#ffffff' : '#1e1e20',
+      backgroundColor: (t: any) => t.palette.mode === 'light' ? '#ffffff' : '#0D1535',
       border: '1px solid',
       borderColor: 'divider',
       boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
@@ -1461,7 +1461,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                       </Box>
                     )}
                     {mode === 'code' && (
-                      <Box sx={{ height: 380, bgcolor: theme.palette.mode === 'dark' ? '#0d0d0f' : '#1e1e1e' }}>
+                      <Box sx={{ height: 380, bgcolor: theme.palette.mode === 'dark' ? '#080E24' : '#1e1e1e' }}>
                         <CustomScriptPanel projectId="" />
                       </Box>
                     )}
@@ -1577,7 +1577,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
   /* Main render                                                      */
   /* ---------------------------------------------------------------- */
   return (
-    <Box sx={{ width: '100%', position: 'fixed', inset: 0, top: 64, bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ width: '100%', height: '100%', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
 
       {/* Background dot grid */}
       <Box sx={{

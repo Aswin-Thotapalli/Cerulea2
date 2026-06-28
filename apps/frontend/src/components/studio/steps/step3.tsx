@@ -35,7 +35,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
 // 1. Navigation Dock
 const FloatingIsland = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(20, 20, 23, 0.95)',
+  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(8, 14, 36, 0.95)',
   backdropFilter: 'blur(16px)',
   border: `1px solid ${theme.palette.divider}`,
   boxShadow: '0 20px 40px -8px rgba(0, 0, 0, 0.3)',
@@ -50,7 +50,7 @@ const FloatingIsland = styled(Paper)(({ theme }) => ({
 
 // 2. Step Indicator Pill
 const StepPill = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(20, 20, 23, 0.9)',
+  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(8, 14, 36, 0.9)',
   backdropFilter: 'blur(10px)',
   border: `1px solid ${theme.palette.divider}`,
   borderRadius: 100,
@@ -69,7 +69,7 @@ const PhaseSidebar = styled(Box)(({ theme }) => ({
   borderRight: `1px solid ${theme.palette.divider}`,
   display: 'flex',
   flexDirection: 'column',
-  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.5)' : 'rgba(10,10,12,0.5)',
+  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.5)' : 'rgba(8,14,36,0.4)',
   backdropFilter: 'blur(20px)',
   paddingTop: 80, 
 }));
@@ -110,7 +110,7 @@ const SectionCard = styled(Paper)(({ theme }) => ({
   padding: 32,
   borderRadius: 24,
   border: `1px solid ${theme.palette.divider}`,
-  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.6)' : 'rgba(20,20,24,0.6)',
+  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.6)' : 'rgba(8,14,36,0.6)',
   backdropFilter: 'blur(12px)',
   marginBottom: 24,
 }));
@@ -120,7 +120,7 @@ const OPAQUE_MENU_PROPS = {
   PaperProps: {
     sx: {
       backgroundImage: 'none',
-      backgroundColor: (t: any) => t.palette.mode === 'light' ? '#ffffff' : '#1e1e20',
+      backgroundColor: (t: any) => t.palette.mode === 'light' ? '#ffffff' : '#0D1535',
       border: '1px solid',
       borderColor: 'divider',
       boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
@@ -997,23 +997,23 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
   );
 
   return (
-    <Box sx={{ width: '100%', position: 'fixed', inset: 0, top: 64, bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ width: '100%', height: '100%', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
       <StepGuidance
         stepKey="step3"
         title="Token Economics"
-        subtitle="STEP 4 OF 7"
+        subtitle="Step 4 of 6"
         description="Configure the economic model for your application: token supply, staking rules, governance parameters, and fee structures. These settings define how value flows through your system."
         steps={[
           { first: 'Set up your token', next: 'Configure name, symbol, total supply, and whether the token is mintable or has a burn mechanism.' },
           { first: 'Configure staking', next: 'Set APY rates, lock-up periods, and slashing conditions if your app involves validators or stakers.' },
           { first: 'Set governance rules', next: 'Define quorum percentages, voting periods, and proposal thresholds for on-chain governance.' },
         ]}
-        tip={"If you're not sure about exact numbers, use the suggested defaults. These can be adjusted before deployment via a governance proposal."}
+        tip="If you're not sure about exact numbers, use the suggested defaults. These can be adjusted before deployment via a governance proposal."
       />
 
        {/* Background */}
-       <Box sx={{ position: 'absolute', inset: 0, opacity: 0.3, zIndex: -1,
-          backgroundImage: theme.palette.mode === 'light' ? 'radial-gradient(#ccc 1px, transparent 1px)' : 'radial-gradient(#333 1px, transparent 1px)',
+       <Box sx={{ position: 'absolute', inset: 0, opacity: 0.5, zIndex: -1,
+          backgroundImage: theme.palette.mode === 'light' ? 'radial-gradient(rgba(79,70,229,0.07) 1px, transparent 1px)' : 'radial-gradient(rgba(79,70,229,0.13) 1px, transparent 1px)',
           backgroundSize: '24px 24px'
        }} />
 

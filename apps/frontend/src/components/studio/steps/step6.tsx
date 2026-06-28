@@ -45,7 +45,7 @@ type DeployMeta = {
 /* ------------------ Styled Components ------------------ */
 
 const FloatingIsland = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(20, 20, 23, 0.95)',
+  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(8, 14, 36, 0.95)',
   backdropFilter: 'blur(16px)',
   border: `1px solid ${theme.palette.divider}`,
   boxShadow: '0 20px 40px -8px rgba(0, 0, 0, 0.3)',
@@ -59,7 +59,7 @@ const FloatingIsland = styled(Paper)(({ theme }) => ({
 }));
 
 const StepPill = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(20, 20, 23, 0.9)',
+  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(8, 14, 36, 0.9)',
   backdropFilter: 'blur(10px)',
   border: `1px solid ${theme.palette.divider}`,
   borderRadius: 100,
@@ -72,7 +72,7 @@ const StepPill = styled(Paper)(({ theme }) => ({
 }));
 
 const TerminalWindow = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? '#f5f5f5' : '#0a0a0c',
+  background: theme.palette.mode === 'light' ? '#f5f5f5' : '#080E24',
   border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
   borderRadius: 16,
   overflow: 'hidden',
@@ -86,7 +86,7 @@ const TerminalWindow = styled(Paper)(({ theme }) => ({
 }));
 
 const TerminalHeader = styled(Box)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? '#e0e0e0' : '#141416',
+  background: theme.palette.mode === 'light' ? '#e0e0e0' : '#0D1535',
   padding: '12px 16px',
   display: 'flex',
   alignItems: 'center',
@@ -118,14 +118,14 @@ const SummaryCard = styled(Paper)(({ theme }) => ({
   padding: 24,
   borderRadius: 20,
   border: `1px solid ${theme.palette.divider}`,
-  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.6)' : 'rgba(20,20,24,0.6)',
+  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.6)' : 'rgba(8,14,36,0.6)',
   backdropFilter: 'blur(12px)',
 }));
 
 const MetricCard = styled(Paper)(({ theme }) => ({
   padding: 16,
   borderRadius: 16,
-  background: theme.palette.mode === 'light' ? '#fff' : '#13151C',
+  background: theme.palette.mode === 'light' ? '#fff' : '#0D1535',
   border: `1px solid ${theme.palette.divider}`,
   display: 'flex',
   flexDirection: 'column',
@@ -416,10 +416,10 @@ export default function Step6({ goPrev }: { goPrev?: () => void }) {
 
   return (
     <>
-      <Box sx={{ width: '100%', position: 'fixed', inset: 0, top: 64, bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ width: '100%', height: '100%', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
 
          <Box sx={{ position: 'absolute', inset: 0, opacity: 0.3, zIndex: -1,
-            backgroundImage: theme.palette.mode === 'light' ? 'radial-gradient(#ccc 1px, transparent 1px)' : 'radial-gradient(#333 1px, transparent 1px)',
+            backgroundImage: theme.palette.mode === 'light' ? 'radial-gradient(rgba(79,70,229,0.07) 1px, transparent 1px)' : 'radial-gradient(rgba(79,70,229,0.13) 1px, transparent 1px)',
             backgroundSize: '24px 24px'
          }} />
 

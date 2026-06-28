@@ -9,7 +9,7 @@ export default function Hero() {
   const y = useTransform(scrollY, [0, 300], [0, -80]); // subtle parallax on copy
 
   return (
-    <Box sx={{ position: 'relative', overflow: 'hidden', borderBottom: (t) => `1px solid ${t.palette.grey[200]}` }}>
+    <Box sx={{ position: 'relative', overflow: 'hidden', borderBottom: (t) => `1px solid ${t.palette.divider}` }}>
       {/* Background video */}
       <Box sx={{ position: 'absolute', inset: 0, zIndex: 0, opacity: 0.35 }}>
         <video

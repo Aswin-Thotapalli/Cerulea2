@@ -1,14 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import StepGuidance from '@/components/studio/StepGuidance';
 import { useStudio } from '@/context/StudioContext';
 import { useSession } from 'next-auth/react';
 import AuthModal from '@/components/auth/AuthModal';
 import {
-  Box, Grid, Typography, Stack, Paper, Button, Chip, TextField, Select, MenuItem,
-  InputLabel, FormControl, IconButton, Tooltip, Divider,
-  Dialog, DialogTitle, DialogContent, DialogActions, Tabs, Tab, Fade
+  Box, Typography, Stack, Paper, Button, Chip, TextField, Select, MenuItem,
+  InputLabel, FormControl, Divider,
+  Dialog, DialogTitle, DialogContent, DialogActions, Fade,
 } from '@mui/material';
 import { useTheme, styled, alpha } from '@mui/material/styles';
 
@@ -22,8 +21,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import DomainIcon from '@mui/icons-material/Domain';
 import DnsIcon from '@mui/icons-material/Dns';
 import BoltIcon from '@mui/icons-material/Bolt';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
+import CheckIcon from '@mui/icons-material/Check';
 
 /* ---------- Types ---------- */
 type Workspace = { id: string; name: string; slug: string; createdAt: string };
@@ -48,134 +46,127 @@ function slugify(raw: string) {
   return raw.toLowerCase().normalize('NFKD').replace(/[^\w\s-]+/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-').slice(0, 60);
 }
 
+const PHASE_TO_SUBSTEP: Record<Step0Phase, number> = {
+  'choose-type': 0,
+  'legacy-question': 1,
+  'gallery': 2,
+  'details': 3,
+};
+
 /* ---------- Styled Components ---------- */
 
-// 1. The Floating Dock (Now behaves as a static footer item in flex)
+// Floating pill dock at bottom
 const FloatingIsland = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' 
-    ? 'rgba(255, 255, 255, 0.95)' 
-    : 'rgba(20, 20, 23, 0.95)',
+  background: theme.palette.mode === 'light'
+    ? 'rgba(255,255,255,0.96)'
+    : 'rgba(8,14,36,0.96)',
   backdropFilter: 'blur(16px) saturate(180%)',
-  border: `1px solid ${theme.palette.divider}`,
-  boxShadow: '0 20px 40px -8px rgba(0, 0, 0, 0.3)',
+  border: `0.5px solid ${theme.palette.divider}`,
+  boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, theme.palette.mode === 'light' ? 0.1 : 0.2)}`,
   borderRadius: 100,
-  padding: '8px 24px',
-  display: 'flex',
+  padding: '5px 6px',
+  display: 'inline-flex',
   alignItems: 'center',
-  gap: 16,
-  transition: 'all 0.3s ease',
+  gap: 4,
+  transition: 'all 0.2s ease',
 }));
 
-// 2. Phase 1: Portal Card
+// Type selection card (choose-type + legacy-question phases)
 const PortalCard = styled(Paper, { shouldForwardProp: (p) => p !== 'selected' })<{ selected?: boolean }>(({ theme, selected }) => ({
-  height: 360,
   width: '100%',
-  maxWidth: 420,
   display: 'flex',
   flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
   cursor: 'pointer',
   position: 'relative',
-  borderRadius: 32,
-  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.8)' : 'rgba(30,30,35,0.6)',
-  backdropFilter: 'blur(12px)',
-  border: `2px solid ${selected ? theme.palette.primary.main : 'transparent'}`,
-  boxShadow: selected 
-    ? `0 0 0 4px ${alpha(theme.palette.primary.main, 0.2)}` 
-    : '0 24px 48px -12px rgba(0,0,0,0.1)',
-  transition: 'all 0.3s ease',
-  '&:hover': {
-    transform: 'translateY(-8px)',
-    boxShadow: '0 32px 64px -12px rgba(0,0,0,0.15)',
-    borderColor: theme.palette.divider,
-  }
-}));
-
-// 3. Phase 2: Stack Row (Wide, Vertical List)
-const StackRow = styled(Paper, { shouldForwardProp: (p) => p !== 'selected' })<{ selected?: boolean }>(({ theme, selected }) => ({
-  position: 'relative',
-  padding: '20px 24px',
-  borderRadius: 16,
-  cursor: 'pointer',
-  background: selected 
-    ? alpha(theme.palette.primary.main, 0.04)
-    : (theme.palette.mode === 'light' ? '#fff' : '#18181b'),
-  border: `1px solid ${selected ? theme.palette.primary.main : theme.palette.divider}`,
-  boxShadow: selected 
-    ? `0 0 0 2px ${theme.palette.primary.main}` 
-    : '0 2px 4px rgba(0,0,0,0.02)',
-  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 24,
+  borderRadius: 14,
+  background: theme.palette.background.paper,
+  border: `${selected ? 1.5 : 0.5}px solid ${selected ? theme.palette.primary.main : theme.palette.divider}`,
+  boxShadow: selected
+    ? `0 0 0 3px ${alpha(theme.palette.primary.main, 0.08)}, 0 2px 8px ${alpha(theme.palette.primary.main, 0.08)}`
+    : `0 1px 4px ${alpha(theme.palette.mode === 'light' ? '#0F1629' : '#000', 0.04)}`,
+  overflow: 'hidden',
+  transition: 'all 0.15s ease',
   '&:hover': {
     borderColor: theme.palette.primary.main,
-    transform: 'translateX(4px)',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-  }
+    boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.12)}`,
+    transform: 'translateY(-2px)',
+  },
 }));
 
-// 4. Phase 3: Split Glass Panel
+// Gallery grid card
+const GalleryCard = styled(Paper, { shouldForwardProp: (p) => p !== 'selected' })<{ selected?: boolean }>(({ theme, selected }) => ({
+  padding: 14,
+  borderRadius: 12,
+  cursor: 'pointer',
+  background: selected
+    ? (theme.palette.mode === 'light' ? '#FDFCFF' : alpha(theme.palette.primary.main, 0.06))
+    : theme.palette.background.paper,
+  border: `${selected ? 1.5 : 0.5}px solid ${selected ? theme.palette.primary.main : theme.palette.divider}`,
+  boxShadow: selected ? `0 0 0 3px ${alpha(theme.palette.primary.main, 0.08)}` : 'none',
+  transition: 'all 0.15s ease',
+  position: 'relative',
+  '&:hover': {
+    borderColor: theme.palette.primary.main,
+    boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.07)}`,
+  },
+}));
+
+// Split configure panel
 const SplitGlassPanel = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' 
-    ? 'rgba(255, 255, 255, 0.95)' 
-    : 'rgba(20, 20, 23, 0.95)',
-  backdropFilter: 'blur(20px) saturate(180%)',
-  border: `1px solid ${theme.palette.divider}`,
-  boxShadow: '0 32px 64px -16px rgba(0, 0, 0, 0.4)',
-  borderRadius: 24,
+  background: theme.palette.background.paper,
+  border: `0.5px solid ${theme.palette.divider}`,
+  borderRadius: 16,
   overflow: 'hidden',
   display: 'flex',
   flexDirection: 'column',
   width: '100%',
   maxWidth: 1100,
-  // FLEXIBLE HEIGHT: It will fill the available space in the flex container
-  flex: 1, 
-  minHeight: 0, 
-  [theme.breakpoints.up('md')]: {
-    flexDirection: 'row',
-  },
-  [theme.breakpoints.down('md')]: {
-    height: 'auto',
-    flex: 'none',
-  }
+  flex: 1,
+  minHeight: 0,
+  [theme.breakpoints.up('md')]: { flexDirection: 'row' },
+  [theme.breakpoints.down('md')]: { height: 'auto', flex: 'none' },
 }));
 
 const ConfigSection = styled(Box)(({ theme }) => ({
   flex: 1,
-  padding: 40,
+  padding: 32,
   overflowY: 'auto',
   height: '100%',
-  '&::-webkit-scrollbar': { width: '6px' },
+  '&::-webkit-scrollbar': { width: '5px' },
   '&::-webkit-scrollbar-track': { background: 'transparent' },
   '&::-webkit-scrollbar-thumb': {
-    backgroundColor: theme.palette.mode === 'light' ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)',
+    backgroundColor: alpha(theme.palette.primary.main, 0.15),
     borderRadius: '3px',
   },
 }));
 
-// Opaque Menu
+// Opaque menu props (no near-black)
 const OPAQUE_MENU_PROPS = {
   PaperProps: {
     sx: {
       backgroundImage: 'none',
-      backgroundColor: (t: any) => t.palette.mode === 'light' ? '#ffffff' : '#1e1e20',
-      border: '1px solid',
+      backgroundColor: (t: any) => t.palette.background.paper,
+      border: '0.5px solid',
       borderColor: 'divider',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-    }
-  }
+      boxShadow: (t: any) => `0 8px 32px ${alpha(t.palette.primary.main, 0.1)}`,
+    },
+  },
 };
 
 /* ====================================================================== */
-export default function Step0({ goNext }: { goNext: () => void }) {
+export default function Step0({
+  goNext,
+  onSubStepChange,
+}: {
+  goNext: () => void;
+  onSubStepChange?: (subStep: number) => void;
+}) {
   const theme = useTheme();
   const { projectType, templateId, appMetadata, workspaceId, setStudioState } = useStudio();
   const { data: session } = useSession();
 
-  // State
-  const [phase, setPhase] = React.useState<Step0Phase>(projectType ? 'gallery' : 'choose-type');
+  /* ---- State ---- */
+  const [phase, setPhaseRaw] = React.useState<Step0Phase>(projectType ? 'gallery' : 'choose-type');
   const [dType, setDType] = React.useState<ProjectType | null>(projectType);
   const [authModalOpen, setAuthModalOpen] = React.useState(false);
   const [pendingType, setPendingType] = React.useState<ProjectType | null>(null);
@@ -187,8 +178,8 @@ export default function Step0({ goNext }: { goNext: () => void }) {
   const [selectedTemplate, setSelectedTemplate] = React.useState<string | null>(templateId ?? null);
   const [search, setSearch] = React.useState('');
   const [categoryFilter, setCategoryFilter] = React.useState('All');
-  
-  // Form State
+
+  // Form state
   const [name, setName] = React.useState(appMetadata?.appName ?? '');
   const [slug, setSlug] = React.useState(slugify(appMetadata?.appName ?? ''));
   const [slugDirty, setSlugDirty] = React.useState(false);
@@ -198,14 +189,28 @@ export default function Step0({ goNext }: { goNext: () => void }) {
   // Dialogs
   const [wsDialogOpen, setWsDialogOpen] = React.useState(false);
   const [wsNewName, setWsNewName] = React.useState('');
+  const [wsType, setWsType] = React.useState<'personal' | 'team'>('personal');
 
-  // Deep Config
+  // Deep config
   const [dappDetails, setDappDetails] = React.useState({
     network: 'cerulea-testnet', tokenFocus: [] as string[], royalties: 5, monetization: [] as string[], emailSender: '',
   });
   const [chainDetails, setChainDetails] = React.useState({
-    consensus: 'PoA', region: 'apac-south', initialValidators: 2, nativeToken: { symbol: 'CER', decimals: 18 }, feeModel: { baseGas: 1, burnPct: 0.2, validatorSharePct: 0.8 },
+    consensus: 'PoA', region: 'apac-south', initialValidators: 2,
+    nativeToken: { symbol: 'CER', decimals: 18 },
+    feeModel: { baseGas: 1, burnPct: 0.2, validatorSharePct: 0.8 },
   });
+
+  /* ---- Phase helper — reports to shell sidebar ---- */
+  const setPhase = React.useCallback((p: Step0Phase) => {
+    setPhaseRaw(p);
+    onSubStepChange?.(PHASE_TO_SUBSTEP[p] ?? 0);
+  }, [onSubStepChange]);
+
+  // Report initial phase on mount
+  React.useEffect(() => {
+    onSubStepChange?.(PHASE_TO_SUBSTEP[phase] ?? 0);
+  }, []); // eslint-disable-line
 
   /* ---- Effects ---- */
   React.useEffect(() => {
@@ -229,7 +234,7 @@ export default function Step0({ goNext }: { goNext: () => void }) {
 
   React.useEffect(() => {
     if (dType && phase === 'gallery' && templates.length === 0) loadTemplates(dType);
-  }, [dType, phase]);
+  }, [dType, phase]); // eslint-disable-line
 
   React.useEffect(() => { if (!slugDirty) setSlug(slugify(name)); }, [name, slugDirty]);
 
@@ -249,12 +254,7 @@ export default function Step0({ goNext }: { goNext: () => void }) {
   };
 
   const chooseType = (ptype: ProjectType) => {
-    // Gate: require login before Blueprint selection
-    if (!session) {
-      setPendingType(ptype);
-      setAuthModalOpen(true);
-      return;
-    }
+    if (!session) { setPendingType(ptype); setAuthModalOpen(true); return; }
     if (ptype === 'blockchain') {
       setDType(ptype);
       setLegacyStep('has-legacy');
@@ -281,11 +281,10 @@ export default function Step0({ goNext }: { goNext: () => void }) {
   const selectTemplate = (tpl: Template | null) => {
     const id = tpl?.id ?? null;
     setSelectedTemplate(id);
-    
     if (tpl) {
-       setName(prev => prev || tpl.title);
-       setSlug(prev => prev || slugify(tpl.title));
-       setDescription(prev => prev || tpl.description);
+      setName(prev => prev || tpl.title);
+      setSlug(prev => prev || slugify(tpl.title));
+      setDescription(prev => prev || tpl.description);
     }
   };
 
@@ -297,45 +296,42 @@ export default function Step0({ goNext }: { goNext: () => void }) {
 
   const onInitialize = async () => {
     if (!dType || !name || name.trim().length < 3 || !slug) return;
-
     const payload: any = {
-      name, slug, description, projectType: dType, templateId: selectedTemplate ?? null, workspaceId: wsId || null,
+      name, slug, description, projectType: dType,
+      templateId: selectedTemplate ?? null, workspaceId: wsId || null,
       details: dType === 'dapp' ? { dapp: dappDetails } : { blockchain: chainDetails },
     };
-
     try {
       const res = await fetch('/api/projects', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
       if (!res.ok) { alert('Failed to create project'); return; }
       const proj = await res.json();
       setStudioState({ projectId: proj.id, slug: proj.slug, appMetadata: { appName: name, appDescription: description } });
-
-      // Seed Step 1
       if (typeof window !== 'undefined') {
         localStorage.removeItem('cerulea.step1.graph');
         let modulesToLoad: string[] = [];
         if (selectedTemplate && selectedTemplate !== 'scratch') {
-           const tpl = templates.find(t => t.id === selectedTemplate);
-           if (tpl) modulesToLoad = tpl.preinstalledModules || [];
+          const tpl = templates.find(t => t.id === selectedTemplate);
+          if (tpl) modulesToLoad = tpl.preinstalledModules || [];
         }
         localStorage.setItem('cerulea.templateModules', JSON.stringify(modulesToLoad));
         localStorage.setItem('cerulea.projectType', dType);
       }
-
       goNext();
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { console.error(e); }
   };
 
   const createWorkspace = async () => {
     if (!wsNewName.trim()) return;
     try {
-      const res = await fetch('/api/workspaces', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: wsNewName.trim() }) });
+      const res = await fetch('/api/workspaces', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: wsNewName.trim(), type: wsType }),
+      });
       if (!res.ok) throw new Error();
       const ws = await res.json();
       setWorkspaces((w) => [ws, ...w]);
       setWsId(ws.id);
-    } catch { alert('Create failed'); } finally { setWsDialogOpen(false); }
+    } catch { alert('Create failed'); } finally { setWsDialogOpen(false); setWsNewName(''); }
   };
 
   const categories = React.useMemo(() => {
@@ -345,40 +341,36 @@ export default function Step0({ goNext }: { goNext: () => void }) {
 
   const filteredTemplates = React.useMemo(() => {
     let arr = templates;
-    if (categoryFilter !== 'All') {
-       arr = arr.filter(t => t.category === categoryFilter);
-    }
+    if (categoryFilter !== 'All') arr = arr.filter(t => t.category === categoryFilter);
     if (search.trim()) {
       arr = arr.filter(t => `${t.title} ${t.description} ${t.tags.join(' ')}`.toLowerCase().includes(search.toLowerCase()));
     }
     return arr;
   }, [templates, search, categoryFilter]);
 
+  const selectedTemplateName = React.useMemo(() => {
+    if (!selectedTemplate) return null;
+    if (selectedTemplate === 'scratch') return 'Blank canvas';
+    return templates.find(t => t.id === selectedTemplate)?.title ?? 'Template';
+  }, [selectedTemplate, templates]);
+
+  /* ---- Helpers for back navigation ---- */
+  const goBackFromGallery = () => {
+    if (dType === 'blockchain') setPhase('legacy-question');
+    else setPhase('choose-type');
+  };
+
+  /* ================================================================ */
   return (
-    // MAIN LAYOUT: Flex Column
     <Box sx={{
       width: '100%',
-      position: 'fixed', inset: 0, top: 64,
+      height: '100%',
       overflow: 'hidden',
       bgcolor: 'background.default',
       display: 'flex',
-      flexDirection: 'column'
+      flexDirection: 'column',
     }}>
-
-      <StepGuidance
-        stepKey="step0"
-        title="Choose Your Project Type"
-        subtitle="STEP 1 OF 7"
-        description="This is where your project begins. Select whether you're building a decentralized application (dApp) or deploying a Private Blockchain network."
-        steps={[
-          { first: 'Pick a project type', next: 'Select "dApp" for public blockchain applications or "Private Blockchain" for enterprise deployments.' },
-          { first: 'Browse templates', next: 'Choose a starting template that matches your use case (DEX, NFT Marketplace, Governance, etc.).' },
-          { first: 'Configure basics', next: 'Enter your project name and set up foundational parameters like consensus and token details.' },
-        ]}
-        tip="Not sure which to pick? dApp is for consumer-facing products. Private Blockchain is for internal enterprise systems with custom governance."
-      />
-
-      {/* Auth gate modal appears after choose-type if user is not logged in */}
+      {/* Auth gate modal */}
       <AuthModal
         open={authModalOpen}
         title="Sign in to continue"
@@ -395,361 +387,643 @@ export default function Step0({ goNext }: { goNext: () => void }) {
         }}
         onClose={() => setAuthModalOpen(false)}
       />
-      
-      {/* Background Ambience */}
-      <Box sx={{ position: 'absolute', inset: 0, opacity: 0.4, zIndex: -1, 
-         backgroundImage: theme.palette.mode === 'light' 
-           ? 'radial-gradient(#ccc 1px, transparent 1px)' 
-           : 'radial-gradient(#333 1px, transparent 1px)', 
-         backgroundSize: '32px 32px',
-         maskImage: 'radial-gradient(ellipse at center, black 40%, transparent 100%)'
+
+      {/* Subtle dot-grid background */}
+      <Box sx={{
+        position: 'absolute', inset: 0, opacity: 0.5, zIndex: 0, pointerEvents: 'none',
+        backgroundImage: `radial-gradient(${alpha(theme.palette.primary.main, theme.palette.mode === 'light' ? 0.07 : 0.12)} 1px, transparent 1px)`,
+        backgroundSize: '28px 28px',
+        maskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%)',
       }} />
 
-      {/* CONTENT AREA: Takes available space, scrolls if needed */}
-      <Box sx={{ 
-        flex: 1, 
-        width: '100%', 
-        overflowY: 'auto', 
+      {/* ══════════════════════════════════════════════════════════ */}
+      {/* CONTENT AREA — scrollable, phases render here            */}
+      {/* ══════════════════════════════════════════════════════════ */}
+      <Box sx={{
+        flex: 1,
+        width: '100%',
+        overflowY: 'auto',
         overflowX: 'hidden',
-        display: 'flex', 
-        flexDirection: 'column', 
+        display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
-        pt: 4, 
-        pb: 2 
+        pt: 4,
+        pb: 2,
+        position: 'relative',
+        zIndex: 1,
       }}>
-        
-        {/* PHASE 1: CHOOSE TYPE */}
+
+        {/* ─── PHASE: CHOOSE TYPE ─── */}
         {phase === 'choose-type' && (
-           <Fade in mountOnEnter unmountOnExit timeout={400}>
-             <Stack spacing={6} alignItems="center" justifyContent="center" sx={{ width: '100%', maxWidth: 1000, px: 4, my: 'auto' }}>
-                <Stack spacing={1} textAlign="center">
-                   <Typography variant="overline" fontWeight={800} color="primary" sx={{ letterSpacing: 1 }}>STEP 1 OF 6: PROJECT FOUNDATION</Typography>
-                   <Typography variant="h3" fontWeight={900} sx={{ letterSpacing: -1 }}>What are you building?</Typography>
-                   <Typography variant="h6" color="text.secondary" fontWeight={400}>This determines the modules, templates, and infrastructure available to you.</Typography>
-                </Stack>
+          <Fade in mountOnEnter unmountOnExit timeout={350}>
+            <Stack spacing={5} alignItems="center" justifyContent="center"
+              sx={{ width: '100%', maxWidth: 560, px: 3, my: 'auto' }}>
 
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} width="100%" justifyContent="center">
-                   <PortalCard onClick={() => chooseType('dapp')}>
-                      <Box sx={{ p: 3, mb: 3, borderRadius: '50%', bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}><AutoAwesomeMosaicIcon sx={{ fontSize: 64 }} /></Box>
-                      <Typography variant="h4" fontWeight={800} gutterBottom>dApp</Typography>
-                      <Typography variant="body1" color="text.secondary" align="center" sx={{ px: 4 }}>
-                        A decentralised application that runs on a shared public blockchain. Users own their data and assets via wallets.
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 2, opacity: 0.7 }}>e.g. NFT marketplace, DeFi platform, DAO voting app</Typography>
-                   </PortalCard>
-
-                   <PortalCard onClick={() => chooseType('blockchain')}>
-                      <Box sx={{ p: 3, mb: 3, borderRadius: '50%', bgcolor: alpha(theme.palette.secondary.main, 0.1), color: 'secondary.main' }}><LanIcon sx={{ fontSize: 64 }} /></Box>
-                      <Typography variant="h4" fontWeight={800} gutterBottom>Private Blockchain</Typography>
-                      <Typography variant="body1" color="text.secondary" align="center" sx={{ px: 4 }}>
-                        A fully owned, sovereign blockchain network with your own consensus, validators, and token. You control who participates.
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 2, opacity: 0.7 }}>e.g. Supply chain ledger, CBDC, enterprise settlement network</Typography>
-                   </PortalCard>
-                </Stack>
-             </Stack>
-           </Fade>
-        )}
-
-        {/* PHASE 1.5: LEGACY QUESTION (only for Private Blockchain) */}
-        {phase === 'legacy-question' && (
-           <Fade in mountOnEnter unmountOnExit timeout={400}>
-             <Stack spacing={6} alignItems="center" justifyContent="center" sx={{ width: '100%', maxWidth: 760, px: 4, my: 'auto' }}>
-                <Stack spacing={1} textAlign="center">
-                   <Typography variant="overline" fontWeight={800} color="primary" sx={{ letterSpacing: 1 }}>STEP 1 OF 6: PRIVATE BLOCKCHAIN</Typography>
-                   {legacyStep === 'has-legacy' ? (
-                     <>
-                       <Typography variant="h3" fontWeight={900} sx={{ letterSpacing: -1 }}>Existing Systems?</Typography>
-                       <Typography variant="h6" color="text.secondary" fontWeight={400}>
-                         Do you have an existing legacy system you want to integrate or migrate?
-                       </Typography>
-                     </>
-                   ) : (
-                     <>
-                       <Typography variant="h3" fontWeight={900} sx={{ letterSpacing: -1 }}>Integration Strategy</Typography>
-                       <Typography variant="h6" color="text.secondary" fontWeight={400}>
-                         How would you like to proceed with your legacy system?
-                       </Typography>
-                     </>
-                   )}
-                </Stack>
-
-                {legacyStep === 'has-legacy' ? (
-                  <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} width="100%" justifyContent="center">
-                     <PortalCard onClick={() => handleLegacyChoice(true)} sx={{ height: 280, maxWidth: 340 }}>
-                        <Box sx={{ p: 3, mb: 2, borderRadius: '50%', bgcolor: alpha(theme.palette.warning.main, 0.1), color: 'warning.main' }}>
-                           <DnsIcon sx={{ fontSize: 48 }} />
-                        </Box>
-                        <Typography variant="h5" fontWeight={800} gutterBottom>Yes, I have one</Typography>
-                        <Typography variant="body2" color="text.secondary" align="center" sx={{ px: 3 }}>I want to integrate with or migrate from an existing system (ERP, CRM, database, etc.)</Typography>
-                     </PortalCard>
-
-                     <PortalCard onClick={() => handleLegacyChoice(false)} sx={{ height: 280, maxWidth: 340 }}>
-                        <Box sx={{ p: 3, mb: 2, borderRadius: '50%', bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main' }}>
-                           <BoltIcon sx={{ fontSize: 48 }} />
-                        </Box>
-                        <Typography variant="h5" fontWeight={800} gutterBottom>No, starting fresh</Typography>
-                        <Typography variant="body2" color="text.secondary" align="center" sx={{ px: 3 }}>Building everything on blockchain from scratch, no legacy systems to deal with.</Typography>
-                     </PortalCard>
-                  </Stack>
-                ) : (
-                  <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} width="100%" justifyContent="center">
-                     <PortalCard onClick={() => handleLegacyProceed('connect')} sx={{ height: 320, maxWidth: 340 }}>
-                        <Box sx={{ p: 3, mb: 2, borderRadius: '50%', bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
-                           <DnsIcon sx={{ fontSize: 48 }} />
-                        </Box>
-                        <Typography variant="h5" fontWeight={800} gutterBottom>Connect (Hybrid)</Typography>
-                        <Typography variant="body2" color="text.secondary" align="center" sx={{ px: 3 }}>
-                           Keep your existing system running. Add a blockchain layer alongside it for auditability, tokenisation, or governance.
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, opacity: 0.7 }}>Least disruption, recommended for most enterprises</Typography>
-                     </PortalCard>
-
-                     <PortalCard onClick={() => handleLegacyProceed('port')} sx={{ height: 320, maxWidth: 340 }}>
-                        <Box sx={{ p: 3, mb: 2, borderRadius: '50%', bgcolor: alpha(theme.palette.secondary.main, 0.1), color: 'secondary.main' }}>
-                           <LanIcon sx={{ fontSize: 48 }} />
-                        </Box>
-                        <Typography variant="h5" fontWeight={800} gutterBottom>Full Port (Migrate)</Typography>
-                        <Typography variant="body2" color="text.secondary" align="center" sx={{ px: 3 }}>
-                           Migrate all your data and business logic from the legacy system onto the new blockchain. Clean slate, fully decentralised.
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, opacity: 0.7 }}>Maximum transformation, for greenfield replacements</Typography>
-                     </PortalCard>
-                  </Stack>
-                )}
-
-                {legacyStep === 'how-to-proceed' && (
-                  <Button variant="text" onClick={() => setLegacyStep('has-legacy')} startIcon={<ArrowBackIcon />}>
-                    Back
-                  </Button>
-                )}
-             </Stack>
-           </Fade>
-        )}
-
-        {/* PHASE 2: GALLERY (Vertical Stack of Wide Cards) */}
-        {phase === 'gallery' && (
-           <Fade in mountOnEnter unmountOnExit timeout={400}>
-             <Box sx={{ width: '100%', maxWidth: 900, px: 4 }}>
-                {/* Header */}
-                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-                   <Box>
-                      <Typography variant="overline" fontWeight={800} color="primary">
-                        STEP 1 OF 6: {dType === 'blockchain' ? 'PRIVATE BLOCKCHAIN' : 'DAPP'}{legacyMode !== 'none' ? ` · LEGACY ${legacyMode.toUpperCase()}` : ''}
-                      </Typography>
-                      <Typography variant="h4" fontWeight={900}>Choose a Starting Template</Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        Templates pre-install relevant modules so you don't start from zero. You can add or remove modules in the next step.
-                      </Typography>
-                   </Box>
-                   <Stack direction="row" alignItems="center" spacing={3}>
-                      <Tabs value={categoryFilter} onChange={(_, v) => setCategoryFilter(v)} sx={{ minHeight: 0 }}>
-                         {categories.map(c => <Tab key={c} value={c} label={c} sx={{ minHeight: 0, fontWeight: 600 }} />)}
-                      </Tabs>
-                      <TextField 
-                         placeholder="Search..." size="small" value={search} onChange={e => setSearch(e.target.value)}
-                         InputProps={{ startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} /> }}
-                         sx={{ width: 220 }}
-                      />
-                   </Stack>
-                </Stack>
-
-                {/* Vertical Stack List */}
-                <Stack spacing={2} sx={{ pb: 4 }}>
-                   {/* Scratch */}
-                   <StackRow 
-                      selected={selectedTemplate === 'scratch'}
-                      onClick={() => selectTemplate({ id: 'scratch', title: 'Blank Canvas', description: 'Start from scratch with an empty workspace.', tags:['Custom'], preinstalledModules: [] } as any)}
-                   >
-                      <Box sx={{ width: 48, height: 48, borderRadius: 3, bgcolor: alpha(theme.palette.text.secondary, 0.1), display:'flex', alignItems:'center', justifyContent:'center', color:'text.secondary' }}>
-                         <AddIcon />
-                      </Box>
-                      <Box sx={{ flex: 1 }}>
-                         <Typography variant="h6" fontWeight={700}>Blank Canvas</Typography>
-                         <Typography variant="body2" color="text.secondary">Build from zero</Typography>
-                      </Box>
-                      {selectedTemplate === 'scratch' ? <CheckCircleIcon color="primary" /> : <RadioButtonUncheckedIcon color="disabled" />}
-                   </StackRow>
-
-                   {filteredTemplates.map(t => (
-                      <StackRow 
-                         key={t.id}
-                         selected={selectedTemplate === t.id}
-                         onClick={() => selectTemplate(t)}
-                      >
-                         <Box sx={{ width: 48, height: 48, borderRadius: 3, bgcolor: alpha(theme.palette.primary.main, 0.1), display:'flex', alignItems:'center', justifyContent:'center', color:'primary.main' }}>
-                            <BoltIcon />
-                         </Box>
-                         <Box sx={{ flex: 1 }}>
-                            <Stack direction="row" alignItems="center" spacing={2} mb={0.5}>
-                               <Typography variant="h6" fontWeight={700}>{t.title}</Typography>
-                               <Chip label={t.category} size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700 }} />
-                            </Stack>
-                            <Typography variant="body2" color="text.secondary">{t.description}</Typography>
-                            <Stack direction="row" spacing={1} mt={1}>
-                               {(t.tags || []).slice(0,3).map(tag => (
-                                  <Typography key={tag} variant="caption" sx={{ opacity: 0.6, fontFamily: 'monospace' }}>#{tag}</Typography>
-                               ))}
-                            </Stack>
-                         </Box>
-                         {selectedTemplate === t.id ? <CheckCircleIcon color="primary" /> : <RadioButtonUncheckedIcon color="disabled" />}
-                      </StackRow>
-                   ))}
-                </Stack>
-             </Box>
-           </Fade>
-        )}
-
-        {/* PHASE 3: CONFIGURATION (Split Glass Panel - Fits in content area) */}
-        {phase === 'details' && (
-           <Fade in mountOnEnter unmountOnExit timeout={400}>
-             <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', px: 4 }}>
-                <Box sx={{ width: '100%', maxWidth: 1100, mb: 2 }}>
-                   <Typography variant="overline" fontWeight={800} color="primary">STEP 1 OF 6: PROJECT CONFIGURATION</Typography>
-                   <Typography variant="h4" fontWeight={900}>Configure Your Project</Typography>
-                   <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                     Give your project a name and configure the core parameters. These settings define how your {dType === 'blockchain' ? 'blockchain network' : 'dApp'} will be deployed.
-                   </Typography>
+              {/* Badge */}
+              <Stack spacing={1.5} alignItems="center" textAlign="center">
+                <Box sx={{
+                  display: 'inline-flex', alignItems: 'center', gap: 0.6,
+                  bgcolor: 'background.paper', border: '0.5px solid', borderColor: 'divider',
+                  borderRadius: 99, px: 1.5, py: 0.4,
+                }}>
+                  <Typography sx={{ fontSize: '0.65rem', color: 'primary.main', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                    Step 1 of 6 · Foundation
+                  </Typography>
                 </Box>
+                <Typography variant="h4" fontWeight={500} sx={{ letterSpacing: '-0.5px', color: 'text.primary', lineHeight: 1.2 }}>
+                  What are you building?
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7, maxWidth: 380 }}>
+                  Your choice determines the module catalog, templates, and deployment targets available to you.
+                </Typography>
+              </Stack>
 
-                <SplitGlassPanel elevation={0}>
-                   {/* Left: Identity */}
-                   <ConfigSection sx={{ borderRight: { md: `1px solid ${theme.palette.divider}` }, bgcolor: alpha(theme.palette.background.default, 0.4) }}>
-                      <Stack direction="row" alignItems="center" spacing={2} mb={4}>
-                         <DomainIcon color="primary" fontSize="large" />
-                         <Box>
-                            <Typography variant="h5" fontWeight={800}>Identity</Typography>
-                            <Typography variant="caption" color="text.secondary">Naming & Workspace</Typography>
-                         </Box>
-                      </Stack>
-                      
-                      <Stack spacing={4}>
-                         <TextField label="Project Name" fullWidth value={name} onChange={e => setName(e.target.value)} variant="outlined" />
-                         <TextField label="Slug" fullWidth value={slug} onChange={e => {setSlug(e.target.value); setSlugDirty(true);}} helperText={`cerulea.studio/${slug}`} />
-                         <Box>
-                            <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
-                               <InputLabel>Workspace</InputLabel>
-                               <Button size="small" onClick={() => {setWsDialogOpen(true); setWsNewName('');}} startIcon={<AddIcon />}>New</Button>
-                            </Stack>
-                            <Select fullWidth value={wsId} onChange={e => {setWsId(e.target.value); setStudioState({workspaceId: e.target.value});}} displayEmpty MenuProps={OPAQUE_MENU_PROPS as any}>
-                               <MenuItem value="">Personal Project</MenuItem>
-                               {workspaces.map(w => <MenuItem key={w.id} value={w.id}>{w.name}</MenuItem>)}
-                            </Select>
-                         </Box>
-                         <TextField label="Description" multiline rows={3} fullWidth value={description} onChange={e => setDescription(e.target.value)} placeholder="Brief description..." />
-                      </Stack>
-                   </ConfigSection>
+              {/* Type cards */}
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} width="100%">
+                {/* dApp */}
+                <PortalCard selected={dType === 'dapp'} onClick={() => chooseType('dapp')} elevation={0}>
+                  {dType === 'dapp' && (
+                    <Box sx={{
+                      position: 'absolute', top: 10, right: 10, zIndex: 1,
+                      width: 20, height: 20, borderRadius: '50%', bgcolor: 'primary.main',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <CheckIcon sx={{ fontSize: 11, color: '#fff' }} />
+                    </Box>
+                  )}
+                  <Box sx={{
+                    height: 108,
+                    bgcolor: dType === 'dapp' ? alpha(theme.palette.primary.main, 0.07) : alpha(theme.palette.primary.main, 0.03),
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'background 0.15s',
+                  }}>
+                    <AutoAwesomeMosaicIcon sx={{ fontSize: 48, color: dType === 'dapp' ? 'primary.main' : 'text.disabled' }} />
+                  </Box>
+                  <Box sx={{ p: '14px 14px 16px' }}>
+                    <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 0.5 }}>dApp</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.7, display: 'block', mb: 1.5 }}>
+                      Public chain. Users own assets through wallets.
+                    </Typography>
+                    <Stack direction="row" gap={0.5} flexWrap="wrap">
+                      {['NFT', 'DeFi', 'DAO'].map(tag => (
+                        <Chip key={tag} label={tag} size="small" sx={{
+                          height: 20, fontSize: '0.65rem', fontWeight: 500,
+                          bgcolor: alpha(theme.palette.primary.main, 0.08),
+                          color: 'primary.main', border: 'none',
+                        }} />
+                      ))}
+                    </Stack>
+                  </Box>
+                </PortalCard>
 
-                   {/* Right: Technical */}
-                   <ConfigSection>
-                      <Stack direction="row" alignItems="center" spacing={2} mb={4}>
-                         {dType === 'dapp' ? <DnsIcon color="secondary" fontSize="large" /> : <BoltIcon color="secondary" fontSize="large" />}
-                         <Box>
-                            <Typography variant="h5" fontWeight={800}>{dType === 'dapp' ? 'Network Specs' : 'Genesis Params'}</Typography>
-                            <Typography variant="caption" color="text.secondary">Technical Configuration</Typography>
-                         </Box>
-                      </Stack>
+                {/* Private Blockchain */}
+                <PortalCard selected={dType === 'blockchain'} onClick={() => chooseType('blockchain')} elevation={0}>
+                  {dType === 'blockchain' && (
+                    <Box sx={{
+                      position: 'absolute', top: 10, right: 10, zIndex: 1,
+                      width: 20, height: 20, borderRadius: '50%', bgcolor: 'primary.main',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <CheckIcon sx={{ fontSize: 11, color: '#fff' }} />
+                    </Box>
+                  )}
+                  <Box sx={{
+                    height: 108,
+                    bgcolor: dType === 'blockchain' ? alpha(theme.palette.primary.main, 0.07) : alpha(theme.palette.primary.main, 0.03),
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'background 0.15s',
+                  }}>
+                    <LanIcon sx={{ fontSize: 48, color: dType === 'blockchain' ? 'primary.main' : 'text.disabled' }} />
+                  </Box>
+                  <Box sx={{ p: '14px 14px 16px' }}>
+                    <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 0.5 }}>Private blockchain</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.7, display: 'block', mb: 1.5 }}>
+                      Sovereign network you control end to end.
+                    </Typography>
+                    <Stack direction="row" gap={0.5} flexWrap="wrap">
+                      {['Enterprise', 'CBDC'].map(tag => (
+                        <Chip key={tag} label={tag} size="small" sx={{
+                          height: 20, fontSize: '0.65rem', fontWeight: 500,
+                          bgcolor: alpha(theme.palette.primary.main, 0.06),
+                          color: 'text.secondary', border: 'none',
+                        }} />
+                      ))}
+                    </Stack>
+                  </Box>
+                </PortalCard>
+              </Stack>
+            </Stack>
+          </Fade>
+        )}
 
-                      {dType === 'dapp' 
-                         ? <DappDetails value={dappDetails} onChange={setDappDetails} />
-                         : <ChainDetails value={chainDetails} onChange={setChainDetails} />
+        {/* ─── PHASE: LEGACY QUESTION ─── */}
+        {phase === 'legacy-question' && (
+          <Fade in mountOnEnter unmountOnExit timeout={350}>
+            <Stack spacing={5} alignItems="center" justifyContent="center"
+              sx={{ width: '100%', maxWidth: 560, px: 3, my: 'auto' }}>
+
+              <Stack spacing={1.5} alignItems="center" textAlign="center">
+                <Box sx={{
+                  display: 'inline-flex', alignItems: 'center', gap: 0.6,
+                  bgcolor: 'background.paper', border: '0.5px solid', borderColor: 'divider',
+                  borderRadius: 99, px: 1.5, py: 0.4,
+                }}>
+                  <Typography sx={{ fontSize: '0.65rem', color: 'primary.main', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                    Private blockchain · Step 1 of 6
+                  </Typography>
+                </Box>
+                <Typography variant="h4" fontWeight={500} sx={{ letterSpacing: '-0.5px', color: 'text.primary', lineHeight: 1.2 }}>
+                  {legacyStep === 'has-legacy' ? 'Existing systems?' : 'Integration strategy'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7, maxWidth: 380 }}>
+                  {legacyStep === 'has-legacy'
+                    ? 'Do you have a legacy system you want to integrate with or migrate onto the blockchain?'
+                    : 'How would you like to proceed with your existing system?'}
+                </Typography>
+              </Stack>
+
+              {legacyStep === 'has-legacy' ? (
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} width="100%">
+                  <PortalCard onClick={() => handleLegacyChoice(true)} elevation={0}>
+                    <Box sx={{ height: 96, bgcolor: alpha(theme.palette.primary.main, 0.04), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <DnsIcon sx={{ fontSize: 44, color: 'text.disabled' }} />
+                    </Box>
+                    <Box sx={{ p: '14px 14px 16px' }}>
+                      <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 0.5 }}>Yes, I have one</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.65, display: 'block' }}>
+                        Integrate with or migrate from an ERP, CRM, or database system.
+                      </Typography>
+                    </Box>
+                  </PortalCard>
+
+                  <PortalCard onClick={() => handleLegacyChoice(false)} elevation={0}>
+                    <Box sx={{ height: 96, bgcolor: alpha(theme.palette.primary.main, 0.07), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <BoltIcon sx={{ fontSize: 44, color: 'primary.main' }} />
+                    </Box>
+                    <Box sx={{ p: '14px 14px 16px' }}>
+                      <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 0.5 }}>No, starting fresh</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.65, display: 'block' }}>
+                        Building everything on-chain from scratch.
+                      </Typography>
+                    </Box>
+                  </PortalCard>
+                </Stack>
+              ) : (
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} width="100%">
+                  <PortalCard onClick={() => handleLegacyProceed('connect')} elevation={0}>
+                    <Box sx={{ height: 96, bgcolor: alpha(theme.palette.primary.main, 0.04), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <LanIcon sx={{ fontSize: 44, color: 'text.disabled' }} />
+                    </Box>
+                    <Box sx={{ p: '14px 14px 16px' }}>
+                      <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 0.5 }}>Connect (Hybrid)</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.65, display: 'block', mb: 1 }}>
+                        Keep your existing system running alongside a new blockchain layer.
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'primary.main', fontSize: '0.65rem' }}>
+                        Recommended · least disruption
+                      </Typography>
+                    </Box>
+                  </PortalCard>
+
+                  <PortalCard onClick={() => handleLegacyProceed('port')} elevation={0}>
+                    <Box sx={{ height: 96, bgcolor: alpha(theme.palette.primary.main, 0.04), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <AutoAwesomeMosaicIcon sx={{ fontSize: 44, color: 'text.disabled' }} />
+                    </Box>
+                    <Box sx={{ p: '14px 14px 16px' }}>
+                      <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 0.5 }}>Full port (Migrate)</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.65, display: 'block', mb: 1 }}>
+                        Migrate all data and logic from the legacy system onto the new chain.
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+                        Maximum transformation
+                      </Typography>
+                    </Box>
+                  </PortalCard>
+                </Stack>
+              )}
+
+              {/* Inline back for the how-to-proceed sub-step */}
+              {legacyStep === 'how-to-proceed' && (
+                <Button
+                  size="small" variant="text" startIcon={<ArrowBackIcon />}
+                  onClick={() => setLegacyStep('has-legacy')}
+                  sx={{ color: 'text.secondary' }}
+                >
+                  Back
+                </Button>
+              )}
+            </Stack>
+          </Fade>
+        )}
+
+        {/* ─── PHASE: GALLERY (2-column grid) ─── */}
+        {phase === 'gallery' && (
+          <Fade in mountOnEnter unmountOnExit timeout={350}>
+            <Box sx={{ width: '100%', maxWidth: 860, px: 3 }}>
+              {/* Gallery header */}
+              <Box sx={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                mb: 2, gap: 2,
+              }}>
+                <Box>
+                  <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.7, color: 'primary.main', mb: 0.5 }}>
+                    {dType === 'blockchain' ? 'Private blockchain' : 'dApp'}
+                    {legacyMode !== 'none' ? ` · ${legacyMode === 'connect' ? 'Connect' : 'Full port'}` : ''} · Templates
+                  </Typography>
+                  <Typography variant="h5" fontWeight={500} sx={{ letterSpacing: '-0.3px', color: 'text.primary' }}>
+                    Choose a starting template
+                  </Typography>
+                </Box>
+                <Box sx={{
+                  display: 'flex', alignItems: 'center', gap: 1,
+                  bgcolor: 'background.paper', border: '0.5px solid', borderColor: 'divider',
+                  borderRadius: 2, px: 1.5, py: 0.75,
+                }}>
+                  <SearchIcon sx={{ fontSize: 15, color: 'text.secondary' }} />
+                  <input
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search..."
+                    style={{
+                      border: 'none', outline: 'none', background: 'transparent',
+                      fontSize: '0.75rem', width: 140,
+                      color: theme.palette.text.primary,
+                    }}
+                  />
+                </Box>
+              </Box>
+
+              {/* Category tabs */}
+              <Box sx={{ display: 'flex', gap: 0.75, mb: 2, flexWrap: 'wrap' }}>
+                {categories.map(c => (
+                  <Box
+                    key={c}
+                    onClick={() => setCategoryFilter(c)}
+                    sx={{
+                      px: 1.75, py: 0.4, borderRadius: 99, cursor: 'pointer',
+                      fontSize: '0.7rem', fontWeight: 500,
+                      bgcolor: categoryFilter === c ? 'primary.main' : 'background.paper',
+                      color: categoryFilter === c ? '#fff' : 'text.secondary',
+                      border: '0.5px solid',
+                      borderColor: categoryFilter === c ? 'primary.main' : 'divider',
+                      transition: 'all 0.15s',
+                      userSelect: 'none',
+                    }}
+                  >
+                    {c}
+                  </Box>
+                ))}
+              </Box>
+
+              {/* 2-column grid */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5, pb: 4 }}>
+                {/* Blank canvas */}
+                <GalleryCard
+                  selected={selectedTemplate === 'scratch'}
+                  elevation={0}
+                  onClick={() => selectTemplate({ id: 'scratch', title: 'Blank Canvas', description: 'Start from scratch.', category: 'Custom', tags: [], preinstalledModules: [] } as any)}
+                >
+                  {selectedTemplate === 'scratch' && (
+                    <Box sx={{
+                      position: 'absolute', top: 10, right: 10,
+                      width: 16, height: 16, borderRadius: '50%', bgcolor: 'primary.main',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <CheckIcon sx={{ fontSize: 9, color: '#fff' }} />
+                    </Box>
+                  )}
+                  <Box sx={{
+                    width: 34, height: 34, borderRadius: '8px',
+                    bgcolor: alpha(theme.palette.primary.main, 0.05),
+                    border: `1px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    mb: 1.25,
+                  }}>
+                    <AddIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                  </Box>
+                  <Typography variant="body2" fontWeight={500} sx={{ mb: 0.5 }}>Blank canvas</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                    Zero pre-installed modules
+                  </Typography>
+                  <Chip label="0 modules" size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: alpha(theme.palette.primary.main, 0.05), color: 'text.secondary' }} />
+                </GalleryCard>
+
+                {/* Templates from API */}
+                {filteredTemplates.map(t => (
+                  <GalleryCard key={t.id} selected={selectedTemplate === t.id} elevation={0} onClick={() => selectTemplate(t)}>
+                    {selectedTemplate === t.id && (
+                      <Box sx={{
+                        position: 'absolute', top: 10, right: 10,
+                        width: 16, height: 16, borderRadius: '50%', bgcolor: 'primary.main',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <CheckIcon sx={{ fontSize: 9, color: '#fff' }} />
+                      </Box>
+                    )}
+                    <Box sx={{
+                      width: 34, height: 34, borderRadius: '8px',
+                      bgcolor: alpha(theme.palette.primary.main, 0.07),
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1.25,
+                    }}>
+                      <BoltIcon sx={{ fontSize: 17, color: 'primary.main' }} />
+                    </Box>
+                    <Stack direction="row" alignItems="center" spacing={0.75} mb={0.5} pr={2.5}>
+                      <Typography variant="body2" fontWeight={500}>{t.title}</Typography>
+                      <Chip label={t.category} size="small" sx={{
+                        height: 16, fontSize: '0.58rem', fontWeight: 500,
+                        bgcolor: alpha(theme.palette.primary.main, 0.08), color: 'primary.main',
+                      }} />
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, lineHeight: 1.5 }}>
+                      {t.description}
+                    </Typography>
+                    <Chip
+                      label={`${t.preinstalledModules?.length ?? 0} modules`}
+                      size="small"
+                      sx={{ height: 18, fontSize: '0.6rem', bgcolor: alpha(theme.palette.primary.main, 0.05), color: 'text.secondary' }}
+                    />
+                  </GalleryCard>
+                ))}
+
+                {loadingTemplates && (
+                  <Box sx={{ gridColumn: '1/-1', py: 3, textAlign: 'center' }}>
+                    <Typography variant="caption" color="text.secondary">Loading templates…</Typography>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          </Fade>
+        )}
+
+        {/* ─── PHASE: DETAILS (split configure) ─── */}
+        {phase === 'details' && (
+          <Fade in mountOnEnter unmountOnExit timeout={350}>
+            <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', px: 3 }}>
+              <Box sx={{ width: '100%', maxWidth: 1100, mb: 2 }}>
+                <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.7, color: 'primary.main', mb: 0.5 }}>
+                  {dType === 'blockchain' ? 'Private blockchain' : 'dApp'}
+                  {selectedTemplateName ? ` · ${selectedTemplateName}` : ''} · Configure
+                </Typography>
+                <Typography variant="h5" fontWeight={500} sx={{ letterSpacing: '-0.3px', color: 'text.primary' }}>
+                  Configure your project
+                </Typography>
+              </Box>
+
+              <SplitGlassPanel elevation={0}>
+                {/* Left: Identity */}
+                <ConfigSection sx={{ borderRight: { md: `0.5px solid ${theme.palette.divider}` } }}>
+                  <Stack direction="row" alignItems="center" spacing={1.5} mb={3}>
+                    <Box sx={{ width: 28, height: 28, borderRadius: '7px', bgcolor: alpha(theme.palette.primary.main, 0.08), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <DomainIcon sx={{ fontSize: 15, color: 'primary.main' }} />
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" fontWeight={500}>Identity</Typography>
+                      <Typography variant="caption" color="text.secondary">Naming & workspace</Typography>
+                    </Box>
+                  </Stack>
+
+                  <Stack spacing={2.5}>
+                    <TextField
+                      label="Project name" fullWidth value={name}
+                      onChange={e => setName(e.target.value)} variant="outlined" size="small"
+                    />
+                    <TextField
+                      label="Slug" fullWidth value={slug} size="small"
+                      onChange={e => { setSlug(e.target.value); setSlugDirty(true); }}
+                      helperText={
+                        <Typography component="span" sx={{ fontSize: '0.7rem', color: 'primary.main', fontFamily: 'monospace' }}>
+                          studio.cerulea.io/{slug}
+                        </Typography>
                       }
-                   </ConfigSection>
-                </SplitGlassPanel>
-             </Box>
-           </Fade>
+                    />
+                    <Box>
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={0.75}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500, textTransform: 'uppercase', fontSize: '0.62rem', letterSpacing: 0.4 }}>
+                          Workspace
+                        </Typography>
+                        <Button
+                          size="small" startIcon={<AddIcon sx={{ fontSize: 12 }} />}
+                          onClick={() => { setWsDialogOpen(true); setWsNewName(''); setWsType('personal'); }}
+                          sx={{ fontSize: '0.7rem', p: '2px 8px', minWidth: 0, color: 'primary.main' }}
+                        >
+                          New
+                        </Button>
+                      </Stack>
+                      <Select
+                        fullWidth value={wsId} size="small"
+                        onChange={e => { setWsId(e.target.value); setStudioState({ workspaceId: e.target.value }); }}
+                        displayEmpty MenuProps={OPAQUE_MENU_PROPS as any}
+                      >
+                        <MenuItem value="">Personal project</MenuItem>
+                        {workspaces.map(w => <MenuItem key={w.id} value={w.id}>{w.name}</MenuItem>)}
+                      </Select>
+                    </Box>
+                    <TextField
+                      label="Description" multiline rows={3} fullWidth size="small"
+                      value={description} onChange={e => setDescription(e.target.value)}
+                      placeholder="Brief description of what this project does…"
+                    />
+                  </Stack>
+                </ConfigSection>
+
+                {/* Right: Technical */}
+                <ConfigSection sx={{ bgcolor: alpha(theme.palette.primary.main, 0.015) }}>
+                  <Stack direction="row" alignItems="center" spacing={1.5} mb={3}>
+                    <Box sx={{ width: 28, height: 28, borderRadius: '7px', bgcolor: alpha(theme.palette.primary.main, 0.08), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <DnsIcon sx={{ fontSize: 15, color: 'primary.main' }} />
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" fontWeight={500}>{dType === 'dapp' ? 'Network specs' : 'Genesis params'}</Typography>
+                      <Typography variant="caption" color="text.secondary">Technical configuration</Typography>
+                    </Box>
+                  </Stack>
+
+                  {dType === 'dapp'
+                    ? <DappDetails value={dappDetails} onChange={setDappDetails} />
+                    : <ChainDetails value={chainDetails} onChange={setChainDetails} />
+                  }
+
+                  <Box sx={{
+                    mt: 2.5, p: 1.5, bgcolor: 'background.paper',
+                    border: '0.5px solid', borderColor: 'divider', borderRadius: 2,
+                  }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                      These settings pre-load into Blueprint. You can add, remove, or change modules freely in Step 2.
+                    </Typography>
+                  </Box>
+                </ConfigSection>
+              </SplitGlassPanel>
+            </Box>
+          </Fade>
         )}
 
       </Box>
 
-      {/* FOOTER DOCK (Separate Flex Item - Cannot Overlap) */}
+      {/* ══════════════════════════════════════════════════════════ */}
+      {/* FLOATING ISLAND — bottom dock, only for non-choose-type  */}
+      {/* ══════════════════════════════════════════════════════════ */}
       {phase !== 'choose-type' && (
-         <Box sx={{ height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-           <FloatingIsland elevation={4}>
-              <Tooltip title="Back">
-                <span>
-                   <IconButton 
-                      onClick={() => setPhase(prev => prev === 'details' ? 'gallery' : 'choose-type')}
-                      sx={{ border: '1px solid', borderColor: 'divider' }}
-                   >
-                      <ArrowBackIcon />
-                   </IconButton>
-                </span>
-              </Tooltip>
+        <Box sx={{
+          height: 80, display: 'flex', alignItems: 'center',
+          justifyContent: 'center', flexShrink: 0, position: 'relative', zIndex: 2,
+        }}>
+          <FloatingIsland elevation={0}>
+            {/* Back button */}
+            <Button
+              size="small"
+              startIcon={<ArrowBackIcon sx={{ fontSize: 14 }} />}
+              onClick={() => {
+                if (phase === 'legacy-question') setPhase('choose-type');
+                else if (phase === 'gallery') goBackFromGallery();
+                else if (phase === 'details') setPhase('gallery');
+              }}
+              sx={{
+                borderRadius: 99, px: 1.75, py: 0.75, fontSize: '0.72rem',
+                color: 'text.secondary', border: '0.5px solid', borderColor: 'divider',
+                fontWeight: 400, minWidth: 0,
+                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) },
+              }}
+            >
+              Back
+            </Button>
 
-              <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
+            {/* Center context label — gallery phase only */}
+            {phase === 'gallery' && (
+              <>
+                <Divider orientation="vertical" flexItem sx={{ height: 22, my: 'auto', mx: 0.5 }} />
+                <Typography sx={{
+                  fontSize: '0.72rem', fontWeight: 500, px: 1.25,
+                  color: selectedTemplate ? 'primary.main' : 'text.secondary',
+                }}>
+                  {selectedTemplate
+                    ? <><CheckIcon sx={{ fontSize: 11, verticalAlign: 'middle', mr: 0.5 }} />{selectedTemplateName}</>
+                    : 'Select a template'
+                  }
+                </Typography>
+              </>
+            )}
 
-              {phase === 'gallery' && (
-                 <Button variant="contained" disabled={!selectedTemplate} onClick={onConfirmTemplate} endIcon={<ArrowForwardIcon />} sx={{ borderRadius: 100, px: 3, fontWeight: 700 }}>
-                    Configure
-                 </Button>
-              )}
+            <Divider orientation="vertical" flexItem sx={{ height: 22, my: 'auto', mx: 0.5 }} />
 
-              {phase === 'details' && (
-                 <Button variant="contained" disabled={!name || !slug} onClick={onInitialize} color="primary" sx={{ borderRadius: 100, px: 4, fontWeight: 700 }}>
-                    Initialize Project
-                 </Button>
-              )}
-           </FloatingIsland>
-         </Box>
+            {/* Action button */}
+            {phase === 'gallery' && (
+              <Button
+                variant="contained" disabled={!selectedTemplate}
+                onClick={onConfirmTemplate}
+                endIcon={<ArrowForwardIcon sx={{ fontSize: 14 }} />}
+                sx={{ borderRadius: 99, px: 2.5, fontSize: '0.72rem', fontWeight: 500, boxShadow: 'none' }}
+              >
+                Configure
+              </Button>
+            )}
+
+            {(phase === 'legacy-question') && (
+              <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', px: 1 }}>
+                Choose an option above
+              </Typography>
+            )}
+
+            {phase === 'details' && (
+              <Button
+                variant="contained"
+                disabled={!name || name.trim().length < 3 || !slug}
+                onClick={onInitialize}
+                sx={{ borderRadius: 99, px: 2.5, fontSize: '0.72rem', fontWeight: 500, boxShadow: 'none' }}
+              >
+                Initialize project
+              </Button>
+            )}
+          </FloatingIsland>
+        </Box>
       )}
 
-      {/* --- Dialogs --- */}
-      <Dialog open={wsDialogOpen} onClose={() => setWsDialogOpen(false)} PaperProps={{ sx: { borderRadius: 3, p: 1 } }}>
-         <DialogTitle>New Workspace</DialogTitle>
-         <DialogContent>
-            <TextField autoFocus margin="dense" label="Name" fullWidth value={wsNewName} onChange={e => setWsNewName(e.target.value)} />
-         </DialogContent>
-         <DialogActions>
-            <Button onClick={() => setWsDialogOpen(false)}>Cancel</Button>
-            <Button variant="contained" onClick={createWorkspace}>Create</Button>
-         </DialogActions>
+      {/* ── Workspace dialog ── */}
+      <Dialog open={wsDialogOpen} onClose={() => setWsDialogOpen(false)} PaperProps={{ sx: { borderRadius: 3, p: 0.5, width: 320 } }}>
+        <DialogTitle sx={{ fontSize: '1rem', fontWeight: 500 }}>New workspace</DialogTitle>
+        <DialogContent>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2, lineHeight: 1.6 }}>
+            Workspaces let you group projects and manage team access.
+          </Typography>
+          <TextField
+            autoFocus margin="dense" label="Workspace name" fullWidth size="small"
+            value={wsNewName} onChange={e => setWsNewName(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <Stack direction="row" spacing={1}>
+            {(['personal', 'team'] as const).map(t => (
+              <Box
+                key={t}
+                onClick={() => setWsType(t)}
+                sx={{
+                  flex: 1, border: '0.5px solid', borderRadius: 2, p: 1.25, cursor: 'pointer',
+                  borderColor: wsType === t ? 'primary.main' : 'divider',
+                  bgcolor: wsType === t ? alpha(theme.palette.primary.main, 0.05) : 'transparent',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <Typography variant="caption" fontWeight={500} sx={{ color: wsType === t ? 'primary.main' : 'text.primary' }}>
+                  {t === 'personal' ? 'Personal' : 'Team'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.62rem' }}>
+                  {t === 'personal' ? 'Just me' : 'Collaborate'}
+                </Typography>
+              </Box>
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 2, pb: 2, gap: 1 }}>
+          <Button onClick={() => setWsDialogOpen(false)} sx={{ color: 'text.secondary' }}>Cancel</Button>
+          <Button variant="contained" onClick={createWorkspace} sx={{ borderRadius: 2, boxShadow: 'none' }}>Create</Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );
 }
 
-/* ---------------- Sub-Forms ---------------- */
-function DappDetails({ value, onChange }: { value: any, onChange: (v: any) => void }) {
-   return (
-      <Stack spacing={4}>
-         <FormControl fullWidth>
-            <InputLabel>Target Network</InputLabel>
-            <Select value={value.network} label="Target Network" onChange={e => onChange({...value, network: e.target.value})} MenuProps={OPAQUE_MENU_PROPS as any}>
-               <MenuItem value="cerulea-testnet">Cerulea Testnet</MenuItem>
-               <MenuItem value="cerulea-mainnet">Cerulea Mainnet</MenuItem>
-               <MenuItem value="ethereum">Ethereum Mainnet</MenuItem>
-            </Select>
-         </FormControl>
-         <FormControl fullWidth>
-            <InputLabel>Token Standards</InputLabel>
-            <Select multiple value={value.tokenFocus} label="Token Standards" onChange={e => onChange({...value, tokenFocus: e.target.value})} MenuProps={OPAQUE_MENU_PROPS as any}>
-               {['erc20','erc721','erc1155'].map(t => <MenuItem key={t} value={t}>{t.toUpperCase()}</MenuItem>)}
-            </Select>
-         </FormControl>
-         <TextField type="number" label="Royalties (%)" value={value.royalties} onChange={e => onChange({...value, royalties: Number(e.target.value)})} />
-      </Stack>
-   );
+/* ──────────────────────────────────────────── */
+/* Sub-forms (DappDetails, ChainDetails)        */
+/* ──────────────────────────────────────────── */
+
+function DappDetails({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+  return (
+    <Stack spacing={2.5}>
+      <FormControl fullWidth size="small">
+        <InputLabel>Target network</InputLabel>
+        <Select value={value.network} label="Target network" onChange={e => onChange({ ...value, network: e.target.value })} MenuProps={OPAQUE_MENU_PROPS as any}>
+          <MenuItem value="cerulea-testnet">Cerulea Testnet</MenuItem>
+          <MenuItem value="cerulea-mainnet">Cerulea Mainnet</MenuItem>
+          <MenuItem value="ethereum">Ethereum Mainnet</MenuItem>
+        </Select>
+      </FormControl>
+      <FormControl fullWidth size="small">
+        <InputLabel>Token standards</InputLabel>
+        <Select multiple value={value.tokenFocus} label="Token standards" onChange={e => onChange({ ...value, tokenFocus: e.target.value })} MenuProps={OPAQUE_MENU_PROPS as any}>
+          {['erc20', 'erc721', 'erc1155'].map(t => <MenuItem key={t} value={t}>{t.toUpperCase()}</MenuItem>)}
+        </Select>
+      </FormControl>
+      <TextField type="number" label="Royalties (%)" size="small" value={value.royalties} onChange={e => onChange({ ...value, royalties: Number(e.target.value) })} />
+    </Stack>
+  );
 }
 
-function ChainDetails({ value, onChange }: { value: any, onChange: (v: any) => void }) {
-   return (
-      <Stack spacing={4}>
-         <FormControl fullWidth>
-            <InputLabel>Consensus Mechanism</InputLabel>
-            <Select value={value.consensus} label="Consensus Mechanism" onChange={e => onChange({...value, consensus: e.target.value})} MenuProps={OPAQUE_MENU_PROPS as any}>
-               <MenuItem value="PoA">Proof of Authority (Dev/Test)</MenuItem>
-               <MenuItem value="PoS">Proof of Stake (Production)</MenuItem>
-            </Select>
-         </FormControl>
-         <Stack direction="row" spacing={2}>
-            <TextField label="Native Token" fullWidth value={value.nativeToken.symbol} onChange={e => onChange({...value, nativeToken: {...value.nativeToken, symbol: e.target.value}})} />
-            <TextField type="number" label="Decimals" fullWidth value={value.nativeToken.decimals} onChange={e => onChange({...value, nativeToken: {...value.nativeToken, decimals: Number(e.target.value)}})} />
-         </Stack>
-         <Stack direction="row" spacing={2}>
-            <TextField type="number" label="Validators" fullWidth value={value.initialValidators} onChange={e => onChange({...value, initialValidators: Number(e.target.value)})} />
-            <TextField type="number" label="Base Gas" fullWidth value={value.feeModel.baseGas} onChange={e => onChange({...value, feeModel: {...value.feeModel, baseGas: Number(e.target.value)}})} />
-         </Stack>
+function ChainDetails({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+  return (
+    <Stack spacing={2.5}>
+      <FormControl fullWidth size="small">
+        <InputLabel>Consensus mechanism</InputLabel>
+        <Select value={value.consensus} label="Consensus mechanism" onChange={e => onChange({ ...value, consensus: e.target.value })} MenuProps={OPAQUE_MENU_PROPS as any}>
+          <MenuItem value="PoA">Proof of Authority (Dev / Test)</MenuItem>
+          <MenuItem value="PoS">Proof of Stake (Production)</MenuItem>
+        </Select>
+      </FormControl>
+      <Stack direction="row" spacing={1.5}>
+        <TextField label="Native token" fullWidth size="small" value={value.nativeToken.symbol} onChange={e => onChange({ ...value, nativeToken: { ...value.nativeToken, symbol: e.target.value } })} />
+        <TextField type="number" label="Decimals" fullWidth size="small" value={value.nativeToken.decimals} onChange={e => onChange({ ...value, nativeToken: { ...value.nativeToken, decimals: Number(e.target.value) } })} />
       </Stack>
-   );
+      <Stack direction="row" spacing={1.5}>
+        <TextField type="number" label="Validators" fullWidth size="small" value={value.initialValidators} onChange={e => onChange({ ...value, initialValidators: Number(e.target.value) })} />
+        <TextField type="number" label="Base gas" fullWidth size="small" value={value.feeModel.baseGas} onChange={e => onChange({ ...value, feeModel: { ...value.feeModel, baseGas: Number(e.target.value) } })} />
+      </Stack>
+    </Stack>
+  );
 }

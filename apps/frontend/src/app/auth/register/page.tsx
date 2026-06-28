@@ -54,16 +54,19 @@ export default function RegisterPage() {
   return (
     <Box sx={{
       display: 'grid', placeItems: 'center', minHeight: '100vh',
-      background: 'radial-gradient(1200px 600px at 10% 10%, rgba(99,102,241,.18), transparent), radial-gradient(1000px 500px at 90% 10%, rgba(16,185,129,.12), transparent)'
+      bgcolor: 'background.default',
+      background: (t) => t.palette.mode === 'light'
+        ? 'radial-gradient(900px 600px at 20% 0%, rgba(79,70,229,0.09), transparent), radial-gradient(700px 500px at 80% 10%, rgba(124,58,237,0.07), transparent)'
+        : 'radial-gradient(900px 600px at 20% 0%, rgba(99,102,241,0.16), transparent), radial-gradient(700px 500px at 80% 10%, rgba(139,92,246,0.10), transparent)',
     }}>
       <Paper elevation={0} sx={{
-        width: 520, p: 3, borderRadius: 3,
-        backdropFilter: 'blur(16px)',
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        border: '1px solid rgba(255,255,255,0.16)'
+        width: 520, p: '28px 32px', borderRadius: '16px', my: 4,
+        bgcolor: 'background.paper',
+        border: '0.5px solid', borderColor: 'divider',
+        boxShadow: (t) => `0 8px 40px ${t.palette.mode === 'light' ? 'rgba(79,70,229,0.08)' : 'rgba(0,0,20,0.4)'}`,
       }}>
-        <Typography variant="h5" sx={{ mb: 1.5, fontWeight: 700 }}>Create your account</Typography>
-        <Typography variant="body2" sx={{ mb: 3, opacity: .8 }}>
+        <Typography variant="h5" fontWeight={600} sx={{ mb: 1, color: 'text.primary', letterSpacing: '-0.3px' }}>Create your account</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           One account for dashboard and studio.
         </Typography>
         {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}

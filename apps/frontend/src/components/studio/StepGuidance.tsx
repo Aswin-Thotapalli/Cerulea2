@@ -31,9 +31,7 @@ export default function StepGuidance({ stepKey, title, subtitle, description, st
     try {
       const dismissed = localStorage.getItem(`guidance:dismissed:${stepKey}`);
       if (!dismissed) setOpen(true);
-    } catch {
-      // localStorage not available
-    }
+    } catch {}
   }, [stepKey]);
 
   const handleDismiss = () => {
@@ -45,6 +43,9 @@ export default function StepGuidance({ stepKey, title, subtitle, description, st
 
   if (!open) return null;
 
+  const PRIMARY = theme.palette.primary.main;
+  const isDark = theme.palette.mode === 'dark';
+
   return (
     <Dialog
       open={open}
@@ -53,78 +54,86 @@ export default function StepGuidance({ stepKey, title, subtitle, description, st
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 3,
-          background: theme.palette.mode === 'dark'
-            ? 'rgba(16,16,20,0.97)'
-            : 'rgba(255,255,255,0.97)',
-          backdropFilter: 'blur(20px)',
-          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-          boxShadow: `0 24px 64px ${alpha(theme.palette.common.black, 0.4)}`,
+          borderRadius: '20px',
+          bgcolor: 'background.paper',
+          backdropFilter: 'blur(24px)',
+          border: `0.5px solid ${alpha(PRIMARY, isDark ? 0.25 : 0.15)}`,
+          boxShadow: isDark
+            ? `0 24px 64px rgba(0,0,20,0.55), 0 0 0 1px ${alpha(PRIMARY, 0.08)}`
+            : `0 24px 64px rgba(79,70,229,0.12), 0 0 0 1px ${alpha(PRIMARY, 0.06)}`,
           overflow: 'hidden',
         },
       }}
+      BackdropProps={{
+        sx: {
+          bgcolor: isDark ? 'rgba(8,14,36,0.7)' : 'rgba(15,22,41,0.3)',
+          backdropFilter: 'blur(6px)',
+        },
+      }}
     >
-      {/* Gradient header bar */}
-      <Box
-        sx={{
-          px: 3, pt: 3, pb: 2,
-          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.12)}, ${alpha(theme.palette.secondary.main, 0.06)})`,
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
-        }}
-      >
+      {/* Header */}
+      <Box sx={{
+        px: 3, pt: 3, pb: 2.5,
+        background: `linear-gradient(135deg, ${alpha(PRIMARY, isDark ? 0.1 : 0.05)} 0%, ${alpha(theme.palette.secondary.main, isDark ? 0.06 : 0.03)} 100%)`,
+        borderBottom: `0.5px solid ${theme.palette.divider}`,
+      }}>
         <Chip
           label={subtitle}
           size="small"
           sx={{
             mb: 1.5,
-            bgcolor: alpha(theme.palette.primary.main, 0.12),
+            height: 20,
+            bgcolor: alpha(PRIMARY, 0.1),
             color: 'primary.main',
-            fontWeight: 700,
-            fontSize: '0.65rem',
-            letterSpacing: 1,
+            fontWeight: 600,
+            fontSize: '0.62rem',
+            letterSpacing: '0.7px',
+            textTransform: 'uppercase',
           }}
         />
-        <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.2 }}>
+        <Typography variant="h6" fontWeight={600} sx={{ lineHeight: 1.25, letterSpacing: '-0.2px' }}>
           {title}
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.65 }}>
           {description}
         </Typography>
       </Box>
 
       <DialogContent sx={{ pt: 2.5, pb: 1 }}>
-        <Typography variant="overline" fontWeight={800} color="text.disabled" sx={{ fontSize: '0.6rem', letterSpacing: 1.5 }}>
-          HOW TO USE THIS STEP
+        <Typography sx={{
+          fontSize: '0.6rem', fontWeight: 600,
+          textTransform: 'uppercase', letterSpacing: '1px',
+          color: 'text.secondary', mb: 1.5, display: 'block',
+        }}>
+          How to use this step
         </Typography>
 
-        <Stack spacing={1.5} sx={{ mt: 1.5 }}>
+        <Stack spacing={1}>
           {steps.map((s, i) => (
             <Box
               key={i}
               sx={{
                 display: 'flex',
                 gap: 1.5,
-                p: 1.5,
-                borderRadius: 2,
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                border: `1px solid ${alpha(theme.palette.divider, 0.7)}`,
+                p: '10px 14px',
+                borderRadius: '10px',
+                bgcolor: alpha(PRIMARY, isDark ? 0.06 : 0.04),
+                border: `0.5px solid ${alpha(PRIMARY, isDark ? 0.15 : 0.1)}`,
               }}
             >
-              <Box
-                sx={{
-                  width: 22, height: 22, borderRadius: '50%', flexShrink: 0, mt: 0.1,
-                  bgcolor: alpha(theme.palette.primary.main, 0.15),
-                  color: 'primary.main', fontWeight: 800, fontSize: '0.7rem',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >
+              <Box sx={{
+                width: 20, height: 20, borderRadius: '50%', flexShrink: 0, mt: 0.15,
+                bgcolor: alpha(PRIMARY, 0.12),
+                color: 'primary.main', fontWeight: 700, fontSize: '0.65rem',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
                 {i + 1}
               </Box>
               <Box>
                 <Stack direction="row" alignItems="center" spacing={0.75} flexWrap="wrap">
-                  <Typography variant="body2" fontWeight={700}>{s.first}</Typography>
-                  <ArrowForwardIcon sx={{ fontSize: 12, color: 'text.disabled' }} />
-                  <Typography variant="body2" color="text.secondary">{s.next}</Typography>
+                  <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>{s.first}</Typography>
+                  <ArrowForwardIcon sx={{ fontSize: 11, color: 'text.disabled', flexShrink: 0 }} />
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem', lineHeight: 1.5 }}>{s.next}</Typography>
                 </Stack>
               </Box>
             </Box>
@@ -132,17 +141,15 @@ export default function StepGuidance({ stepKey, title, subtitle, description, st
         </Stack>
 
         {tip && (
-          <Box
-            sx={{
-              mt: 2, p: 1.5, borderRadius: 2,
-              bgcolor: alpha(theme.palette.warning.main, 0.06),
-              border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
-              display: 'flex', gap: 1.25, alignItems: 'flex-start',
-            }}
-          >
-            <LightbulbOutlinedIcon sx={{ fontSize: 16, color: 'warning.main', mt: 0.1, flexShrink: 0 }} />
-            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-              <strong>Tip:</strong> {tip}
+          <Box sx={{
+            mt: 2, p: '10px 14px', borderRadius: '10px',
+            bgcolor: alpha(PRIMARY, isDark ? 0.05 : 0.04),
+            border: `0.5px solid ${alpha(PRIMARY, 0.15)}`,
+            display: 'flex', gap: 1.25, alignItems: 'flex-start',
+          }}>
+            <LightbulbOutlinedIcon sx={{ fontSize: 15, color: 'primary.main', mt: 0.15, flexShrink: 0 }} />
+            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+              <strong style={{ color: theme.palette.text.primary }}>Tip:</strong> {tip}
             </Typography>
           </Box>
         )}
@@ -152,8 +159,8 @@ export default function StepGuidance({ stepKey, title, subtitle, description, st
         <Button
           variant="contained"
           onClick={handleDismiss}
-          endIcon={<CheckCircleOutlineIcon />}
-          sx={{ borderRadius: 999, fontWeight: 700, px: 3 }}
+          endIcon={<CheckCircleOutlineIcon sx={{ fontSize: 16 }} />}
+          sx={{ borderRadius: 999, fontWeight: 500, px: 3, boxShadow: 'none' }}
         >
           Got it, let's go
         </Button>

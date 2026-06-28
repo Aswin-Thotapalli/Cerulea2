@@ -47,7 +47,7 @@ const CONTRACT_TYPE_COLOR: Record<ContractType, string> = {
   AccessControl: '#14b8a6',
   MultiSig: '#84cc16',
   Marketplace: '#ef4444',
-  Custom: '#6b7280',
+  Custom: '#7C6EC0',
 };
 
 const SOLIDITY_STUBS: Record<string, string> = {
@@ -187,7 +187,7 @@ export default function SmartContractsScreen({ onClose, fullPage, onGoToBlueprin
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: theme.palette.mode === 'dark' ? 'rgba(20,20,23,0.95)' : 'rgba(255,255,255,0.95)',
+          background: theme.palette.mode === 'dark' ? 'rgba(8,14,36,0.97)' : 'rgba(255,255,255,0.95)',
           backdropFilter: 'blur(12px)',
         }}
       >
@@ -467,10 +467,10 @@ export default function SmartContractsScreen({ onClose, fullPage, onGoToBlueprin
                           fontSize: '0.78rem',
                           fontFamily: 'monospace',
                           overflowX: 'auto',
-                          bgcolor: theme.palette.mode === 'dark' ? '#0a0a0c' : '#f5f5f5',
+                          bgcolor: theme.palette.mode === 'dark' ? '#080E24' : alpha(theme.palette.primary.main, 0.04),
                           borderRadius: '0 0 12px 12px',
                           lineHeight: 1.6,
-                          color: theme.palette.mode === 'dark' ? '#e2e8f0' : '#1a1a1a',
+                          color: theme.palette.mode === 'dark' ? '#e2e8f0' : theme.palette.text.primary,
                           whiteSpace: 'pre-wrap',
                           wordBreak: 'break-word',
                         }}

@@ -1,36 +1,36 @@
-/* Remove all previous styles and replace with this */
+/* Cerulea Studio — global base styles */
 
-/* This is the class that creates the "real glass" effect. */
+/* Glass panel — blue-tinted, no near-black */
 .glass-panel {
-  /* --- The "Real Glass" Effect --- */
-  background-color: rgba(40, 50, 70, 0.55) !important; /* Base dark transparent color */
+  background-color: rgba(8, 18, 64, 0.55) !important;
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important; /* Sharp, bright border */
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important; /* Softer shadow */
+  border: 1px solid rgba(99, 102, 241, 0.18) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 30, 0.25) !important;
 }
 
-/* This is the light theme version of the glass panel. */
 .light .glass-panel {
-  background-color: rgba(255, 255, 255, 0.45) !important; /* Base light transparent color */
-  border: 1px solid rgba(255, 255, 255, 0.6) !important; /* Brighter border for light mode */
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15) !important;
+  background-color: rgba(255, 255, 255, 0.5) !important;
+  border: 1px solid rgba(79, 70, 229, 0.12) !important;
+  box-shadow: 0 8px 32px 0 rgba(15, 22, 41, 0.08) !important;
 }
 
-/* --- Root Background Styles --- */
+/* Root background — navy dark, blue-tinted light */
 html {
   height: 100%;
-  background-color: #0d1117; /* Dark theme background */
-  background-image: radial-gradient(at 27% 37%, hsla(215, 98%, 62%, 0.15) 0px, transparent 50%),
-                    radial-gradient(at 97% 21%, hsla(125, 98%, 72%, 0.1) 0px, transparent 50%),
-                    radial-gradient(at 52% 99%, hsla(355, 98%, 76%, 0.15) 0px, transparent 50%);
+  background-color: #080E24;
+  background-image:
+    radial-gradient(at 27% 37%, hsla(234, 90%, 60%, 0.14) 0px, transparent 50%),
+    radial-gradient(at 97% 21%, hsla(252, 90%, 72%, 0.10) 0px, transparent 50%),
+    radial-gradient(at 52% 99%, hsla(220, 90%, 65%, 0.12) 0px, transparent 50%);
 }
 
 html.light {
-  background-color: #f4f6f8; /* Light theme background */
-  background-image: radial-gradient(at 27% 37%, hsla(215, 98%, 62%, 0.1) 0px, transparent 50%),
-                    radial-gradient(at 97% 21%, hsla(125, 98%, 72%, 0.05) 0px, transparent 50%),
-                    radial-gradient(at 52% 99%, hsla(355, 98%, 76%, 0.1) 0px, transparent 50%);
+  background-color: #F5F7FF;
+  background-image:
+    radial-gradient(at 27% 37%, hsla(234, 90%, 70%, 0.07) 0px, transparent 50%),
+    radial-gradient(at 97% 21%, hsla(252, 90%, 75%, 0.05) 0px, transparent 50%),
+    radial-gradient(at 52% 99%, hsla(220, 90%, 70%, 0.06) 0px, transparent 50%);
 }
 
 body {
@@ -38,7 +38,13 @@ body {
   background-color: transparent !important;
 }
 
-/* Custom scrollbar styles */
-::-webkit-scrollbar { width: 8px; }
+/* Scrollbar — blue-tinted */
+::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.2); border-radius: 4px; }
+::-webkit-scrollbar-thumb {
+  background-color: rgba(79, 70, 229, 0.18);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(79, 70, 229, 0.32);
+}
