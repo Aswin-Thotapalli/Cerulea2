@@ -50,23 +50,11 @@ const FloatingIsland = styled(Paper)(({ theme }) => ({
 
 // Section Card
 const SectionCard = styled(Paper)(({ theme }) => ({
-  padding: 24,
-  borderRadius: 4,
-  border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+  borderRadius: theme.spacing(1.5),
+  border: `1px solid ${theme.palette.divider}`,
   background: theme.palette.background.paper,
-  marginBottom: 16,
-  position: 'relative',
+  marginBottom: theme.spacing(2),
   overflow: 'hidden',
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 3,
-    background: 'linear-gradient(to bottom, #4F46E5, #8b5cf6)',
-    borderRadius: 0,
-  },
 }));
 
 // Opaque Menu
@@ -309,95 +297,125 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
   /* --- RENDERERS --- */
 
   const renderDappRevenue = () => (
-    <Stack spacing={4}>
-       <Box>
-          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <MonetizationOnIcon sx={{ color: 'primary.main' }} />
-            </Box>
-            <Typography variant="h5" fontWeight={800}>Monetization Strategy</Typography>
-          </Stack>
-          <Typography variant="body2" color="text.secondary">Define pricing models, tiers, and billing cycles.</Typography>
-       </Box>
-
-       {/* Set 1: Core Strategy */}
+    <Stack spacing={2}>
+       {/* Section 1: Core Pricing */}
        <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={3}>1. Core Pricing Strategy</Typography>
-          <Grid container spacing={3}>
-             <Grid xs={12} md={4}>
-                <FormControl fullWidth>
-                   <InputLabel>Billing Model</InputLabel>
-                   <Select value={dappRevenue.billingModel} label="Billing Model" onChange={e => setDappRevenue(p => ({...p, billingModel: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                      <MenuItem value="subscription">Subscription (SaaS)</MenuItem>
-                      <MenuItem value="usage">Usage Based (Metered)</MenuItem>
-                      <MenuItem value="hybrid">Hybrid</MenuItem>
-                      <MenuItem value="one-time">One-Time License</MenuItem>
-                   </Select>
-                </FormControl>
-             </Grid>
-             <Grid xs={12} md={4}>
-                <FormControl fullWidth>
-                   <InputLabel>Base Currency</InputLabel>
-                   <Select value={dappRevenue.currency} label="Base Currency" onChange={e => setDappRevenue(p => ({...p, currency: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                      <MenuItem value="USD">USD ($)</MenuItem>
-                      <MenuItem value="EUR">EUR (€)</MenuItem>
-                      <MenuItem value="ETH">ETH (Ξ)</MenuItem>
-                      <MenuItem value="USDC">USDC</MenuItem>
-                   </Select>
-                </FormControl>
-             </Grid>
-             <Grid xs={12} md={4}>
-                <TextField label="Trial Period (Days)" type="number" fullWidth value={dappRevenue.trialDays} onChange={e => setDappRevenue(p => ({...p, trialDays: safeNum(e.target.value)}))} />
-             </Grid>
-          </Grid>
-       </SectionCard>
-
-       {/* Set 2: Usage Metering */}
-       <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={3}>2. Usage & Metering</Typography>
-          <Grid container spacing={3}>
-             <Grid xs={12} md={4}>
-                <TextField label="Metered Rate (per unit)" type="number" fullWidth value={dappRevenue.meteredRate} onChange={e => setDappRevenue(p => ({...p, meteredRate: safeNum(e.target.value)}))} disabled={dappRevenue.billingModel === 'subscription'} />
-             </Grid>
-             <Grid xs={12} md={4}>
-                <TextField label="Unit Name" placeholder="e.g. Requests, GB" fullWidth value={dappRevenue.meteredUnit} onChange={e => setDappRevenue(p => ({...p, meteredUnit: e.target.value}))} disabled={dappRevenue.billingModel === 'subscription'} />
-             </Grid>
-             <Grid xs={12} md={4}>
-                <TextField label="Monthly Cap (0 = Unlimited)" type="number" fullWidth value={dappRevenue.meteredCap} onChange={e => setDappRevenue(p => ({...p, meteredCap: safeNum(e.target.value)}))} />
-             </Grid>
-          </Grid>
-       </SectionCard>
-
-       {/* Set 3: Tiers */}
-       <SectionCard>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2.5}>
-             <Typography variant="h6" fontWeight={800}>3. Subscription Tiers</Typography>
-             <Button startIcon={<AddIcon />} variant="outlined" size="small" onClick={() => setDappRevenue(p => ({...p, tiers: [...p.tiers, {name:'New Tier', monthly:0, annual:0, limit:''}]}))} sx={{ borderRadius: 1.5, borderColor: alpha(theme.palette.primary.main, 0.4), '&:hover': { borderColor: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.04) } }}>Add Tier</Button>
-          </Stack>
-          {/* Column headers */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1.5fr 120px 120px 1.5fr 44px', gap: 1, px: 2, py: 1, bgcolor: alpha(theme.palette.primary.main, 0.04), borderRadius: '4px 4px 0 0', border: `1px solid ${theme.palette.divider}`, borderBottom: 'none' }}>
-            {['Tier Name', 'Monthly ($)', 'Annual ($)', 'Usage Limit', ''].map((h, i) => (
-              <Typography key={i} variant="caption" fontWeight={800} sx={{ fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: 0.7, color: 'text.disabled' }}>{h}</Typography>
-            ))}
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03) }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <MonetizationOnIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Pricing Strategy</Typography>
+                <Typography variant="caption" color="text.secondary">Billing model, currency, and trial period</Typography>
+              </Box>
+              <Box sx={{ ml: 'auto', px: 1.25, py: 0.3, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.08), color: '#4F46E5', fontSize: '0.62rem', fontWeight: 700 }}>
+                {dappRevenue.billingModel.toUpperCase()}
+              </Box>
+            </Stack>
           </Box>
-          {/* Tier rows */}
-          <Box sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: '0 0 4px 4px', overflow: 'hidden' }}>
-             {dappRevenue.tiers.map((t, i) => (
-                <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '1.5fr 120px 120px 1.5fr 44px', gap: 1, px: 2, py: 1.25, alignItems: 'center', borderBottom: i < dappRevenue.tiers.length - 1 ? `1px solid ${theme.palette.divider}` : 'none', '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.02) }, transition: 'background 0.1s' }}>
-                   <TextField size="small" variant="standard" value={t.name} onChange={e => { const n = [...dappRevenue.tiers]; n[i].name = e.target.value; setDappRevenue(p => ({...p, tiers: n}))}} InputProps={{ disableUnderline: true, style: { fontWeight: 700, fontSize: '0.875rem' } }} />
-                   <TextField size="small" type="number" variant="standard" value={t.monthly} onChange={e => { const n = [...dappRevenue.tiers]; n[i].monthly = safeNum(e.target.value); setDappRevenue(p => ({...p, tiers: n}))}} InputProps={{ disableUnderline: true, style: { fontSize: '0.875rem' } }} />
-                   <TextField size="small" type="number" variant="standard" value={t.annual} onChange={e => { const n = [...dappRevenue.tiers]; n[i].annual = safeNum(e.target.value); setDappRevenue(p => ({...p, tiers: n}))}} InputProps={{ disableUnderline: true, style: { fontSize: '0.875rem' } }} />
-                   <TextField size="small" variant="standard" placeholder="e.g. 100k req/mo" value={t.limit} onChange={e => { const n = [...dappRevenue.tiers]; n[i].limit = e.target.value; setDappRevenue(p => ({...p, tiers: n}))}} InputProps={{ disableUnderline: true, style: { fontSize: '0.875rem' } }} />
-                   <IconButton size="small" sx={{ color: 'text.disabled', '&:hover': { color: 'error.main' } }} onClick={() => setDappRevenue(p => ({...p, tiers: p.tiers.filter((_, idx) => idx !== i)}))}>
-                     <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-                   </IconButton>
-                </Box>
-             ))}
-             {dappRevenue.tiers.length === 0 && (
-               <Box sx={{ py: 4, textAlign: 'center' }}>
-                 <Typography variant="caption" color="text.disabled">No tiers yet. Click "Add Tier" to create one.</Typography>
+          <Box sx={{ p: 3 }}>
+            <Grid container spacing={2.5}>
+               <Grid xs={12} md={4}>
+                  <FormControl fullWidth size="small">
+                     <InputLabel>Billing Model</InputLabel>
+                     <Select value={dappRevenue.billingModel} label="Billing Model" onChange={e => setDappRevenue(p => ({...p, billingModel: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                        <MenuItem value="subscription">Subscription (SaaS)</MenuItem>
+                        <MenuItem value="usage">Usage Based (Metered)</MenuItem>
+                        <MenuItem value="hybrid">Hybrid</MenuItem>
+                        <MenuItem value="one-time">One-Time License</MenuItem>
+                     </Select>
+                  </FormControl>
+               </Grid>
+               <Grid xs={12} md={4}>
+                  <FormControl fullWidth size="small">
+                     <InputLabel>Base Currency</InputLabel>
+                     <Select value={dappRevenue.currency} label="Base Currency" onChange={e => setDappRevenue(p => ({...p, currency: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                        <MenuItem value="USD">USD ($)</MenuItem>
+                        <MenuItem value="EUR">EUR (€)</MenuItem>
+                        <MenuItem value="ETH">ETH (Ξ)</MenuItem>
+                        <MenuItem value="USDC">USDC</MenuItem>
+                     </Select>
+                  </FormControl>
+               </Grid>
+               <Grid xs={12} md={4}>
+                  <TextField label="Trial Period (days)" type="number" fullWidth size="small" value={dappRevenue.trialDays} onChange={e => setDappRevenue(p => ({...p, trialDays: safeNum(e.target.value)}))} />
+               </Grid>
+            </Grid>
+          </Box>
+       </SectionCard>
+
+       {/* Section 2: Metering */}
+       <SectionCard>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03) }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <ShowChartIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Usage & Metering</Typography>
+                <Typography variant="caption" color="text.secondary">Per-unit rate, unit name, and monthly cap</Typography>
+              </Box>
+              {dappRevenue.billingModel === 'subscription' && (
+                <Chip label="N/A for subscription" size="small" sx={{ ml: 'auto', height: 18, fontSize: '0.6rem' }} />
+              )}
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <Grid container spacing={2.5}>
+               <Grid xs={12} md={4}>
+                  <TextField label="Metered Rate (per unit)" type="number" fullWidth size="small" value={dappRevenue.meteredRate} onChange={e => setDappRevenue(p => ({...p, meteredRate: safeNum(e.target.value)}))} disabled={dappRevenue.billingModel === 'subscription'} />
+               </Grid>
+               <Grid xs={12} md={4}>
+                  <TextField label="Unit Name" placeholder="e.g. Requests, GB" fullWidth size="small" value={dappRevenue.meteredUnit} onChange={e => setDappRevenue(p => ({...p, meteredUnit: e.target.value}))} disabled={dappRevenue.billingModel === 'subscription'} />
+               </Grid>
+               <Grid xs={12} md={4}>
+                  <TextField label="Monthly Cap (0 = Unlimited)" type="number" fullWidth size="small" value={dappRevenue.meteredCap} onChange={e => setDappRevenue(p => ({...p, meteredCap: safeNum(e.target.value)}))} />
+               </Grid>
+            </Grid>
+          </Box>
+       </SectionCard>
+
+       {/* Section 3: Tiers */}
+       <SectionCard>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03) }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <ReceiptLongIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Subscription Tiers</Typography>
+                <Typography variant="caption" color="text.secondary">{dappRevenue.tiers.length} tier{dappRevenue.tiers.length !== 1 ? 's' : ''} configured</Typography>
+              </Box>
+              <Button startIcon={<AddIcon />} variant="outlined" size="small" onClick={() => setDappRevenue(p => ({...p, tiers: [...p.tiers, {name:'New Tier', monthly:0, annual:0, limit:''}]}))}
+                sx={{ ml: 'auto', borderRadius: 1, fontSize: '0.72rem', borderColor: alpha('#4F46E5', 0.35), color: '#4F46E5' }}>
+                Add Tier
+              </Button>
+            </Stack>
+          </Box>
+          <Box>
+            {/* Column headers */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1.5fr 120px 120px 1.5fr 44px', gap: 1, px: 3, py: 1.25, bgcolor: alpha(theme.palette.primary.main, 0.03), borderBottom: `1px solid ${theme.palette.divider}` }}>
+              {['Tier Name', 'Monthly ($)', 'Annual ($)', 'Usage Limit', ''].map((h, i) => (
+                <Typography key={i} variant="caption" fontWeight={800} sx={{ fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: 0.7, color: 'text.disabled' }}>{h}</Typography>
+              ))}
+            </Box>
+            {dappRevenue.tiers.map((t, i) => (
+               <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '1.5fr 120px 120px 1.5fr 44px', gap: 1, px: 3, py: 1.25, alignItems: 'center', borderBottom: i < dappRevenue.tiers.length - 1 ? `1px solid ${theme.palette.divider}` : 'none', '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.02) }, transition: 'background 0.1s' }}>
+                  <TextField size="small" variant="standard" value={t.name} onChange={e => { const n = [...dappRevenue.tiers]; n[i].name = e.target.value; setDappRevenue(p => ({...p, tiers: n}))}} InputProps={{ disableUnderline: true, style: { fontWeight: 700, fontSize: '0.85rem' } }} />
+                  <TextField size="small" type="number" variant="standard" value={t.monthly} onChange={e => { const n = [...dappRevenue.tiers]; n[i].monthly = safeNum(e.target.value); setDappRevenue(p => ({...p, tiers: n}))}} InputProps={{ disableUnderline: true, style: { fontSize: '0.85rem' } }} />
+                  <TextField size="small" type="number" variant="standard" value={t.annual} onChange={e => { const n = [...dappRevenue.tiers]; n[i].annual = safeNum(e.target.value); setDappRevenue(p => ({...p, tiers: n}))}} InputProps={{ disableUnderline: true, style: { fontSize: '0.85rem' } }} />
+                  <TextField size="small" variant="standard" placeholder="e.g. 100k req/mo" value={t.limit} onChange={e => { const n = [...dappRevenue.tiers]; n[i].limit = e.target.value; setDappRevenue(p => ({...p, tiers: n}))}} InputProps={{ disableUnderline: true, style: { fontSize: '0.85rem' } }} />
+                  <IconButton size="small" sx={{ color: 'text.disabled', '&:hover': { color: 'error.main' } }} onClick={() => setDappRevenue(p => ({...p, tiers: p.tiers.filter((_, idx) => idx !== i)}))}>
+                    <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
                </Box>
-             )}
+            ))}
+            {dappRevenue.tiers.length === 0 && (
+              <Box sx={{ py: 4, textAlign: 'center' }}>
+                <Typography variant="caption" color="text.disabled">No tiers yet. Click "Add Tier" above to create one.</Typography>
+              </Box>
+            )}
           </Box>
        </SectionCard>
     </Stack>
@@ -499,239 +517,325 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
   );
 
   const renderDappFees = () => (
-    <Stack spacing={4}>
-       <Box>
-          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ReceiptLongIcon sx={{ color: 'primary.main' }} />
-            </Box>
-            <Typography variant="h5" fontWeight={800}>Revenue Splits</Typography>
-          </Stack>
-          <Typography variant="body2" color="text.secondary">Manage platform fees and automatic payouts.</Typography>
-       </Box>
-       
-       {/* Set 1: Platform Fees */}
+    <Stack spacing={2}>
+       {/* Platform Fees */}
        <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={3}>1. Platform Fees</Typography>
-          <Grid container spacing={3}>
-             <Grid xs={12} md={6}>
-                <TextField label="Platform Fee %" type="number" fullWidth value={dappFees.platformFee} onChange={e => setDappFees(p => ({...p, platformFee: safeNum(e.target.value)}))} />
-             </Grid>
-             <Grid xs={12} md={6}>
-                <TextField label="Referral Reward %" type="number" fullWidth value={dappFees.referralFee} onChange={e => setDappFees(p => ({...p, referralFee: safeNum(e.target.value)}))} />
-             </Grid>
-          </Grid>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03) }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <ReceiptLongIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Platform Fees</Typography>
+                <Typography variant="caption" color="text.secondary">Fee percentages for platform and referrals</Typography>
+              </Box>
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <Grid container spacing={2.5}>
+               <Grid xs={12} md={6}>
+                  <TextField label="Platform Fee %" type="number" fullWidth size="small" value={dappFees.platformFee} onChange={e => setDappFees(p => ({...p, platformFee: safeNum(e.target.value)}))} />
+               </Grid>
+               <Grid xs={12} md={6}>
+                  <TextField label="Referral Reward %" type="number" fullWidth size="small" value={dappFees.referralFee} onChange={e => setDappFees(p => ({...p, referralFee: safeNum(e.target.value)}))} />
+               </Grid>
+            </Grid>
+          </Box>
        </SectionCard>
 
-       {/* Set 2: Payout Logic */}
+       {/* Payout Logic */}
        <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={3}>2. Payout Logic</Typography>
-          <Grid container spacing={3}>
-             <Grid xs={12} md={4}>
-                <TextField label="Min Payout Amount ($)" type="number" fullWidth value={dappFees.minPayout} onChange={e => setDappFees(p => ({...p, minPayout: safeNum(e.target.value)}))} />
-             </Grid>
-             <Grid xs={12} md={4}>
-                <FormControl fullWidth>
-                   <InputLabel>Schedule</InputLabel>
-                   <Select value={dappFees.payoutSchedule} label="Schedule" onChange={e => setDappFees(p => ({...p, payoutSchedule: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                      <MenuItem value="daily">Daily</MenuItem>
-                      <MenuItem value="weekly">Weekly</MenuItem>
-                      <MenuItem value="monthly">Monthly</MenuItem>
-                   </Select>
-                </FormControl>
-             </Grid>
-             <Grid xs={12} md={4}>
-                <FormControl fullWidth>
-                   <InputLabel>Chargeback Mode</InputLabel>
-                   <Select value={dappFees.chargebackMode} label="Chargeback Mode" onChange={e => setDappFees(p => ({...p, chargebackMode: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                      <MenuItem value="manual">Manual Review</MenuItem>
-                      <MenuItem value="deduct">Auto-Deduct</MenuItem>
-                      <MenuItem value="block">Block User</MenuItem>
-                   </Select>
-                </FormControl>
-             </Grid>
-          </Grid>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03) }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <AccountBalanceWalletIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Payout Logic</Typography>
+                <Typography variant="caption" color="text.secondary">Minimum amount, schedule, and chargeback handling</Typography>
+              </Box>
+              <Box sx={{ ml: 'auto', px: 1.25, py: 0.3, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.08), color: '#4F46E5', fontSize: '0.62rem', fontWeight: 700 }}>
+                {dappFees.payoutSchedule.toUpperCase()}
+              </Box>
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <Grid container spacing={2.5}>
+               <Grid xs={12} md={4}>
+                  <TextField label="Min Payout Amount ($)" type="number" fullWidth size="small" value={dappFees.minPayout} onChange={e => setDappFees(p => ({...p, minPayout: safeNum(e.target.value)}))} />
+               </Grid>
+               <Grid xs={12} md={4}>
+                  <FormControl fullWidth size="small">
+                     <InputLabel>Schedule</InputLabel>
+                     <Select value={dappFees.payoutSchedule} label="Schedule" onChange={e => setDappFees(p => ({...p, payoutSchedule: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                        <MenuItem value="daily">Daily</MenuItem>
+                        <MenuItem value="weekly">Weekly</MenuItem>
+                        <MenuItem value="monthly">Monthly</MenuItem>
+                     </Select>
+                  </FormControl>
+               </Grid>
+               <Grid xs={12} md={4}>
+                  <FormControl fullWidth size="small">
+                     <InputLabel>Chargeback Mode</InputLabel>
+                     <Select value={dappFees.chargebackMode} label="Chargeback Mode" onChange={e => setDappFees(p => ({...p, chargebackMode: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                        <MenuItem value="manual">Manual Review</MenuItem>
+                        <MenuItem value="deduct">Auto-Deduct</MenuItem>
+                        <MenuItem value="block">Block User</MenuItem>
+                     </Select>
+                  </FormControl>
+               </Grid>
+            </Grid>
+          </Box>
        </SectionCard>
 
-       {/* Set 3: Recipients */}
+       {/* Split Recipients */}
        <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={2}>3. Split Recipients</Typography>
-          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 1, borderColor: alpha(theme.palette.primary.main, 0.15) }}>
-             <Table>
-                <TableHead>
-                   <TableRow sx={{ '& .MuiTableCell-head': { fontWeight: 700, bgcolor: alpha(theme.palette.primary.main, 0.04) } }}>
-                      <TableCell>Label</TableCell>
-                      <TableCell>Wallet Address</TableCell>
-                      <TableCell width="20%">Share (%)</TableCell>
-                      <TableCell width="10%"></TableCell>
-                   </TableRow>
-                </TableHead>
-                <TableBody>
-                   {dappFees.splits.map((s, i) => (
-                      <TableRow key={i}>
-                         <TableCell><TextField size="small" value={s.label} onChange={e => { const n = [...dappFees.splits]; n[i].label = e.target.value; setDappFees(p => ({...p, splits: n}))}} /></TableCell>
-                         <TableCell><TextField size="small" fullWidth value={s.address} placeholder="0x..." onChange={e => { const n = [...dappFees.splits]; n[i].address = e.target.value; setDappFees(p => ({...p, splits: n}))}} /></TableCell>
-                         <TableCell><TextField size="small" type="number" value={s.pct} onChange={e => { const n = [...dappFees.splits]; n[i].pct = safeNum(e.target.value); setDappFees(p => ({...p, splits: n}))}} /></TableCell>
-                         <TableCell><IconButton onClick={() => setDappFees(p => ({...p, splits: p.splits.filter((_, idx) => idx !== i)}))}><DeleteOutlineIcon /></IconButton></TableCell>
-                      </TableRow>
-                   ))}
-                </TableBody>
-             </Table>
-          </TableContainer>
-          <Button startIcon={<AddIcon />} sx={{ mt: 2 }} onClick={() => setDappFees(p => ({...p, splits: [...p.splits, {label:'New', address:'', pct:0}]}))}>Add Recipient</Button>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03) }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <MonetizationOnIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Split Recipients</Typography>
+                <Typography variant="caption" color="text.secondary">{dappFees.splits.length} recipient{dappFees.splits.length !== 1 ? 's' : ''}</Typography>
+              </Box>
+              <Button startIcon={<AddIcon />} size="small" variant="outlined" onClick={() => setDappFees(p => ({...p, splits: [...p.splits, {label:'New', address:'', pct:0}]}))}
+                sx={{ ml: 'auto', borderRadius: 1, fontSize: '0.72rem', borderColor: alpha('#4F46E5', 0.35), color: '#4F46E5' }}>
+                Add
+              </Button>
+            </Stack>
+          </Box>
+          <Box sx={{ overflowX: 'auto' }}>
+             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 2fr 100px 44px', gap: 1, px: 3, py: 1.25, bgcolor: alpha(theme.palette.primary.main, 0.03), borderBottom: `1px solid ${theme.palette.divider}` }}>
+               {['Label', 'Wallet Address', 'Share (%)', ''].map((h, i) => (
+                 <Typography key={i} variant="caption" fontWeight={800} sx={{ fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: 0.7, color: 'text.disabled' }}>{h}</Typography>
+               ))}
+             </Box>
+             {dappFees.splits.map((s, i) => (
+               <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '1fr 2fr 100px 44px', gap: 1, px: 3, py: 1.25, alignItems: 'center', borderBottom: i < dappFees.splits.length - 1 ? `1px solid ${theme.palette.divider}` : 'none', '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.02) } }}>
+                 <TextField size="small" variant="standard" value={s.label} onChange={e => { const n = [...dappFees.splits]; n[i].label = e.target.value; setDappFees(p => ({...p, splits: n}))}} InputProps={{ disableUnderline: true, style: { fontSize: '0.85rem', fontWeight: 600 } }} />
+                 <TextField size="small" variant="standard" value={s.address} placeholder="0x..." onChange={e => { const n = [...dappFees.splits]; n[i].address = e.target.value; setDappFees(p => ({...p, splits: n}))}} InputProps={{ disableUnderline: true, style: { fontSize: '0.85rem', fontFamily: 'monospace' } }} />
+                 <TextField size="small" type="number" variant="standard" value={s.pct} onChange={e => { const n = [...dappFees.splits]; n[i].pct = safeNum(e.target.value); setDappFees(p => ({...p, splits: n}))}} InputProps={{ disableUnderline: true, style: { fontSize: '0.85rem' } }} />
+                 <IconButton size="small" sx={{ color: 'text.disabled', '&:hover': { color: 'error.main' } }} onClick={() => setDappFees(p => ({...p, splits: p.splits.filter((_, idx) => idx !== i)}))}>
+                   <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                 </IconButton>
+               </Box>
+             ))}
+             {dappFees.splits.length === 0 && (
+               <Box sx={{ py: 4, textAlign: 'center' }}>
+                 <Typography variant="caption" color="text.disabled">No recipients. Click "Add" to create one.</Typography>
+               </Box>
+             )}
+          </Box>
        </SectionCard>
     </Stack>
   );
 
   const renderDappPayments = () => (
-    <Stack spacing={4}>
-       <Box>
-          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <AccountBalanceWalletIcon sx={{ color: 'primary.main' }} />
-            </Box>
-            <Typography variant="h5" fontWeight={800}>Payment Gateways</Typography>
-          </Stack>
-          <Typography variant="body2" color="text.secondary">Manage fiat and crypto acceptance methods.</Typography>
-       </Box>
-       
-       {/* Set 1: Fiat */}
+    <Stack spacing={2}>
+       {/* Fiat Payments */}
        <SectionCard>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-             <Typography variant="h6" fontWeight={700}>1. Fiat Payments</Typography>
-             <Switch checked={dappPayments.fiatEnabled} onChange={e => setDappPayments(p => ({...p, fiatEnabled: e.target.checked}))} />
-          </Stack>
-          <Grid container spacing={3}>
-             <Grid xs={12} md={6}>
-                <FormControl fullWidth disabled={!dappPayments.fiatEnabled}>
-                   <InputLabel>Provider</InputLabel>
-                   <Select value={dappPayments.fiatProvider} label="Provider" onChange={e => setDappPayments(p => ({...p, fiatProvider: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                      <MenuItem value="Stripe">Stripe</MenuItem>
-                      <MenuItem value="Razorpay">Razorpay</MenuItem>
-                      <MenuItem value="Paddle">Paddle</MenuItem>
-                   </Select>
-                </FormControl>
-             </Grid>
-             <Grid xs={12} md={6}>
-                <TextField label="Settlement Time" fullWidth value={dappPayments.settlementTime} onChange={e => setDappPayments(p => ({...p, settlementTime: e.target.value}))} disabled={!dappPayments.fiatEnabled} />
-             </Grid>
-          </Grid>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#10b981', 0.03) }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#10b981', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <AccountBalanceWalletIcon sx={{ fontSize: 15, color: '#10b981' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Fiat Payments</Typography>
+                <Typography variant="caption" color="text.secondary">Provider, settlement time</Typography>
+              </Box>
+              <Switch size="small" checked={dappPayments.fiatEnabled} onChange={e => setDappPayments(p => ({...p, fiatEnabled: e.target.checked}))} sx={{ ml: 'auto' }} />
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <Grid container spacing={2.5}>
+               <Grid xs={12} md={6}>
+                  <FormControl fullWidth size="small" disabled={!dappPayments.fiatEnabled}>
+                     <InputLabel>Provider</InputLabel>
+                     <Select value={dappPayments.fiatProvider} label="Provider" onChange={e => setDappPayments(p => ({...p, fiatProvider: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                        <MenuItem value="Stripe">Stripe</MenuItem>
+                        <MenuItem value="Razorpay">Razorpay</MenuItem>
+                        <MenuItem value="Paddle">Paddle</MenuItem>
+                     </Select>
+                  </FormControl>
+               </Grid>
+               <Grid xs={12} md={6}>
+                  <TextField label="Settlement Time" fullWidth size="small" value={dappPayments.settlementTime} onChange={e => setDappPayments(p => ({...p, settlementTime: e.target.value}))} disabled={!dappPayments.fiatEnabled} />
+               </Grid>
+            </Grid>
+          </Box>
        </SectionCard>
 
-       {/* Set 2: Crypto */}
+       {/* Crypto Payments */}
        <SectionCard>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-             <Typography variant="h6" fontWeight={700}>2. Crypto Payments</Typography>
-             <Switch checked={dappPayments.cryptoEnabled} onChange={e => setDappPayments(p => ({...p, cryptoEnabled: e.target.checked}))} />
-          </Stack>
-          <Grid container spacing={3}>
-             <Grid xs={12}>
-                <TextField label="Treasury Wallet Address" fullWidth value={dappPayments.treasury} onChange={e => setDappPayments(p => ({...p, treasury: e.target.value}))} disabled={!dappPayments.cryptoEnabled} />
-             </Grid>
-             <Grid xs={12}>
-                <Autocomplete multiple options={['USDC','ETH','USDT','DAI']} freeSolo value={dappPayments.cryptoTokens} onChange={(_, v) => setDappPayments(p => ({...p, cryptoTokens: v}))} renderInput={(p) => <TextField {...p} label="Accepted Tokens" />} disabled={!dappPayments.cryptoEnabled} />
-             </Grid>
-          </Grid>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#f59e0b', 0.03) }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#f59e0b', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <MonetizationOnIcon sx={{ fontSize: 15, color: '#f59e0b' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Crypto Payments</Typography>
+                <Typography variant="caption" color="text.secondary">Treasury wallet and accepted tokens</Typography>
+              </Box>
+              <Switch size="small" checked={dappPayments.cryptoEnabled} onChange={e => setDappPayments(p => ({...p, cryptoEnabled: e.target.checked}))} sx={{ ml: 'auto' }} />
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <Grid container spacing={2.5}>
+               <Grid xs={12}>
+                  <TextField label="Treasury Wallet Address" fullWidth size="small" value={dappPayments.treasury} onChange={e => setDappPayments(p => ({...p, treasury: e.target.value}))} disabled={!dappPayments.cryptoEnabled} />
+               </Grid>
+               <Grid xs={12}>
+                  <Autocomplete multiple options={['USDC','ETH','USDT','DAI']} freeSolo value={dappPayments.cryptoTokens} onChange={(_, v) => setDappPayments(p => ({...p, cryptoTokens: v}))} renderInput={(p) => <TextField {...p} size="small" label="Accepted Tokens" />} disabled={!dappPayments.cryptoEnabled} />
+               </Grid>
+            </Grid>
+          </Box>
        </SectionCard>
 
-       {/* Set 3: Checkout UX */}
+       {/* Checkout UX */}
        <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={3}>3. Checkout UX</Typography>
-          <Grid container spacing={3}>
-             <Grid xs={12} md={4}>
-                <FormControl fullWidth>
-                   <InputLabel>Theme</InputLabel>
-                   <Select value={dappPayments.checkoutTheme} label="Theme" onChange={e => setDappPayments(p => ({...p, checkoutTheme: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                      <MenuItem value="light">Light</MenuItem>
-                      <MenuItem value="dark">Dark</MenuItem>
-                      <MenuItem value="auto">Auto</MenuItem>
-                   </Select>
-                </FormControl>
-             </Grid>
-             <Grid xs={12} md={4}>
-                <TextField label="Success URL" fullWidth value={dappPayments.successUrl} onChange={e => setDappPayments(p => ({...p, successUrl: e.target.value}))} />
-             </Grid>
-             <Grid xs={12} md={4}>
-                <TextField label="Cancel URL" fullWidth value={dappPayments.cancelUrl} onChange={e => setDappPayments(p => ({...p, cancelUrl: e.target.value}))} />
-             </Grid>
-          </Grid>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03) }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <ShowChartIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Checkout UX</Typography>
+                <Typography variant="caption" color="text.secondary">Theme, success, and cancel URLs</Typography>
+              </Box>
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <Grid container spacing={2.5}>
+               <Grid xs={12} md={4}>
+                  <FormControl fullWidth size="small">
+                     <InputLabel>Theme</InputLabel>
+                     <Select value={dappPayments.checkoutTheme} label="Theme" onChange={e => setDappPayments(p => ({...p, checkoutTheme: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                        <MenuItem value="light">Light</MenuItem>
+                        <MenuItem value="dark">Dark</MenuItem>
+                        <MenuItem value="auto">Auto</MenuItem>
+                     </Select>
+                  </FormControl>
+               </Grid>
+               <Grid xs={12} md={4}>
+                  <TextField label="Success URL" fullWidth size="small" value={dappPayments.successUrl} onChange={e => setDappPayments(p => ({...p, successUrl: e.target.value}))} />
+               </Grid>
+               <Grid xs={12} md={4}>
+                  <TextField label="Cancel URL" fullWidth size="small" value={dappPayments.cancelUrl} onChange={e => setDappPayments(p => ({...p, cancelUrl: e.target.value}))} />
+               </Grid>
+            </Grid>
+          </Box>
        </SectionCard>
     </Stack>
   );
 
   const renderDappCompliance = () => (
-    <Stack spacing={4}>
-       <Box>
-          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha('#8b5cf6', 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <GavelIcon sx={{ color: '#8b5cf6' }} />
-            </Box>
-            <Typography variant="h5" fontWeight={800}>Compliance & Legal</Typography>
-          </Stack>
-          <Typography variant="body2" color="text.secondary">Set up geographic restrictions, KYC, and tax collection.</Typography>
-       </Box>
-       
-       {/* Set 1: Identity */}
+    <Stack spacing={2}>
+       {/* Identity Verification */}
        <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={3}>1. Identity Verification</Typography>
-          <Grid container spacing={3}>
-             <Grid xs={12} md={6}>
-                <FormControl fullWidth>
-                   <InputLabel>KYC Provider</InputLabel>
-                   <Select value={dappCompliance.kycProvider} label="KYC Provider" onChange={e => setDappCompliance(p => ({...p, kycProvider: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                      <MenuItem value="Sumsub">Sumsub</MenuItem>
-                      <MenuItem value="Persona">Persona</MenuItem>
-                      <MenuItem value="Parallel">Parallel Markets</MenuItem>
-                   </Select>
-                </FormControl>
-             </Grid>
-             <Grid xs={12} md={6}>
-                <FormControl fullWidth>
-                   <InputLabel>Verification Level</InputLabel>
-                   <Select value={dappCompliance.kycLevel} label="Verification Level" onChange={e => setDappCompliance(p => ({...p, kycLevel: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                      <MenuItem value="basic">Basic (ID Only)</MenuItem>
-                      <MenuItem value="liveness">Liveness Check</MenuItem>
-                      <MenuItem value="strict">Strict (Proof of Address)</MenuItem>
-                   </Select>
-                </FormControl>
-             </Grid>
-             <Grid xs={12}>
-                <TextField label="Provider API Key" type="password" fullWidth value={dappCompliance.apiKey} onChange={e => setDappCompliance(p => ({...p, apiKey: e.target.value}))} />
-             </Grid>
-          </Grid>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#8b5cf6', 0.03) }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#8b5cf6', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <GavelIcon sx={{ fontSize: 15, color: '#8b5cf6' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Identity Verification</Typography>
+                <Typography variant="caption" color="text.secondary">KYC provider and verification level</Typography>
+              </Box>
+              <Box sx={{ ml: 'auto', px: 1.25, py: 0.3, borderRadius: 1, bgcolor: alpha('#8b5cf6', 0.08), color: '#8b5cf6', fontSize: '0.62rem', fontWeight: 700 }}>
+                {dappCompliance.kycLevel.toUpperCase()}
+              </Box>
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <Grid container spacing={2.5}>
+               <Grid xs={12} md={6}>
+                  <FormControl fullWidth size="small">
+                     <InputLabel>KYC Provider</InputLabel>
+                     <Select value={dappCompliance.kycProvider} label="KYC Provider" onChange={e => setDappCompliance(p => ({...p, kycProvider: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                        <MenuItem value="Sumsub">Sumsub</MenuItem>
+                        <MenuItem value="Persona">Persona</MenuItem>
+                        <MenuItem value="Parallel">Parallel Markets</MenuItem>
+                     </Select>
+                  </FormControl>
+               </Grid>
+               <Grid xs={12} md={6}>
+                  <FormControl fullWidth size="small">
+                     <InputLabel>Verification Level</InputLabel>
+                     <Select value={dappCompliance.kycLevel} label="Verification Level" onChange={e => setDappCompliance(p => ({...p, kycLevel: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                        <MenuItem value="basic">Basic (ID Only)</MenuItem>
+                        <MenuItem value="liveness">Liveness Check</MenuItem>
+                        <MenuItem value="strict">Strict (Proof of Address)</MenuItem>
+                     </Select>
+                  </FormControl>
+               </Grid>
+               <Grid xs={12}>
+                  <TextField label="Provider API Key" type="password" fullWidth size="small" value={dappCompliance.apiKey} onChange={e => setDappCompliance(p => ({...p, apiKey: e.target.value}))} />
+               </Grid>
+            </Grid>
+          </Box>
        </SectionCard>
 
-       {/* Set 2: Geo */}
+       {/* Geographic Restrictions */}
        <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={3}>2. Geographic Restrictions</Typography>
-          <Grid container spacing={3}>
-             <Grid xs={12}>
-                <Autocomplete
-                   multiple
-                   options={COUNTRIES}
-                   getOptionLabel={(option) => option.label}
-                   value={dappCompliance.geoBlock}
-                   onChange={(_, val) => setDappCompliance(p => ({...p, geoBlock: val}))}
-                   renderInput={(params) => <TextField {...params} label="Geo-Blocked Regions" placeholder="Select countries" />}
-                />
-             </Grid>
-             <Grid xs={12}>
-                <FormControlLabel control={<Switch checked={dappCompliance.gdprCompliant} onChange={e => setDappCompliance(p => ({...p, gdprCompliant: e.target.checked}))} />} label="Enforce GDPR Consent Flow" />
-             </Grid>
-          </Grid>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#ef4444', 0.03) }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#ef4444', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <PieChartIcon sx={{ fontSize: 15, color: '#ef4444' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Geographic Restrictions</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {dappCompliance.geoBlock.length > 0 ? `${dappCompliance.geoBlock.length} region${dappCompliance.geoBlock.length !== 1 ? 's' : ''} blocked` : 'No geo restrictions'}
+                </Typography>
+              </Box>
+              {dappCompliance.gdprCompliant && (
+                <Chip label="GDPR" size="small" sx={{ ml: 'auto', height: 18, fontSize: '0.6rem', bgcolor: alpha('#10b981', 0.1), color: '#10b981', fontWeight: 700 }} />
+              )}
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <Grid container spacing={2.5}>
+               <Grid xs={12}>
+                  <Autocomplete
+                     multiple
+                     options={COUNTRIES}
+                     getOptionLabel={(option) => option.label}
+                     value={dappCompliance.geoBlock}
+                     onChange={(_, val) => setDappCompliance(p => ({...p, geoBlock: val}))}
+                     renderInput={(params) => <TextField {...params} size="small" label="Geo-Blocked Regions" placeholder="Select countries" />}
+                  />
+               </Grid>
+               <Grid xs={12}>
+                  <FormControlLabel control={<Switch size="small" checked={dappCompliance.gdprCompliant} onChange={e => setDappCompliance(p => ({...p, gdprCompliant: e.target.checked}))} />} label={<Typography variant="body2">Enforce GDPR Consent Flow</Typography>} />
+               </Grid>
+            </Grid>
+          </Box>
        </SectionCard>
 
-       {/* Set 3: Legal */}
+       {/* Legal Links */}
        <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={3}>3. Legal Links</Typography>
-          <Grid container spacing={3}>
-             <Grid xs={12} md={6}>
-                <TextField label="Terms of Service URL" fullWidth value={dappCompliance.termsUrl} onChange={e => setDappCompliance(p => ({...p, termsUrl: e.target.value}))} />
-             </Grid>
-             <Grid xs={12} md={6}>
-                <TextField label="Privacy Policy URL" fullWidth value={dappCompliance.privacyUrl} onChange={e => setDappCompliance(p => ({...p, privacyUrl: e.target.value}))} />
-             </Grid>
-          </Grid>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03) }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <ReceiptLongIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Legal Links</Typography>
+                <Typography variant="caption" color="text.secondary">Terms of service and privacy policy URLs</Typography>
+              </Box>
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <Grid container spacing={2.5}>
+               <Grid xs={12} md={6}>
+                  <TextField label="Terms of Service URL" fullWidth size="small" value={dappCompliance.termsUrl} onChange={e => setDappCompliance(p => ({...p, termsUrl: e.target.value}))} />
+               </Grid>
+               <Grid xs={12} md={6}>
+                  <TextField label="Privacy Policy URL" fullWidth size="small" value={dappCompliance.privacyUrl} onChange={e => setDappCompliance(p => ({...p, privacyUrl: e.target.value}))} />
+               </Grid>
+            </Grid>
+          </Box>
        </SectionCard>
     </Stack>
   );
