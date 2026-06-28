@@ -1,20 +1,18 @@
 'use client';
 
 import React, { Component, ErrorInfo, useEffect, useMemo, useState, useCallback, Suspense } from 'react';
-import { Box, Container, Stack, Typography, Paper, Button, Fab, Tooltip } from '@mui/material';
+import { Box, Typography, Paper, Button, Fab, Tooltip } from '@mui/material';
 import HexagonOutlinedIcon from '@mui/icons-material/HexagonOutlined';
 import { alpha } from '@mui/material/styles';
 import { ALL_STEPS, StepMeta } from './StepRegistry';
+import StudioSidebar from './StudioSidebar';
 import { useStudio } from '@/context/StudioContext';
 import { useAutoSave } from '@/lib/useAutoSave';
 import dynamic from 'next/dynamic';
 
 const SmartContractsScreen = dynamic(() => import('@/components/SmartContractsScreen'), { ssr: false });
-const ProjectTrackBar = dynamic(() => import('@/components/studio/ProjectTrackBar'), { ssr: false });
 
-const STEP_SECTION_KEYS = ['type', 'blueprint', 'data', 'economics', 'integrations', 'ui', 'deploy'];
-
-/* ---- Error Boundary so a broken step shows an error, not a blank page ---- */
+/* ---- Error Boundary ---- */
 class StepErrorBoundary extends Component<
   { children: React.ReactNode; stepLabel: string },
   { hasError: boolean; error?: Error }
@@ -49,14 +47,14 @@ class StepErrorBoundary extends Component<
   }
 }
 
-// Props passed to each step component
-type StepProps = {
+/* Props passed to each step component */
+export type StepProps = {
   goNext: () => void;
   goPrev: () => void;
   projectId: string | null;
+  onSubStepChange?: (subStepIndex: number) => void;
 };
 
-// Utility to detect a React component export
 const isComponentType = (x: any): x is React.ComponentType<any> =>
   typeof x === 'function' ||
   (x &&
@@ -68,12 +66,10 @@ function BrokenStep({ meta, mod }: { meta: StepMeta; mod: any }) {
   return (
     <Paper sx={{ p: 2, border: '1px solid', borderColor: 'error.main', background: (t) => t.palette.error.light + '22' }}>
       <Typography variant="h6" color="error" gutterBottom>
-        Step “{meta.label}” isn’t exporting a React component
+        Step "{meta.label}" isn't exporting a React component
       </Typography>
       <Typography sx={{ mb: 1 }}>
-        File loaded for this step, but no component export was found.
-        <br />
-        Add <code>export default function YourStep() {'{'} return (&lt;.../&gt;); {'}'}</code>
+        <code>export default function YourStep() {'{'} return (&lt;.../&gt;); {'}'}</code>
       </Typography>
       <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, Menlo, monospace' }}>
         Module export keys: {JSON.stringify(Object.keys(mod || {}), null, 2)}
@@ -82,24 +78,17 @@ function BrokenStep({ meta, mod }: { meta: StepMeta; mod: any }) {
   );
 }
 
-// Lazy wrapper that uses StepMeta.loader()
 function makeLazy(meta: StepMeta): React.LazyExoticComponent<React.ComponentType<StepProps>> {
   return React.lazy(async (): Promise<{ default: React.ComponentType<StepProps> }> => {
     try {
       const mod = await meta.loader();
       const candidates: any[] = [
-        mod?.default,
-        mod?.Page,
-        mod?.Component,
-        mod?.Step,
-        ...Object.values(mod ?? {}),
+        mod?.default, mod?.Page, mod?.Component, mod?.Step, ...Object.values(mod ?? {}),
       ];
       let picked = candidates.find(isComponentType);
       if (!picked && React.isValidElement(mod?.default)) {
         const node = mod.default as React.ReactElement;
-        picked = function WrappedNode() {
-          return node;
-        };
+        picked = function WrappedNode() { return node; };
       }
       if (!picked) return { default: () => <BrokenStep meta={meta} mod={mod} /> };
       return { default: picked as React.ComponentType<any> };
@@ -107,9 +96,7 @@ function makeLazy(meta: StepMeta): React.LazyExoticComponent<React.ComponentType
       return {
         default: () => (
           <Paper sx={{ p: 2, border: '1px solid', borderColor: 'error.main' }}>
-            <Typography variant="h6" color="error" gutterBottom>
-              Failed to load step “{meta.label}”
-            </Typography>
+            <Typography variant="h6" color="error" gutterBottom>Failed to load step "{meta.label}"</Typography>
             <Typography variant="body2">Check the import path in StepRegistry for this step.</Typography>
           </Paper>
         ),
@@ -128,8 +115,6 @@ export default function StudioShell({
   const studio = useStudio();
   const { projectType } = studio;
 
-  // Build the workflow:
-  // If projectType is not chosen yet, show only 'common' steps
   const currentWorkflow = useMemo(() => {
     const commons = ALL_STEPS.filter((s) => s.path === 'common');
     if (!projectType) return commons.length ? commons : [ALL_STEPS[0]];
@@ -139,28 +124,28 @@ export default function StudioShell({
   const [stepIndex, setStepIndex] = useState(() =>
     Math.max(0, Math.min(initialStep, currentWorkflow.length - 1))
   );
+  const [subStepIndex, setSubStepIndex] = useState(0);
   const [projectId] = useState<string | null>(initialProjectId);
   const [contractsOpen, setContractsOpen] = useState(false);
 
-  // Clamp index if workflow changes
   useEffect(() => {
     if (stepIndex > currentWorkflow.length - 1) {
       setStepIndex(Math.max(0, currentWorkflow.length - 1));
     }
   }, [currentWorkflow.length, stepIndex]);
 
+  // Reset sub-step when advancing beyond step 0
+  useEffect(() => {
+    if (stepIndex > 0) setSubStepIndex(0);
+  }, [stepIndex]);
+
   const TOTAL_STEPS = currentWorkflow.length;
   const step = currentWorkflow[stepIndex];
   const StepView = useMemo(() => makeLazy(step), [step]);
 
-  // Navigation (no shell buttons; kept for page-level use + keyboard)
   const goPrev = useCallback(() => setStepIndex((i) => Math.max(0, i - 1)), []);
-  const goNext = useCallback(
-    () => setStepIndex((i) => Math.min(TOTAL_STEPS - 1, i + 1)),
-    [TOTAL_STEPS]
-  );
+  const goNext = useCallback(() => setStepIndex((i) => Math.min(TOTAL_STEPS - 1, i + 1)), [TOTAL_STEPS]);
 
-  // Keyboard nav remains (hint is shown in footer)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') goPrev();
@@ -170,7 +155,6 @@ export default function StudioShell({
     return () => window.removeEventListener('keydown', onKey);
   }, [goPrev, goNext]);
 
-  // Autosave snapshot (unchanged)
   const projectSnapshot = useMemo(
     () => ({
       ...studio,
@@ -193,28 +177,27 @@ export default function StudioShell({
   });
 
   const statusText =
-    status === 'saving'
-      ? 'Saving…'
-      : status === 'saved'
-      ? 'Saved'
-      : status === 'error'
-      ? 'Save failed'
-      : 'Idle';
+    status === 'saving' ? 'Saving…'
+    : status === 'saved' ? 'Saved'
+    : status === 'error' ? 'Save failed'
+    : 'Idle';
 
   return (
-    <Box sx={{ minHeight: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
-      {/* Smart Contracts Overlay */}
+    <Box sx={{
+      position: 'fixed',
+      inset: 0,
+      top: 64,
+      display: 'flex',
+      flexDirection: 'column',
+      bgcolor: 'background.default',
+      overflow: 'hidden',
+    }}>
+      {/* Smart Contracts overlay */}
       {contractsOpen && (
-        <Box
-          sx={{
-            position: 'fixed',
-            inset: 0,
-            top: 64,
-            zIndex: 1400,
-            bgcolor: 'background.default',
-            overflow: 'auto',
-          }}
-        >
+        <Box sx={{
+          position: 'absolute', inset: 0, zIndex: 1400,
+          bgcolor: 'background.default', overflow: 'auto',
+        }}>
           <SmartContractsScreen
             onClose={() => setContractsOpen(false)}
             onGoToBlueprint={() => { setContractsOpen(false); setStepIndex(1); }}
@@ -222,67 +205,76 @@ export default function StudioShell({
         </Box>
       )}
 
-      {/* Project Progress TrackBar — floats in the NavBar strip (above all step overlays) */}
-      {!contractsOpen && (
-        <Box sx={{ position: 'fixed', top: 14, left: '50%', transform: 'translateX(-50%)', zIndex: 1400, pointerEvents: 'none' }}>
-          <ProjectTrackBar currentStepKey={STEP_SECTION_KEYS[stepIndex] || 'type'} />
-        </Box>
-      )}
+      {/* Main layout — sidebar + content */}
+      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        {/* Sidebar */}
+        <StudioSidebar
+          stepIndex={stepIndex}
+          subStepIndex={subStepIndex}
+          projectType={projectType ?? null}
+        />
 
-      {/* Floating Smart Contracts Button — left side to avoid AI chatbot overlap */}
+        {/* Step content area */}
+        <Box sx={{
+          flex: 1,
+          position: 'relative',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
+          <StepErrorBoundary stepLabel={step.label || `Step ${stepIndex + 1}`}>
+            <Suspense fallback={
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                <Typography color="text.secondary">Loading…</Typography>
+              </Box>
+            }>
+              <StepView
+                goNext={goNext}
+                goPrev={goPrev}
+                projectId={projectId}
+                onSubStepChange={setSubStepIndex}
+              />
+            </Suspense>
+          </StepErrorBoundary>
+        </Box>
+      </Box>
+
+      {/* Smart Contracts FAB */}
       <Fab
         variant="extended"
         size="small"
         onClick={() => setContractsOpen((o) => !o)}
         sx={{
           position: 'fixed',
-          bottom: 32,
-          left: 24,
+          bottom: 24,
+          left: 232, // clears the sidebar
           zIndex: 1302,
           bgcolor: contractsOpen ? 'primary.main' : 'background.paper',
           color: contractsOpen ? 'white' : 'primary.main',
-          border: (t) => `1px solid ${alpha(t.palette.primary.main, 0.5)}`,
-          boxShadow: (t) => `0 4px 24px ${alpha(t.palette.primary.main, 0.3)}`,
-          fontWeight: 700,
+          border: (t) => `1px solid ${alpha(t.palette.primary.main, 0.4)}`,
+          boxShadow: (t) => `0 4px 20px ${alpha(t.palette.primary.main, 0.25)}`,
+          fontWeight: 600,
           fontSize: '0.72rem',
-          letterSpacing: 0.4,
+          letterSpacing: 0.3,
           gap: 0.75,
           px: 2,
           '&:hover': { bgcolor: 'primary.main', color: 'white' },
         }}
       >
-        <HexagonOutlinedIcon sx={{ fontSize: 16 }} />
+        <HexagonOutlinedIcon sx={{ fontSize: 15 }} />
         Smart Contracts
       </Fab>
-      <Container maxWidth="xl" sx={{ flex: 1, py: 3, display: 'flex', flexDirection: 'column' }}>
-        {/* Keep a lightweight step header; pages own Back/Next inside themselves */}
-        <Stack sx={{ mb: 2 }}>
-          <Typography variant="overline" color="text.secondary">
-            STEP {stepIndex + 1} OF {TOTAL_STEPS}
-          </Typography>
-          <Typography variant="h5" sx={{ fontWeight: 600 }}>
-            {step.label}
-          </Typography>
-        </Stack>
 
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%' }}>
-          <StepErrorBoundary stepLabel={step.label || `Step ${stepIndex + 1}`}>
-            <Suspense fallback={<Typography>Loading…</Typography>}>
-              <StepView goNext={goNext} goPrev={goPrev} projectId={projectId} />
-            </Suspense>
-          </StepErrorBoundary>
-        </Box>
-      </Container>
-
-      <Box component="footer" sx={{ borderTop: (t) => `1px solid ${t.palette.divider}`, py: 1.5, px: 2, mt: 'auto' }}>
-        <Container maxWidth="xl" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="caption" color="text.secondary">
-            {statusText}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Tip: use ← / → to navigate steps
-          </Typography>
-        </Container>
+      {/* Autosave indicator */}
+      <Box sx={{
+        position: 'fixed',
+        bottom: 10,
+        right: 20,
+        zIndex: 1200,
+      }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+          {statusText}
+        </Typography>
       </Box>
     </Box>
   );

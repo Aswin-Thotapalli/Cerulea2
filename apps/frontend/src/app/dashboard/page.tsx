@@ -51,12 +51,13 @@ function getNewProjectUrl() {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const theme = useTheme();
   const config = {
     active: { color: '#10b981', icon: <CheckCircleIcon sx={{ fontSize: 12 }} />, label: 'Live' },
     deploying: { color: '#f59e0b', icon: <PendingIcon sx={{ fontSize: 12 }} />, label: 'Deploying' },
-    draft: { color: '#6b7280', icon: <StorageIcon sx={{ fontSize: 12 }} />, label: 'Draft' },
+    draft: { color: theme.palette.text.secondary, icon: <StorageIcon sx={{ fontSize: 12 }} />, label: 'Draft' },
     failed: { color: '#ef4444', icon: <ErrorOutlineIcon sx={{ fontSize: 12 }} />, label: 'Failed' },
-  }[status] ?? { color: '#6b7280', icon: null, label: status };
+  }[status] ?? { color: theme.palette.text.secondary, icon: null, label: status };
 
   return (
     <Chip
@@ -160,8 +161,8 @@ export default function DashboardPage() {
           p: { xs: 3, md: 4 },
           borderRadius: 4,
           background: theme.palette.mode === 'dark'
-            ? 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(16,185,129,0.06) 100%)'
-            : 'linear-gradient(135deg, rgba(99,102,241,0.07) 0%, rgba(16,185,129,0.04) 100%)',
+            ? 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(124,58,237,0.08) 100%)'
+            : 'linear-gradient(135deg, rgba(99,102,241,0.07) 0%, rgba(124,58,237,0.05) 100%)',
           borderColor: alpha(theme.palette.primary.main, 0.18),
           position: 'relative',
           overflow: 'hidden',

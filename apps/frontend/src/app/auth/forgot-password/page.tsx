@@ -18,11 +18,19 @@ export default function ForgotPasswordPage(){
   };
 
   return (
-    <Box sx={{display:'grid',placeItems:'center',minHeight:'100vh',
-      background:'radial-gradient(1200px 600px at 10% 10%, rgba(99,102,241,.18), transparent), radial-gradient(1000px 500px at 90% 10%, rgba(16,185,129,.12), transparent)'}}>
-      <Paper elevation={0} sx={{width: 420, p:3, borderRadius:3, backdropFilter:'blur(16px)', backgroundColor:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.16)'}}>
-        <Typography variant="h5" sx={{mb:1.5, fontWeight:700}}>Forgot password</Typography>
-        <Typography variant="body2" sx={{mb:3, opacity:.8}}>Enter your email to receive a reset link.</Typography>
+    <Box sx={{
+      display: 'grid', placeItems: 'center', minHeight: '100vh', bgcolor: 'background.default',
+      background: (t: any) => t.palette.mode === 'light'
+        ? 'radial-gradient(900px 600px at 20% 0%, rgba(79,70,229,0.09), transparent)'
+        : 'radial-gradient(900px 600px at 20% 0%, rgba(99,102,241,0.16), transparent)',
+    }}>
+      <Paper elevation={0} sx={{
+        width: 420, p: '28px 32px', borderRadius: '16px',
+        bgcolor: 'background.paper', border: '0.5px solid', borderColor: 'divider',
+        boxShadow: (t: any) => `0 8px 40px ${t.palette.mode === 'light' ? 'rgba(79,70,229,0.08)' : 'rgba(0,0,20,0.4)'}`,
+      }}>
+        <Typography variant="h5" fontWeight={600} color="text.primary" sx={{ mb: 1, letterSpacing: '-0.3px' }}>Forgot password</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Enter your email to receive a reset link.</Typography>
         {msg && <Alert severity="success" sx={{mb:2}}>{msg}</Alert>}
         {err && <Alert severity="error" sx={{mb:2}}>{err}</Alert>}
         <Box component="form" onSubmit={submit}>

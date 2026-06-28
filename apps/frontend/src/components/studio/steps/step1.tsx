@@ -59,12 +59,12 @@ type EdgeData = { rel: EdgeRel };
 
 // 1. The Floating Dock
 const FloatingIsland = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' 
-    ? 'rgba(255, 255, 255, 0.9)' 
-    : 'rgba(20, 20, 23, 0.8)',
+  background: theme.palette.mode === 'light'
+    ? 'rgba(255, 255, 255, 0.96)'
+    : 'rgba(8, 14, 36, 0.96)',
   backdropFilter: 'blur(20px) saturate(180%)',
-  border: `1px solid ${theme.palette.divider}`,
-  boxShadow: '0 20px 40px -8px rgba(0, 0, 0, 0.2)',
+  border: `0.5px solid ${theme.palette.divider}`,
+  boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, theme.palette.mode === 'light' ? 0.08 : 0.18)}`,
   borderRadius: 24,
   overflow: 'hidden',
   transition: 'all 0.3s ease',
@@ -72,22 +72,22 @@ const FloatingIsland = styled(Paper)(({ theme }) => ({
 
 // 2. The Step Indicator Pill (New)
 const StepPill = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(20, 20, 23, 0.9)',
-  backdropFilter: 'blur(10px)',
-  border: `1px solid ${theme.palette.divider}`,
+  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.96)' : 'rgba(8, 14, 36, 0.96)',
+  backdropFilter: 'blur(12px)',
+  border: `0.5px solid ${theme.palette.divider}`,
   borderRadius: 100,
   padding: '8px 20px',
   display: 'flex',
   alignItems: 'center',
   gap: 12,
-  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+  boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.08)}`,
   pointerEvents: 'auto',
 }));
 
 // 3. The Spotlight (Add Module)
 const SpotlightDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
-    background: theme.palette.mode === 'light' ? '#fff' : '#18181b', 
+    background: theme.palette.mode === 'light' ? '#fff' : '#0D1535',
     borderRadius: 20,
     border: `1px solid ${theme.palette.divider}`,
     boxShadow: '0 24px 64px rgba(0,0,0,0.3)',
@@ -217,7 +217,7 @@ function ModuleNode({ data, selected }: { data: ModuleNodeData; selected: boolea
         componentsProps={{
           tooltip: {
             sx: {
-              bgcolor: isLight ? 'rgba(255,255,255,0.97)' : 'rgba(20,20,24,0.97)',
+              bgcolor: isLight ? 'rgba(255,255,255,0.97)' : 'rgba(8,14,36,0.97)',
               color: 'text.primary',
               border: '1px solid',
               borderColor: 'divider',
@@ -227,7 +227,7 @@ function ModuleNode({ data, selected }: { data: ModuleNodeData; selected: boolea
               p: 1.5,
             },
           },
-          arrow: { sx: { color: isLight ? 'rgba(255,255,255,0.97)' : 'rgba(20,20,24,0.97)' } },
+          arrow: { sx: { color: isLight ? 'rgba(255,255,255,0.97)' : 'rgba(8,14,36,0.97)' } },
         }}
       >
         <Paper
@@ -593,11 +593,11 @@ function Step1Inner({ goPrev, goNext }: { goPrev?: () => void; goNext?: () => vo
       <StepGuidance
         stepKey="step1"
         title="Blueprint Builder"
-        subtitle="STEP 2 OF 7"
+        subtitle="Step 2 of 6"
         description="Design the architecture of your application by placing and connecting modules on the canvas. Each module represents a feature or capability."
         steps={[
           { first: 'Add modules', next: 'Click "Add Extra Modules" or use the search (Ctrl+K) to find and place modules on the canvas.' },
-          { first: 'Connect modules', next: 'Drag from a module\'s right handle to another module to define how they interact.' },
+          { first: 'Connect modules', next: "Drag from a module's right handle to another module to define how they interact." },
           { first: 'Configure each module', next: 'Click a module node to open the configuration panel on the right and set its parameters.' },
         ]}
         tip="Start with the core modules your use case requires. You can always add more later. Connected modules automatically share relevant data entities."
@@ -614,7 +614,7 @@ function Step1Inner({ goPrev, goNext }: { goPrev?: () => void; goNext?: () => vo
         fitView snapToGrid snapGrid={[20, 20]}
         minZoom={0.2} maxZoom={2}
       >
-        <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color={theme.palette.mode === 'light' ? '#e4e4e7' : '#27272a'} />
+        <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color={theme.palette.mode === 'light' ? 'rgba(79,70,229,0.12)' : 'rgba(79,70,229,0.18)'} />
         
         {/* Adjusted controls margin to avoid top-bar overlap */}
         <Controls position="top-left" style={{ marginTop: 80, marginLeft: 20 }} />
@@ -639,7 +639,7 @@ function Step1Inner({ goPrev, goNext }: { goPrev?: () => void; goNext?: () => vo
         }}>
           <Box sx={{
             p: 3, borderRadius: 3,
-            background: (t) => t.palette.mode === 'dark' ? 'rgba(20,20,24,0.7)' : 'rgba(255,255,255,0.7)',
+            background: (t) => t.palette.mode === 'dark' ? 'rgba(8,14,36,0.7)' : 'rgba(255,255,255,0.7)',
             backdropFilter: 'blur(12px)',
             border: (t) => `1px dashed ${alpha(t.palette.primary.main, 0.3)}`,
             maxWidth: 400,

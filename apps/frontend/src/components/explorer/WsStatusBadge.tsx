@@ -7,7 +7,7 @@ import type { WsStatus } from '@cerulea/types';
 const CONFIG: Record<WsStatus, { label: string; color: string; tip: string }> = {
   connected: { label: 'Live', color: '#10b981', tip: 'WebSocket connected — live data active' },
   connecting: { label: 'Connecting', color: '#f59e0b', tip: 'Connecting to node...' },
-  disconnected: { label: 'Disconnected', color: '#6b7280', tip: 'WebSocket disconnected — retrying...' },
+  disconnected: { label: 'Disconnected', color: '#6B84B0', tip: 'WebSocket disconnected — retrying...' },
   error: { label: 'Error', color: '#ef4444', tip: 'WebSocket error — check RPC URL configuration' },
 };
 
