@@ -9,7 +9,9 @@ const PUBLIC_PATHS = [
   '/api/',
   '/_next/',
   '/favicon.ico',
-  '/icon.png',
+  '/favicon-',
+  '/apple-touch-icon',
+  '/android-chrome-',
   '/brand/',
 ];
 
