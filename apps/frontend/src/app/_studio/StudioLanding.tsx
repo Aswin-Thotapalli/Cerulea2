@@ -145,7 +145,7 @@ export default function StudioLanding({
               {
                 icon: <AutoAwesomeMosaicIcon sx={{ fontSize: 44 }} />,
                 title: 'dApp',
-                subtitle: 'Deploy on Cerulea\'s public chain. NFTs, DeFi, DAO, Marketplace.',
+                subtitle: 'Build smart-contract powered applications on Cerulea. NFTs, DeFi, DAO, Marketplace.',
                 tags: ['Public dApp', 'Private dApp', 'NFT', 'DeFi'],
                 color: '#4F46E5',
               },
