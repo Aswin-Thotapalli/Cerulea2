@@ -8,8 +8,8 @@ export const metadata: Metadata = {
   title: 'Cerulea Studio',
   description: 'The AI Layer 1 for the next internet',
   icons: {
-    icon: [{ url: '/brand/favicon-v2.png', type: 'image/png', sizes: '64x64' }],
-    shortcut: '/brand/favicon-v2.png',
+    icon: [{ url: '/brand/favicon-v2.png?v=3', type: 'image/png' }],
+    shortcut: '/brand/favicon-v2.png?v=3',
     apple: '/brand/favicon-v2.png',
   },
 };

@@ -130,17 +130,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             flexShrink: 0, mt: '2px',
           }}>
             <Box component={Link} href="/" sx={{ flex: 1, display: 'flex', alignItems: 'center', textDecoration: 'none', minWidth: 0 }}>
-              <Image
-                src="/brand/logo-dark.png"
-                alt="Cerulea Studio"
-                width={160}
-                height={44}
-                style={{
-                  objectFit: 'contain', width: 'auto', height: 36, display: 'block',
-                  filter: isDark ? 'drop-shadow(0 0 6px rgba(255,255,255,0.9)) drop-shadow(0 0 3px rgba(255,255,255,1))' : 'none',
-                }}
-                priority
-              />
+              <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                <Image
+                  src="/brand/logo-dark.png"
+                  alt="Cerulea Studio"
+                  width={160}
+                  height={44}
+                  style={{ objectFit: 'contain', width: 'auto', height: 36, display: 'block' }}
+                  priority
+                />
+                {isDark && (
+                  <Image
+                    src="/brand/logo-dark.png"
+                    alt=""
+                    aria-hidden
+                    width={160}
+                    height={44}
+                    style={{
+                      position: 'absolute', top: 0, left: 0,
+                      objectFit: 'contain', width: 'auto', height: 36, display: 'block',
+                      filter: 'brightness(0) invert(1)',
+                      clipPath: 'inset(0 0 0 22%)',
+                    }}
+                    priority
+                  />
+                )}
+              </Box>
             </Box>
             <IconButton size="small" onClick={() => setCollapsed(true)}
               sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
