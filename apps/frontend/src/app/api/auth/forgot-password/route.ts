@@ -56,11 +56,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const user = await db
+    const [user] = await db
       .select()
       .from(users)
-      .where(eq(users.email, email))
-      .get();
+      .where(eq(users.email, email));
 
     // Always respond success (security best practice)
     if (!user) {

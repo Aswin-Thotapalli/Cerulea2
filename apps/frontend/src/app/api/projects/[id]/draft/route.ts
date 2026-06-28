@@ -38,7 +38,7 @@ export async function PUT(req: Request, { params }: Params) {
   const [saved] = await db.insert(drafts).values({
     id: randomUUID(),
     projectId: params.id,
-    data: { step: body.step, payload: body.payload },
+    data: JSON.stringify({ step: body.step, payload: body.payload }),
   }).returning();
 
   return NextResponse.json({ draft: saved });

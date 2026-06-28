@@ -15,6 +15,7 @@ import StorageIcon from '@mui/icons-material/Storage';
 import SpeedIcon from '@mui/icons-material/Speed';
 import HubIcon from '@mui/icons-material/Hub';
 import NetworkCheckIcon from '@mui/icons-material/NetworkCheck';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 
 type Network = {
   id: string;
@@ -37,33 +38,11 @@ const TEST_NETWORKS: Network[] = [
   { id: 'net-006', name: 'CBDC Pilot Network', type: 'L1', status: 'paused', blockHeight: 78_100, tps: 0, lastBlock: '3 days ago', region: 'ap-northeast-1', consensusHealth: 0 },
 ];
 
-const STATUS_COLOR: Record<string, 'success' | 'warning' | 'default'> = {
-  live: 'success',
-  deploying: 'warning',
-  paused: 'default',
+const STATUS_META: Record<string, { color: string; label: string }> = {
+  live: { color: '#10b981', label: 'Live' },
+  deploying: { color: '#f59e0b', label: 'Deploying' },
+  paused: { color: '#6b7db3', label: 'Paused' },
 };
-
-function MetricCard({ label, value, unit, icon, color }: {
-  label: string; value: string | number; unit?: string; icon: React.ReactNode; color: string;
-}) {
-  const theme = useTheme();
-  return (
-    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, background: alpha(color, 0.05), borderColor: alpha(color, 0.2) }}>
-      <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
-        <Box>
-          <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ letterSpacing: 0.5 }}>
-            {label.toUpperCase()}
-          </Typography>
-          <Stack direction="row" alignItems="baseline" spacing={0.5} mt={0.5}>
-            <Typography variant="h4" fontWeight={900} sx={{ color }}>{value}</Typography>
-            {unit && <Typography variant="caption" color="text.secondary" fontWeight={600}>{unit}</Typography>}
-          </Stack>
-        </Box>
-        <Box sx={{ color, opacity: 0.6 }}>{icon}</Box>
-      </Stack>
-    </Paper>
-  );
-}
 
 type Project = { id: string; name: string; projectType: string; status: string };
 
@@ -77,12 +56,7 @@ export default function NetworksPage() {
 
   useEffect(() => {
     if (!session) return;
-    if (isTestAccount) {
-      setNetworks(TEST_NETWORKS);
-      setLoading(false);
-      return;
-    }
-    // For regular users: derive networks from their deployed projects
+    if (isTestAccount) { setNetworks(TEST_NETWORKS); setLoading(false); return; }
     (async () => {
       try {
         const res = await fetch('/api/projects');
@@ -92,9 +66,7 @@ export default function NetworksPage() {
         const derived: Network[] = userProjects
           .filter((p) => p.status === 'active' || p.status === 'deploying')
           .map((p, i) => ({
-            id: `net-${p.id}`,
-            name: p.name,
-            type: p.projectType === 'blockchain' ? 'L1' : 'dApp',
+            id: `net-${p.id}`, name: p.name, type: p.projectType === 'blockchain' ? 'L1' : 'dApp',
             status: p.status === 'active' ? 'live' : 'deploying',
             blockHeight: p.status === 'active' ? Math.floor(Math.random() * 100_000) + 1000 : 0,
             tps: p.status === 'active' ? Math.floor(Math.random() * 30) + 1 : 0,
@@ -103,11 +75,7 @@ export default function NetworksPage() {
             consensusHealth: p.status === 'active' ? 99.0 + Math.random() * 0.9 : 0,
           }));
         setNetworks(derived);
-      } catch {
-        // silent
-      } finally {
-        setLoading(false);
-      }
+      } catch {} finally { setLoading(false); }
     })();
   }, [session, isTestAccount]);
 
@@ -117,121 +85,144 @@ export default function NetworksPage() {
     ? (liveNets.reduce((s, n) => s + n.consensusHealth, 0) / liveNets.length).toFixed(1)
     : 'N/A';
 
+  const goToStudio = () => {
+    const isLocal = window.location.hostname.includes('localhost');
+    window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
+  };
+
+  const statCards = [
+    { label: 'Live Networks', value: liveNets.length, color: '#10b981', icon: <NetworkCheckIcon sx={{ fontSize: 26 }} /> },
+    { label: 'Total Networks', value: networks.length, color: '#4F46E5', icon: <HubIcon sx={{ fontSize: 26 }} /> },
+    { label: 'Combined TPS', value: `${totalTPS}`, unit: 'tx/s', color: '#f59e0b', icon: <SpeedIcon sx={{ fontSize: 26 }} /> },
+    { label: 'Consensus Health', value: avgConsensus, unit: '%', color: '#8b5cf6', icon: <MemoryIcon sx={{ fontSize: 26 }} /> },
+  ];
+
   return (
     <Box sx={{ p: 4, maxWidth: 1200 }}>
+      {/* Header */}
       <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={4}>
         <Box>
-          <Typography variant="h4" fontWeight={900} gutterBottom>Networks / Fleet</Typography>
-          <Typography variant="body1" color="text.secondary">
-            Monitor deployed blockchain networks and their real-time telemetry.
+          <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 800, letterSpacing: 1.5, fontSize: '0.62rem' }}>
+            FLEET MANAGEMENT
+          </Typography>
+          <Typography variant="h4" fontWeight={900} sx={{
+            background: `linear-gradient(135deg, ${theme.palette.mode === 'dark' ? '#e0e7ff' : '#1e1b4b'} 0%, #a5b4fc 60%)`,
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: -0.5, mt: 0.5,
+          }}>
+            Networks / Fleet
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
+            Real-time telemetry across all your deployed blockchain networks.
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          sx={{ borderRadius: 999, fontWeight: 700 }}
-          onClick={() => {
-            const isLocal = window.location.hostname.includes('localhost');
-            window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
-          }}
-        >
+        <Button variant="contained" startIcon={<AddIcon />} onClick={goToStudio}
+          sx={{ borderRadius: 999, fontWeight: 700, background: 'linear-gradient(135deg, #4F46E5 0%, #6366f1 100%)' }}>
           Deploy New Network
         </Button>
       </Stack>
 
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress />
-        </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
       ) : networks.length === 0 ? (
-        <Paper variant="outlined" sx={{ borderRadius: 3, py: 10, textAlign: 'center', borderStyle: 'dashed' }}>
-          <NetworkCheckIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-          <Typography variant="body1" color="text.secondary" gutterBottom>No deployed networks yet.</Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            sx={{ mt: 1, borderRadius: 999 }}
-            onClick={() => {
-              const isLocal = window.location.hostname.includes('localhost');
-              window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
-            }}
-          >
+        <Paper variant="outlined" sx={{ borderRadius: 3, py: 12, textAlign: 'center', borderStyle: 'dashed' }}>
+          <Box sx={{ width: 72, height: 72, borderRadius: 3, bgcolor: alpha('#4F46E5', 0.07), display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2.5 }}>
+            <NetworkCheckIcon sx={{ fontSize: 36, color: '#4F46E5', opacity: 0.5 }} />
+          </Box>
+          <Typography variant="subtitle1" fontWeight={700} gutterBottom>No deployed networks yet</Typography>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={goToStudio} sx={{ mt: 1.5, borderRadius: 999 }}>
             Deploy Your First Network
           </Button>
         </Paper>
       ) : (
         <>
+          {/* Stat strip */}
           <Grid container spacing={2.5} mb={4}>
-            <Grid xs={12} sm={6} md={3}>
-              <MetricCard label="Live Networks" value={liveNets.length} icon={<NetworkCheckIcon sx={{ fontSize: 32 }} />} color={theme.palette.success.main} />
-            </Grid>
-            <Grid xs={12} sm={6} md={3}>
-              <MetricCard label="Total Networks" value={networks.length} icon={<HubIcon sx={{ fontSize: 32 }} />} color={theme.palette.primary.main} />
-            </Grid>
-            <Grid xs={12} sm={6} md={3}>
-              <MetricCard label="Combined TPS" value={totalTPS} unit="tx/s" icon={<SpeedIcon sx={{ fontSize: 32 }} />} color={theme.palette.warning.main} />
-            </Grid>
-            <Grid xs={12} sm={6} md={3}>
-              <MetricCard label="Consensus Health" value={avgConsensus} unit="%" icon={<MemoryIcon sx={{ fontSize: 32 }} />} color={theme.palette.secondary.main} />
-            </Grid>
+            {statCards.map((s) => (
+              <Grid key={s.label} xs={12} sm={6} md={3}>
+                <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, bgcolor: alpha(s.color, 0.05), borderColor: alpha(s.color, 0.18) }}>
+                  <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
+                    <Box>
+                      <Typography variant="caption" sx={{ color: s.color, fontWeight: 800, letterSpacing: 0.8, fontSize: '0.62rem' }}>{s.label.toUpperCase()}</Typography>
+                      <Stack direction="row" alignItems="baseline" spacing={0.5} mt={0.5}>
+                        <Typography variant="h3" fontWeight={900} sx={{ color: s.color, lineHeight: 1 }}>{s.value}</Typography>
+                        {s.unit && <Typography variant="caption" color="text.secondary" fontWeight={600}>{s.unit}</Typography>}
+                      </Stack>
+                    </Box>
+                    <Box sx={{ color: s.color, opacity: 0.5 }}>{s.icon}</Box>
+                  </Stack>
+                </Paper>
+              </Grid>
+            ))}
           </Grid>
 
+          {/* Networks table */}
           <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden' }}>
-            <Box sx={{ px: 3, py: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
-              <Typography variant="h6" fontWeight={800}>Deployed Networks</Typography>
+            <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.02) }}>
+              <Stack direction="row" alignItems="center" spacing={1.5}>
+                <HubIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                <Typography variant="overline" sx={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: 1, color: 'primary.main' }}>DEPLOYED NETWORKS</Typography>
+                <Chip label={networks.length} size="small" sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, bgcolor: alpha('#4F46E5', 0.1), color: '#4F46E5', border: 'none' }} />
+              </Stack>
             </Box>
             <TableContainer>
               <Table>
                 <TableHead>
-                  <TableRow>
+                  <TableRow sx={{ bgcolor: alpha('#4F46E5', 0.02) }}>
                     {['Network', 'Type', 'Status', 'Block Height', 'TPS', 'Consensus', 'Last Block', 'Region', ''].map((h) => (
-                      <TableCell key={h} sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', letterSpacing: 0.5 }}>
-                        {h.toUpperCase()}
-                      </TableCell>
+                      <TableCell key={h} sx={{ fontWeight: 800, color: 'text.disabled', fontSize: '0.62rem', letterSpacing: 0.8, py: 1.5 }}>{h.toUpperCase()}</TableCell>
                     ))}
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {networks.map((net) => (
-                    <TableRow key={net.id} sx={{ '&:hover': { bgcolor: alpha(theme.palette.action.hover, 0.5) } }}>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={700}>{net.name}</Typography>
-                        <Typography variant="caption" color="text.secondary">{net.id}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip label={net.type} size="small" variant="outlined" sx={{ fontWeight: 700, fontSize: '0.7rem', borderColor: alpha(theme.palette.primary.main, 0.4), color: 'primary.main' }} />
-                      </TableCell>
-                      <TableCell>
-                        <Chip label={net.status} size="small" color={STATUS_COLOR[net.status]} variant="filled" sx={{ fontWeight: 700, fontSize: '0.7rem', textTransform: 'capitalize' }} />
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={600}>
-                          {net.blockHeight > 0 ? net.blockHeight.toLocaleString() : 'N/A'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={600}>
-                          {net.tps > 0 ? `${net.tps} tx/s` : 'N/A'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color={net.consensusHealth >= 99 ? 'success.main' : net.consensusHealth >= 90 ? 'warning.main' : 'error.main'} fontWeight={600}>
-                          {net.consensusHealth > 0 ? `${net.consensusHealth.toFixed(1)}%` : 'N/A'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">{net.lastBlock}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">{net.region}</Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Button size="small" variant="outlined" sx={{ borderRadius: 999, fontSize: '0.7rem' }} disabled={net.status !== 'live'}>
-                          View
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {networks.map((net) => {
+                    const sm = STATUS_META[net.status];
+                    const typeColor = net.type === 'L1' ? '#8b5cf6' : '#4F46E5';
+                    return (
+                      <TableRow key={net.id} sx={{
+                        borderLeft: `3px solid ${alpha(sm.color, 0.4)}`,
+                        '&:hover': { bgcolor: alpha(sm.color, 0.03) },
+                      }}>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={700}>{net.name}</Typography>
+                          <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>{net.id}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'inline-flex', px: 1.25, py: 0.4, borderRadius: 1.5, bgcolor: alpha(typeColor, 0.1), color: typeColor, fontSize: '0.65rem', fontWeight: 700 }}>
+                            {net.type}
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Stack direction="row" alignItems="center" spacing={0.75}>
+                            <FiberManualRecordIcon sx={{ fontSize: 8, color: sm.color }} />
+                            <Typography variant="body2" fontWeight={600} sx={{ color: sm.color }}>{sm.label}</Typography>
+                          </Stack>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={600}>{net.blockHeight > 0 ? net.blockHeight.toLocaleString() : '—'}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={600}>{net.tps > 0 ? `${net.tps} tx/s` : '—'}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={600}
+                            sx={{ color: net.consensusHealth >= 99 ? '#10b981' : net.consensusHealth >= 90 ? '#f59e0b' : net.consensusHealth > 0 ? '#ef4444' : 'text.disabled' }}>
+                            {net.consensusHealth > 0 ? `${net.consensusHealth.toFixed(1)}%` : '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">{net.lastBlock}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">{net.region}</Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Button size="small" variant="outlined" disabled={net.status !== 'live'} sx={{ borderRadius: 999, fontSize: '0.68rem' }}>
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>
