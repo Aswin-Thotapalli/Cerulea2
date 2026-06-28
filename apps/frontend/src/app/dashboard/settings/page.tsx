@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import {
-  Box, Typography, Paper, Stack, Button,
-  TextField, Divider, LinearProgress,
-  Dialog, DialogTitle, DialogContent, DialogActions, Alert,
+  Box, Typography, Paper, Stack, Button, Switch, FormControlLabel,
+  TextField, Divider, LinearProgress, Chip, Alert,
+  Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
-import Grid from '@mui/material/GridLegacy';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import SaveIcon from '@mui/icons-material/Save';
 import ContactSupportIcon from '@mui/icons-material/ContactSupport';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
@@ -17,9 +17,17 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import PersonIcon from '@mui/icons-material/Person';
 import StarIcon from '@mui/icons-material/Star';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import SecurityIcon from '@mui/icons-material/Security';
+import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
+import CodeIcon from '@mui/icons-material/Code';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
+import KeyIcon from '@mui/icons-material/Key';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import LaptopIcon from '@mui/icons-material/Laptop';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 
 const PLAN_COLOR: Record<string, string> = {
-  Developer: '#4F46E5', Pro: '#9c27b0', Enterprise: '#f59e0b',
+  Developer: '#4F46E5', Pro: '#9c27b0', Enterprise: '#f59e0b', free: '#6b7280',
 };
 
 const USAGE = {
@@ -29,8 +37,21 @@ const USAGE = {
   storage: { used: 4.8, limit: 10 },
 };
 
+function SectionHeader({ icon, label, color = '#4F46E5', badge }: { icon: React.ReactNode; label: string; color?: string; badge?: React.ReactNode }) {
+  return (
+    <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha(color, 0.03) }}>
+      <Stack direction="row" alignItems="center" spacing={1.5}>
+        <Box sx={{ width: 28, height: 28, borderRadius: 1.5, bgcolor: alpha(color, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {icon}
+        </Box>
+        <Typography variant="overline" sx={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: 1, color }}>{label}</Typography>
+        {badge && <Box sx={{ ml: 'auto' }}>{badge}</Box>}
+      </Stack>
+    </Box>
+  );
+}
+
 function UsageMeter({ label, used, limit, unit }: { label: string; used: number; limit: number; unit?: string }) {
-  const theme = useTheme();
   const pct = Math.min((used / limit) * 100, 100);
   const color = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#10b981';
   return (
@@ -50,13 +71,40 @@ function UsageMeter({ label, used, limit, unit }: { label: string; used: number;
   );
 }
 
+function NotifRow({ label, desc, checked, onChange }: { label: string; desc: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
+      <Box>
+        <Typography variant="body2" fontWeight={600}>{label}</Typography>
+        <Typography variant="caption" color="text.secondary">{desc}</Typography>
+      </Box>
+      <Switch size="small" checked={checked} onChange={(e) => onChange(e.target.checked)} sx={{ flexShrink: 0, mt: 0.25 }} />
+    </Stack>
+  );
+}
+
 export default function SettingsPage() {
   const theme = useTheme();
+  const router = useRouter();
   const { data: session } = useSession();
 
   const [name, setName] = useState(session?.user?.name || '');
   const [email, setEmail] = useState(session?.user?.email || '');
+  const [company, setCompany] = useState('');
+  const [role, setRole] = useState('');
   const [saved, setSaved] = useState(false);
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [twoFaEnabled, setTwoFaEnabled] = useState(false);
+
+  const [notifCritical] = useState(true);
+  const [notifDigest, setNotifDigest] = useState(true);
+  const [notifMarketing, setNotifMarketing] = useState(false);
+  const [notifTips, setNotifTips] = useState(true);
+  const [notifDeployment, setNotifDeployment] = useState(true);
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
@@ -68,7 +116,7 @@ export default function SettingsPage() {
 
   const handleSave = () => {
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setTimeout(() => setSaved(false), 2500);
   };
 
   const handleResetTestAccount = async () => {
@@ -92,60 +140,207 @@ export default function SettingsPage() {
     } catch {} finally { setResetLoading(false); }
   };
 
+  const isDark = theme.palette.mode === 'dark';
+
   return (
     <Box sx={{ p: 4, maxWidth: 860, mx: 'auto' }}>
       {/* Header */}
-      <Box mb={4}>
+      <Box mb={5}>
         <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 800, letterSpacing: 1.5, fontSize: '0.62rem' }}>ACCOUNT</Typography>
         <Typography variant="h4" fontWeight={900} sx={{
-          background: `linear-gradient(135deg, ${theme.palette.mode === 'dark' ? '#e0e7ff' : '#1e1b4b'} 0%, #a5b4fc 60%)`,
+          background: `linear-gradient(135deg, ${isDark ? '#e0e7ff' : '#1e1b4b'} 0%, #a5b4fc 60%)`,
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: -0.5, mt: 0.5,
         }}>Settings</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-          Manage your profile, subscription, and account configuration.
+          Manage your profile, security, subscription, and developer configuration.
         </Typography>
       </Box>
 
-      {/* Profile */}
-      <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden', mb: 3 }}>
-        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.02) }}>
-          <Stack direction="row" alignItems="center" spacing={1.5}>
-            <Box sx={{ width: 28, height: 28, borderRadius: 1.5, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <PersonIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
-            </Box>
-            <Typography variant="overline" sx={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: 1, color: 'primary.main' }}>PROFILE</Typography>
-          </Stack>
-        </Box>
+      {/* ── PROFILE ─────────────────────────────────────────────────── */}
+      <Paper variant="outlined" sx={{ borderRadius: 3, mb: 3, overflow: 'hidden' }}>
+        <SectionHeader icon={<PersonIcon sx={{ fontSize: 15, color: '#4F46E5' }} />} label="PROFILE" />
         <Box sx={{ p: 3 }}>
-          <Grid container spacing={2.5}>
-            <Grid xs={12} sm={6}>
-              <TextField label="Full Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth size="small" />
-            </Grid>
-            <Grid xs={12} sm={6}>
-              <TextField label="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth size="small" type="email" />
-            </Grid>
-            <Grid xs={12} sm={6}>
-              <TextField label="Current Password" type="password" placeholder="Leave blank to keep unchanged" fullWidth size="small" />
-            </Grid>
-            <Grid xs={12} sm={6}>
-              <TextField label="New Password" type="password" placeholder="Minimum 8 characters" fullWidth size="small" />
-            </Grid>
-          </Grid>
-          <Box mt={2.5}>
-            <Button variant="contained" startIcon={saved ? <CheckCircleIcon /> : <SaveIcon />}
-              onClick={handleSave} color={saved ? 'success' : 'primary'} sx={{ fontWeight: 700 }}>
-              {saved ? 'Saved!' : 'Save Changes'}
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, mb: 2.5 }}>
+            <TextField label="Full Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth size="small" />
+            <TextField label="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth size="small" type="email" />
+            <TextField label="Company / Organisation" value={company} onChange={(e) => setCompany(e.target.value)} fullWidth size="small" placeholder="Cerulea Bytechians" />
+            <TextField label="Role" value={role} onChange={(e) => setRole(e.target.value)} fullWidth size="small" placeholder="Founder, Developer…" />
+          </Box>
+          <Button variant="contained" startIcon={saved ? <CheckCircleIcon /> : <SaveIcon />}
+            onClick={handleSave} color={saved ? 'success' : 'primary'} sx={{ fontWeight: 700, borderRadius: 1 }}>
+            {saved ? 'Saved!' : 'Save Changes'}
+          </Button>
+        </Box>
+      </Paper>
+
+      {/* ── SECURITY ─────────────────────────────────────────────────── */}
+      <Paper variant="outlined" sx={{ borderRadius: 3, mb: 3, overflow: 'hidden' }}>
+        <SectionHeader icon={<SecurityIcon sx={{ fontSize: 15, color: '#8b5cf6' }} />} label="SECURITY" color="#8b5cf6" />
+        <Box sx={{ p: 3 }}>
+          {/* Password change */}
+          <Typography variant="subtitle2" fontWeight={700} mb={1.5}>Change Password</Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 2, mb: 3 }}>
+            <TextField label="Current Password" type="password" size="small" fullWidth value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+            <TextField label="New Password" type="password" size="small" fullWidth value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min 8 characters" />
+            <TextField label="Confirm Password" type="password" size="small" fullWidth value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+              error={confirmPassword.length > 0 && confirmPassword !== newPassword} helperText={confirmPassword.length > 0 && confirmPassword !== newPassword ? 'Passwords do not match' : undefined} />
+          </Box>
+          <Button variant="outlined" size="small" sx={{ borderRadius: 1, fontWeight: 700, mb: 3 }} disabled={!newPassword || newPassword !== confirmPassword}>
+            Update Password
+          </Button>
+
+          <Divider sx={{ mb: 3 }} />
+
+          {/* 2FA */}
+          <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2} mb={3}>
+            <Box>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Typography variant="subtitle2" fontWeight={700}>Two-Factor Authentication</Typography>
+                <Chip label={twoFaEnabled ? 'Enabled' : 'Disabled'} size="small" sx={{
+                  height: 18, fontSize: '0.62rem', fontWeight: 700,
+                  bgcolor: twoFaEnabled ? alpha('#10b981', 0.1) : alpha('#6b7280', 0.1),
+                  color: twoFaEnabled ? '#10b981' : 'text.secondary',
+                }} />
+              </Stack>
+              <Typography variant="caption" color="text.secondary">
+                Add an extra layer of protection. Use an authenticator app like Google Authenticator or Authy.
+              </Typography>
+            </Box>
+            <Switch size="small" checked={twoFaEnabled} onChange={(e) => setTwoFaEnabled(e.target.checked)} sx={{ flexShrink: 0, mt: 0.25 }} />
+          </Stack>
+
+          <Divider sx={{ mb: 3 }} />
+
+          {/* Sessions */}
+          <Typography variant="subtitle2" fontWeight={700} mb={1.5}>Active Sessions</Typography>
+          <Stack spacing={1.5} mb={2}>
+            {[
+              { device: 'Chrome on Windows', location: 'Hyderabad, IN', current: true },
+              { device: 'Safari on iPhone', location: 'Hyderabad, IN', current: false },
+            ].map((s, i) => (
+              <Stack key={i} direction="row" alignItems="center" spacing={1.5} sx={{
+                p: 1.5, borderRadius: 1.5, border: '1px solid', borderColor: 'divider',
+                bgcolor: s.current ? alpha('#4F46E5', 0.03) : 'transparent',
+              }}>
+                <Box sx={{ width: 32, height: 32, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.08), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <LaptopIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="caption" fontWeight={700} display="block">{s.device}</Typography>
+                  <Typography variant="caption" color="text.secondary">{s.location}</Typography>
+                </Box>
+                {s.current ? (
+                  <Chip label="This device" size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, bgcolor: alpha('#10b981', 0.1), color: '#10b981' }} />
+                ) : (
+                  <Button size="small" color="error" sx={{ fontSize: '0.72rem', minWidth: 0, px: 1 }}>Revoke</Button>
+                )}
+              </Stack>
+            ))}
+          </Stack>
+          <Button size="small" variant="outlined" color="error" sx={{ borderRadius: 1, fontSize: '0.75rem', fontWeight: 700 }}>
+            Sign Out All Other Sessions
+          </Button>
+        </Box>
+      </Paper>
+
+      {/* ── NOTIFICATIONS ─────────────────────────────────────────────── */}
+      <Paper variant="outlined" sx={{ borderRadius: 3, mb: 3, overflow: 'hidden' }}>
+        <SectionHeader icon={<NotificationsNoneIcon sx={{ fontSize: 15, color: '#f59e0b' }} />} label="NOTIFICATIONS" color="#f59e0b" />
+        <Box sx={{ p: 3 }}>
+          <Stack spacing={2.5}>
+            <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
+              <Box>
+                <Typography variant="body2" fontWeight={600}>Critical Alerts</Typography>
+                <Typography variant="caption" color="text.secondary">Security events, failed deployments, billing issues. Always on.</Typography>
+              </Box>
+              <Switch size="small" checked disabled sx={{ flexShrink: 0, mt: 0.25 }} />
+            </Stack>
+            <Divider />
+            <NotifRow label="Deployment Notifications" desc="Email when a deployment succeeds or fails." checked={notifDeployment} onChange={setNotifDeployment} />
+            <NotifRow label="Weekly Digest" desc="A summary of your projects, API usage, and platform news." checked={notifDigest} onChange={setNotifDigest} />
+            <NotifRow label="Studio Tips & Updates" desc="Feature announcements, best practices, and how-to guides." checked={notifTips} onChange={setNotifTips} />
+            <NotifRow label="Marketing Emails" desc="Case studies, webinars, and promotional offers." checked={notifMarketing} onChange={setNotifMarketing} />
+          </Stack>
+          <Box mt={3}>
+            <Button variant="outlined" size="small" startIcon={<SaveIcon />} onClick={handleSave}
+              sx={{ borderRadius: 1, fontWeight: 700 }}>
+              Save Preferences
             </Button>
           </Box>
         </Box>
       </Paper>
 
-      {/* Subscription */}
-      <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden', mb: 3, borderColor: alpha(planColor, 0.2), bgcolor: alpha(planColor, 0.02) }}>
+      {/* ── DEVELOPER ─────────────────────────────────────────────────── */}
+      <Paper variant="outlined" sx={{ borderRadius: 3, mb: 3, overflow: 'hidden' }}>
+        <SectionHeader icon={<CodeIcon sx={{ fontSize: 15, color: '#06b6d4' }} />} label="DEVELOPER" color="#06b6d4" />
+        <Box sx={{ p: 3 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderColor: alpha('#06b6d4', 0.2), bgcolor: alpha('#06b6d4', 0.02) }}>
+              <Stack direction="row" alignItems="center" spacing={1.5} mb={0.75}>
+                <KeyIcon sx={{ fontSize: 16, color: '#06b6d4' }} />
+                <Typography variant="subtitle2" fontWeight={700}>API Keys</Typography>
+              </Stack>
+              <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
+                Create and manage API keys for programmatic access to Cerulea APIs.
+              </Typography>
+              <Button size="small" variant="outlined" endIcon={<ArrowForwardIcon sx={{ fontSize: 13 }} />}
+                onClick={() => router.push('/dashboard/api-keys')}
+                sx={{ borderRadius: 1, fontWeight: 700, fontSize: '0.72rem', borderColor: alpha('#06b6d4', 0.4), color: '#06b6d4' }}>
+                Manage Keys
+              </Button>
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderColor: alpha('#06b6d4', 0.2), bgcolor: alpha('#06b6d4', 0.02) }}>
+              <Stack direction="row" alignItems="center" spacing={1.5} mb={0.75}>
+                <CodeIcon sx={{ fontSize: 16, color: '#06b6d4' }} />
+                <Typography variant="subtitle2" fontWeight={700}>Webhook Secret</Typography>
+              </Stack>
+              <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
+                Used to verify that incoming webhook events are from Cerulea.
+              </Typography>
+              <TextField size="small" value="whsec_••••••••••••••••••••••••" fullWidth disabled
+                InputProps={{ sx: { fontFamily: 'monospace', fontSize: '0.75rem' } }} />
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderColor: alpha('#06b6d4', 0.2), bgcolor: alpha('#06b6d4', 0.02) }}>
+              <Stack direction="row" alignItems="center" spacing={1.5} mb={0.75}>
+                <OpenInNewIcon sx={{ fontSize: 16, color: '#06b6d4' }} />
+                <Typography variant="subtitle2" fontWeight={700}>API Documentation</Typography>
+              </Stack>
+              <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
+                Full REST API reference, SDKs, and code examples.
+              </Typography>
+              <Button size="small" variant="outlined" endIcon={<OpenInNewIcon sx={{ fontSize: 13 }} />}
+                href="https://docs.cerulea.io" target="_blank" rel="noopener noreferrer"
+                sx={{ borderRadius: 1, fontWeight: 700, fontSize: '0.72rem', borderColor: alpha('#06b6d4', 0.4), color: '#06b6d4' }}>
+                Open Docs
+              </Button>
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderColor: alpha('#06b6d4', 0.2), bgcolor: alpha('#06b6d4', 0.02) }}>
+              <Stack direction="row" alignItems="center" spacing={1.5} mb={0.75}>
+                <CodeIcon sx={{ fontSize: 16, color: '#06b6d4' }} />
+                <Typography variant="subtitle2" fontWeight={700}>CLI Access</Typography>
+              </Stack>
+              <Typography variant="caption" color="text.secondary" display="block" mb={0.75}>
+                Install the Cerulea CLI to deploy and manage from your terminal.
+              </Typography>
+              <Box sx={{ bgcolor: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.04)', borderRadius: 1, px: 1.5, py: 0.75 }}>
+                <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '0.72rem', color: '#06b6d4' }}>
+                  npm install -g @cerulea/cli
+                </Typography>
+              </Box>
+            </Paper>
+          </Box>
+        </Box>
+      </Paper>
+
+      {/* ── SUBSCRIPTION ─────────────────────────────────────────────── */}
+      <Paper variant="outlined" sx={{ borderRadius: 3, mb: 3, overflow: 'hidden', borderColor: alpha(planColor, 0.2), bgcolor: alpha(planColor, 0.01) }}>
         <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: alpha(planColor, 0.15), bgcolor: alpha(planColor, 0.04) }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Stack direction="row" alignItems="center" spacing={1.5}>
-              <Box sx={{ width: 28, height: 28, borderRadius: 1.5, bgcolor: alpha(planColor, 0.15), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1.5, bgcolor: alpha(planColor, 0.15), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <StarIcon sx={{ fontSize: 15, color: planColor }} />
               </Box>
               <Typography variant="overline" sx={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: 1, color: planColor }}>SUBSCRIPTION</Typography>
@@ -162,24 +357,29 @@ export default function SettingsPage() {
             <UsageMeter label="API Calls" used={USAGE.apiCalls.used} limit={USAGE.apiCalls.limit} unit="calls" />
             <UsageMeter label="Storage" used={USAGE.storage.used} limit={USAGE.storage.limit} unit="GB" />
           </Stack>
-
           <Divider sx={{ mb: 2.5 }} />
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} justifyContent="space-between">
             <Typography variant="body2" color="text.secondary">Interested in upgrading your plan or enterprise pricing?</Typography>
-            <Button variant="outlined" startIcon={<ContactSupportIcon />} href="https://cerulea.io/company/contact-sales"
-              target="_blank" rel="noopener noreferrer"
-              sx={{ borderRadius: 1, fontWeight: 700, whiteSpace: 'nowrap', ml: 2, borderColor: alpha(planColor, 0.4), color: planColor }}>
-              Contact Sales
-            </Button>
+            <Stack direction="row" spacing={1.5}>
+              <Button variant="outlined" startIcon={<CreditCardIcon />} onClick={() => router.push('/dashboard/billing')}
+                sx={{ borderRadius: 1, fontWeight: 700, whiteSpace: 'nowrap', borderColor: alpha(planColor, 0.4), color: planColor }}>
+                Billing History
+              </Button>
+              <Button variant="outlined" startIcon={<ContactSupportIcon />} href="https://cerulea.io/company/contact-sales"
+                target="_blank" rel="noopener noreferrer"
+                sx={{ borderRadius: 1, fontWeight: 700, whiteSpace: 'nowrap', borderColor: alpha(planColor, 0.4), color: planColor }}>
+                Contact Sales
+              </Button>
+            </Stack>
           </Stack>
         </Box>
       </Paper>
 
-      {/* Danger zone */}
-      <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden', borderColor: alpha('#ef4444', 0.25), bgcolor: alpha('#ef4444', 0.02) }}>
+      {/* ── DANGER ZONE ─────────────────────────────────────────────── */}
+      <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden', borderColor: alpha('#ef4444', 0.25), bgcolor: alpha('#ef4444', 0.01) }}>
         <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: alpha('#ef4444', 0.15), bgcolor: alpha('#ef4444', 0.04) }}>
           <Stack direction="row" alignItems="center" spacing={1.5}>
-            <Box sx={{ width: 28, height: 28, borderRadius: 1.5, bgcolor: alpha('#ef4444', 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box sx={{ width: 28, height: 28, borderRadius: 1.5, bgcolor: alpha('#ef4444', 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <WarningAmberIcon sx={{ fontSize: 15, color: '#ef4444' }} />
             </Box>
             <Typography variant="overline" sx={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: 1, color: '#ef4444' }}>DANGER ZONE</Typography>
@@ -188,7 +388,7 @@ export default function SettingsPage() {
         <Box sx={{ p: 3 }}>
           <Stack spacing={2}>
             {isTestAccount && (
-              <Stack direction="row" alignItems="center" justifyContent="space-between" p={2} sx={{
+              <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} justifyContent="space-between" spacing={2} p={2} sx={{
                 borderRadius: 2, border: `1px solid ${alpha('#f59e0b', 0.2)}`, bgcolor: alpha('#f59e0b', 0.04),
               }}>
                 <Box>
@@ -198,30 +398,30 @@ export default function SettingsPage() {
                   </Typography>
                 </Box>
                 <Button variant="outlined" color="warning" startIcon={<RefreshIcon />} onClick={handleResetTestAccount}
-                  disabled={resetLoading} sx={{ borderRadius: 1, fontWeight: 700, whiteSpace: 'nowrap', ml: 2 }}>
+                  disabled={resetLoading} sx={{ borderRadius: 1, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
                   {resetDone ? 'Reset!' : resetLoading ? 'Resetting…' : 'Reset Account'}
                 </Button>
               </Stack>
             )}
 
-            <Stack direction="row" alignItems="center" justifyContent="space-between" p={2} sx={{
+            <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} justifyContent="space-between" spacing={2} p={2} sx={{
               borderRadius: 2, border: `1px solid ${alpha('#ef4444', 0.2)}`,
             }}>
               <Box>
                 <Typography variant="body2" fontWeight={700}>Delete Account</Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Permanently remove your account, all projects, and deployed networks. This cannot be undone.
+                  Permanently removes your account, all projects, deployed networks, snapshots, and API keys. This cannot be undone.
                 </Typography>
               </Box>
               <Button variant="outlined" color="error" startIcon={<DeleteForeverIcon />} onClick={() => setDeleteDialogOpen(true)}
-                sx={{ borderRadius: 1, fontWeight: 700, whiteSpace: 'nowrap', ml: 2 }}>
+                sx={{ borderRadius: 1, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
                 Delete Account
               </Button>
             </Stack>
           </Stack>
 
           {resetDone && (
-            <Alert severity="success" sx={{ mt: 2, borderRadius: 2 }}>Account factory reset complete. Redirecting to Studio...</Alert>
+            <Alert severity="success" sx={{ mt: 2, borderRadius: 2 }}>Account factory reset complete. Redirecting to Studio…</Alert>
           )}
         </Box>
       </Paper>

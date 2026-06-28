@@ -54,7 +54,7 @@ const SectionCard = styled(Paper)(({ theme }) => ({
   border: `1px solid ${theme.palette.divider}`,
   background: theme.palette.background.paper,
   marginBottom: theme.spacing(2),
-  overflow: 'hidden',
+  overflow: 'visible',
 }));
 
 // Opaque Menu
@@ -102,6 +102,8 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
 
   // State
   const [projectType, setProjectType] = useState<"dapp" | "blockchain">("dapp");
+  const [dappVisibility, setDappVisibility] = useState<"public" | "private">("public");
+  const [legacyMode, setLegacyMode] = useState<"none" | "existing">("none");
   const [activeTab, setActiveTab] = useState("rev");
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
@@ -170,6 +172,10 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
   useEffect(() => {
     const lsType = typeof window !== 'undefined' ? localStorage.getItem('cerulea.projectType') : null;
     if (lsType) setProjectType(lsType as any);
+    const lsVis = typeof window !== 'undefined' ? localStorage.getItem('cerulea.dappVisibility') : null;
+    if (lsVis) setDappVisibility(lsVis as any);
+    const lsLegacy = typeof window !== 'undefined' ? localStorage.getItem('cerulea.legacyMode') : null;
+    if (lsLegacy === 'existing') setLegacyMode('existing');
 
     // Load pre-populated economics (set by StudioEntry from DB)
     const econRaw = typeof window !== 'undefined' ? localStorage.getItem('cerulea.economics') : null;
@@ -298,9 +304,21 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
 
   const renderDappRevenue = () => (
     <Stack spacing={2}>
+       {/* Context banner */}
+       <Box sx={{ px: 2.5, py: 1.5, borderRadius: 2, bgcolor: alpha(dappVisibility === 'private' ? '#8b5cf6' : '#4F46E5', 0.06), border: `1px solid ${alpha(dappVisibility === 'private' ? '#8b5cf6' : '#4F46E5', 0.18)}` }}>
+         <Stack direction="row" alignItems="center" spacing={1}>
+           <MonetizationOnIcon sx={{ fontSize: 15, color: dappVisibility === 'private' ? '#8b5cf6' : '#4F46E5' }} />
+           <Typography variant="caption" fontWeight={700} sx={{ color: dappVisibility === 'private' ? '#8b5cf6' : '#4F46E5' }}>
+             {dappVisibility === 'private'
+               ? 'Private dApp — monetise through seat-based billing, internal credits, or direct invoicing rather than public subscriptions.'
+               : 'Public dApp — configure your public-facing subscription tiers, usage metering, and trial settings.'}
+           </Typography>
+         </Stack>
+       </Box>
+
        {/* Section 1: Core Pricing */}
        <SectionCard>
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03) }}>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03), borderRadius: '12px 12px 0 0' }}>
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <MonetizationOnIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
@@ -315,39 +333,33 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
             </Stack>
           </Box>
           <Box sx={{ p: 3 }}>
-            <Grid container spacing={2.5}>
-               <Grid xs={12} md={4}>
-                  <FormControl fullWidth size="small">
-                     <InputLabel>Billing Model</InputLabel>
-                     <Select value={dappRevenue.billingModel} label="Billing Model" onChange={e => setDappRevenue(p => ({...p, billingModel: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                        <MenuItem value="subscription">Subscription (SaaS)</MenuItem>
-                        <MenuItem value="usage">Usage Based (Metered)</MenuItem>
-                        <MenuItem value="hybrid">Hybrid</MenuItem>
-                        <MenuItem value="one-time">One-Time License</MenuItem>
-                     </Select>
-                  </FormControl>
-               </Grid>
-               <Grid xs={12} md={4}>
-                  <FormControl fullWidth size="small">
-                     <InputLabel>Base Currency</InputLabel>
-                     <Select value={dappRevenue.currency} label="Base Currency" onChange={e => setDappRevenue(p => ({...p, currency: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                        <MenuItem value="USD">USD ($)</MenuItem>
-                        <MenuItem value="EUR">EUR (€)</MenuItem>
-                        <MenuItem value="ETH">ETH (Ξ)</MenuItem>
-                        <MenuItem value="USDC">USDC</MenuItem>
-                     </Select>
-                  </FormControl>
-               </Grid>
-               <Grid xs={12} md={4}>
-                  <TextField label="Trial Period (days)" type="number" fullWidth size="small" value={dappRevenue.trialDays} onChange={e => setDappRevenue(p => ({...p, trialDays: safeNum(e.target.value)}))} />
-               </Grid>
-            </Grid>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2.5 }}>
+               <FormControl fullWidth size="small">
+                  <InputLabel>Billing Model</InputLabel>
+                  <Select value={dappRevenue.billingModel} label="Billing Model" onChange={e => setDappRevenue(p => ({...p, billingModel: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                     <MenuItem value="subscription">Subscription (SaaS)</MenuItem>
+                     <MenuItem value="usage">Usage Based (Metered)</MenuItem>
+                     <MenuItem value="hybrid">Hybrid</MenuItem>
+                     <MenuItem value="one-time">One-Time License</MenuItem>
+                  </Select>
+               </FormControl>
+               <FormControl fullWidth size="small">
+                  <InputLabel>Base Currency</InputLabel>
+                  <Select value={dappRevenue.currency} label="Base Currency" onChange={e => setDappRevenue(p => ({...p, currency: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                     <MenuItem value="USD">USD ($)</MenuItem>
+                     <MenuItem value="EUR">EUR (€)</MenuItem>
+                     <MenuItem value="ETH">ETH (Ξ)</MenuItem>
+                     <MenuItem value="USDC">USDC</MenuItem>
+                  </Select>
+               </FormControl>
+               <TextField label="Trial Period (days)" type="number" fullWidth size="small" value={dappRevenue.trialDays} onChange={e => setDappRevenue(p => ({...p, trialDays: safeNum(e.target.value)}))} />
+            </Box>
           </Box>
        </SectionCard>
 
        {/* Section 2: Metering */}
        <SectionCard>
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03) }}>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03), borderRadius: '12px 12px 0 0' }}>
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <ShowChartIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
@@ -362,23 +374,17 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
             </Stack>
           </Box>
           <Box sx={{ p: 3 }}>
-            <Grid container spacing={2.5}>
-               <Grid xs={12} md={4}>
-                  <TextField label="Metered Rate (per unit)" type="number" fullWidth size="small" value={dappRevenue.meteredRate} onChange={e => setDappRevenue(p => ({...p, meteredRate: safeNum(e.target.value)}))} disabled={dappRevenue.billingModel === 'subscription'} />
-               </Grid>
-               <Grid xs={12} md={4}>
-                  <TextField label="Unit Name" placeholder="e.g. Requests, GB" fullWidth size="small" value={dappRevenue.meteredUnit} onChange={e => setDappRevenue(p => ({...p, meteredUnit: e.target.value}))} disabled={dappRevenue.billingModel === 'subscription'} />
-               </Grid>
-               <Grid xs={12} md={4}>
-                  <TextField label="Monthly Cap (0 = Unlimited)" type="number" fullWidth size="small" value={dappRevenue.meteredCap} onChange={e => setDappRevenue(p => ({...p, meteredCap: safeNum(e.target.value)}))} />
-               </Grid>
-            </Grid>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2.5 }}>
+               <TextField label="Metered Rate (per unit)" type="number" fullWidth size="small" value={dappRevenue.meteredRate} onChange={e => setDappRevenue(p => ({...p, meteredRate: safeNum(e.target.value)}))} disabled={dappRevenue.billingModel === 'subscription'} />
+               <TextField label="Unit Name" placeholder="e.g. Requests, GB" fullWidth size="small" value={dappRevenue.meteredUnit} onChange={e => setDappRevenue(p => ({...p, meteredUnit: e.target.value}))} disabled={dappRevenue.billingModel === 'subscription'} />
+               <TextField label="Monthly Cap (0 = Unlimited)" type="number" fullWidth size="small" value={dappRevenue.meteredCap} onChange={e => setDappRevenue(p => ({...p, meteredCap: safeNum(e.target.value)}))} />
+            </Box>
           </Box>
        </SectionCard>
 
        {/* Section 3: Tiers */}
        <SectionCard>
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03) }}>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03), borderRadius: '12px 12px 0 0' }}>
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <ReceiptLongIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
@@ -422,95 +428,102 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
   );
 
   const renderDappAssets = () => (
-    <Stack spacing={4}>
-       <Box>
-          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha(theme.palette.secondary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <TokenIcon sx={{ color: 'secondary.main' }} />
-            </Box>
-            <Typography variant="h5" fontWeight={800}>Asset Configuration</Typography>
-          </Stack>
-          <Typography variant="body2" color="text.secondary">Manage token standards, supplies, and metadata storage.</Typography>
-       </Box>
-
-       {/* Set 1: Token Identity */}
+    <Stack spacing={2}>
+       {/* ERC-20 Identity */}
        {hasErc20 && (
           <SectionCard>
-             <Stack direction="row" spacing={2} alignItems="center" mb={3}>
-                <TokenIcon color="primary" />
-                <Typography variant="h6" fontWeight={800}>1. ERC-20 Identity & Supply</Typography>
-             </Stack>
-             <Grid container spacing={3}>
-                <Grid xs={12} md={4}>
-                   <TextField label="Token Name" fullWidth value={dappAssets.erc20.name} onChange={e => setDappAssets(p => ({...p, erc20: {...p.erc20, name: e.target.value}}))} />
-                </Grid>
-                <Grid xs={12} md={4}>
-                   <TextField label="Symbol" fullWidth value={dappAssets.erc20.symbol} onChange={e => setDappAssets(p => ({...p, erc20: {...p.erc20, symbol: e.target.value}}))} />
-                </Grid>
-                <Grid xs={12} md={4}>
-                   <TextField label="Max Supply" type="number" fullWidth value={dappAssets.erc20.supply} onChange={e => setDappAssets(p => ({...p, erc20: {...p.erc20, supply: safeNum(e.target.value)}}))} />
-                </Grid>
-             </Grid>
+             <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03), borderRadius: '12px 12px 0 0' }}>
+               <Stack direction="row" alignItems="center" spacing={1.5}>
+                 <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                   <TokenIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
+                 </Box>
+                 <Box>
+                   <Typography variant="subtitle2" fontWeight={800}>ERC-20 Identity & Supply</Typography>
+                   <Typography variant="caption" color="text.secondary">Token name, symbol, and maximum supply</Typography>
+                 </Box>
+                 <Box sx={{ ml: 'auto', px: 1.25, py: 0.3, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.08), color: '#4F46E5', fontSize: '0.62rem', fontWeight: 700 }}>
+                   {dappAssets.erc20.symbol}
+                 </Box>
+               </Stack>
+             </Box>
+             <Box sx={{ p: 3 }}>
+               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2.5 }}>
+                 <TextField label="Token Name" size="small" fullWidth value={dappAssets.erc20.name} onChange={e => setDappAssets(p => ({...p, erc20: {...p.erc20, name: e.target.value}}))} />
+                 <TextField label="Symbol" size="small" fullWidth value={dappAssets.erc20.symbol} onChange={e => setDappAssets(p => ({...p, erc20: {...p.erc20, symbol: e.target.value}}))} />
+                 <TextField label="Max Supply" type="number" size="small" fullWidth value={dappAssets.erc20.supply} onChange={e => setDappAssets(p => ({...p, erc20: {...p.erc20, supply: safeNum(e.target.value)}}))} />
+               </Box>
+             </Box>
           </SectionCard>
        )}
 
-       {/* Set 2: Token Rules */}
+       {/* ERC-20 Rules */}
        {hasErc20 && (
           <SectionCard>
-             <Typography variant="h6" fontWeight={800} mb={3}>2. Token Rules</Typography>
-             <Stack direction="row" spacing={4}>
-                <FormControlLabel control={<Switch checked={dappAssets.erc20.mintable} onChange={e => setDappAssets(p => ({...p, erc20: {...p.erc20, mintable: e.target.checked}}))} />} label="Mintable (Owner can mint)" />
-                <FormControlLabel control={<Switch checked={dappAssets.erc20.burnable} onChange={e => setDappAssets(p => ({...p, erc20: {...p.erc20, burnable: e.target.checked}}))} />} label="Burnable (User can burn)" />
-                <FormControlLabel control={<Switch checked={dappAssets.erc20.blacklist} onChange={e => setDappAssets(p => ({...p, erc20: {...p.erc20, blacklist: e.target.checked}}))} />} label="Blacklist Support" />
-             </Stack>
+             <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03), borderRadius: '12px 12px 0 0' }}>
+               <Stack direction="row" alignItems="center" spacing={1.5}>
+                 <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                   <ShowChartIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
+                 </Box>
+                 <Box>
+                   <Typography variant="subtitle2" fontWeight={800}>Token Rules</Typography>
+                   <Typography variant="caption" color="text.secondary">Minting, burning, and access control</Typography>
+                 </Box>
+               </Stack>
+             </Box>
+             <Box sx={{ p: 3 }}>
+               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flexWrap="wrap">
+                 <FormControlLabel control={<Switch size="small" checked={dappAssets.erc20.mintable} onChange={e => setDappAssets(p => ({...p, erc20: {...p.erc20, mintable: e.target.checked}}))} />} label={<Typography variant="body2">Mintable (owner can mint)</Typography>} sx={{ display: 'flex', alignItems: 'center', m: 0 }} />
+                 <FormControlLabel control={<Switch size="small" checked={dappAssets.erc20.burnable} onChange={e => setDappAssets(p => ({...p, erc20: {...p.erc20, burnable: e.target.checked}}))} />} label={<Typography variant="body2">Burnable (user can burn)</Typography>} sx={{ display: 'flex', alignItems: 'center', m: 0 }} />
+                 <FormControlLabel control={<Switch size="small" checked={dappAssets.erc20.blacklist} onChange={e => setDappAssets(p => ({...p, erc20: {...p.erc20, blacklist: e.target.checked}}))} />} label={<Typography variant="body2">Blocklist Support</Typography>} sx={{ display: 'flex', alignItems: 'center', m: 0 }} />
+               </Stack>
+             </Box>
           </SectionCard>
        )}
 
-       {/* Set 3: NFT Config */}
+       {/* NFT Config */}
        {hasNft && (
           <SectionCard>
-             <Stack direction="row" spacing={2} alignItems="center" mb={3}>
-                <VerifiedUserIcon color="secondary" />
-                <Typography variant="h6" fontWeight={800}>3. NFT Collection Settings</Typography>
-             </Stack>
-             <Grid container spacing={3}>
-                <Grid xs={12} md={6}>
-                   <TextField label="Collection Name" fullWidth value={dappAssets.nft.name} onChange={e => setDappAssets(p => ({...p, nft: {...p.nft, name: e.target.value}}))} />
-                </Grid>
-                <Grid xs={12} md={3}>
-                   <TextField label="Symbol" fullWidth value={dappAssets.nft.symbol} onChange={e => setDappAssets(p => ({...p, nft: {...p.nft, symbol: e.target.value}}))} />
-                </Grid>
-                <Grid xs={12} md={3}>
-                   <TextField label="Mint Price (ETH)" type="number" fullWidth value={dappAssets.nft.price} onChange={e => setDappAssets(p => ({...p, nft: {...p.nft, price: safeNum(e.target.value)}}))} />
-                </Grid>
-                
-                <Grid xs={12} md={6}>
-                   <FormControl fullWidth>
-                      <InputLabel>Metadata Storage</InputLabel>
-                      <Select value={dappAssets.nft.metadataStorage} label="Metadata Storage" onChange={e => setDappAssets(p => ({...p, nft: {...p.nft, metadataStorage: e.target.value}}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                         <MenuItem value="ipfs">IPFS (Decentralized)</MenuItem>
-                         <MenuItem value="arweave">Arweave (Permanent)</MenuItem>
-                         <MenuItem value="centralized">Centralized Server</MenuItem>
-                      </Select>
-                   </FormControl>
-                </Grid>
-                <Grid xs={12} md={6}>
-                   <FormControl fullWidth>
-                      <InputLabel>Royalty Enforcement</InputLabel>
-                      <Select value={dappAssets.nft.royaltyEnforcement} label="Royalty Enforcement" onChange={e => setDappAssets(p => ({...p, nft: {...p.nft, royaltyEnforcement: e.target.value}}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                         <MenuItem value="standard">EIP-2981 Standard</MenuItem>
-                         <MenuItem value="marketplace">Marketplace Registry</MenuItem>
-                         <MenuItem value="hard">Hard Enforcement</MenuItem>
-                      </Select>
-                   </FormControl>
-                </Grid>
-                <Grid xs={12}>
-                   <Stack direction="row" spacing={3}>
-                      <FormControlLabel control={<Switch checked={dappAssets.nft.soulbound} onChange={e => setDappAssets(p => ({...p, nft: {...p.nft, soulbound: e.target.checked}}))} />} label="Soulbound (Non-Transferable)" />
-                      <FormControlLabel control={<Switch checked={dappAssets.nft.reveal} onChange={e => setDappAssets(p => ({...p, nft: {...p.nft, reveal: e.target.checked}}))} />} label="Delayed Reveal" />
-                   </Stack>
-                </Grid>
-             </Grid>
+             <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#8b5cf6', 0.03), borderRadius: '12px 12px 0 0' }}>
+               <Stack direction="row" alignItems="center" spacing={1.5}>
+                 <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#8b5cf6', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                   <VerifiedUserIcon sx={{ fontSize: 15, color: '#8b5cf6' }} />
+                 </Box>
+                 <Box>
+                   <Typography variant="subtitle2" fontWeight={800}>NFT Collection Settings</Typography>
+                   <Typography variant="caption" color="text.secondary">Collection identity, minting, and royalties</Typography>
+                 </Box>
+                 <Box sx={{ ml: 'auto', px: 1.25, py: 0.3, borderRadius: 1, bgcolor: alpha('#8b5cf6', 0.08), color: '#8b5cf6', fontSize: '0.62rem', fontWeight: 700 }}>
+                   {dappAssets.nft.symbol}
+                 </Box>
+               </Stack>
+             </Box>
+             <Box sx={{ p: 3 }}>
+               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, mb: 2.5 }}>
+                 <TextField label="Collection Name" size="small" fullWidth value={dappAssets.nft.name} onChange={e => setDappAssets(p => ({...p, nft: {...p.nft, name: e.target.value}}))} />
+                 <TextField label="Symbol" size="small" fullWidth value={dappAssets.nft.symbol} onChange={e => setDappAssets(p => ({...p, nft: {...p.nft, symbol: e.target.value}}))} />
+                 <TextField label="Mint Price (ETH)" type="number" size="small" fullWidth value={dappAssets.nft.price} onChange={e => setDappAssets(p => ({...p, nft: {...p.nft, price: safeNum(e.target.value)}}))} />
+                 <FormControl fullWidth size="small">
+                   <InputLabel>Royalty Enforcement</InputLabel>
+                   <Select value={dappAssets.nft.royaltyEnforcement} label="Royalty Enforcement" onChange={e => setDappAssets(p => ({...p, nft: {...p.nft, royaltyEnforcement: e.target.value}}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                     <MenuItem value="standard">EIP-2981 Standard</MenuItem>
+                     <MenuItem value="marketplace">Marketplace Registry</MenuItem>
+                     <MenuItem value="hard">Hard Enforcement</MenuItem>
+                   </Select>
+                 </FormControl>
+                 <FormControl fullWidth size="small">
+                   <InputLabel>Metadata Storage</InputLabel>
+                   <Select value={dappAssets.nft.metadataStorage} label="Metadata Storage" onChange={e => setDappAssets(p => ({...p, nft: {...p.nft, metadataStorage: e.target.value}}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                     <MenuItem value="ipfs">IPFS (Decentralized)</MenuItem>
+                     <MenuItem value="arweave">Arweave (Permanent)</MenuItem>
+                     <MenuItem value="centralized">Centralized Server</MenuItem>
+                   </Select>
+                 </FormControl>
+               </Box>
+               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                 <FormControlLabel control={<Switch size="small" checked={dappAssets.nft.soulbound} onChange={e => setDappAssets(p => ({...p, nft: {...p.nft, soulbound: e.target.checked}}))} />} label={<Typography variant="body2">Soulbound (Non-Transferable)</Typography>} sx={{ display: 'flex', alignItems: 'center', m: 0 }} />
+                 <FormControlLabel control={<Switch size="small" checked={dappAssets.nft.reveal} onChange={e => setDappAssets(p => ({...p, nft: {...p.nft, reveal: e.target.checked}}))} />} label={<Typography variant="body2">Delayed Reveal</Typography>} sx={{ display: 'flex', alignItems: 'center', m: 0 }} />
+               </Stack>
+             </Box>
           </SectionCard>
        )}
     </Stack>
@@ -520,7 +533,7 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
     <Stack spacing={2}>
        {/* Platform Fees */}
        <SectionCard>
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03) }}>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03), borderRadius: '12px 12px 0 0' }}>
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <ReceiptLongIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
@@ -532,20 +545,16 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
             </Stack>
           </Box>
           <Box sx={{ p: 3 }}>
-            <Grid container spacing={2.5}>
-               <Grid xs={12} md={6}>
-                  <TextField label="Platform Fee %" type="number" fullWidth size="small" value={dappFees.platformFee} onChange={e => setDappFees(p => ({...p, platformFee: safeNum(e.target.value)}))} />
-               </Grid>
-               <Grid xs={12} md={6}>
-                  <TextField label="Referral Reward %" type="number" fullWidth size="small" value={dappFees.referralFee} onChange={e => setDappFees(p => ({...p, referralFee: safeNum(e.target.value)}))} />
-               </Grid>
-            </Grid>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
+               <TextField label="Platform Fee %" type="number" fullWidth size="small" value={dappFees.platformFee} onChange={e => setDappFees(p => ({...p, platformFee: safeNum(e.target.value)}))} />
+               <TextField label="Referral Reward %" type="number" fullWidth size="small" value={dappFees.referralFee} onChange={e => setDappFees(p => ({...p, referralFee: safeNum(e.target.value)}))} />
+            </Box>
           </Box>
        </SectionCard>
 
        {/* Payout Logic */}
        <SectionCard>
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03) }}>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03), borderRadius: '12px 12px 0 0' }}>
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <AccountBalanceWalletIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
@@ -560,37 +569,31 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
             </Stack>
           </Box>
           <Box sx={{ p: 3 }}>
-            <Grid container spacing={2.5}>
-               <Grid xs={12} md={4}>
-                  <TextField label="Min Payout Amount ($)" type="number" fullWidth size="small" value={dappFees.minPayout} onChange={e => setDappFees(p => ({...p, minPayout: safeNum(e.target.value)}))} />
-               </Grid>
-               <Grid xs={12} md={4}>
-                  <FormControl fullWidth size="small">
-                     <InputLabel>Schedule</InputLabel>
-                     <Select value={dappFees.payoutSchedule} label="Schedule" onChange={e => setDappFees(p => ({...p, payoutSchedule: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                        <MenuItem value="daily">Daily</MenuItem>
-                        <MenuItem value="weekly">Weekly</MenuItem>
-                        <MenuItem value="monthly">Monthly</MenuItem>
-                     </Select>
-                  </FormControl>
-               </Grid>
-               <Grid xs={12} md={4}>
-                  <FormControl fullWidth size="small">
-                     <InputLabel>Chargeback Mode</InputLabel>
-                     <Select value={dappFees.chargebackMode} label="Chargeback Mode" onChange={e => setDappFees(p => ({...p, chargebackMode: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                        <MenuItem value="manual">Manual Review</MenuItem>
-                        <MenuItem value="deduct">Auto-Deduct</MenuItem>
-                        <MenuItem value="block">Block User</MenuItem>
-                     </Select>
-                  </FormControl>
-               </Grid>
-            </Grid>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2.5 }}>
+               <TextField label="Min Payout Amount ($)" type="number" fullWidth size="small" value={dappFees.minPayout} onChange={e => setDappFees(p => ({...p, minPayout: safeNum(e.target.value)}))} />
+               <FormControl fullWidth size="small">
+                  <InputLabel>Schedule</InputLabel>
+                  <Select value={dappFees.payoutSchedule} label="Schedule" onChange={e => setDappFees(p => ({...p, payoutSchedule: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                     <MenuItem value="daily">Daily</MenuItem>
+                     <MenuItem value="weekly">Weekly</MenuItem>
+                     <MenuItem value="monthly">Monthly</MenuItem>
+                  </Select>
+               </FormControl>
+               <FormControl fullWidth size="small">
+                  <InputLabel>Chargeback Mode</InputLabel>
+                  <Select value={dappFees.chargebackMode} label="Chargeback Mode" onChange={e => setDappFees(p => ({...p, chargebackMode: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                     <MenuItem value="manual">Manual Review</MenuItem>
+                     <MenuItem value="deduct">Auto-Deduct</MenuItem>
+                     <MenuItem value="block">Block User</MenuItem>
+                  </Select>
+               </FormControl>
+            </Box>
           </Box>
        </SectionCard>
 
        {/* Split Recipients */}
        <SectionCard>
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03) }}>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03), borderRadius: '12px 12px 0 0' }}>
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <MonetizationOnIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
@@ -635,7 +638,7 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
     <Stack spacing={2}>
        {/* Fiat Payments */}
        <SectionCard>
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#10b981', 0.03) }}>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#10b981', 0.03), borderRadius: '12px 12px 0 0' }}>
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#10b981', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <AccountBalanceWalletIcon sx={{ fontSize: 15, color: '#10b981' }} />
@@ -648,27 +651,23 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
             </Stack>
           </Box>
           <Box sx={{ p: 3 }}>
-            <Grid container spacing={2.5}>
-               <Grid xs={12} md={6}>
-                  <FormControl fullWidth size="small" disabled={!dappPayments.fiatEnabled}>
-                     <InputLabel>Provider</InputLabel>
-                     <Select value={dappPayments.fiatProvider} label="Provider" onChange={e => setDappPayments(p => ({...p, fiatProvider: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                        <MenuItem value="Stripe">Stripe</MenuItem>
-                        <MenuItem value="Razorpay">Razorpay</MenuItem>
-                        <MenuItem value="Paddle">Paddle</MenuItem>
-                     </Select>
-                  </FormControl>
-               </Grid>
-               <Grid xs={12} md={6}>
-                  <TextField label="Settlement Time" fullWidth size="small" value={dappPayments.settlementTime} onChange={e => setDappPayments(p => ({...p, settlementTime: e.target.value}))} disabled={!dappPayments.fiatEnabled} />
-               </Grid>
-            </Grid>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
+               <FormControl fullWidth size="small" disabled={!dappPayments.fiatEnabled}>
+                  <InputLabel>Provider</InputLabel>
+                  <Select value={dappPayments.fiatProvider} label="Provider" onChange={e => setDappPayments(p => ({...p, fiatProvider: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                     <MenuItem value="Stripe">Stripe</MenuItem>
+                     <MenuItem value="Razorpay">Razorpay</MenuItem>
+                     <MenuItem value="Paddle">Paddle</MenuItem>
+                  </Select>
+               </FormControl>
+               <TextField label="Settlement Time" fullWidth size="small" value={dappPayments.settlementTime} onChange={e => setDappPayments(p => ({...p, settlementTime: e.target.value}))} disabled={!dappPayments.fiatEnabled} />
+            </Box>
           </Box>
        </SectionCard>
 
        {/* Crypto Payments */}
        <SectionCard>
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#f59e0b', 0.03) }}>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#f59e0b', 0.03), borderRadius: '12px 12px 0 0' }}>
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#f59e0b', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <MonetizationOnIcon sx={{ fontSize: 15, color: '#f59e0b' }} />
@@ -681,20 +680,16 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
             </Stack>
           </Box>
           <Box sx={{ p: 3 }}>
-            <Grid container spacing={2.5}>
-               <Grid xs={12}>
-                  <TextField label="Treasury Wallet Address" fullWidth size="small" value={dappPayments.treasury} onChange={e => setDappPayments(p => ({...p, treasury: e.target.value}))} disabled={!dappPayments.cryptoEnabled} />
-               </Grid>
-               <Grid xs={12}>
-                  <Autocomplete multiple options={['USDC','ETH','USDT','DAI']} freeSolo value={dappPayments.cryptoTokens} onChange={(_, v) => setDappPayments(p => ({...p, cryptoTokens: v}))} renderInput={(p) => <TextField {...p} size="small" label="Accepted Tokens" />} disabled={!dappPayments.cryptoEnabled} />
-               </Grid>
-            </Grid>
+            <Stack spacing={2.5}>
+               <TextField label="Treasury Wallet Address" fullWidth size="small" value={dappPayments.treasury} onChange={e => setDappPayments(p => ({...p, treasury: e.target.value}))} disabled={!dappPayments.cryptoEnabled} />
+               <Autocomplete multiple options={['USDC','ETH','USDT','DAI']} freeSolo value={dappPayments.cryptoTokens} onChange={(_, v) => setDappPayments(p => ({...p, cryptoTokens: v}))} renderInput={(p) => <TextField {...p} size="small" label="Accepted Tokens" />} disabled={!dappPayments.cryptoEnabled} />
+            </Stack>
           </Box>
        </SectionCard>
 
        {/* Checkout UX */}
        <SectionCard>
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03) }}>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03), borderRadius: '12px 12px 0 0' }}>
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <ShowChartIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
@@ -706,24 +701,18 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
             </Stack>
           </Box>
           <Box sx={{ p: 3 }}>
-            <Grid container spacing={2.5}>
-               <Grid xs={12} md={4}>
-                  <FormControl fullWidth size="small">
-                     <InputLabel>Theme</InputLabel>
-                     <Select value={dappPayments.checkoutTheme} label="Theme" onChange={e => setDappPayments(p => ({...p, checkoutTheme: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                        <MenuItem value="light">Light</MenuItem>
-                        <MenuItem value="dark">Dark</MenuItem>
-                        <MenuItem value="auto">Auto</MenuItem>
-                     </Select>
-                  </FormControl>
-               </Grid>
-               <Grid xs={12} md={4}>
-                  <TextField label="Success URL" fullWidth size="small" value={dappPayments.successUrl} onChange={e => setDappPayments(p => ({...p, successUrl: e.target.value}))} />
-               </Grid>
-               <Grid xs={12} md={4}>
-                  <TextField label="Cancel URL" fullWidth size="small" value={dappPayments.cancelUrl} onChange={e => setDappPayments(p => ({...p, cancelUrl: e.target.value}))} />
-               </Grid>
-            </Grid>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2.5 }}>
+               <FormControl fullWidth size="small">
+                  <InputLabel>Theme</InputLabel>
+                  <Select value={dappPayments.checkoutTheme} label="Theme" onChange={e => setDappPayments(p => ({...p, checkoutTheme: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                     <MenuItem value="light">Light</MenuItem>
+                     <MenuItem value="dark">Dark</MenuItem>
+                     <MenuItem value="auto">Auto</MenuItem>
+                  </Select>
+               </FormControl>
+               <TextField label="Success URL" fullWidth size="small" value={dappPayments.successUrl} onChange={e => setDappPayments(p => ({...p, successUrl: e.target.value}))} />
+               <TextField label="Cancel URL" fullWidth size="small" value={dappPayments.cancelUrl} onChange={e => setDappPayments(p => ({...p, cancelUrl: e.target.value}))} />
+            </Box>
           </Box>
        </SectionCard>
     </Stack>
@@ -731,54 +720,103 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
 
   const renderDappCompliance = () => (
     <Stack spacing={2}>
-       {/* Identity Verification */}
-       <SectionCard>
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#8b5cf6', 0.03) }}>
-            <Stack direction="row" alignItems="center" spacing={1.5}>
-              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#8b5cf6', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <GavelIcon sx={{ fontSize: 15, color: '#8b5cf6' }} />
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" fontWeight={800}>Identity Verification</Typography>
-                <Typography variant="caption" color="text.secondary">KYC provider and verification level</Typography>
-              </Box>
-              <Box sx={{ ml: 'auto', px: 1.25, py: 0.3, borderRadius: 1, bgcolor: alpha('#8b5cf6', 0.08), color: '#8b5cf6', fontSize: '0.62rem', fontWeight: 700 }}>
-                {dappCompliance.kycLevel.toUpperCase()}
-              </Box>
-            </Stack>
-          </Box>
-          <Box sx={{ p: 3 }}>
-            <Grid container spacing={2.5}>
-               <Grid xs={12} md={6}>
-                  <FormControl fullWidth size="small">
-                     <InputLabel>KYC Provider</InputLabel>
-                     <Select value={dappCompliance.kycProvider} label="KYC Provider" onChange={e => setDappCompliance(p => ({...p, kycProvider: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                        <MenuItem value="Sumsub">Sumsub</MenuItem>
-                        <MenuItem value="Persona">Persona</MenuItem>
-                        <MenuItem value="Parallel">Parallel Markets</MenuItem>
-                     </Select>
-                  </FormControl>
-               </Grid>
-               <Grid xs={12} md={6}>
-                  <FormControl fullWidth size="small">
-                     <InputLabel>Verification Level</InputLabel>
-                     <Select value={dappCompliance.kycLevel} label="Verification Level" onChange={e => setDappCompliance(p => ({...p, kycLevel: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                        <MenuItem value="basic">Basic (ID Only)</MenuItem>
-                        <MenuItem value="liveness">Liveness Check</MenuItem>
-                        <MenuItem value="strict">Strict (Proof of Address)</MenuItem>
-                     </Select>
-                  </FormControl>
-               </Grid>
-               <Grid xs={12}>
-                  <TextField label="Provider API Key" type="password" fullWidth size="small" value={dappCompliance.apiKey} onChange={e => setDappCompliance(p => ({...p, apiKey: e.target.value}))} />
-               </Grid>
-            </Grid>
-          </Box>
-       </SectionCard>
+       {/* Context banner */}
+       {dappVisibility === 'private' && (
+         <Box sx={{ px: 2.5, py: 1.5, borderRadius: 2, bgcolor: alpha('#8b5cf6', 0.07), border: `1px solid ${alpha('#8b5cf6', 0.2)}` }}>
+           <Stack direction="row" alignItems="center" spacing={1}>
+             <VerifiedUserIcon sx={{ fontSize: 15, color: '#8b5cf6' }} />
+             <Typography variant="caption" fontWeight={700} sx={{ color: '#8b5cf6' }}>
+               Private dApp — access is gated by invite or wallet allowlist. Full public KYC is not required.
+             </Typography>
+           </Stack>
+         </Box>
+       )}
+
+       {/* Identity Verification — only full KYC for public dApps */}
+       {dappVisibility === 'public' ? (
+         <SectionCard>
+           <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#8b5cf6', 0.03), borderRadius: '12px 12px 0 0' }}>
+             <Stack direction="row" alignItems="center" spacing={1.5}>
+               <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#8b5cf6', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                 <GavelIcon sx={{ fontSize: 15, color: '#8b5cf6' }} />
+               </Box>
+               <Box>
+                 <Typography variant="subtitle2" fontWeight={800}>Identity Verification (KYC)</Typography>
+                 <Typography variant="caption" color="text.secondary">Provider and verification level for public users</Typography>
+               </Box>
+               <Box sx={{ ml: 'auto', px: 1.25, py: 0.3, borderRadius: 1, bgcolor: alpha('#8b5cf6', 0.08), color: '#8b5cf6', fontSize: '0.62rem', fontWeight: 700 }}>
+                 {dappCompliance.kycLevel.toUpperCase()}
+               </Box>
+             </Stack>
+           </Box>
+           <Box sx={{ p: 3 }}>
+             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5, mb: 2.5 }}>
+               <FormControl fullWidth size="small">
+                 <InputLabel>KYC Provider</InputLabel>
+                 <Select value={dappCompliance.kycProvider} label="KYC Provider" onChange={e => setDappCompliance(p => ({...p, kycProvider: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                   <MenuItem value="Sumsub">Sumsub</MenuItem>
+                   <MenuItem value="Persona">Persona</MenuItem>
+                   <MenuItem value="Parallel">Parallel Markets</MenuItem>
+                 </Select>
+               </FormControl>
+               <FormControl fullWidth size="small">
+                 <InputLabel>Verification Level</InputLabel>
+                 <Select value={dappCompliance.kycLevel} label="Verification Level" onChange={e => setDappCompliance(p => ({...p, kycLevel: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                   <MenuItem value="basic">Basic (ID Only)</MenuItem>
+                   <MenuItem value="liveness">Liveness Check</MenuItem>
+                   <MenuItem value="strict">Strict (Proof of Address)</MenuItem>
+                 </Select>
+               </FormControl>
+             </Box>
+             <TextField label="Provider API Key" type="password" fullWidth size="small" value={dappCompliance.apiKey} onChange={e => setDappCompliance(p => ({...p, apiKey: e.target.value}))} />
+           </Box>
+         </SectionCard>
+       ) : (
+         /* Private dApp: wallet allowlist instead of KYC */
+         <SectionCard>
+           <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#8b5cf6', 0.03), borderRadius: '12px 12px 0 0' }}>
+             <Stack direction="row" alignItems="center" spacing={1.5}>
+               <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#8b5cf6', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                 <VerifiedUserIcon sx={{ fontSize: 15, color: '#8b5cf6' }} />
+               </Box>
+               <Box>
+                 <Typography variant="subtitle2" fontWeight={800}>Access Control</Typography>
+                 <Typography variant="caption" color="text.secondary">Wallet allowlist and invite-based gating</Typography>
+               </Box>
+             </Stack>
+           </Box>
+           <Box sx={{ p: 3 }}>
+             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5, mb: 2 }}>
+               <FormControl fullWidth size="small">
+                 <InputLabel>Access Mode</InputLabel>
+                 <Select defaultValue="allowlist" label="Access Mode" MenuProps={OPAQUE_MENU_PROPS as any}>
+                   <MenuItem value="allowlist">Wallet Allowlist</MenuItem>
+                   <MenuItem value="invite">Invite Link</MenuItem>
+                   <MenuItem value="nft-gate">NFT-Gated</MenuItem>
+                   <MenuItem value="token-gate">Token-Gated</MenuItem>
+                 </Select>
+               </FormControl>
+               <FormControl fullWidth size="small">
+                 <InputLabel>Approval Flow</InputLabel>
+                 <Select defaultValue="manual" label="Approval Flow" MenuProps={OPAQUE_MENU_PROPS as any}>
+                   <MenuItem value="auto">Auto-approve wallets</MenuItem>
+                   <MenuItem value="manual">Manual review</MenuItem>
+                   <MenuItem value="admin">Admin whitelist only</MenuItem>
+                 </Select>
+               </FormControl>
+             </Box>
+             <FormControlLabel
+               control={<Switch size="small" defaultChecked />}
+               label={<Typography variant="body2">Require wallet signature on first access</Typography>}
+               sx={{ display: 'flex', alignItems: 'center' }}
+             />
+           </Box>
+         </SectionCard>
+       )}
 
        {/* Geographic Restrictions */}
        <SectionCard>
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#ef4444', 0.03) }}>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#ef4444', 0.03), borderRadius: '12px 12px 0 0' }}>
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#ef4444', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <PieChartIcon sx={{ fontSize: 15, color: '#ef4444' }} />
@@ -795,27 +833,27 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
             </Stack>
           </Box>
           <Box sx={{ p: 3 }}>
-            <Grid container spacing={2.5}>
-               <Grid xs={12}>
-                  <Autocomplete
-                     multiple
-                     options={COUNTRIES}
-                     getOptionLabel={(option) => option.label}
-                     value={dappCompliance.geoBlock}
-                     onChange={(_, val) => setDappCompliance(p => ({...p, geoBlock: val}))}
-                     renderInput={(params) => <TextField {...params} size="small" label="Geo-Blocked Regions" placeholder="Select countries" />}
-                  />
-               </Grid>
-               <Grid xs={12}>
-                  <FormControlLabel control={<Switch size="small" checked={dappCompliance.gdprCompliant} onChange={e => setDappCompliance(p => ({...p, gdprCompliant: e.target.checked}))} />} label={<Typography variant="body2">Enforce GDPR Consent Flow</Typography>} />
-               </Grid>
-            </Grid>
+            <Stack spacing={2.5}>
+              <Autocomplete
+                multiple
+                options={COUNTRIES}
+                getOptionLabel={(option) => option.label}
+                value={dappCompliance.geoBlock}
+                onChange={(_, val) => setDappCompliance(p => ({...p, geoBlock: val}))}
+                renderInput={(params) => <TextField {...params} size="small" label="Geo-Blocked Regions" placeholder="Select countries" />}
+              />
+              <FormControlLabel
+                control={<Switch size="small" checked={dappCompliance.gdprCompliant} onChange={e => setDappCompliance(p => ({...p, gdprCompliant: e.target.checked}))} />}
+                label={<Typography variant="body2">Enforce GDPR Consent Flow</Typography>}
+                sx={{ display: 'flex', alignItems: 'center', m: 0 }}
+              />
+            </Stack>
           </Box>
        </SectionCard>
 
        {/* Legal Links */}
        <SectionCard>
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03) }}>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03), borderRadius: '12px 12px 0 0' }}>
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <ReceiptLongIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
@@ -827,14 +865,10 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
             </Stack>
           </Box>
           <Box sx={{ p: 3 }}>
-            <Grid container spacing={2.5}>
-               <Grid xs={12} md={6}>
-                  <TextField label="Terms of Service URL" fullWidth size="small" value={dappCompliance.termsUrl} onChange={e => setDappCompliance(p => ({...p, termsUrl: e.target.value}))} />
-               </Grid>
-               <Grid xs={12} md={6}>
-                  <TextField label="Privacy Policy URL" fullWidth size="small" value={dappCompliance.privacyUrl} onChange={e => setDappCompliance(p => ({...p, privacyUrl: e.target.value}))} />
-               </Grid>
-            </Grid>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
+              <TextField label="Terms of Service URL" fullWidth size="small" value={dappCompliance.termsUrl} onChange={e => setDappCompliance(p => ({...p, termsUrl: e.target.value}))} />
+              <TextField label="Privacy Policy URL" fullWidth size="small" value={dappCompliance.privacyUrl} onChange={e => setDappCompliance(p => ({...p, privacyUrl: e.target.value}))} />
+            </Box>
           </Box>
        </SectionCard>
     </Stack>
@@ -845,270 +879,376 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
   const renderChainTokenomics = () => {
     const total = chainToken.dist.validators + chainToken.dist.treasury + chainToken.dist.community;
     const isError = total !== 100;
+    const TOK_COLOR = '#8b5cf6';
 
     return (
-      <Stack spacing={4}>
-         <Box>
-          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <PieChartIcon sx={{ color: 'primary.main' }} />
-            </Box>
-            <Typography variant="h5" fontWeight={800}>Tokenomics Engine</Typography>
-          </Stack>
-          <Typography variant="body2" color="text.secondary">Configure supply, distribution, and vesting schedules.</Typography>
-         </Box>
+      <Stack spacing={2}>
+         {legacyMode === 'existing' && (
+           <Box sx={{ px: 2.5, py: 1.5, borderRadius: 2, bgcolor: alpha(TOK_COLOR, 0.07), border: `1px solid ${alpha(TOK_COLOR, 0.2)}` }}>
+             <Stack direction="row" alignItems="center" spacing={1}>
+               <WarningAmberIcon sx={{ fontSize: 15, color: TOK_COLOR }} />
+               <Typography variant="caption" fontWeight={700} sx={{ color: TOK_COLOR }}>
+                 Existing network — these values will be imported from your current chain genesis. Adjust only what needs to change.
+               </Typography>
+             </Stack>
+           </Box>
+         )}
 
-         {/* Set 1: Core Asset */}
+         {/* Core Asset */}
          <SectionCard>
-            <Typography variant="h6" fontWeight={800} mb={3}>1. Core Asset</Typography>
-            <Stack direction="row" spacing={3}>
-               <TextField label="Token Name" fullWidth value={chainToken.name} onChange={e => setChainToken(p => ({...p, name: e.target.value}))} />
-               <TextField label="Symbol" value={chainToken.symbol} onChange={e => setChainToken(p => ({...p, symbol: e.target.value}))} />
-               <FormControl sx={{ minWidth: 200 }}>
+            <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha(TOK_COLOR, 0.03), borderRadius: '12px 12px 0 0' }}>
+              <Stack direction="row" alignItems="center" spacing={1.5}>
+                <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha(TOK_COLOR, 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <TokenIcon sx={{ fontSize: 15, color: TOK_COLOR }} />
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={800}>Core Asset</Typography>
+                  <Typography variant="caption" color="text.secondary">Token name, symbol, and supply model</Typography>
+                </Box>
+                <Box sx={{ ml: 'auto', px: 1.25, py: 0.3, borderRadius: 1, bgcolor: alpha(TOK_COLOR, 0.08), color: TOK_COLOR, fontSize: '0.62rem', fontWeight: 700 }}>
+                  {chainToken.symbol}
+                </Box>
+              </Stack>
+            </Box>
+            <Box sx={{ p: 3 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2.5 }}>
+                <TextField label="Token Name" size="small" fullWidth value={chainToken.name} onChange={e => setChainToken(p => ({...p, name: e.target.value}))} />
+                <TextField label="Symbol" size="small" fullWidth value={chainToken.symbol} onChange={e => setChainToken(p => ({...p, symbol: e.target.value}))} />
+                <FormControl fullWidth size="small">
                   <InputLabel>Supply Model</InputLabel>
                   <Select value={chainToken.model} label="Supply Model" onChange={e => setChainToken(p => ({...p, model: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                     <MenuItem value="inflationary">Inflationary</MenuItem>
-                     <MenuItem value="deflationary">Deflationary</MenuItem>
-                     <MenuItem value="fixed">Fixed</MenuItem>
+                    <MenuItem value="inflationary">Inflationary</MenuItem>
+                    <MenuItem value="deflationary">Deflationary</MenuItem>
+                    <MenuItem value="fixed">Fixed Supply</MenuItem>
                   </Select>
-               </FormControl>
-            </Stack>
+                </FormControl>
+              </Box>
+            </Box>
          </SectionCard>
 
-         {/* Set 2: Genesis Distribution */}
+         {/* Genesis Distribution */}
          <SectionCard>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-               <Typography variant="h6" fontWeight={800}>2. Genesis Distribution</Typography>
-               {isError && <Chip icon={<WarningAmberIcon />} label={`Total: ${total}% (Must be 100%)`} color="error" variant="outlined" />}
-            </Stack>
-            
-            <Stack spacing={4}>
-               <Box>
-                  <Typography variant="caption" gutterBottom>VALIDATORS ({chainToken.dist.validators}%)</Typography>
-                  <Slider value={chainToken.dist.validators} onChange={(_, v) => setChainToken(p => ({...p, dist: {...p.dist, validators: v as number}}))} />
-               </Box>
-               <Box>
-                  <Typography variant="caption" gutterBottom>TREASURY ({chainToken.dist.treasury}%)</Typography>
+            <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha(TOK_COLOR, 0.03), borderRadius: '12px 12px 0 0' }}>
+              <Stack direction="row" alignItems="center" spacing={1.5}>
+                <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha(TOK_COLOR, 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <PieChartIcon sx={{ fontSize: 15, color: TOK_COLOR }} />
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={800}>Genesis Distribution</Typography>
+                  <Typography variant="caption" color="text.secondary">How the initial token supply is allocated</Typography>
+                </Box>
+                {isError && (
+                  <Chip icon={<WarningAmberIcon sx={{ fontSize: 12 }} />} label={`${total}% — must equal 100%`} size="small" color="error" variant="outlined"
+                    sx={{ ml: 'auto', height: 20, fontSize: '0.62rem' }} />
+                )}
+              </Stack>
+            </Box>
+            <Box sx={{ p: 3 }}>
+              <Stack spacing={3}>
+                <Box>
+                  <Stack direction="row" justifyContent="space-between" mb={0.75}>
+                    <Typography variant="caption" fontWeight={700} color="text.secondary">VALIDATORS</Typography>
+                    <Typography variant="caption" fontWeight={800} sx={{ color: TOK_COLOR }}>{chainToken.dist.validators}%</Typography>
+                  </Stack>
+                  <Slider value={chainToken.dist.validators} onChange={(_, v) => setChainToken(p => ({...p, dist: {...p.dist, validators: v as number}}))} sx={{ color: TOK_COLOR }} />
+                </Box>
+                <Box>
+                  <Stack direction="row" justifyContent="space-between" mb={0.75}>
+                    <Typography variant="caption" fontWeight={700} color="text.secondary">TREASURY</Typography>
+                    <Typography variant="caption" fontWeight={800} sx={{ color: '#4F46E5' }}>{chainToken.dist.treasury}%</Typography>
+                  </Stack>
                   <Slider value={chainToken.dist.treasury} onChange={(_, v) => setChainToken(p => ({...p, dist: {...p.dist, treasury: v as number}}))} color="secondary" />
-               </Box>
-               <Box>
-                  <Typography variant="caption" gutterBottom>COMMUNITY / AIRDROP ({chainToken.dist.community}%)</Typography>
-                  <Slider value={chainToken.dist.community} onChange={(_, v) => setChainToken(p => ({...p, dist: {...p.dist, community: v as number}}))} sx={{ color: 'success.main' }} />
-               </Box>
-            </Stack>
+                </Box>
+                <Box>
+                  <Stack direction="row" justifyContent="space-between" mb={0.75}>
+                    <Typography variant="caption" fontWeight={700} color="text.secondary">COMMUNITY / AIRDROP</Typography>
+                    <Typography variant="caption" fontWeight={800} sx={{ color: '#10b981' }}>{chainToken.dist.community}%</Typography>
+                  </Stack>
+                  <Slider value={chainToken.dist.community} onChange={(_, v) => setChainToken(p => ({...p, dist: {...p.dist, community: v as number}}))} sx={{ color: '#10b981' }} />
+                </Box>
+              </Stack>
+            </Box>
          </SectionCard>
 
-         {/* Set 3: Vesting Rules */}
+         {/* Vesting & Inflation */}
          <SectionCard>
-            <Typography variant="h6" fontWeight={800} mb={3}>3. Vesting & Inflation</Typography>
-            <Grid container spacing={3}>
-               <Grid xs={12} md={6}>
-                  <TextField label="Cliff Period (Months)" type="number" fullWidth value={chainToken.vestingCliff} onChange={e => setChainToken(p => ({...p, vestingCliff: safeNum(e.target.value)}))} />
-               </Grid>
-               <Grid xs={12} md={6}>
-                  <TextField label="Vesting Duration (Months)" type="number" fullWidth value={chainToken.vestingDuration} onChange={e => setChainToken(p => ({...p, vestingDuration: safeNum(e.target.value)}))} />
-               </Grid>
-               <Grid xs={12}>
-                  <TextField label="Annual Inflation %" type="number" fullWidth value={chainToken.inflation} onChange={e => setChainToken(p => ({...p, inflation: safeNum(e.target.value)}))} helperText="New tokens minted annually for staking rewards" />
-               </Grid>
-            </Grid>
+            <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03), borderRadius: '12px 12px 0 0' }}>
+              <Stack direction="row" alignItems="center" spacing={1.5}>
+                <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <ShowChartIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={800}>Vesting & Inflation</Typography>
+                  <Typography variant="caption" color="text.secondary">Lock-up schedule and annual emission rate</Typography>
+                </Box>
+              </Stack>
+            </Box>
+            <Box sx={{ p: 3 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2.5 }}>
+                <TextField label="Cliff Period (Months)" type="number" size="small" fullWidth value={chainToken.vestingCliff} onChange={e => setChainToken(p => ({...p, vestingCliff: safeNum(e.target.value)}))} />
+                <TextField label="Vesting Duration (Months)" type="number" size="small" fullWidth value={chainToken.vestingDuration} onChange={e => setChainToken(p => ({...p, vestingDuration: safeNum(e.target.value)}))} />
+                <TextField label="Annual Inflation %" type="number" size="small" fullWidth value={chainToken.inflation} onChange={e => setChainToken(p => ({...p, inflation: safeNum(e.target.value)}))} helperText="Minted annually for staking" />
+              </Box>
+            </Box>
          </SectionCard>
       </Stack>
     );
   };
 
-  const renderChainFees = () => (
-    <Stack spacing={4}>
-       <Box>
-          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ShowChartIcon sx={{ color: 'primary.main' }} />
+  const renderChainFees = () => {
+    const GAS_COLOR = '#10b981';
+    return (
+    <Stack spacing={2}>
+       {/* Gas Model */}
+       <SectionCard>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha(GAS_COLOR, 0.03), borderRadius: '12px 12px 0 0' }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha(GAS_COLOR, 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <ShowChartIcon sx={{ fontSize: 15, color: GAS_COLOR }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Gas Model</Typography>
+                <Typography variant="caption" color="text.secondary">Base fee and EIP-1559 dynamic pricing</Typography>
+              </Box>
+              <Box sx={{ ml: 'auto', px: 1.25, py: 0.3, borderRadius: 1, bgcolor: alpha(GAS_COLOR, 0.08), color: GAS_COLOR, fontSize: '0.62rem', fontWeight: 700 }}>
+                {chainFees.dynamic ? 'EIP-1559' : 'FIXED'}
+              </Box>
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5, mb: 2 }}>
+              <TextField label="Base Fee (Gwei)" type="number" size="small" fullWidth value={chainFees.baseFee} onChange={e => setChainFees(p => ({...p, baseFee: safeNum(e.target.value)}))} />
+              <Box /> {/* spacer */}
             </Box>
-            <Typography variant="h5" fontWeight={800}>Gas & Fees</Typography>
-          </Stack>
-          <Typography variant="body2" color="text.secondary">Configure transaction costs and burn mechanisms.</Typography>
-       </Box>
-
-       {/* Set 1: Gas Model */}
-       <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={3}>1. Gas Model</Typography>
-          <Grid container spacing={3}>
-             <Grid xs={12} md={6}>
-                <TextField label="Base Fee (Gwei)" type="number" fullWidth value={chainFees.baseFee} onChange={e => setChainFees(p => ({...p, baseFee: safeNum(e.target.value)}))} />
-             </Grid>
-             <Grid xs={12} md={6}>
-                <FormControlLabel control={<Switch checked={chainFees.dynamic} onChange={e => setChainFees(p => ({...p, dynamic: e.target.checked}))} />} label="Dynamic EIP-1559" />
-             </Grid>
-             <Grid xs={12} md={6}>
-                <FormControlLabel control={<Switch checked={chainFees.priorityTip} onChange={e => setChainFees(p => ({...p, priorityTip: e.target.checked}))} />} label="Enable Priority Tips" />
-             </Grid>
-          </Grid>
+            <Stack spacing={1}>
+              <FormControlLabel
+                control={<Switch size="small" checked={chainFees.dynamic} onChange={e => setChainFees(p => ({...p, dynamic: e.target.checked}))} />}
+                label={<Typography variant="body2">Dynamic EIP-1559 Pricing</Typography>}
+                sx={{ display: 'flex', alignItems: 'center', m: 0 }}
+              />
+              <FormControlLabel
+                control={<Switch size="small" checked={chainFees.priorityTip} onChange={e => setChainFees(p => ({...p, priorityTip: e.target.checked}))} />}
+                label={<Typography variant="body2">Enable Priority Tips (MEV-style)</Typography>}
+                sx={{ display: 'flex', alignItems: 'center', m: 0 }}
+              />
+            </Stack>
+          </Box>
        </SectionCard>
 
-       {/* Set 2: Block Economics */}
+       {/* Block Economics */}
        <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={3}>2. Block Economics</Typography>
-          <Grid container spacing={3}>
-             <Grid xs={12} md={4}>
-                <TextField label="Block Gas Limit" type="number" fullWidth value={chainFees.blockGasLimit} onChange={e => setChainFees(p => ({...p, blockGasLimit: safeNum(e.target.value)}))} />
-             </Grid>
-             <Grid xs={12} md={4}>
-                <TextField label="Elasticity Multiplier" type="number" fullWidth value={chainFees.elasticity} onChange={e => setChainFees(p => ({...p, elasticity: safeNum(e.target.value)}))} helperText="Max gas price spike" />
-             </Grid>
-             <Grid xs={12} md={4}>
-                <TextField label="Target Fullness %" type="number" fullWidth value={chainFees.targetBlockFullness} onChange={e => setChainFees(p => ({...p, targetBlockFullness: safeNum(e.target.value)}))} />
-             </Grid>
-          </Grid>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03), borderRadius: '12px 12px 0 0' }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <AccountBalanceIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Block Economics</Typography>
+                <Typography variant="caption" color="text.secondary">Gas limit, elasticity, and target fullness</Typography>
+              </Box>
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2.5 }}>
+              <TextField label="Block Gas Limit" type="number" size="small" fullWidth value={chainFees.blockGasLimit} onChange={e => setChainFees(p => ({...p, blockGasLimit: safeNum(e.target.value)}))} />
+              <TextField label="Elasticity Multiplier" type="number" size="small" fullWidth value={chainFees.elasticity} onChange={e => setChainFees(p => ({...p, elasticity: safeNum(e.target.value)}))} helperText="Max gas price spike" />
+              <TextField label="Target Fullness %" type="number" size="small" fullWidth value={chainFees.targetBlockFullness} onChange={e => setChainFees(p => ({...p, targetBlockFullness: safeNum(e.target.value)}))} />
+            </Box>
+          </Box>
        </SectionCard>
 
-       {/* Set 3: Fee Distribution */}
+       {/* Fee Distribution */}
        <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={3}>3. Fee Distribution</Typography>
-          <Grid container spacing={3}>
-             <Grid xs={12} md={6}>
-                <TextField label="Burn % (Deflationary)" type="number" fullWidth value={chainFees.burnPct} onChange={e => setChainFees(p => ({...p, burnPct: safeNum(e.target.value)}))} />
-             </Grid>
-             <Grid xs={12} md={6}>
-                <FormControl fullWidth>
-                   <InputLabel>Remainder Recipient</InputLabel>
-                   <Select value={chainFees.feeRecipient} label="Remainder Recipient" onChange={e => setChainFees(p => ({...p, feeRecipient: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                      <MenuItem value="validator">Block Proposer (Validator)</MenuItem>
-                      <MenuItem value="treasury">Community Treasury</MenuItem>
-                   </Select>
-                </FormControl>
-             </Grid>
-          </Grid>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#f59e0b', 0.03), borderRadius: '12px 12px 0 0' }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#f59e0b', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <MonetizationOnIcon sx={{ fontSize: 15, color: '#f59e0b' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Fee Distribution</Typography>
+                <Typography variant="caption" color="text.secondary">Burn percentage and remainder recipient</Typography>
+              </Box>
+              <Box sx={{ ml: 'auto', px: 1.25, py: 0.3, borderRadius: 1, bgcolor: alpha('#f59e0b', 0.08), color: '#f59e0b', fontSize: '0.62rem', fontWeight: 700 }}>
+                {chainFees.burnPct}% BURN
+              </Box>
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
+              <TextField label="Burn % (Deflationary)" type="number" size="small" fullWidth value={chainFees.burnPct} onChange={e => setChainFees(p => ({...p, burnPct: safeNum(e.target.value)}))} />
+              <FormControl fullWidth size="small">
+                <InputLabel>Remainder Recipient</InputLabel>
+                <Select value={chainFees.feeRecipient} label="Remainder Recipient" onChange={e => setChainFees(p => ({...p, feeRecipient: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                  <MenuItem value="validator">Block Proposer (Validator)</MenuItem>
+                  <MenuItem value="treasury">Community Treasury</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+          </Box>
        </SectionCard>
     </Stack>
   );
+  };
 
-  const renderChainStaking = () => (
-    <Stack spacing={4}>
-       <Box>
-          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha('#8b5cf6', 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <VerifiedUserIcon sx={{ color: '#8b5cf6' }} />
+  const renderChainStaking = () => {
+    const STK_COLOR = '#8b5cf6';
+    return (
+    <Stack spacing={2}>
+       {/* Validator Requirements */}
+       <SectionCard>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha(STK_COLOR, 0.03), borderRadius: '12px 12px 0 0' }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha(STK_COLOR, 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <VerifiedUserIcon sx={{ fontSize: 15, color: STK_COLOR }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Validator Requirements</Typography>
+                <Typography variant="caption" color="text.secondary">Minimum stake and validator count limits</Typography>
+              </Box>
+              <Box sx={{ ml: 'auto', px: 1.25, py: 0.3, borderRadius: 1, bgcolor: alpha(STK_COLOR, 0.08), color: STK_COLOR, fontSize: '0.62rem', fontWeight: 700 }}>
+                MAX {chainStaking.maxValidators}
+              </Box>
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
+              <TextField label="Min Self-Stake (tokens)" type="number" size="small" fullWidth value={chainStaking.minStake} onChange={e => setChainStaking(p => ({...p, minStake: safeNum(e.target.value)}))} />
+              <TextField label="Max Validator Count" type="number" size="small" fullWidth value={chainStaking.maxValidators} onChange={e => setChainStaking(p => ({...p, maxValidators: safeNum(e.target.value)}))} />
             </Box>
-            <Typography variant="h5" fontWeight={800}>Staking & Security</Typography>
-          </Stack>
-          <Typography variant="body2" color="text.secondary">Set validator requirements and slashing conditions.</Typography>
-       </Box>
-
-       {/* Set 1: Requirements */}
-       <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={3}>1. Validator Requirements</Typography>
-          <Grid container spacing={3}>
-             <Grid xs={12} md={6}>
-                <TextField label="Min Self-Stake" type="number" fullWidth value={chainStaking.minStake} onChange={e => setChainStaking(p => ({...p, minStake: safeNum(e.target.value)}))} />
-             </Grid>
-             <Grid xs={12} md={6}>
-                <TextField label="Max Validator Count" type="number" fullWidth value={chainStaking.maxValidators} onChange={e => setChainStaking(p => ({...p, maxValidators: safeNum(e.target.value)}))} />
-             </Grid>
-          </Grid>
+          </Box>
        </SectionCard>
 
-       {/* Set 2: Delegation */}
+       {/* Delegation */}
        <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={3}>2. Delegation Rules</Typography>
-          <Grid container spacing={3}>
-             <Grid xs={12} md={4}>
-                <FormControlLabel control={<Switch checked={chainStaking.delegationEnabled} onChange={e => setChainStaking(p => ({...p, delegationEnabled: e.target.checked}))} />} label="Delegation Enabled" />
-             </Grid>
-             <Grid xs={12} md={4}>
-                <TextField label="Min Delegation" type="number" fullWidth value={chainStaking.minDelegation} onChange={e => setChainStaking(p => ({...p, minDelegation: safeNum(e.target.value)}))} disabled={!chainStaking.delegationEnabled} />
-             </Grid>
-             <Grid xs={12} md={4}>
-                <TextField label="Unbonding Period (Days)" type="number" fullWidth value={chainStaking.unbondTime} onChange={e => setChainStaking(p => ({...p, unbondTime: safeNum(e.target.value)}))} disabled={!chainStaking.delegationEnabled} />
-             </Grid>
-          </Grid>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#4F46E5', 0.03), borderRadius: '12px 12px 0 0' }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <AccountBalanceWalletIcon sx={{ fontSize: 15, color: '#4F46E5' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Delegation Rules</Typography>
+                <Typography variant="caption" color="text.secondary">Whether stakers can delegate to validators</Typography>
+              </Box>
+              <Switch size="small" checked={chainStaking.delegationEnabled} onChange={e => setChainStaking(p => ({...p, delegationEnabled: e.target.checked}))} sx={{ ml: 'auto' }} />
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
+              <TextField label="Min Delegation (tokens)" type="number" size="small" fullWidth value={chainStaking.minDelegation} onChange={e => setChainStaking(p => ({...p, minDelegation: safeNum(e.target.value)}))} disabled={!chainStaking.delegationEnabled} />
+              <TextField label="Unbonding Period (Days)" type="number" size="small" fullWidth value={chainStaking.unbondTime} onChange={e => setChainStaking(p => ({...p, unbondTime: safeNum(e.target.value)}))} disabled={!chainStaking.delegationEnabled} />
+            </Box>
+          </Box>
        </SectionCard>
 
-       {/* Set 3: Slashing */}
+       {/* Slashing */}
        <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={3}>3. Slashing & Penalties</Typography>
-          <Grid container spacing={3}>
-             <Grid xs={12} md={4}>
-                <TextField label="Double Sign Slash %" type="number" fullWidth value={chainStaking.doubleSignSlash} onChange={e => setChainStaking(p => ({...p, doubleSignSlash: safeNum(e.target.value)}))} />
-             </Grid>
-             <Grid xs={12} md={4}>
-                <TextField label="Downtime Slash %" type="number" fullWidth value={chainStaking.downtimeSlash} onChange={e => setChainStaking(p => ({...p, downtimeSlash: safeNum(e.target.value)}))} />
-             </Grid>
-             <Grid xs={12} md={4}>
-                <TextField label="Jail Time (Hours)" type="number" fullWidth value={chainStaking.jailTime} onChange={e => setChainStaking(p => ({...p, jailTime: safeNum(e.target.value)}))} helperText="Ban duration" />
-             </Grid>
-          </Grid>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#ef4444', 0.03), borderRadius: '12px 12px 0 0' }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#ef4444', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <WarningAmberIcon sx={{ fontSize: 15, color: '#ef4444' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Slashing & Penalties</Typography>
+                <Typography variant="caption" color="text.secondary">Punishment parameters for misbehaving validators</Typography>
+              </Box>
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2.5 }}>
+              <TextField label="Double Sign Slash %" type="number" size="small" fullWidth value={chainStaking.doubleSignSlash} onChange={e => setChainStaking(p => ({...p, doubleSignSlash: safeNum(e.target.value)}))} />
+              <TextField label="Downtime Slash %" type="number" size="small" fullWidth value={chainStaking.downtimeSlash} onChange={e => setChainStaking(p => ({...p, downtimeSlash: safeNum(e.target.value)}))} />
+              <TextField label="Jail Time (Hours)" type="number" size="small" fullWidth value={chainStaking.jailTime} onChange={e => setChainStaking(p => ({...p, jailTime: safeNum(e.target.value)}))} helperText="Ban duration after slash" />
+            </Box>
+          </Box>
        </SectionCard>
     </Stack>
   );
+  };
 
-  const renderChainGov = () => (
-    <Stack spacing={4}>
-       <Box>
-          <Stack direction="row" alignItems="center" spacing={2} mb={1}>
-            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <AccountBalanceIcon sx={{ color: 'primary.main' }} />
+  const renderChainGov = () => {
+    const GOV_COLOR = '#4F46E5';
+    return (
+    <Stack spacing={2}>
+       {/* Voting Config */}
+       <SectionCard>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha(GOV_COLOR, 0.03), borderRadius: '12px 12px 0 0' }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha(GOV_COLOR, 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <AccountBalanceIcon sx={{ fontSize: 15, color: GOV_COLOR }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Voting Config</Typography>
+                <Typography variant="caption" color="text.secondary">Voting model, quorum, and period</Typography>
+              </Box>
+              <Box sx={{ ml: 'auto', px: 1.25, py: 0.3, borderRadius: 1, bgcolor: alpha(GOV_COLOR, 0.08), color: GOV_COLOR, fontSize: '0.62rem', fontWeight: 700 }}>
+                {chainGov.model.toUpperCase()}
+              </Box>
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Voting Model</InputLabel>
+                <Select value={chainGov.model} label="Voting Model" onChange={e => setChainGov(p => ({...p, model: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
+                  <MenuItem value="token">Token Weighted</MenuItem>
+                  <MenuItem value="quadratic">Quadratic Voting</MenuItem>
+                  <MenuItem value="council">Council Multisig</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField label="Voting Period (Days)" type="number" size="small" fullWidth value={chainGov.votingPeriod} onChange={e => setChainGov(p => ({...p, votingPeriod: safeNum(e.target.value)}))} />
+              <TextField label="Quorum Required %" type="number" size="small" fullWidth value={chainGov.quorum} onChange={e => setChainGov(p => ({...p, quorum: safeNum(e.target.value)}))} />
+              <TextField label="Pass Threshold %" type="number" size="small" fullWidth value={chainGov.passThreshold} onChange={e => setChainGov(p => ({...p, passThreshold: safeNum(e.target.value)}))} />
             </Box>
-            <Typography variant="h5" fontWeight={800}>On-Chain Governance</Typography>
-          </Stack>
-          <Typography variant="body2" color="text.secondary">Set the rules for protocol upgrades and treasury spending.</Typography>
-       </Box>
-
-       {/* Set 1: Voting Config */}
-       <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={3}>1. Voting Config</Typography>
-          <Grid container spacing={3}>
-             <Grid xs={12} md={6}>
-                <FormControl fullWidth>
-                   <InputLabel>Voting Model</InputLabel>
-                   <Select value={chainGov.model} label="Voting Model" onChange={e => setChainGov(p => ({...p, model: e.target.value}))} MenuProps={OPAQUE_MENU_PROPS as any}>
-                      <MenuItem value="token">Token Weighted</MenuItem>
-                      <MenuItem value="quadratic">Quadratic Voting</MenuItem>
-                      <MenuItem value="council">Council Multisig</MenuItem>
-                   </Select>
-                </FormControl>
-             </Grid>
-             <Grid xs={12} md={6}>
-                <TextField label="Quorum Required %" type="number" fullWidth value={chainGov.quorum} onChange={e => setChainGov(p => ({...p, quorum: safeNum(e.target.value)}))} />
-             </Grid>
-             <Grid xs={12} md={6}>
-                <TextField label="Pass Threshold %" type="number" fullWidth value={chainGov.passThreshold} onChange={e => setChainGov(p => ({...p, passThreshold: safeNum(e.target.value)}))} />
-             </Grid>
-             <Grid xs={12} md={6}>
-                <TextField label="Voting Period (Days)" type="number" fullWidth value={chainGov.votingPeriod} onChange={e => setChainGov(p => ({...p, votingPeriod: safeNum(e.target.value)}))} />
-             </Grid>
-          </Grid>
+          </Box>
        </SectionCard>
 
-       {/* Set 2: Proposal Safety */}
+       {/* Proposal Safety */}
        <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={3}>2. Proposal Safety</Typography>
-          <Grid container spacing={3}>
-             <Grid xs={12} md={4}>
-                <TextField label="Proposal Threshold (Tokens)" type="number" fullWidth value={chainGov.proposalThreshold} onChange={e => setChainGov(p => ({...p, proposalThreshold: safeNum(e.target.value)}))} helperText="Min tokens to propose" />
-             </Grid>
-             <Grid xs={12} md={4}>
-                <TextField label="Timelock Delay (Hours)" type="number" fullWidth value={chainGov.timelockDelay} onChange={e => setChainGov(p => ({...p, timelockDelay: safeNum(e.target.value)}))} helperText="Execution delay" />
-             </Grid>
-             <Grid xs={12} md={4}>
-                <TextField label="Cancel Threshold (Tokens)" type="number" fullWidth value={chainGov.cancelThreshold} onChange={e => setChainGov(p => ({...p, cancelThreshold: safeNum(e.target.value)}))} helperText="Tokens needed to force cancel" />
-             </Grid>
-          </Grid>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#f59e0b', 0.03), borderRadius: '12px 12px 0 0' }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#f59e0b', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <GavelIcon sx={{ fontSize: 15, color: '#f59e0b' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Proposal Safety</Typography>
+                <Typography variant="caption" color="text.secondary">Thresholds and timelock for proposals</Typography>
+              </Box>
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2.5 }}>
+              <TextField label="Proposal Threshold (tokens)" type="number" size="small" fullWidth value={chainGov.proposalThreshold} onChange={e => setChainGov(p => ({...p, proposalThreshold: safeNum(e.target.value)}))} helperText="Min tokens to propose" />
+              <TextField label="Timelock Delay (Hours)" type="number" size="small" fullWidth value={chainGov.timelockDelay} onChange={e => setChainGov(p => ({...p, timelockDelay: safeNum(e.target.value)}))} helperText="Execution delay after vote" />
+              <TextField label="Cancel Threshold (tokens)" type="number" size="small" fullWidth value={chainGov.cancelThreshold} onChange={e => setChainGov(p => ({...p, cancelThreshold: safeNum(e.target.value)}))} helperText="Force-cancel a proposal" />
+            </Box>
+          </Box>
        </SectionCard>
 
-       {/* Set 3: Emergency */}
+       {/* Emergency Controls */}
        <SectionCard>
-          <Typography variant="h6" fontWeight={800} mb={3}>3. Emergency Controls</Typography>
-          <Grid container spacing={3}>
-             <Grid xs={12} md={8}>
-                <TextField label="Emergency DAO Address" fullWidth value={chainGov.emergencyDao} onChange={e => setChainGov(p => ({...p, emergencyDao: e.target.value}))} placeholder="0x..." helperText="Can pause chain in exploits" />
-             </Grid>
-             <Grid xs={12} md={4}>
-                <FormControlLabel control={<Switch checked={chainGov.vetoEnabled} onChange={e => setChainGov(p => ({...p, vetoEnabled: e.target.checked}))} />} label="Enable Security Council Veto" />
-             </Grid>
-          </Grid>
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#ef4444', 0.03), borderRadius: '12px 12px 0 0' }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ width: 28, height: 28, borderRadius: 1, bgcolor: alpha('#ef4444', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <WarningAmberIcon sx={{ fontSize: 15, color: '#ef4444' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={800}>Emergency Controls</Typography>
+                <Typography variant="caption" color="text.secondary">Safety halt and veto mechanisms</Typography>
+              </Box>
+            </Stack>
+          </Box>
+          <Box sx={{ p: 3 }}>
+            <TextField label="Emergency DAO Address" size="small" fullWidth value={chainGov.emergencyDao} onChange={e => setChainGov(p => ({...p, emergencyDao: e.target.value}))} placeholder="0x..." helperText="Can pause the chain during exploits" sx={{ mb: 2 }} />
+            <FormControlLabel
+              control={<Switch size="small" checked={chainGov.vetoEnabled} onChange={e => setChainGov(p => ({...p, vetoEnabled: e.target.checked}))} />}
+              label={<Typography variant="body2">Enable Security Council Veto</Typography>}
+              sx={{ display: 'flex', alignItems: 'center', m: 0 }}
+            />
+          </Box>
        </SectionCard>
     </Stack>
   );
+  };
 
   return (
     <Box sx={{ width: '100%', height: '100%', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', position: 'relative' }}>
