@@ -100,9 +100,12 @@ export default function ExplorerNav() {
             href={`/explorer/${chain}`}
             sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none', flexShrink: 0 }}
           >
-            <Box sx={{ ...(isDark && { bgcolor: '#ffffff', borderRadius: '7px', px: 1, py: 0.4 }) }}>
+            <Box sx={{
+              borderRadius: isDark ? '0 7px 7px 0' : 0,
+              background: isDark ? 'linear-gradient(to right, transparent 22%, rgba(255,255,255,0.96) 28%)' : 'transparent',
+            }}>
               <Image
-                src="/brand/logo-light.png"
+                src="/brand/logo-dark.png"
                 alt="Cerulea Studio"
                 width={160}
                 height={44}
