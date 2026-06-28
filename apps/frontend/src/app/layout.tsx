@@ -7,11 +7,11 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Cerulea Studio',
   description: 'The AI Layer 1 for the next internet',
-  icons: [
-    { rel: 'icon', url: '/brand/favicon-icon.png', type: 'image/png' },
-    { rel: 'shortcut icon', url: '/brand/favicon-icon.png' },
-    { rel: 'apple-touch-icon', url: '/brand/favicon-icon.png' },
-  ],
+  icons: {
+    icon: [{ url: '/brand/favicon-v2.png', type: 'image/png', sizes: '64x64' }],
+    shortcut: '/brand/favicon-v2.png',
+    apple: '/brand/favicon-v2.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
