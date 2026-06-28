@@ -150,7 +150,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       position: 'absolute', top: 0, left: 0,
                       objectFit: 'contain', width: 'auto', height: 36, display: 'block',
                       filter: 'brightness(0) invert(1)',
-                      clipPath: 'inset(0 0 0 57%)',
+                      clipPath: 'inset(0 0 0 63%)',
                     }}
                     priority
                   />
