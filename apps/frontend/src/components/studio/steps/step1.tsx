@@ -621,15 +621,6 @@ function Step1Inner({ goPrev, goNext }: { goPrev?: () => void; goNext?: () => vo
         <MiniMap position="top-right" style={{ marginTop: 80, marginRight: 20, borderRadius: 12, overflow:'hidden' }} zoomable pannable />
       </ReactFlow>
 
-      {/* 2. Step Indicator (Top Center) */}
-      <Box sx={{ position: 'absolute', top: 100, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'none' }}>
-        <StepPill>
-          <Typography variant="overline" fontWeight={800} color="primary" sx={{ letterSpacing: 1, lineHeight: 1 }}>STEP 2 OF 6</Typography>
-          <Divider orientation="vertical" flexItem sx={{ height: 14, my: 'auto', opacity: 0.5 }} />
-          <Typography variant="subtitle2" fontWeight={700}>Blueprint Builder</Typography>
-        </StepPill>
-      </Box>
-
       {/* Empty-state guidance banner */}
       {nodes.length === 0 && (
         <Box sx={{

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from "react";
+import StepGuidance from '@/components/studio/StepGuidance';
 import {
   Box, Stack, Paper, Typography, TextField, Button, IconButton,
   Divider, Select, MenuItem, Tooltip, Fade, Chip, Switch,
@@ -182,7 +183,7 @@ const PhaseSidebar = styled(Box)(({ theme }) => ({
   flexDirection: 'column',
   background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.5)' : 'rgba(8,14,36,0.4)',
   backdropFilter: 'blur(20px)',
-  paddingTop: 80,
+  paddingTop: 16,
   overflowY: 'auto',
 }));
 
@@ -209,7 +210,7 @@ const Workspace = styled(Box)(() => ({
   overflow: 'hidden',
   display: 'flex',
   flexDirection: 'column',
-  paddingTop: 80,
+  paddingTop: 0,
 }));
 
 const OPAQUE_MENU_PROPS = {
@@ -1579,21 +1580,25 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
   return (
     <Box sx={{ width: '100%', height: '100%', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
 
+      <StepGuidance
+        stepKey="step2"
+        title="Data & Logic"
+        subtitle="Step 3 of 6"
+        description="Define the data models (entities) your app will store and the access rules that control who can read or write each record. Pre-filled entities are generated from your Blueprint modules."
+        steps={[
+          { first: 'Review entities', next: 'Each Blueprint module has pre-filled entities. Click a module in the left column to see its entities.' },
+          { first: 'Add or remove fields', next: 'Click any entity to open the field editor. Add custom fields or adjust types and constraints to match your schema.' },
+          { first: 'Set access rules', next: 'Switch to the Access Rules tab to define who can create, read, update, or delete each entity.' },
+        ]}
+        tip="Entities map directly to database tables and smart contract structs. The storage column controls whether a field lives on-chain (immutable, auditable) or off-chain (fast, cheap)."
+      />
+
       {/* Background dot grid */}
       <Box sx={{
-        position: 'absolute', inset: 0, opacity: 0.3, zIndex: -1,
-        backgroundImage: theme.palette.mode === 'light' ? 'radial-gradient(#ccc 1px, transparent 1px)' : 'radial-gradient(#333 1px, transparent 1px)',
+        position: 'absolute', inset: 0, opacity: 0.5, zIndex: -1,
+        backgroundImage: theme.palette.mode === 'light' ? 'radial-gradient(rgba(79,70,229,0.07) 1px, transparent 1px)' : 'radial-gradient(rgba(79,70,229,0.13) 1px, transparent 1px)',
         backgroundSize: '24px 24px',
       }} />
-
-      {/* Step indicator */}
-      <Box sx={{ position: 'absolute', top: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'none' }}>
-        <StepPill>
-          <Typography variant="overline" fontWeight={800} color="primary" sx={{ letterSpacing: 1, lineHeight: 1 }}>STEP 3 OF 6</Typography>
-          <Divider orientation="vertical" flexItem sx={{ height: 14, my: 'auto', opacity: 0.5 }} />
-          <Typography variant="subtitle2" fontWeight={700}>Data &amp; Logic</Typography>
-        </StepPill>
-      </Box>
 
       {/* Layout: sidebar + workspace */}
       <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -1601,7 +1606,6 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
         {/* LEFT NAVIGATION SIDEBAR */}
         <PhaseSidebar>
           <Box sx={{ px: 2.5, pb: 2 }}>
-            <Typography variant="overline" fontWeight={800} color="text.disabled" fontSize="0.6rem">STEP 3 OF 6</Typography>
             <Typography variant="subtitle1" fontWeight={800}>Data &amp; Logic</Typography>
             <Typography variant="caption" color="text.secondary">Define what your app stores and how it behaves.</Typography>
           </Box>

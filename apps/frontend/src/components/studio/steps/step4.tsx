@@ -582,7 +582,7 @@ const StepPill = styled(Paper)(({ theme }) => ({
   pointerEvents: 'auto',
 }));
 
-const CategoryRail = styled(Box)(({ theme }) => ({
+const CategoryRail = styled(Box)(({ theme }: { theme: any }) => ({
   width: 260,
   height: '100%',
   borderRight: `1px solid ${theme.palette.divider}`,
@@ -590,7 +590,7 @@ const CategoryRail = styled(Box)(({ theme }) => ({
   flexDirection: 'column',
   background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.5)' : 'rgba(8,14,36,0.4)',
   backdropFilter: 'blur(20px)',
-  paddingTop: 80, 
+  paddingTop: 16,
 }));
 
 const CategoryItem = styled(Box, { shouldForwardProp: (p) => p !== 'active' })<{ active?: boolean }>(({ theme, active }) => ({
@@ -617,7 +617,7 @@ const ProviderList = styled(Box)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
   background: theme.palette.mode === 'light' ? '#fff' : '#0D1535',
-  paddingTop: 80,
+  paddingTop: 16,
   overflowY: 'auto',
 }));
 
@@ -635,7 +635,7 @@ const ProviderItem = styled(Box, { shouldForwardProp: (p) => p !== 'active' })<{
 const ConfigPanel = styled(Box)(({ theme }) => ({
   flex: 1,
   height: '100%',
-  paddingTop: 80,
+  paddingTop: 24,
   paddingBottom: 100,
   overflowY: 'auto',
   background: theme.palette.mode === 'light' ? '#f8fafc' : '#080E24',
@@ -823,20 +823,11 @@ export default function Step4({ goPrev, goNext, projectId }: { goPrev?: () => vo
           backgroundSize: '24px 24px'
        }} />
 
-       <Box sx={{ position: 'absolute', top: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'none' }}>
-          <StepPill>
-             <Typography variant="overline" fontWeight={800} color="primary" sx={{ letterSpacing: 1, lineHeight: 1 }}>STEP 5 OF 6</Typography>
-             <Divider orientation="vertical" flexItem sx={{ height: 14, my: 'auto', opacity: 0.5 }} />
-             <Typography variant="subtitle2" fontWeight={700}>Integrations</Typography>
-          </StepPill>
-       </Box>
-
        <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
           
           {/* 1. Category Rail */}
           <CategoryRail>
              <Box sx={{ px: 3, pb: 2 }}>
-               <Typography variant="overline" fontWeight={800} color="text.disabled" fontSize="0.6rem">STEP 5 OF 6</Typography>
                <Typography variant="subtitle1" fontWeight={800}>Integrations</Typography>
                <Typography variant="caption" color="text.secondary">
                  Connect your app to third-party services. Toggle each integration on and add your API keys. Credentials are stored encrypted and never shared.

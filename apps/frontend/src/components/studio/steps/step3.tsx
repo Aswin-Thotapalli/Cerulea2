@@ -71,7 +71,7 @@ const PhaseSidebar = styled(Box)(({ theme }) => ({
   flexDirection: 'column',
   background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.5)' : 'rgba(8,14,36,0.4)',
   backdropFilter: 'blur(20px)',
-  paddingTop: 80, 
+  paddingTop: 16,
 }));
 
 // 4. Sidebar Item
@@ -96,11 +96,11 @@ const Workspace = styled(Box)(({ theme }) => ({
   flex: 1,
   height: '100%',
   position: 'relative',
-  overflow: 'auto', 
+  overflow: 'auto',
   display: 'flex',
   flexDirection: 'column',
-  paddingTop: 80,
-  paddingBottom: 100, 
+  paddingTop: 24,
+  paddingBottom: 100,
   paddingLeft: 40,
   paddingRight: 40,
 }));
@@ -1017,21 +1017,11 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
           backgroundSize: '24px 24px'
        }} />
 
-       {/* Step Indicator */}
-       <Box sx={{ position: 'absolute', top: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'none' }}>
-          <StepPill>
-             <Typography variant="overline" fontWeight={800} color="primary" sx={{ letterSpacing: 1, lineHeight: 1 }}>STEP 4 OF 6</Typography>
-             <Divider orientation="vertical" flexItem sx={{ height: 14, my: 'auto', opacity: 0.5 }} />
-             <Typography variant="subtitle2" fontWeight={700}>Economics</Typography>
-          </StepPill>
-       </Box>
-
        {/* Layout */}
        <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
           {/* Left Rail */}
           <PhaseSidebar>
              <Box sx={{ px: 3, pb: 2 }}>
-               <Typography variant="overline" fontWeight={800} color="text.disabled" fontSize="0.6rem">STEP 4 OF 6</Typography>
                <Typography variant="subtitle1" fontWeight={800}>Economics</Typography>
                <Typography variant="caption" color="text.secondary">
                  {projectType === 'blockchain'

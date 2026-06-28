@@ -882,7 +882,6 @@ export default function Step5({
             <ArrowBackIcon />
           </IconButton>
           <Box>
-            <Typography variant="overline" fontWeight={800} color="primary" sx={{ letterSpacing: 1 }}>STEP 6 OF 6: UI BUILDER</Typography>
             <Typography variant="h4" sx={{ fontWeight: 900, lineHeight: 1.1 }}>
               Design Your Interface
             </Typography>
