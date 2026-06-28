@@ -50,11 +50,11 @@ const FloatingIsland = styled(Paper)(({ theme }) => ({
 
 // Section Card
 const SectionCard = styled(Paper)(({ theme }) => ({
-  padding: 32,
-  borderRadius: 16,
-  border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+  padding: 24,
+  borderRadius: 4,
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
   background: theme.palette.background.paper,
-  marginBottom: 24,
+  marginBottom: 16,
   position: 'relative',
   overflow: 'hidden',
   '&::before': {
@@ -65,7 +65,7 @@ const SectionCard = styled(Paper)(({ theme }) => ({
     bottom: 0,
     width: 3,
     background: 'linear-gradient(to bottom, #4F46E5, #8b5cf6)',
-    borderRadius: '16px 0 0 16px',
+    borderRadius: 0,
   },
 }));
 
@@ -370,30 +370,35 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
 
        {/* Set 3: Tiers */}
        <SectionCard>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2.5}>
              <Typography variant="h6" fontWeight={800}>3. Subscription Tiers</Typography>
-             <Button startIcon={<AddIcon />} variant="outlined" size="small" onClick={() => setDappRevenue(p => ({...p, tiers: [...p.tiers, {name:'New', monthly:0, annual:0, limit:''}]}))} sx={{ borderRadius: 2, borderColor: alpha(theme.palette.primary.main, 0.4), '&:hover': { borderColor: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.04) } }}>Add Tier</Button>
+             <Button startIcon={<AddIcon />} variant="outlined" size="small" onClick={() => setDappRevenue(p => ({...p, tiers: [...p.tiers, {name:'New Tier', monthly:0, annual:0, limit:''}]}))} sx={{ borderRadius: 1.5, borderColor: alpha(theme.palette.primary.main, 0.4), '&:hover': { borderColor: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.04) } }}>Add Tier</Button>
           </Stack>
-          <Grid container spacing={3}>
+          {/* Column headers */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1.5fr 120px 120px 1.5fr 44px', gap: 1, px: 2, py: 1, bgcolor: alpha(theme.palette.primary.main, 0.04), borderRadius: '4px 4px 0 0', border: `1px solid ${theme.palette.divider}`, borderBottom: 'none' }}>
+            {['Tier Name', 'Monthly ($)', 'Annual ($)', 'Usage Limit', ''].map((h, i) => (
+              <Typography key={i} variant="caption" fontWeight={800} sx={{ fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: 0.7, color: 'text.disabled' }}>{h}</Typography>
+            ))}
+          </Box>
+          {/* Tier rows */}
+          <Box sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: '0 0 4px 4px', overflow: 'hidden' }}>
              {dappRevenue.tiers.map((t, i) => (
-                <Grid xs={12} md={4} key={i}>
-                   <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, position: 'relative', borderColor: alpha(theme.palette.primary.main, 0.18), bgcolor: alpha(theme.palette.primary.main, 0.02), transition: 'border-color 0.2s', '&:hover': { borderColor: alpha(theme.palette.primary.main, 0.4) } }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                        <Box sx={{ width: 36, height: 36, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <ShowChartIcon sx={{ fontSize: 18, color: 'primary.main' }} />
-                        </Box>
-                        <IconButton size="small" sx={{ color: 'text.disabled', '&:hover': { color: 'error.main' } }} onClick={() => setDappRevenue(p => ({...p, tiers: p.tiers.filter((_, idx) => idx !== i)}))}><CloseIcon fontSize="small" /></IconButton>
-                      </Box>
-                      <TextField variant="standard" fullWidth value={t.name} onChange={e => { const n = [...dappRevenue.tiers]; n[i].name = e.target.value; setDappRevenue(p => ({...p, tiers: n}))}} InputProps={{ disableUnderline: true, style: { fontSize: '1.1rem', fontWeight: 800 } }} />
-                      <Stack spacing={2} mt={2}>
-                         <TextField label="Monthly Price" size="small" type="number" value={t.monthly} onChange={e => { const n = [...dappRevenue.tiers]; n[i].monthly = safeNum(e.target.value); setDappRevenue(p => ({...p, tiers: n}))}} />
-                         <TextField label="Annual Price" size="small" type="number" value={t.annual} onChange={e => { const n = [...dappRevenue.tiers]; n[i].annual = safeNum(e.target.value); setDappRevenue(p => ({...p, tiers: n}))}} />
-                         <TextField label="Limits" size="small" value={t.limit} onChange={e => { const n = [...dappRevenue.tiers]; n[i].limit = e.target.value; setDappRevenue(p => ({...p, tiers: n}))}} />
-                      </Stack>
-                   </Paper>
-                </Grid>
+                <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '1.5fr 120px 120px 1.5fr 44px', gap: 1, px: 2, py: 1.25, alignItems: 'center', borderBottom: i < dappRevenue.tiers.length - 1 ? `1px solid ${theme.palette.divider}` : 'none', '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.02) }, transition: 'background 0.1s' }}>
+                   <TextField size="small" variant="standard" value={t.name} onChange={e => { const n = [...dappRevenue.tiers]; n[i].name = e.target.value; setDappRevenue(p => ({...p, tiers: n}))}} InputProps={{ disableUnderline: true, style: { fontWeight: 700, fontSize: '0.875rem' } }} />
+                   <TextField size="small" type="number" variant="standard" value={t.monthly} onChange={e => { const n = [...dappRevenue.tiers]; n[i].monthly = safeNum(e.target.value); setDappRevenue(p => ({...p, tiers: n}))}} InputProps={{ disableUnderline: true, style: { fontSize: '0.875rem' } }} />
+                   <TextField size="small" type="number" variant="standard" value={t.annual} onChange={e => { const n = [...dappRevenue.tiers]; n[i].annual = safeNum(e.target.value); setDappRevenue(p => ({...p, tiers: n}))}} InputProps={{ disableUnderline: true, style: { fontSize: '0.875rem' } }} />
+                   <TextField size="small" variant="standard" placeholder="e.g. 100k req/mo" value={t.limit} onChange={e => { const n = [...dappRevenue.tiers]; n[i].limit = e.target.value; setDappRevenue(p => ({...p, tiers: n}))}} InputProps={{ disableUnderline: true, style: { fontSize: '0.875rem' } }} />
+                   <IconButton size="small" sx={{ color: 'text.disabled', '&:hover': { color: 'error.main' } }} onClick={() => setDappRevenue(p => ({...p, tiers: p.tiers.filter((_, idx) => idx !== i)}))}>
+                     <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                   </IconButton>
+                </Box>
              ))}
-          </Grid>
+             {dappRevenue.tiers.length === 0 && (
+               <Box sx={{ py: 4, textAlign: 'center' }}>
+                 <Typography variant="caption" color="text.disabled">No tiers yet. Click "Add Tier" to create one.</Typography>
+               </Box>
+             )}
+          </Box>
        </SectionCard>
     </Stack>
   );
@@ -1048,7 +1053,7 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
                 onClick={() => setActiveTab(tab.key)}
                 sx={{
                   display: 'flex', alignItems: 'center', gap: 1,
-                  px: 2.5, py: 1, borderRadius: 2, cursor: 'pointer',
+                  px: 2.5, py: 1, borderRadius: 1, cursor: 'pointer',
                   whiteSpace: 'nowrap', flexShrink: 0,
                   bgcolor: isActive ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
                   color: isActive ? 'primary.main' : 'text.secondary',
@@ -1112,7 +1117,7 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
       </Box>
 
       {/* Help Dialog */}
-      <Dialog open={isHelpOpen} onClose={() => setIsHelpOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4, bgcolor: 'background.paper', color: 'text.primary' } }}>
+      <Dialog open={isHelpOpen} onClose={() => setIsHelpOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2, bgcolor: 'background.paper', color: 'text.primary' } }}>
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 3 }}>
           <Typography variant="h6" fontWeight={800}>{helpContent.title}</Typography>
           <IconButton onClick={() => setIsHelpOpen(false)}><CloseIcon /></IconButton>
