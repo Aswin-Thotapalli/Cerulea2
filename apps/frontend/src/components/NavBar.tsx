@@ -17,6 +17,7 @@ import { useThemeToggle } from '@/app/providers';
 
 export default function NavBar() {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { toggleTheme } = useThemeToggle();
   const { data: session, status, update } = useSession();
 
@@ -37,14 +38,16 @@ export default function NavBar() {
       <Toolbar sx={{ gap: 0.5 }}>
         {/* Logo */}
         <Box component={Link} href="/" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-          <Image
-            src="/brand/logo-dark.png"
-            alt="Cerulea Studio"
-            width={200}
-            height={55}
-            style={{ objectFit: 'contain', width: 'auto', height: 48 }}
-            priority
-          />
+          <Box sx={{ ...(isDark && { bgcolor: '#ffffff', borderRadius: '8px', px: 1.25, py: 0.5 }) }}>
+            <Image
+              src="/brand/logo-light.png"
+              alt="Cerulea Studio"
+              width={200}
+              height={55}
+              style={{ objectFit: 'contain', width: 'auto', height: 44, display: 'block' }}
+              priority
+            />
+          </Box>
         </Box>
 
         {/* Theme toggle */}

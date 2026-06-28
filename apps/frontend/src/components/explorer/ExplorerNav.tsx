@@ -100,14 +100,16 @@ export default function ExplorerNav() {
             href={`/explorer/${chain}`}
             sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none', flexShrink: 0 }}
           >
-            <Image
-              src="/brand/logo-dark.png"
-              alt="Cerulea Studio"
-              width={160}
-              height={44}
-              style={{ objectFit: 'contain', width: 'auto', height: 38 }}
-              priority
-            />
+            <Box sx={{ ...(isDark && { bgcolor: '#ffffff', borderRadius: '7px', px: 1, py: 0.4 }) }}>
+              <Image
+                src="/brand/logo-light.png"
+                alt="Cerulea Studio"
+                width={160}
+                height={44}
+                style={{ objectFit: 'contain', width: 'auto', height: 36, display: 'block' }}
+                priority
+              />
+            </Box>
             <Typography fontWeight={400} fontSize="0.85rem" sx={{ color: 'text.secondary' }}>
               Explorer
             </Typography>
