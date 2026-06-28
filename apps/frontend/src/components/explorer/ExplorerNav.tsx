@@ -100,7 +100,7 @@ export default function ExplorerNav() {
             sx={{ display: 'flex', alignItems: 'center', gap: 1, textDecoration: 'none', flexShrink: 0 }}
           >
             <Image
-              src="/brand/icon.png"
+              src="/brand/logo.png"
               alt="Cerulea"
               width={32}
               height={32}

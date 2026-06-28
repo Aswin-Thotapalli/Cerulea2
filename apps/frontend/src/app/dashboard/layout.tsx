@@ -131,7 +131,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           }}>
             <Box component={Link} href="/" sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1.25, textDecoration: 'none', minWidth: 0 }}>
               <Image
-                src="/brand/icon.png"
+                src="/brand/logo.png"
                 alt="Cerulea"
                 width={32}
                 height={32}
