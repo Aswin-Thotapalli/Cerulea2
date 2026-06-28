@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  AppBar, Toolbar, Typography, Button, IconButton, Box, Tooltip,
+  AppBar, Toolbar, Button, IconButton, Box, Tooltip,
 } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import { useEffect } from 'react';
@@ -37,23 +37,15 @@ export default function NavBar() {
     >
       <Toolbar sx={{ gap: 0.5 }}>
         {/* Logo */}
-        <Box component={Link} href="/" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1.25, textDecoration: 'none' }}>
-          <Box sx={{
-            display: 'inline-flex', alignItems: 'center',
-            ...(isDark && { bgcolor: 'rgba(255,255,255,0.93)', borderRadius: '6px', p: 0.25 }),
-          }}>
-            <Image
-              src="/brand/icon.png"
-              alt="Cerulea"
-              width={40}
-              height={40}
-              style={{ objectFit: 'contain', width: 40, height: 40 }}
-              priority
-            />
-          </Box>
-          <Typography variant="h6" fontWeight={800} sx={{ color: 'text.primary', letterSpacing: -0.5 }}>
-            Cerulea Studio
-          </Typography>
+        <Box component={Link} href="/" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+          <Image
+            src={isDark ? '/brand/logo-dark.png' : '/brand/logo-light.png'}
+            alt="Cerulea Studio"
+            width={180}
+            height={50}
+            style={{ objectFit: 'contain', width: 'auto', height: 44 }}
+            priority
+          />
         </Box>
 
         {/* Theme toggle */}
