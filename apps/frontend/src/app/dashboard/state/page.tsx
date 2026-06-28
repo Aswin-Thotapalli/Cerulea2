@@ -2,14 +2,14 @@
 
 import { useState } from 'react';
 import {
-  Box, Typography, Paper, Stack, Chip, Button,
-  MenuItem, Select, FormControl, InputLabel,
+  Box, Typography, Paper, Stack, Chip, Button, IconButton, Tooltip,
+  MenuItem, Select, FormControl, InputLabel, Snackbar, Alert,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Alert,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import RestoreIcon from '@mui/icons-material/Restore';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import StorageIcon from '@mui/icons-material/Storage';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -32,7 +32,6 @@ const STUB_SNAPSHOTS: Snapshot[] = [
   { id: 'snap-0039', network: 'CeruleaChain Mainnet', blockHeight: 4_158_100, timestamp: '2026-04-15T06:00:00Z', size: '2.3 GB', status: 'ready' },
   { id: 'snap-0012', network: 'VoteApp Devnet', blockHeight: 98_100, timestamp: '2026-04-17T06:00:00Z', size: '180 MB', status: 'ready' },
   { id: 'snap-0011', network: 'VoteApp Devnet', blockHeight: 95_200, timestamp: '2026-04-16T06:00:00Z', size: '174 MB', status: 'ready' },
-  { id: 'snap-live', network: 'CeruleaChain Mainnet', blockHeight: 4_182_401, timestamp: 'N/A', size: 'N/A', status: 'creating' },
 ];
 
 const STATUS_META = {
@@ -48,20 +47,48 @@ export default function StatePage() {
   const [snapshots, setSnapshots] = useState<Snapshot[]>(STUB_SNAPSHOTS);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [restoreId, setRestoreId] = useState<string | null>(null);
-  const [interval, setInterval] = useState('24h');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [interval, setSnapshotInterval] = useState('24h');
   const [retention, setRetention] = useState('7');
   const [selectedNetwork, setSelectedNetwork] = useState('CeruleaChain Mainnet');
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [restoredId, setRestoredId] = useState<string | null>(null);
 
   const handleCreate = () => {
     const latest = snapshots.filter((s) => s.network === selectedNetwork && s.status === 'ready');
     const latestHeight = latest.length > 0
       ? Math.max(...latest.map((s) => s.blockHeight)) + Math.floor(Math.random() * 1000 + 100)
       : 1000;
+    const newId = `snap-${Date.now()}`;
     setSnapshots((prev) => [{
-      id: `snap-${Date.now()}`, network: selectedNetwork,
+      id: newId, network: selectedNetwork,
       blockHeight: latestHeight, timestamp: new Date().toISOString(), size: 'N/A', status: 'creating',
     }, ...prev]);
     setCreateDialogOpen(false);
+    setTimeout(() => {
+      setSnapshots((prev) => prev.map((s) =>
+        s.id === newId ? { ...s, status: 'ready', size: '2.1 GB' } : s
+      ));
+      setToastMsg('Snapshot created successfully');
+    }, 3000);
+  };
+
+  const handleRestore = () => {
+    if (!restoreId) return;
+    setRestoredId(restoreId);
+    setRestoreId(null);
+    setToastMsg(`Snapshot ${restoreId} restored successfully`);
+  };
+
+  const handleDelete = () => {
+    if (!deleteId) return;
+    setSnapshots((prev) => prev.filter((s) => s.id !== deleteId));
+    setDeleteId(null);
+    setToastMsg('Snapshot deleted');
+  };
+
+  const handleSaveSchedule = () => {
+    setToastMsg('Schedule saved');
   };
 
   const readyCount = snapshots.filter((s) => s.status === 'ready').length;
@@ -122,7 +149,7 @@ export default function StatePage() {
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'flex-end' }}>
           <FormControl size="small" sx={{ minWidth: 180 }}>
             <InputLabel>Snapshot Interval</InputLabel>
-            <Select value={interval} label="Snapshot Interval" onChange={(e) => setInterval(e.target.value)}>
+            <Select value={interval} label="Snapshot Interval" onChange={(e) => setSnapshotInterval(e.target.value)}>
               <MenuItem value="6h">Every 6 hours</MenuItem>
               <MenuItem value="12h">Every 12 hours</MenuItem>
               <MenuItem value="24h">Every 24 hours</MenuItem>
@@ -138,7 +165,8 @@ export default function StatePage() {
               <MenuItem value="30">Keep last 30</MenuItem>
             </Select>
           </FormControl>
-          <Button variant="outlined" startIcon={<SaveIcon />} sx={{ borderRadius: 1, fontWeight: 700, borderColor: alpha('#4F46E5', 0.4) }}>
+          <Button variant="outlined" startIcon={<SaveIcon />} onClick={handleSaveSchedule}
+            sx={{ borderRadius: 1, fontWeight: 700, borderColor: alpha('#4F46E5', 0.4) }}>
             Save Schedule
           </Button>
         </Stack>
@@ -157,11 +185,13 @@ export default function StatePage() {
         <Box>
           {snapshots.map((snap, idx) => {
             const sm = STATUS_META[snap.status];
+            const wasRestored = restoredId === snap.id;
             return (
               <Box key={snap.id} sx={{
                 px: 3, py: 2, display: 'flex', alignItems: 'center', gap: 2,
                 borderBottom: idx < snapshots.length - 1 ? '1px solid' : 'none', borderColor: 'divider',
-                borderLeft: `3px solid ${alpha(sm.color, 0.4)}`,
+                borderLeft: `3px solid ${alpha(wasRestored ? '#10b981' : sm.color, wasRestored ? 0.8 : 0.4)}`,
+                bgcolor: wasRestored ? alpha('#10b981', 0.04) : undefined,
                 '&:hover': { bgcolor: alpha(sm.color, 0.03) },
                 transition: 'all 0.12s',
               }}>
@@ -172,7 +202,10 @@ export default function StatePage() {
 
                 {/* ID + network */}
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="subtitle2" fontWeight={700} sx={{ fontFamily: 'monospace' }}>{snap.id}</Typography>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Typography variant="subtitle2" fontWeight={700} sx={{ fontFamily: 'monospace' }}>{snap.id}</Typography>
+                    {wasRestored && <Chip label="Active" size="small" sx={{ height: 16, fontSize: '0.6rem', fontWeight: 800, bgcolor: alpha('#10b981', 0.12), color: '#10b981', border: 'none' }} />}
+                  </Stack>
                   <Typography variant="caption" color="text.secondary">{snap.network}</Typography>
                 </Box>
 
@@ -204,12 +237,22 @@ export default function StatePage() {
                   <Typography variant="caption" fontWeight={700} sx={{ color: sm.color }}>{sm.label}</Typography>
                 </Stack>
 
-                {/* Action */}
-                <Button size="small" variant="outlined" startIcon={<RestoreIcon sx={{ fontSize: 13 }} />}
-                  disabled={snap.status !== 'ready'} onClick={() => setRestoreId(snap.id)}
-                  sx={{ borderRadius: 1, fontSize: '0.7rem', flexShrink: 0 }}>
-                  Restore
-                </Button>
+                {/* Actions */}
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
+                  <Button size="small" variant="outlined" startIcon={<RestoreIcon sx={{ fontSize: 13 }} />}
+                    disabled={snap.status !== 'ready'} onClick={() => setRestoreId(snap.id)}
+                    sx={{ borderRadius: 1, fontSize: '0.7rem' }}>
+                    Restore
+                  </Button>
+                  <Tooltip title="Delete snapshot">
+                    <span>
+                      <IconButton size="small" disabled={snap.status === 'creating'} onClick={() => setDeleteId(snap.id)}
+                        sx={{ color: 'text.disabled', '&:hover': { color: 'error.main', bgcolor: alpha('#ef4444', 0.08) } }}>
+                        <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </Stack>
               </Box>
             );
           })}
@@ -228,7 +271,7 @@ export default function StatePage() {
               </Select>
             </FormControl>
             <Typography variant="caption" color="text.secondary">
-              A snapshot will be taken at the current block height. This may take a few minutes to complete.
+              A snapshot will be taken at the current block height. This typically completes within 30 seconds.
             </Typography>
           </Stack>
         </DialogContent>
@@ -251,9 +294,38 @@ export default function StatePage() {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setRestoreId(null)} sx={{ borderRadius: 1 }}>Cancel</Button>
-          <Button variant="contained" color="warning" onClick={() => setRestoreId(null)} sx={{ borderRadius: 1, fontWeight: 700 }}>Restore</Button>
+          <Button variant="contained" color="warning" onClick={handleRestore} sx={{ borderRadius: 1, fontWeight: 700 }}>Restore</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Delete Confirm Dialog */}
+      <Dialog open={!!deleteId} onClose={() => setDeleteId(null)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>Delete Snapshot?</DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ borderRadius: 2, mb: 2 }}>
+            This will permanently delete the snapshot. This cannot be undone.
+          </Alert>
+          <Typography variant="body2" color="text.secondary">
+            Delete snapshot <strong>{deleteId}</strong>?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDeleteId(null)} sx={{ borderRadius: 1 }}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={handleDelete} sx={{ borderRadius: 1, fontWeight: 700 }}>Delete</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Toast */}
+      <Snackbar
+        open={!!toastMsg}
+        autoHideDuration={3000}
+        onClose={() => setToastMsg(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setToastMsg(null)} severity="success" sx={{ borderRadius: 2 }}>
+          {toastMsg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

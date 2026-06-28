@@ -148,7 +148,7 @@ export default function GovernancePage() {
 
   if (!hasBlockchain) {
     return (
-      <Box sx={{ p: 4, maxWidth: 680 }}>
+      <Box sx={{ p: 4, maxWidth: 680, mx: 'auto' }}>
         <Box mb={4}>
           <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 800, letterSpacing: 1.5, fontSize: '0.62rem' }}>ON-CHAIN GOVERNANCE</Typography>
           <Typography variant="h4" fontWeight={900} sx={{

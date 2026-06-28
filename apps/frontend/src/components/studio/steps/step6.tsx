@@ -676,8 +676,12 @@ export default function Step6({ goPrev }: { goPrev?: () => void }) {
 
       </Box>
 
-      {/* Floating nav island at bottom center */}
-      <Box sx={{ position: 'absolute', bottom: 28, left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+      {/* Dock — flex footer, never overlaps content */}
+      <Box sx={{
+        flexShrink: 0, display: 'flex', justifyContent: 'center', py: 2,
+        borderTop: `1px solid ${alpha('#4F46E5', 0.12)}`,
+        bgcolor: 'background.paper',
+      }}>
         <FloatingIsland elevation={6}>
           <Tooltip title="Back">
             <IconButton onClick={goPrev} size="small" sx={{ border: '1px solid', borderColor: 'divider' }}>

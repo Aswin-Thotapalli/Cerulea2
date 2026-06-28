@@ -123,6 +123,37 @@ function RevealButton({ fullKey, maskedKey }: { fullKey: string; maskedKey: stri
   );
 }
 
+function ExportKeyButton({ vk }: { vk: ValidatorKey }) {
+  const [done, setDone] = useState(false);
+  const handle = () => {
+    const payload = JSON.stringify({
+      id: vk.id,
+      type: vk.type,
+      network: vk.network,
+      address: vk.fullAddress,
+      exported: new Date().toISOString(),
+    }, null, 2);
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${vk.id}-key.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setDone(true);
+    setTimeout(() => setDone(false), 2000);
+  };
+  return (
+    <Tooltip title={done ? 'Downloaded!' : 'Download key as JSON'} arrow>
+      <Button size="small" variant="outlined"
+        sx={{ borderRadius: 1, fontSize: '0.7rem', borderColor: done ? alpha('#10b981', 0.4) : alpha('#8b5cf6', 0.3), color: done ? '#10b981' : '#8b5cf6', flexShrink: 0, minWidth: 72 }}
+        onClick={handle}>
+        {done ? '✓ Saved' : 'Export'}
+      </Button>
+    </Tooltip>
+  );
+}
+
 export default function KeysPage() {
   const theme = useTheme();
   const [apiKeys, setApiKeys] = useState<ApiKey[]>(INITIAL_KEYS);
@@ -283,10 +314,7 @@ export default function KeysPage() {
 
               <Typography variant="caption" color="text.disabled" sx={{ flexShrink: 0 }}>Added {vk.added}</Typography>
 
-              <Button size="small" variant="outlined" sx={{ borderRadius: 1, fontSize: '0.7rem', borderColor: alpha('#8b5cf6', 0.3), color: '#8b5cf6', flexShrink: 0 }}
-                onClick={() => { navigator.clipboard.writeText(vk.fullAddress); }}>
-                Export
-              </Button>
+              <ExportKeyButton vk={vk} />
             </Box>
           ))}
         </Box>
