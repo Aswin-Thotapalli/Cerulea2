@@ -4,9 +4,8 @@ import React, { useEffect, useRef, useState } from "react";
 import StepGuidance from '@/components/studio/StepGuidance';
 import {
   Box, Button, Divider, LinearProgress, Paper, Stack, Typography,
-  Chip, Fade, IconButton, Tooltip, Alert, CircularProgress
+  IconButton, Tooltip, CircularProgress
 } from "@mui/material";
-import Grid from '@mui/material/GridLegacy';
 import { useTheme, styled, alpha } from "@mui/material/styles";
 import { useStudio } from "@/context/StudioContext";
 
@@ -25,7 +24,6 @@ import LockIcon from '@mui/icons-material/Lock';
 import SpeedIcon from '@mui/icons-material/Speed';
 import NetworkCheckIcon from '@mui/icons-material/NetworkCheck';
 import StorageIcon from '@mui/icons-material/Storage';
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 /* ------------------ Types ------------------ */
 type LogPhase =
@@ -59,19 +57,6 @@ const FloatingIsland = styled(Paper)(({ theme }) => ({
   pointerEvents: 'auto',
 }));
 
-const StepPill = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(8, 14, 36, 0.9)',
-  backdropFilter: 'blur(10px)',
-  border: `1px solid ${theme.palette.divider}`,
-  borderRadius: 100,
-  padding: '8px 20px',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 12,
-  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-  pointerEvents: 'auto',
-}));
-
 const TerminalWindow = styled(Paper)(({ theme }) => ({
   background: theme.palette.mode === 'light' ? '#f5f5f5' : '#080E24',
   border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
@@ -79,9 +64,9 @@ const TerminalWindow = styled(Paper)(({ theme }) => ({
   overflow: 'hidden',
   display: 'flex',
   flexDirection: 'column',
-  flex: 1, 
-  boxShadow: theme.palette.mode === 'light' 
-    ? '0 12px 24px -8px rgba(0,0,0,0.1)' 
+  flex: 1,
+  boxShadow: theme.palette.mode === 'light'
+    ? '0 12px 24px -8px rgba(0,0,0,0.1)'
     : '0 24px 48px -12px rgba(0,0,0,0.5)',
   fontFamily: '"Fira Code", "Roboto Mono", monospace',
 }));
@@ -102,35 +87,15 @@ const TerminalDot = styled(Box)<{ color: string }>(({ color }) => ({
   backgroundColor: color,
 }));
 
-const PipelineStep = styled(Box, { shouldForwardProp: (p) => p !== 'active' && p !== 'completed' })<{ active?: boolean; completed?: boolean }>(({ theme, active, completed }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: 16,
-  padding: '16px 20px',
-  borderRadius: 12,
-  transition: 'all 0.3s ease',
-  backgroundColor: active ? alpha(theme.palette.primary.main, 0.08) : completed ? alpha(theme.palette.success.main, 0.05) : 'transparent',
-  border: `1px solid ${active ? alpha(theme.palette.primary.main, 0.3) : completed ? alpha(theme.palette.success.main, 0.2) : 'transparent'}`,
-  opacity: active || completed ? 1 : 0.4,
-  marginBottom: 8,
-}));
-
-const SummaryCard = styled(Paper)(({ theme }) => ({
-  padding: 24,
-  borderRadius: 20,
-  border: `1px solid ${theme.palette.divider}`,
-  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.6)' : 'rgba(8,14,36,0.6)',
-  backdropFilter: 'blur(12px)',
-}));
-
-const MetricCard = styled(Paper)(({ theme }) => ({
-  padding: 16,
-  borderRadius: 16,
-  background: theme.palette.mode === 'light' ? '#fff' : '#0D1535',
-  border: `1px solid ${theme.palette.divider}`,
+const LeftPanel = styled(Box)(({ theme }) => ({
+  width: 340,
+  flexShrink: 0,
+  height: '100%',
+  borderRight: `1px solid ${theme.palette.divider}`,
   display: 'flex',
   flexDirection: 'column',
-  gap: 4,
+  background: theme.palette.mode === 'dark' ? 'rgba(8,14,36,0.95)' : theme.palette.background.paper,
+  overflowY: 'auto',
 }));
 
 /* ------------------ Constants ------------------ */
@@ -190,7 +155,7 @@ const BLOCKCHAIN_LOG_POOL = [
   "Sync: 4 peers connected. Downloading headers...",
   "Imported #1 (0x4a...b2) - 1.2MB",
   "Imported #2 (0x9c...f1) - 0.8MB",
-  "Telemetry: Connecting to telemetry.polkadot.io...",
+  "Telemetry: Connecting to telemetry.cerulea.io...",
   "RPC: HTTP server started on 127.0.0.1:9933",
   "RPC: WebSocket server started on 127.0.0.1:9944",
   "TxPool: 0 ready, 0 pending",
@@ -219,14 +184,14 @@ function generateRandomHex(len: number) {
 function generateLogLine(phase: LogPhase, projectType: 'dapp' | 'blockchain' | null): string {
   const source = projectType === 'blockchain' ? BLOCKCHAIN_LOG_POOL : INFRA_LOG_POOL;
   let pool: string[] = [];
-  
+
   if (phase === 'infra_provisioning') pool = source;
   else if (phase === 'service_deployment') pool = source;
   else if (phase === 'post_deploy_checks') pool = ["Health check: 200 OK", "Latency check: 45ms", "Consistency check: PASSED", "Uptime monitor: ACTIVE"];
   else pool = ["Syncing state...", "Processing background jobs...", "Indexing blocks...", "Optimizing storage..."];
 
   if (pool.length === 0) pool = ["Processing..."];
-  
+
   const base = pool[Math.floor(Math.random() * pool.length)];
   const detail = Math.random() > 0.7 ? ` [${Math.floor(Math.random() * 500)}ms]` : '';
   return `> ${base}${detail}`;
@@ -244,7 +209,7 @@ function walkValue(current: number, min: number, max: number, volatility: number
 /* ====================================================================== */
 export default function Step6({ goPrev }: { goPrev?: () => void }) {
   const theme = useTheme();
-  const { appMetadata, selectedModules, projectType } = useStudio(); 
+  const { appMetadata, selectedModules, projectType } = useStudio();
 
   // State
   const [deploying, setDeploying] = useState(false);
@@ -253,19 +218,16 @@ export default function Step6({ goPrev }: { goPrev?: () => void }) {
   const [activePhase, setActivePhase] = useState<LogPhase>("idle");
   const [completedPhases, setCompletedPhases] = useState<Set<LogPhase>>(new Set());
   const [deployMeta, setDeployMeta] = useState<DeployMeta | null>(null);
-  
+
   // Metrics State
   const [metricsActive, setMetricsActive] = useState(false);
-  const [metrics, setMetrics] = useState({ cpu: 0, ram: 0, net: 0, storage: 200 }); // Storage in MB
+  const [metrics, setMetrics] = useState({ cpu: 0, ram: 0, net: 0, storage: 200 });
 
   // Refs
   const scrollRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<any>(null);
   const metricsTimerRef = useRef<any>(null);
   const logIndexRef = useRef(0);
-
-  // Constants
-  const peerLabel = 'STORAGE'; // Changed from Peers/Instances to Storage
 
   // Auto-scroll logs
   useEffect(() => {
@@ -279,14 +241,14 @@ export default function Step6({ goPrev }: { goPrev?: () => void }) {
     if (deploying) return;
 
     const meta = {
-      deployId: `dep-${generateRandomHex(8)}`, 
+      deployId: `dep-${generateRandomHex(8)}`,
       region: "us-east-1",
       startTime: Date.now()
     };
     setDeployMeta(meta);
     setDeploying(true);
-    setMetricsActive(false); // Reset metrics
-    setMetrics({ cpu: 0, ram: 0, net: 0, storage: 200 }); // Base OS size 200MB
+    setMetricsActive(false);
+    setMetrics({ cpu: 0, ram: 0, net: 0, storage: 200 });
     setLogs([`INITIALIZING DEPLOYMENT: ${meta.deployId}`, `TARGET REGION: ${meta.region}`, `Loading blueprint configuration...`]);
     setProgress(0);
     setActivePhase("validation");
@@ -296,7 +258,6 @@ export default function Step6({ goPrev }: { goPrev?: () => void }) {
     // 1. Metrics Boot Delay (10-12 Seconds)
     setTimeout(() => {
       setMetricsActive(true);
-      // Initialize starting values when they "boot up"
       setMetrics({ cpu: 15, ram: 24, net: 0.5, storage: 210 });
     }, 12000);
 
@@ -306,69 +267,56 @@ export default function Step6({ goPrev }: { goPrev?: () => void }) {
         let currentPhase: LogPhase = "validation";
         let speed = 0.5;
 
-        // --- REALISTIC TIMING LOGIC ---
-        // Validation (0-10%): Takes ~3 mins (180s). Tick is 500ms. 
-        if (prev < 10) { 
-           currentPhase = "validation"; 
-           speed = 0.02 + Math.random() * 0.02; // Very slow start
-        } 
-        // Code Gen (10-25%): Slows down further
-        else if (prev < 25) { 
-           currentPhase = "code_generation"; 
-           speed = 0.015 + Math.random() * 0.02;
-        } 
-        // Infra (25-60%): The "Hours" slog
-        else if (prev < 60) { 
-           currentPhase = "infra_provisioning"; 
-           speed = 0.0005; // Effectively frozen (Hours)
-        } 
-        // Service Deploy (60-90%): Still slow
-        else if (prev < 90) { 
-           currentPhase = "service_deployment"; 
-           speed = 0.001; 
-        } 
-        // Finalizing (90+): Crawl
-        else { 
-           currentPhase = "background_finalization"; 
-           speed = 0.0001; 
+        if (prev < 10) {
+          currentPhase = "validation";
+          speed = 0.02 + Math.random() * 0.02;
+        } else if (prev < 25) {
+          currentPhase = "code_generation";
+          speed = 0.015 + Math.random() * 0.02;
+        } else if (prev < 60) {
+          currentPhase = "infra_provisioning";
+          speed = 0.0005;
+        } else if (prev < 90) {
+          currentPhase = "service_deployment";
+          speed = 0.001;
+        } else {
+          currentPhase = "background_finalization";
+          speed = 0.0001;
         }
 
         setActivePhase((p) => {
-           if (p !== currentPhase && p !== 'idle') {
-              setCompletedPhases((s) => {
-                 const newSet = new Set(s);
-                 newSet.add(p);
-                 return newSet;
-              });
-           }
-           return currentPhase;
+          if (p !== currentPhase && p !== 'idle') {
+            setCompletedPhases((s) => {
+              const newSet = new Set(s);
+              newSet.add(p);
+              return newSet;
+            });
+          }
+          return currentPhase;
         });
 
-        // Log Logic
         setLogs((prevLogs) => {
-           let newLog: string | null = null;
-           const isFastPhase = currentPhase === 'validation' || currentPhase === 'code_generation';
-           
-           if (isFastPhase) {
-              // In validation phase, output scripted logs slowly
-              if (Math.random() > 0.9 && logIndexRef.current < SCRIPTED_LOGS.length) {
-                 newLog = `> ${SCRIPTED_LOGS[logIndexRef.current]}`;
-                 logIndexRef.current++;
-              }
-           } else {
-              // In heavy phases, logs are VERY rare
-              if (Math.random() > 0.99) { 
-                 const newRaw = generateLogLine(currentPhase, projectType);
-                 const ts = new Date().toISOString().split('T')[1].split('.')[0];
-                 newLog = `${ts} ${newRaw}`;
-              }
-           }
+          let newLog: string | null = null;
+          const isFastPhase = currentPhase === 'validation' || currentPhase === 'code_generation';
 
-           if (newLog) {
-              const updated = [...prevLogs, newLog];
-              return updated.length > 1000 ? updated.slice(updated.length - 1000) : updated;
-           }
-           return prevLogs;
+          if (isFastPhase) {
+            if (Math.random() > 0.9 && logIndexRef.current < SCRIPTED_LOGS.length) {
+              newLog = `> ${SCRIPTED_LOGS[logIndexRef.current]}`;
+              logIndexRef.current++;
+            }
+          } else {
+            if (Math.random() > 0.99) {
+              const newRaw = generateLogLine(currentPhase, projectType);
+              const ts = new Date().toISOString().split('T')[1].split('.')[0];
+              newLog = `${ts} ${newRaw}`;
+            }
+          }
+
+          if (newLog) {
+            const updated = [...prevLogs, newLog];
+            return updated.length > 1000 ? updated.slice(updated.length - 1000) : updated;
+          }
+          return prevLogs;
         });
 
         const next = prev + speed;
@@ -379,29 +327,24 @@ export default function Step6({ goPrev }: { goPrev?: () => void }) {
     // 3. Metrics Random Walk Loop (Smoother)
     metricsTimerRef.current = setInterval(() => {
       setMetrics((prev) => {
-        // "Step & Creep" Storage Logic
-        // 95% chance of slow creep (logs), 5% chance of burst (install)
         const isBurst = Math.random() > 0.95;
-        const growth = isBurst 
-           ? (10 + Math.random() * 40) // Burst 10-50MB
-           : (0.1 + Math.random() * 0.5); // Creep 0.1-0.6MB
+        const growth = isBurst
+          ? (10 + Math.random() * 40)
+          : (0.1 + Math.random() * 0.5);
 
-        // Bursty Network Logic
-        // 90% chance of lull, 10% chance of high activity
         const isNetBurst = Math.random() > 0.90;
-        const netTarget = isNetBurst 
-           ? (40 + Math.random() * 60) // 40-100 MB/s
-           : (0.1 + Math.random() * 2); // 0.1-2 MB/s
-        
-        // Smoothly approach the network target instead of jumping instantly
+        const netTarget = isNetBurst
+          ? (40 + Math.random() * 60)
+          : (0.1 + Math.random() * 2);
+
         const netDiff = netTarget - prev.net;
-        const newNet = prev.net + (netDiff * 0.2); // Move 20% towards target per tick
+        const newNet = prev.net + (netDiff * 0.2);
 
         return {
-          cpu: walkValue(prev.cpu, 10, 80, 5),      // CPU 10-80%
-          ram: walkValue(prev.ram, 20, 60, 2),      // RAM 20-60%
-          net: Math.round(newNet * 10) / 10,        // Smoothed Net
-          storage: prev.storage + growth            // Accumulating storage
+          cpu: walkValue(prev.cpu, 10, 80, 5),
+          ram: walkValue(prev.ram, 20, 60, 2),
+          net: Math.round(newNet * 10) / 10,
+          storage: prev.storage + growth
         };
       });
     }, 1000);
@@ -416,221 +359,364 @@ export default function Step6({ goPrev }: { goPrev?: () => void }) {
   }, []);
 
   return (
-    <>
-      <Box sx={{ width: '100%', height: '100%', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ width: '100%', height: '100%', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
 
-         <StepGuidance
-           stepKey="step6"
-           title="Review & Deploy"
-           subtitle="Step 6 of 6"
-           description="Review your complete project configuration and deploy it to production. Cerulea validates your setup, generates all smart contracts and infrastructure, and provisions your live environment."
-           steps={[
-             { first: 'Review the summary', next: 'Check your selected modules, token configuration, and integrations in the left panel.' },
-             { first: 'Click Deploy', next: 'Cerulea will validate your config, compile contracts, provision infrastructure, and go live.' },
-             { first: 'Access your project', next: 'Once deployed, you\'ll get an RPC endpoint, dashboard URL, and API access for your app.' },
-           ]}
-           tip="Deployment typically takes 2–5 minutes. You'll see real-time progress logs as each phase completes."
-         />
+      <StepGuidance
+        stepKey="step6"
+        title="Review & Deploy"
+        subtitle="Step 6 of 6"
+        description="Review your complete project configuration and deploy it to production. Cerulea validates your setup, generates all smart contracts and infrastructure, and provisions your live environment."
+        steps={[
+          { first: 'Review the summary', next: 'Check your selected modules, token configuration, and integrations in the left panel.' },
+          { first: 'Click Deploy', next: 'Cerulea will validate your config, compile contracts, provision infrastructure, and go live.' },
+          { first: 'Access your project', next: "Once deployed, you'll get an RPC endpoint, dashboard URL, and API access for your app." },
+        ]}
+        tip="Deployment typically takes 2–5 minutes. You'll see real-time progress logs as each phase completes."
+      />
 
-         <Box sx={{ position: 'absolute', inset: 0, opacity: 0.5, zIndex: -1,
-            backgroundImage: theme.palette.mode === 'light' ? 'radial-gradient(rgba(79,70,229,0.07) 1px, transparent 1px)' : 'radial-gradient(rgba(79,70,229,0.13) 1px, transparent 1px)',
-            backgroundSize: '24px 24px'
-         }} />
+      {/* Dot grid */}
+      <Box sx={{
+        position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none',
+        backgroundImage: theme.palette.mode === 'dark'
+          ? 'radial-gradient(rgba(79,70,229,0.13) 1px, transparent 1px)'
+          : 'radial-gradient(rgba(79,70,229,0.07) 1px, transparent 1px)',
+        backgroundSize: '28px 28px'
+      }} />
 
-         <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', pt: 3, px: 4, pb: 14 }}>
-            <Grid container spacing={4} sx={{ height: '100%' }}>
-               
-               <Grid xs={12} md={4} sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <SummaryCard>
-                     <Stack direction="row" alignItems="center" spacing={2} mb={2}>
-                        <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: 'primary.main', color: 'white' }}>
-                           <RocketLaunchIcon />
-                        </Box>
-                        <Box>
-                           <Typography variant="h6" fontWeight={900}>{appMetadata?.appName || "New Project"}</Typography>
-                           <Typography variant="body2" fontWeight={600} color="text.primary" sx={{ opacity: 0.8 }}>{projectType === 'blockchain' ? 'Layer 1 Network' : 'Full Stack dApp'}</Typography>
-                        </Box>
-                     </Stack>
+      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', zIndex: 1, pt: 2, px: 3, pb: 14 }}>
 
-                     {!deploying && (
-                        <Box sx={{ p: 2, borderRadius: 2, bgcolor: (t) => t.palette.mode === 'light' ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.06)', mb: 2, border: (t) => `1px solid ${t.palette.divider}` }}>
-                           <Typography variant="body2" fontWeight={700} sx={{ mb: 0.75 }}>What happens when you deploy</Typography>
-                           <Stack spacing={0.5}>
-                             {[
-                               'Cerulea validates your configuration and checks for conflicts',
-                               'Smart contracts are compiled and generated from your modules',
-                               'Infrastructure is provisioned in your selected region',
-                               'Your app goes live with an RPC endpoint and dashboard URL',
-                             ].map((line, i) => (
-                               <Stack key={i} direction="row" spacing={1} alignItems="flex-start">
-                                 <Typography variant="caption" fontWeight={800} color="primary.main" sx={{ mt: 0.1, flexShrink: 0 }}>{i + 1}.</Typography>
-                                 <Typography variant="body2" color="text.primary" sx={{ lineHeight: 1.5 }}>{line}</Typography>
-                               </Stack>
-                             ))}
-                           </Stack>
-                        </Box>
-                     )}
+        {/* LEFT PANEL */}
+        <LeftPanel>
+          {/* Project identity header */}
+          <Box sx={{ p: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Stack direction="row" alignItems="center" spacing={1.5} mb={2}>
+              <Box sx={{
+                p: 1, borderRadius: 1.5,
+                bgcolor: alpha(theme.palette.primary.main, 0.15),
+                color: 'primary.main', display: 'flex'
+              }}>
+                <RocketLaunchIcon sx={{ fontSize: 20 }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle1" fontWeight={800}>
+                  {appMetadata?.appName || 'New Project'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {projectType === 'blockchain' ? 'Layer 1 Network' : 'Full Stack dApp'}
+                </Typography>
+              </Box>
+            </Stack>
+            {deploying && deployMeta && (
+              <Box sx={{
+                p: 1.5, borderRadius: 2,
+                bgcolor: alpha(theme.palette.primary.main, 0.06),
+                border: '1px solid', borderColor: alpha(theme.palette.primary.main, 0.15)
+              }}>
+                <Typography variant="caption" fontFamily="monospace" color="text.secondary" display="block">
+                  ID: {deployMeta.deployId}
+                </Typography>
+                <Typography variant="caption" fontFamily="monospace" color="text.secondary" display="block">
+                  Region: {deployMeta.region}
+                </Typography>
+              </Box>
+            )}
+          </Box>
 
-                     {deploying && (
-                        <Alert severity="info" variant="outlined" sx={{ mt: 2, bgcolor: alpha(theme.palette.info.main, 0.1) }}>
-                           <Typography variant="caption" fontWeight={700}>
-                              Deployment in progress. This process will take hours. Do not close this window.
-                           </Typography>
-                        </Alert>
-                     )}
-                  </SummaryCard>
-
-                  <Box sx={{ flex: 1, overflowY: 'auto' }}>
-                     <Typography variant="overline" fontWeight={800} color="text.secondary" sx={{ pl: 1, mb: 1, display: 'block' }}>DEPLOYMENT SEQUENCE</Typography>
-                     {DEPLOYMENT_PHASES.map((p) => {
-                        const isActive = activePhase === p.id;
-                        const isCompleted = completedPhases.has(p.id as LogPhase);
-                        
-                        return (
-                           <PipelineStep key={p.id} active={isActive} completed={isCompleted}>
-                              <Box sx={{ color: isCompleted ? 'success.main' : isActive ? 'primary.main' : 'text.disabled', display: 'flex' }}>
-                                 {isCompleted ? <CheckCircleIcon /> : isActive ? <CircularProgress size={24} color="inherit" /> : p.icon}
-                              </Box>
-                              <Box sx={{ flex: 1 }}>
-                                 <Typography variant="subtitle2" fontWeight={700} color={isActive || isCompleted ? 'text.primary' : 'text.disabled'}>
-                                    {p.label}
-                                 </Typography>
-                                 {isActive && <Typography variant="caption" color="primary">Processing...</Typography>}
-                              </Box>
-                           </PipelineStep>
-                        );
-                     })}
-                  </Box>
-               </Grid>
-
-               <Grid xs={12} md={8} sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <Box display="grid" gridTemplateColumns="repeat(4, 1fr)" gap={2}>
-                     <MetricCard>
-                        <Stack direction="row" alignItems="center" gap={1} color="text.secondary">
-                           <SpeedIcon fontSize="small" /> <Typography variant="caption" fontWeight={700}>CPU LOAD</Typography>
-                        </Stack>
-                        <Typography variant="h5" fontWeight={800} color="primary.main" fontFamily="monospace">
-                           {metricsActive ? `${metrics.cpu}%` : '--'}
-                        </Typography>
-                     </MetricCard>
-                     <MetricCard>
-                        <Stack direction="row" alignItems="center" gap={1} color="text.secondary">
-                           <MemoryIcon fontSize="small" /> <Typography variant="caption" fontWeight={700}>MEMORY</Typography>
-                        </Stack>
-                        <Typography variant="h5" fontWeight={800} color="secondary.main" fontFamily="monospace">
-                           {metricsActive ? `${metrics.ram}%` : '--'}
-                        </Typography>
-                     </MetricCard>
-                     <MetricCard>
-                        <Stack direction="row" alignItems="center" gap={1} color="text.secondary">
-                           <NetworkCheckIcon fontSize="small" /> <Typography variant="caption" fontWeight={700}>NET I/O</Typography>
-                        </Stack>
-                        <Typography variant="h5" fontWeight={800} color="warning.main" fontFamily="monospace">
-                           {metricsActive ? `${metrics.net} MB/s` : '--'}
-                        </Typography>
-                     </MetricCard>
-                     <MetricCard>
-                        <Stack direction="row" alignItems="center" gap={1} color="text.secondary">
-                           <StorageIcon fontSize="small" /> <Typography variant="caption" fontWeight={700}>STORAGE</Typography>
-                        </Stack>
-                        <Typography variant="h5" fontWeight={800} color="success.main" fontFamily="monospace">
-                           {metricsActive ? `${Math.floor(metrics.storage)} MB` : '--'}
-                        </Typography>
-                     </MetricCard>
-                  </Box>
-
-                  <TerminalWindow elevation={10}>
-                     <TerminalHeader>
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                           <TerminalDot color="#FF5F56" />
-                           <TerminalDot color="#FFBD2E" />
-                           <TerminalDot color="#27C93F" />
-                        </Stack>
-                        {deployMeta && (
-                           <Typography variant="caption" fontFamily="monospace" color="text.secondary">
-                              ID: {deployMeta.deployId} | REGION: {deployMeta.region}
-                           </Typography>
-                        )}
-                     </TerminalHeader>
-                     
-                     <Box ref={scrollRef} sx={{ flex: 1, p: 2, overflowY: 'auto', lineHeight: 1.6 }}>
-                        {!deploying && logs.length === 0 ? (
-                           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.3 }}>
-                              <TerminalIcon sx={{ fontSize: 64, mb: 2 }} />
-                              <Typography>System Ready.</Typography>
-                              <Typography>Waiting for initialization...</Typography>
-                           </Box>
-                        ) : (
-                           <>
-                              {logs.map((log, i) => (
-                                 <div key={i} style={{ marginBottom: 2, wordBreak: 'break-all', color: theme.palette.mode === 'light' ? '#333' : '#e0e0e0', fontSize: 13 }}>
-                                    {log.includes('>') ? (
-                                       <span style={{ color: theme.palette.success.main, fontWeight: 'bold' }}>{log}</span>
-                                    ) : (
-                                       <span>{log}</span>
-                                    )}
-                                 </div>
-                              ))}
-                              {deploying && (
-                                 <div className="animate-pulse" style={{ marginTop: 8, color: theme.palette.success.main, fontWeight: 'bold' }}>_</div>
-                              )}
-                           </>
-                        )}
-                     </Box>
-
-                     {deploying && (
-                        <Box sx={{ p: 2, bgcolor: theme.palette.mode === 'light' ? '#eee' : '#111', borderTop: `1px solid ${theme.palette.divider}` }}>
-                           <Stack direction="row" justifyContent="space-between" mb={1}>
-                              <Typography variant="caption" color="text.secondary" fontFamily="monospace">STATUS: {activePhase.toUpperCase().replace('_', ' ')}</Typography>
-                              <Typography variant="caption" color="primary" fontFamily="monospace">{progress.toFixed(3)}%</Typography>
-                           </Stack>
-                           <LinearProgress variant="determinate" value={progress} sx={{ height: 4, borderRadius: 2 }} />
-                        </Box>
-                     )}
-                  </TerminalWindow>
-               </Grid>
-
-            </Grid>
-         </Box>
-
-         <Box sx={{ position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
-            <FloatingIsland elevation={6}>
-               <Tooltip title="Back">
-                 <IconButton onClick={goPrev} size="small" sx={{border: '1px solid', borderColor:'divider'}}>
-                    <ArrowBackIcon />
-                 </IconButton>
-               </Tooltip>
-               <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
-               
-               {!deploying ? (
-                  <Button 
-                     variant="contained" 
-                     size="large"
-                     onClick={startDeployment}
-                     startIcon={<RocketLaunchIcon />}
-                     sx={{ borderRadius: 100, px: 4, fontWeight: 800, background: 'linear-gradient(45deg, #2563eb, #7c3aed)' }}
+          {/* Pipeline steps */}
+          <Box sx={{ p: 2, flex: 1 }}>
+            <Typography
+              variant="overline"
+              fontSize="0.6rem"
+              fontWeight={800}
+              color="text.secondary"
+              sx={{ letterSpacing: 1.2, pl: 1, mb: 1.5, display: 'block' }}
+            >
+              DEPLOYMENT PIPELINE
+            </Typography>
+            <Stack spacing={0.75}>
+              {DEPLOYMENT_PHASES.map((p, idx) => {
+                const isActive = activePhase === p.id;
+                const isDone = completedPhases.has(p.id as LogPhase);
+                return (
+                  <Box
+                    key={p.id}
+                    sx={{
+                      display: 'flex', alignItems: 'center', gap: 1.5,
+                      px: 1.5, py: 1.25, borderRadius: 2,
+                      bgcolor: isActive
+                        ? alpha(theme.palette.primary.main, 0.08)
+                        : isDone
+                        ? alpha('#10b981', 0.05)
+                        : 'transparent',
+                      border: `1px solid ${
+                        isActive
+                          ? alpha(theme.palette.primary.main, 0.25)
+                          : isDone
+                          ? alpha('#10b981', 0.2)
+                          : 'transparent'
+                      }`,
+                      opacity: (!deploying || isActive || isDone) ? 1 : 0.35,
+                      transition: 'all 0.3s',
+                    }}
                   >
-                     Initialize Deployment
-                  </Button>
-               ) : (
-                  <Tooltip title="Deployment is in progress. Please wait.">
-                     <span>
-                        <Button 
-                           variant="outlined" 
-                           size="large"
-                           disabled
-                           startIcon={<LockIcon />}
-                           sx={{ borderRadius: 100, px: 4, fontWeight: 700 }}
+                    {/* Step number/status icon */}
+                    <Box sx={{
+                      width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      bgcolor: isDone
+                        ? alpha('#10b981', 0.15)
+                        : isActive
+                        ? alpha(theme.palette.primary.main, 0.15)
+                        : alpha(theme.palette.divider, 0.3),
+                      color: isDone ? '#10b981' : isActive ? 'primary.main' : 'text.disabled',
+                      fontSize: '0.75rem', fontWeight: 800,
+                    }}>
+                      {isDone
+                        ? <CheckCircleIcon sx={{ fontSize: 14 }} />
+                        : isActive
+                        ? <CircularProgress size={14} color="inherit" />
+                        : <Typography variant="caption" fontWeight={800}>{idx + 1}</Typography>
+                      }
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography
+                        variant="body2"
+                        fontWeight={isDone || isActive ? 700 : 500}
+                        color={isDone ? '#10b981' : isActive ? 'primary.main' : 'text.disabled'}
+                        sx={{ lineHeight: 1.2 }}
+                      >
+                        {p.label}
+                      </Typography>
+                      {isActive && (
+                        <Typography variant="caption" color="primary.main" sx={{ opacity: 0.7 }}>
+                          Processing...
+                        </Typography>
+                      )}
+                      {isDone && (
+                        <Typography variant="caption" sx={{ color: '#10b981', opacity: 0.7 }}>
+                          Complete
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                );
+              })}
+            </Stack>
+          </Box>
+
+          {/* Pre-deploy info (only when idle) */}
+          {!deploying && (
+            <Box sx={{ p: 2.5, borderTop: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="subtitle2" fontWeight={800} mb={1.5}>Before you deploy</Typography>
+              <Stack spacing={1}>
+                {[
+                  'Config validation & security scan',
+                  'Smart contract compilation',
+                  'Infrastructure provisioning',
+                  'Service deployment & health checks',
+                ].map((item, i) => (
+                  <Stack key={i} direction="row" spacing={1} alignItems="flex-start">
+                    <Typography variant="caption" color="primary.main" fontWeight={800} sx={{ flexShrink: 0, mt: 0.1 }}>
+                      {i + 1}.
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
+                      {item}
+                    </Typography>
+                  </Stack>
+                ))}
+              </Stack>
+            </Box>
+          )}
+        </LeftPanel>
+
+        {/* RIGHT: Terminal + metrics */}
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', pl: 2.5, minWidth: 0 }}>
+
+          {/* Compact metrics strip (only when deploying) */}
+          {deploying && (
+            <Stack direction="row" spacing={1.5} mb={1.5}>
+              {[
+                { label: 'CPU', value: metricsActive ? `${metrics.cpu}%` : '--', color: theme.palette.primary.main, icon: <SpeedIcon sx={{ fontSize: 14 }} /> },
+                { label: 'MEMORY', value: metricsActive ? `${metrics.ram}%` : '--', color: '#8b5cf6', icon: <MemoryIcon sx={{ fontSize: 14 }} /> },
+                { label: 'NET I/O', value: metricsActive ? `${metrics.net} MB/s` : '--', color: '#f59e0b', icon: <NetworkCheckIcon sx={{ fontSize: 14 }} /> },
+                { label: 'STORAGE', value: metricsActive ? `${Math.floor(metrics.storage)} MB` : '--', color: '#10b981', icon: <StorageIcon sx={{ fontSize: 14 }} /> },
+              ].map(m => (
+                <Box
+                  key={m.label}
+                  sx={{
+                    px: 2, py: 1, borderRadius: 2,
+                    border: '1px solid', borderColor: alpha(m.color, 0.2),
+                    bgcolor: alpha(m.color, 0.05),
+                    display: 'flex', alignItems: 'center', gap: 1,
+                  }}
+                >
+                  <Box sx={{ color: m.color, display: 'flex', opacity: 0.8 }}>{m.icon}</Box>
+                  <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ mr: 0.5 }}>
+                    {m.label}
+                  </Typography>
+                  <Typography variant="body2" fontWeight={800} fontFamily="monospace" sx={{ color: m.color }}>
+                    {m.value}
+                  </Typography>
+                </Box>
+              ))}
+            </Stack>
+          )}
+
+          {/* Terminal — takes remaining height */}
+          <TerminalWindow elevation={8} sx={{ flex: 1 }}>
+            <TerminalHeader>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <TerminalDot color="#FF5F56" />
+                <TerminalDot color="#FFBD2E" />
+                <TerminalDot color="#27C93F" />
+                <Typography variant="caption" fontFamily="monospace" color="text.secondary" sx={{ ml: 1.5 }}>
+                  cerulea:deploy
+                </Typography>
+              </Stack>
+              {deploying && (
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Box sx={{
+                    width: 6, height: 6, borderRadius: '50%', bgcolor: '#27C93F',
+                    animation: 'pulse 1.5s infinite'
+                  }} />
+                  <Typography variant="caption" fontFamily="monospace" sx={{ color: '#27C93F' }}>
+                    LIVE
+                  </Typography>
+                </Stack>
+              )}
+            </TerminalHeader>
+
+            <Box
+              ref={scrollRef}
+              sx={{
+                flex: 1, p: 2.5, overflowY: 'auto', lineHeight: 1.7,
+                fontFamily: '"Fira Code","Roboto Mono",monospace', fontSize: 13
+              }}
+            >
+              {!deploying && logs.length === 0 ? (
+                <Box sx={{
+                  height: '100%', display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center', opacity: 0.25
+                }}>
+                  <TerminalIcon sx={{ fontSize: 56, mb: 2 }} />
+                  <Typography fontFamily="monospace">System ready. Awaiting initialization...</Typography>
+                </Box>
+              ) : (
+                <>
+                  {logs.map((log, i) => (
+                    <Box key={i} sx={{ mb: 0.25, wordBreak: 'break-all' }}>
+                      {log.startsWith('INITIALIZING') || log.startsWith('TARGET') ? (
+                        <Typography
+                          component="span"
+                          sx={{ color: theme.palette.primary.main, fontWeight: 700, fontFamily: 'inherit', fontSize: 'inherit' }}
                         >
-                           Open Dashboard
-                        </Button>
-                     </span>
-                  </Tooltip>
-               )}
-            </FloatingIsland>
-         </Box>
+                          {log}
+                        </Typography>
+                      ) : log.includes('>') ? (
+                        <Typography
+                          component="span"
+                          sx={{ color: '#10b981', fontWeight: 600, fontFamily: 'inherit', fontSize: 'inherit' }}
+                        >
+                          {log}
+                        </Typography>
+                      ) : (
+                        <Typography
+                          component="span"
+                          sx={{
+                            color: theme.palette.mode === 'light' ? '#374151' : '#d1d5db',
+                            fontFamily: 'inherit', fontSize: 'inherit'
+                          }}
+                        >
+                          {log}
+                        </Typography>
+                      )}
+                    </Box>
+                  ))}
+                  {deploying && (
+                    <Box
+                      component="span"
+                      sx={{ color: '#10b981', fontWeight: 700, animation: 'blink 1s infinite' }}
+                    >
+                      █
+                    </Box>
+                  )}
+                </>
+              )}
+            </Box>
+
+            {deploying && (
+              <Box sx={{
+                px: 2.5, py: 1.5,
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.06)',
+                borderTop: '1px solid', borderColor: 'divider'
+              }}>
+                <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.75 }}>
+                  <Typography variant="caption" fontFamily="monospace" color="text.secondary">
+                    {activePhase.toUpperCase().replace(/_/g, ' ')}
+                  </Typography>
+                  <Typography variant="caption" fontFamily="monospace" color="primary.main" fontWeight={700}>
+                    {progress.toFixed(1)}%
+                  </Typography>
+                </Stack>
+                <LinearProgress
+                  variant="determinate"
+                  value={progress}
+                  sx={{
+                    height: 3, borderRadius: 2,
+                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                    '& .MuiLinearProgress-bar': {
+                      background: 'linear-gradient(90deg, #4F46E5, #8b5cf6)'
+                    }
+                  }}
+                />
+              </Box>
+            )}
+          </TerminalWindow>
+        </Box>
 
       </Box>
-    </>
+
+      {/* Floating nav island at bottom center */}
+      <Box sx={{ position: 'absolute', bottom: 28, left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+        <FloatingIsland elevation={6}>
+          <Tooltip title="Back">
+            <IconButton onClick={goPrev} size="small" sx={{ border: '1px solid', borderColor: 'divider' }}>
+              <ArrowBackIcon />
+            </IconButton>
+          </Tooltip>
+          <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
+          {!deploying ? (
+            <Button
+              variant="contained"
+              size="large"
+              onClick={startDeployment}
+              startIcon={<RocketLaunchIcon />}
+              sx={{
+                borderRadius: 100, px: 4, fontWeight: 800,
+                background: 'linear-gradient(135deg, #4F46E5 0%, #7c3aed 100%)',
+                boxShadow: '0 4px 20px rgba(79,70,229,0.4)'
+              }}
+            >
+              Deploy Now
+            </Button>
+          ) : (
+            <Tooltip title="Deployment in progress">
+              <span>
+                <Button
+                  variant="outlined"
+                  size="large"
+                  disabled
+                  startIcon={<LockIcon />}
+                  sx={{ borderRadius: 100, px: 4, fontWeight: 700 }}
+                >
+                  Deploying...
+                </Button>
+              </span>
+            </Tooltip>
+          )}
+        </FloatingIsland>
+      </Box>
+
+    </Box>
   );
 }
