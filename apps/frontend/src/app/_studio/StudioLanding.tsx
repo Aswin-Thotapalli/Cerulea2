@@ -213,7 +213,7 @@ export default function StudioLanding({
               </Stack>
             </Stack>
 
-            <Grid container spacing={2}>
+            <Grid container spacing={2.5}>
               {projects.map((p) => {
                 const isChain = p.projectType === 'blockchain';
                 const typeColor = isChain ? '#7C3AED' : '#4F46E5';
@@ -225,12 +225,14 @@ export default function StudioLanding({
                       onClick={() => onOpenProject(p.id)}
                       sx={{
                         p: 0, cursor: 'pointer', overflow: 'hidden',
-                        borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)',
+                        borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.12)',
                         borderLeft: `3px solid ${typeColor}`,
-                        transition: 'border-color 0.15s, background-color 0.15s',
+                        transition: 'all 0.15s',
                         '&:hover': {
-                          borderColor: alpha(typeColor, 0.45),
+                          borderColor: alpha(typeColor, 0.4),
                           bgcolor: isDark ? alpha(typeColor, 0.04) : alpha(typeColor, 0.02),
+                          boxShadow: `0 4px 16px ${alpha(typeColor, isDark ? 0.2 : 0.12)}`,
+                          transform: 'translateY(-1px)',
                         },
                       }}
                     >

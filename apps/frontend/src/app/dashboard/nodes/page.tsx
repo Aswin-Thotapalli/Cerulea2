@@ -86,7 +86,7 @@ export default function NodesPage() {
   ];
 
   return (
-    <Box sx={{ p: 4, maxWidth: 1200 }}>
+    <Box sx={{ p: 4, maxWidth: 1200, mx: 'auto' }}>
       {/* Header */}
       <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={4}>
         <Box>
