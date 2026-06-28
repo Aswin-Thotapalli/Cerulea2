@@ -37,6 +37,7 @@ const NAV_ITEMS = [
 
 export default function ExplorerNav() {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const pathname = usePathname();
   const { chain } = useChainContext();
   const { status } = useWs();
@@ -97,21 +98,23 @@ export default function ExplorerNav() {
           <Box
             component={Link}
             href={`/explorer/${chain}`}
-            sx={{ display: 'flex', alignItems: 'center', gap: 1, textDecoration: 'none', flexShrink: 0 }}
+            sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none', flexShrink: 0 }}
           >
-            <Image
-              src="/brand/logo.png"
-              alt="Cerulea"
-              width={32}
-              height={32}
-              style={{ objectFit: 'contain' }}
-              priority
-            />
-            <Typography fontWeight={800} fontSize="1rem" sx={{ color: 'text.primary', letterSpacing: '-0.02em' }}>
-              Cerulea
-              <Typography component="span" fontWeight={400} sx={{ color: 'text.secondary', ml: 0.5 }}>
-                Explorer
-              </Typography>
+            <Box sx={{
+              display: 'inline-flex', alignItems: 'center',
+              ...(isDark && { bgcolor: 'rgba(255,255,255,0.93)', borderRadius: '7px', px: 0.75, py: 0.25 }),
+            }}>
+              <Image
+                src="/brand/logo-studio.png"
+                alt="Cerulea Studio"
+                width={140}
+                height={42}
+                style={{ objectFit: 'contain', width: 'auto', height: 36 }}
+                priority
+              />
+            </Box>
+            <Typography fontWeight={400} fontSize="0.85rem" sx={{ color: 'text.secondary' }}>
+              Explorer
             </Typography>
           </Box>
 

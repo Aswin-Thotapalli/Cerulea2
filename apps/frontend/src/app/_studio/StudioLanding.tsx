@@ -87,19 +87,20 @@ export default function StudioLanding({
 
         {/* Header */}
         <Stack alignItems="center" spacing={2} sx={{ mb: 8, textAlign: 'center' }}>
-          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1 }}>
+          <Box sx={{
+            mb: 1,
+            display: 'inline-flex', alignItems: 'center',
+            ...(isDark && { bgcolor: 'rgba(255,255,255,0.93)', borderRadius: '10px', px: 1.5, py: 0.5 }),
+          }}>
             <Image
-              src="/brand/logo.png"
-              alt="Cerulea"
-              width={40}
-              height={40}
-              style={{ objectFit: 'contain' }}
+              src="/brand/logo-studio.png"
+              alt="Cerulea Studio"
+              width={220}
+              height={66}
+              style={{ objectFit: 'contain', width: 'auto', height: 56 }}
               priority
             />
-            <Typography variant="h6" fontWeight={900} sx={{ letterSpacing: -0.5 }}>
-              Cerulea Studio
-            </Typography>
-          </Stack>
+          </Box>
 
           <Typography
             sx={{
