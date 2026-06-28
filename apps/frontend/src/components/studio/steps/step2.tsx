@@ -767,7 +767,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
             </Stack>
 
             {/* Field rows container */}
-            <Paper variant="outlined" sx={{ borderRadius: 2.5, overflow: 'hidden', borderColor: alpha(theme.palette.primary.main, 0.12) }}>
+            <Box sx={{ borderRadius: 1.5, overflow: 'hidden', border: `1px solid ${theme.palette.divider}` }}>
               {/* Column header */}
               <Box sx={{
                 display: 'grid',
@@ -777,7 +777,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                 borderBottom: `1px solid ${theme.palette.divider}`,
               }}>
                 {['', 'Field Name', 'Type', 'Storage', 'Constraints', 'Default', ''].map((h, i) => (
-                  <Typography key={i} variant="caption" fontWeight={800} sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.7, color: 'text.disabled' }}>{h}</Typography>
+                  <Typography key={i} variant="caption" fontWeight={800} sx={{ fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: 0.8, color: 'text.disabled' }}>{h}</Typography>
                 ))}
               </Box>
 
@@ -810,28 +810,26 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                       />
                     </Box>
 
-                    {/* Type select — color-coded pill */}
+                    {/* Type select */}
                     <Box sx={{ px: 1 }}>
-                      <Box sx={{ px: 1, py: 0.3, borderRadius: 1.5, bgcolor: alpha(tC, 0.1), display: 'inline-flex', minWidth: 86 }}>
-                        <Select size="small" value={f.type} variant="standard" disableUnderline fullWidth
-                          onChange={(e) => updateField(f.id, { type: e.target.value as DataType })}
-                          MenuProps={OPAQUE_MENU_PROPS as any}
-                          sx={{ color: tC, fontWeight: 700, fontSize: '0.75rem', '& .MuiSelect-icon': { color: tC } }}>
-                          <MenuItem value="uuid">UUID</MenuItem>
-                          <MenuItem value="string">String</MenuItem>
-                          <MenuItem value="text">Text</MenuItem>
-                          <MenuItem value="int">Integer</MenuItem>
-                          <MenuItem value="float">Float</MenuItem>
-                          <MenuItem value="boolean">Boolean</MenuItem>
-                          <MenuItem value="datetime">DateTime</MenuItem>
-                          <MenuItem value="json">JSON</MenuItem>
-                          <Divider />
-                          <MenuItem value="address">Address</MenuItem>
-                          <MenuItem value="uint256">Uint256</MenuItem>
-                          <MenuItem value="bytes32">Bytes32</MenuItem>
-                          <MenuItem value="ipfs-hash">IPFS Hash</MenuItem>
-                        </Select>
-                      </Box>
+                      <Select size="small" value={f.type} variant="standard" disableUnderline fullWidth
+                        onChange={(e) => updateField(f.id, { type: e.target.value as DataType })}
+                        MenuProps={OPAQUE_MENU_PROPS as any}
+                        sx={{ color: tC, fontWeight: 700, fontSize: '0.78rem', '& .MuiSelect-icon': { color: tC, fontSize: '1rem' } }}>
+                        <MenuItem value="uuid">UUID</MenuItem>
+                        <MenuItem value="string">String</MenuItem>
+                        <MenuItem value="text">Text</MenuItem>
+                        <MenuItem value="int">Integer</MenuItem>
+                        <MenuItem value="float">Float</MenuItem>
+                        <MenuItem value="boolean">Boolean</MenuItem>
+                        <MenuItem value="datetime">DateTime</MenuItem>
+                        <MenuItem value="json">JSON</MenuItem>
+                        <Divider />
+                        <MenuItem value="address">Address</MenuItem>
+                        <MenuItem value="uint256">Uint256</MenuItem>
+                        <MenuItem value="bytes32">Bytes32</MenuItem>
+                        <MenuItem value="ipfs-hash">IPFS Hash</MenuItem>
+                      </Select>
                     </Box>
 
                     {/* Storage */}
@@ -889,7 +887,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                   <Typography variant="body2">No fields yet. Click "Add Field" to start.</Typography>
                 </Box>
               )}
-            </Paper>
+            </Box>
           </Box>
         </Box>
       ) : (
@@ -1343,10 +1341,10 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                   key={mod.id}
                   variant="outlined"
                   sx={{
-                    borderRadius: 3, overflow: 'hidden',
+                    borderRadius: 1.5, overflow: 'hidden',
                     borderColor: alpha(theme.palette.primary.main, 0.15),
-                    '&:hover': { borderColor: alpha(theme.palette.primary.main, 0.25) },
-                    transition: 'border-color 0.2s ease',
+                    '&:hover': { borderColor: alpha(theme.palette.primary.main, 0.28) },
+                    transition: 'border-color 0.15s ease',
                   }}
                 >
                   {/* Module header */}
@@ -1402,51 +1400,43 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
                               key={i}
                               variant="outlined"
                               sx={{
-                                p: 2, borderRadius: 2,
-                                borderColor: alpha(t.color, 0.3),
-                                bgcolor: alpha(t.color, 0.03),
+                                p: 1.75, borderRadius: 1,
+                                borderColor: alpha(t.color, 0.25),
+                                bgcolor: alpha(t.color, 0.025),
                               }}
                             >
                               <Stack direction="row" alignItems="flex-start" spacing={2}>
                                 {/* Event */}
                                 <Box sx={{ flex: 1 }}>
                                   <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>WHEN</Typography>
-                                  <Paper
-                                    variant="outlined"
-                                    sx={{
-                                      mt: 0.5, px: 1.5, py: 0.75, borderRadius: 1.5,
+                                  <Box sx={{
+                                      mt: 0.5, px: 1.25, py: 0.6, borderRadius: 0.75,
                                       display: 'inline-flex', alignItems: 'center', gap: 0.75,
-                                      bgcolor: alpha(t.color, 0.08), borderColor: alpha(t.color, 0.4),
-                                    }}
-                                    elevation={0}
-                                  >
-                                    <BoltIcon sx={{ fontSize: 13, color: t.color }} />
-                                    <Typography variant="body2" fontWeight={700} sx={{ color: t.color, fontFamily: 'monospace', fontSize: '0.78rem' }}>
+                                      bgcolor: alpha(t.color, 0.08), border: `1px solid ${alpha(t.color, 0.35)}`,
+                                    }}>
+                                    <BoltIcon sx={{ fontSize: 12, color: t.color }} />
+                                    <Typography variant="body2" fontWeight={700} sx={{ color: t.color, fontFamily: 'monospace', fontSize: '0.75rem' }}>
                                       {t.event}
                                     </Typography>
-                                  </Paper>
+                                  </Box>
                                 </Box>
 
                                 {/* Arrow */}
-                                <Box sx={{ mt: 2.5, color: 'text.disabled', fontWeight: 900, fontSize: '1.2rem', flexShrink: 0 }}>→</Box>
+                                <Box sx={{ mt: 2.5, color: 'text.disabled', fontWeight: 900, fontSize: '1rem', flexShrink: 0 }}>→</Box>
 
                                 {/* Action */}
                                 <Box sx={{ flex: 1 }}>
                                   <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>THEN</Typography>
-                                  <Paper
-                                    variant="outlined"
-                                    sx={{
-                                      mt: 0.5, px: 1.5, py: 0.75, borderRadius: 1.5,
+                                  <Box sx={{
+                                      mt: 0.5, px: 1.25, py: 0.6, borderRadius: 0.75,
                                       display: 'inline-flex', alignItems: 'center', gap: 0.75,
-                                      bgcolor: alpha(theme.palette.success.main, 0.08), borderColor: alpha(theme.palette.success.main, 0.3),
-                                    }}
-                                    elevation={0}
-                                  >
-                                    <AutoFixHighIcon sx={{ fontSize: 13, color: 'success.main' }} />
-                                    <Typography variant="body2" fontWeight={700} sx={{ color: 'success.main', fontFamily: 'monospace', fontSize: '0.78rem' }}>
+                                      bgcolor: alpha(theme.palette.success.main, 0.07), border: `1px solid ${alpha(theme.palette.success.main, 0.25)}`,
+                                    }}>
+                                    <AutoFixHighIcon sx={{ fontSize: 12, color: 'success.main' }} />
+                                    <Typography variant="body2" fontWeight={700} sx={{ color: 'success.main', fontFamily: 'monospace', fontSize: '0.75rem' }}>
                                       {t.action}
                                     </Typography>
-                                  </Paper>
+                                  </Box>
                                 </Box>
 
                                 {/* Description */}

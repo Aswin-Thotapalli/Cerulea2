@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Box, Typography, Paper, Button, Stack, Chip,
+  Box, Typography, Paper, Button, Stack,
   TextField, MenuItem, Select, FormControl, InputLabel,
-  CircularProgress, Alert, Avatar, InputAdornment,
+  CircularProgress, Alert, InputAdornment,
   Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Tooltip,
 } from '@mui/material';
-import Grid from '@mui/material/GridLegacy';
 import { alpha, useTheme } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
@@ -100,7 +99,7 @@ export default function ProjectsPage() {
       </Stack>
 
       {/* Filter bar */}
-      <Paper variant="outlined" sx={{ p: 2, mb: 3, borderRadius: 3, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+      <Paper variant="outlined" sx={{ p: 2, mb: 3, borderRadius: 2, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
         <TextField size="small" placeholder="Search projects" value={search} onChange={(e) => setSearch(e.target.value)}
           InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" sx={{ color: 'text.disabled' }} /></InputAdornment> }}
           sx={{ flex: 1, minWidth: 220 }} />
@@ -132,9 +131,9 @@ export default function ProjectsPage() {
       ) : error ? (
         <Alert severity="error">{error}</Alert>
       ) : filtered.length === 0 ? (
-        <Paper variant="outlined" sx={{ borderRadius: 3, py: 12, textAlign: 'center', borderStyle: 'dashed' }}>
-          <Box sx={{ width: 72, height: 72, borderRadius: 3, bgcolor: alpha('#4F46E5', 0.07), display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2.5 }}>
-            <FolderOpenIcon sx={{ fontSize: 36, color: '#4F46E5', opacity: 0.5 }} />
+        <Paper variant="outlined" sx={{ borderRadius: 2, py: 12, textAlign: 'center', borderStyle: 'dashed' }}>
+          <Box sx={{ width: 64, height: 64, borderRadius: 2, bgcolor: alpha('#4F46E5', 0.07), display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2.5 }}>
+            <FolderOpenIcon sx={{ fontSize: 32, color: '#4F46E5', opacity: 0.5 }} />
           </Box>
           <Typography variant="subtitle1" fontWeight={700} gutterBottom>
             {projects.length === 0 ? 'No projects yet' : 'No projects match your filters'}
@@ -146,65 +145,78 @@ export default function ProjectsPage() {
           )}
         </Paper>
       ) : (
-        <Grid container spacing={2.5}>
-          {filtered.map((p) => {
+        <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', borderColor: alpha('#4F46E5', 0.12) }}>
+          {/* Table header */}
+          <Box sx={{
+            px: 3, py: 1.25,
+            display: 'grid', gridTemplateColumns: '1fr 130px 110px 150px 80px 40px',
+            gap: 2, alignItems: 'center',
+            bgcolor: alpha('#4F46E5', 0.04),
+            borderBottom: `1px solid ${alpha('#4F46E5', 0.1)}`,
+          }}>
+            {['Project', 'Type', 'Status', 'Updated', '', ''].map((h, i) => (
+              <Typography key={i} variant="caption" fontWeight={800} sx={{ fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: 0.8, color: 'text.disabled' }}>{h}</Typography>
+            ))}
+          </Box>
+
+          {filtered.map((p, idx) => {
             const isChain = p.projectType === 'blockchain';
             const typeColor = isChain ? '#8b5cf6' : '#4F46E5';
             const sm = STATUS_META[p.status] || { color: '#6b7db3', label: p.status };
             return (
-              <Grid xs={12} sm={6} md={4} key={p.id}>
-                <Paper variant="outlined" sx={{
-                  p: 2.5, borderRadius: 3, height: '100%',
-                  display: 'flex', flexDirection: 'column', gap: 1.5,
-                  borderColor: alpha(typeColor, 0.15),
-                  bgcolor: alpha(typeColor, 0.02),
-                  transition: 'all 0.18s',
-                  '&:hover': {
-                    borderColor: alpha(typeColor, 0.4),
-                    boxShadow: `0 6px 24px ${alpha(typeColor, 0.12)}`,
-                    transform: 'translateY(-2px)',
-                  },
-                }}>
-                  <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
-                    <Stack direction="row" alignItems="center" spacing={1.5}>
-                      <Box sx={{ width: 44, height: 44, borderRadius: 2, bgcolor: alpha(typeColor, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center', color: typeColor }}>
-                        {isChain ? <LanIcon sx={{ fontSize: 22 }} /> : <AutoAwesomeMosaicIcon sx={{ fontSize: 22 }} />}
-                      </Box>
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="subtitle2" fontWeight={800} noWrap>{p.name}</Typography>
-                        <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>/{p.slug}</Typography>
-                      </Box>
-                    </Stack>
-                    <Tooltip title="Delete project">
-                      <IconButton size="small" onClick={() => setDeleteTarget(p)} sx={{ color: 'text.disabled', '&:hover': { color: 'error.main' } }}>
-                        <DeleteOutlineIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Stack>
+              <Box key={p.id} sx={{
+                px: 3, py: 1.75,
+                display: 'grid', gridTemplateColumns: '1fr 130px 110px 150px 80px 40px',
+                gap: 2, alignItems: 'center',
+                borderBottom: idx < filtered.length - 1 ? `1px solid ${alpha(typeColor, 0.07)}` : 'none',
+                borderLeft: `3px solid ${typeColor}`,
+                transition: 'all 0.12s',
+                '&:hover': { bgcolor: alpha(typeColor, 0.03) },
+              }}>
+                {/* Name + slug */}
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <Box sx={{ width: 36, height: 36, borderRadius: 1.5, bgcolor: alpha(typeColor, 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', color: typeColor, flexShrink: 0 }}>
+                    {isChain ? <LanIcon sx={{ fontSize: 18 }} /> : <AutoAwesomeMosaicIcon sx={{ fontSize: 18 }} />}
+                  </Box>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="subtitle2" fontWeight={800} noWrap>{p.name}</Typography>
+                    <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'monospace', fontSize: '0.62rem' }}>/{p.slug}</Typography>
+                  </Box>
+                </Stack>
 
-                  <Stack direction="row" spacing={0.75}>
-                    <Box sx={{ px: 1.25, py: 0.4, borderRadius: 1.5, bgcolor: alpha(typeColor, 0.1), color: typeColor, fontSize: '0.65rem', fontWeight: 700 }}>
-                      {isChain ? 'Blockchain' : 'dApp'}
-                    </Box>
-                    <Box sx={{ px: 1.25, py: 0.4, borderRadius: 1.5, bgcolor: alpha(sm.color, 0.1), color: sm.color, fontSize: '0.65rem', fontWeight: 700 }}>
-                      {sm.label}
-                    </Box>
-                  </Stack>
+                {/* Type */}
+                <Box sx={{ px: 1.25, py: 0.35, borderRadius: 1, bgcolor: alpha(typeColor, 0.1), color: typeColor, fontSize: '0.65rem', fontWeight: 700, display: 'inline-block', width: 'fit-content' }}>
+                  {isChain ? 'Blockchain' : 'dApp'}
+                </Box>
 
-                  <Typography variant="caption" color="text.disabled" sx={{ mt: 'auto' }}>
-                    Updated {new Date(p.updatedAt || p.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </Typography>
+                {/* Status */}
+                <Stack direction="row" alignItems="center" spacing={0.75}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: sm.color, flexShrink: 0 }} />
+                  <Typography variant="caption" fontWeight={700} sx={{ color: sm.color }}>{sm.label}</Typography>
+                </Stack>
 
-                  <Button fullWidth variant="outlined" size="small" endIcon={<OpenInNewIcon fontSize="small" />}
-                    onClick={() => { window.location.href = getStudioUrl(p.id); }}
-                    sx={{ borderRadius: 999, fontWeight: 700, borderColor: alpha(typeColor, 0.3), color: typeColor, '&:hover': { borderColor: typeColor, bgcolor: alpha(typeColor, 0.05) } }}>
-                    Open in Studio
-                  </Button>
-                </Paper>
-              </Grid>
+                {/* Updated */}
+                <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.72rem' }}>
+                  {new Date(p.updatedAt || p.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </Typography>
+
+                {/* Open button */}
+                <Button size="small" variant="outlined" endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
+                  onClick={() => { window.location.href = getStudioUrl(p.id); }}
+                  sx={{ borderRadius: 1.5, fontWeight: 700, fontSize: '0.7rem', borderColor: alpha(typeColor, 0.3), color: typeColor, '&:hover': { borderColor: typeColor, bgcolor: alpha(typeColor, 0.05) }, whiteSpace: 'nowrap' }}>
+                  Open
+                </Button>
+
+                {/* Delete */}
+                <Tooltip title="Delete project">
+                  <IconButton size="small" onClick={() => setDeleteTarget(p)} sx={{ color: 'text.disabled', '&:hover': { color: 'error.main' } }}>
+                    <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
             );
           })}
-        </Grid>
+        </Paper>
       )}
 
       {/* Delete dialog */}

@@ -873,7 +873,7 @@ export default function Step4({ goPrev, goNext, projectId }: { goPrev?: () => vo
 
         {/* ── RIGHT: Config panel ── */}
         <Box sx={{
-          width: 380, flexShrink: 0,
+          width: 460, flexShrink: 0,
           borderLeft: '1px solid', borderColor: 'divider',
           bgcolor: 'background.paper', display: 'flex', flexDirection: 'column', overflowY: 'auto', pb: 14,
         }}>
