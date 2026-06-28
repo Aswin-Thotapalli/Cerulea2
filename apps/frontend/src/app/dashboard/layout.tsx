@@ -129,23 +129,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             borderBottom: `1px solid ${theme.palette.divider}`,
             flexShrink: 0, mt: '2px',
           }}>
-            <Box component={Link} href="/" sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1.25, textDecoration: 'none', minWidth: 0 }}>
-              <Box sx={{
-                display: 'inline-flex', alignItems: 'center', flexShrink: 0,
-                ...(isDark && { bgcolor: 'rgba(255,255,255,0.93)', borderRadius: '6px', p: 0.25 }),
-              }}>
-                <Image
-                  src="/brand/icon.png"
-                  alt="Cerulea"
-                  width={34}
-                  height={34}
-                  style={{ objectFit: 'contain', width: 34, height: 34 }}
-                  priority
-                />
-              </Box>
-              <Typography variant="h6" fontWeight={900} sx={{ letterSpacing: -0.5, fontSize: '1rem' }}>
-                Cerulea
-              </Typography>
+            <Box component={Link} href="/" sx={{ flex: 1, display: 'flex', alignItems: 'center', textDecoration: 'none', minWidth: 0 }}>
+              <Image
+                src={isDark ? '/brand/logo-dark.png' : '/brand/logo-light.png'}
+                alt="Cerulea Studio"
+                width={150}
+                height={42}
+                style={{ objectFit: 'contain', width: 'auto', height: 36 }}
+                priority
+              />
             </Box>
             <IconButton size="small" onClick={() => setCollapsed(true)}
               sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>

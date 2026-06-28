@@ -98,26 +98,18 @@ export default function ExplorerNav() {
           <Box
             component={Link}
             href={`/explorer/${chain}`}
-            sx={{ display: 'flex', alignItems: 'center', gap: 1, textDecoration: 'none', flexShrink: 0 }}
+            sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none', flexShrink: 0 }}
           >
-            <Box sx={{
-              display: 'inline-flex', alignItems: 'center',
-              ...(isDark && { bgcolor: 'rgba(255,255,255,0.93)', borderRadius: '6px', p: 0.25 }),
-            }}>
-              <Image
-                src="/brand/icon.png"
-                alt="Cerulea"
-                width={34}
-                height={34}
-                style={{ objectFit: 'contain', width: 34, height: 34 }}
-                priority
-              />
-            </Box>
-            <Typography fontWeight={800} fontSize="1rem" sx={{ color: 'text.primary', letterSpacing: '-0.02em' }}>
-              Cerulea
-              <Typography component="span" fontWeight={400} sx={{ color: 'text.secondary', ml: 0.5 }}>
-                Explorer
-              </Typography>
+            <Image
+              src={isDark ? '/brand/logo-dark.png' : '/brand/logo-light.png'}
+              alt="Cerulea Studio"
+              width={150}
+              height={42}
+              style={{ objectFit: 'contain', width: 'auto', height: 36 }}
+              priority
+            />
+            <Typography fontWeight={400} fontSize="0.85rem" sx={{ color: 'text.secondary' }}>
+              Explorer
             </Typography>
           </Box>
 
