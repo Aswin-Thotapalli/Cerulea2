@@ -28,10 +28,11 @@ export default function NavBar() {
       position="sticky"
       elevation={0}
       sx={{
-        backgroundColor: alpha(theme.palette.background.paper, 0.85),
-        backdropFilter: 'blur(16px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+        backgroundColor: alpha(theme.palette.background.paper, 0.70),
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
         borderBottom: `1px solid ${theme.palette.divider}`,
+        boxShadow: isDark ? 'inset 0 1px 0 rgba(255,255,255,0.07)' : 'none',
         color: theme.palette.text.primary,
       }}
     >

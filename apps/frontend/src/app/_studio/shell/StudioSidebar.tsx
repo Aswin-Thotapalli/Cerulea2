@@ -71,9 +71,12 @@ export default function StudioSidebar({ stepIndex, subStepIndex, projectType, on
     <Box sx={{
       width: 220,
       flexShrink: 0,
-      bgcolor: 'background.paper',
+      background: isDark ? 'rgba(8,14,36,0.6)' : 'rgba(255,255,255,0.65)',
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
       borderRight: '0.5px solid',
       borderColor: 'divider',
+      boxShadow: isDark ? 'inset -1px 0 0 rgba(255,255,255,0.05)' : 'none',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
