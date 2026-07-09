@@ -184,11 +184,13 @@ export default function StudioLanding({
                     p: 4, cursor: 'pointer', textAlign: 'center',
                     borderColor: alpha(card.color, isDark ? 0.15 : 0.18),
                     bgcolor: alpha(card.color, isDark ? 0.04 : 0.02),
+                    backdropFilter: 'blur(12px) saturate(1.5)',
+                    WebkitBackdropFilter: 'blur(12px) saturate(1.5)',
                     transition: 'border-color 0.15s, background-color 0.15s, box-shadow 0.15s',
                     '&:hover': {
                       borderColor: alpha(card.color, 0.4),
                       bgcolor: alpha(card.color, isDark ? 0.07 : 0.04),
-                      boxShadow: `0 4px 20px ${alpha(card.color, isDark ? 0.18 : 0.1)}`,
+                      boxShadow: `0 0 28px ${alpha(card.color, isDark ? 0.28 : 0.14)}, 0 4px 20px ${alpha(card.color, isDark ? 0.14 : 0.07)}`,
                     },
                   }}
                 >
@@ -246,11 +248,13 @@ export default function StudioLanding({
                       p: 0, cursor: 'pointer', overflow: 'hidden',
                       borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.12)',
                       borderLeft: `3px solid ${typeColor}`,
+                      backdropFilter: 'blur(10px)',
+                      WebkitBackdropFilter: 'blur(10px)',
                       transition: 'all 0.15s',
                       '&:hover': {
                         borderColor: alpha(typeColor, 0.4),
                         bgcolor: isDark ? alpha(typeColor, 0.04) : alpha(typeColor, 0.02),
-                        boxShadow: `0 4px 16px ${alpha(typeColor, isDark ? 0.2 : 0.12)}`,
+                        boxShadow: `0 0 24px ${alpha(typeColor, isDark ? 0.28 : 0.12)}, 0 4px 16px ${alpha(typeColor, isDark ? 0.16 : 0.08)}`,
                         transform: 'translateY(-1px)',
                       },
                     }}
@@ -323,13 +327,28 @@ export default function StudioLanding({
                 sx={{
                   p: 2.5, cursor: 'pointer', minHeight: 120,
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  gap: 1, borderStyle: 'dashed',
+                  gap: 1, borderStyle: 'dashed', position: 'relative', zIndex: 0, overflow: 'visible',
                   borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(79,70,229,0.2)',
-                  transition: 'border-color 0.15s, background-color 0.15s',
+                  backdropFilter: 'blur(10px)',
+                  WebkitBackdropFilter: 'blur(10px)',
+                  transition: 'border-color 0.2s, background-color 0.15s',
+                  '@keyframes gradBorder': {
+                    '0%,100%': { backgroundPosition: '0% 50%' },
+                    '50%': { backgroundPosition: '100% 50%' },
+                  },
+                  '&::before': {
+                    content: '""', position: 'absolute', inset: -1.5,
+                    borderRadius: '13px', zIndex: -1, opacity: 0,
+                    transition: 'opacity 0.3s',
+                    background: 'linear-gradient(120deg,#4f46e5,#7c3aed,#06b6d4,#22c55e,#f59e0b,#4f46e5)',
+                    backgroundSize: '300% 300%',
+                    animation: 'gradBorder 5s ease infinite',
+                  },
                   '&:hover': {
-                    borderColor: alpha(theme.palette.primary.main, 0.45),
+                    borderColor: 'transparent',
                     bgcolor: alpha(theme.palette.primary.main, 0.03),
                   },
+                  '&:hover::before': { opacity: 1 },
                 }}
               >
                 <Box sx={{

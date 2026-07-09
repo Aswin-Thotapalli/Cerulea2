@@ -97,7 +97,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           left: 0,
           height: 'calc(100vh - 64px)',
           zIndex: 1200,
-          bgcolor: isDark ? 'rgba(8,14,36,0.98)' : 'rgba(255,255,255,0.98)',
+          bgcolor: isDark ? 'rgba(8,14,36,0.62)' : 'rgba(255,255,255,0.72)',
           backdropFilter: 'blur(20px)',
           borderRight: `1px solid ${isDark ? alpha('#6366f1', 0.12) : theme.palette.divider}`,
           display: 'flex',
