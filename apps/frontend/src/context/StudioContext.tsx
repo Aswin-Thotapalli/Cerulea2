@@ -52,6 +52,8 @@ export interface StudioState {
   dappVisibility: 'public' | 'private' | null;
   templateId: string | null;
   workspaceId: string;
+  // Tracks which sub-screen of Step 0 is active so AI can read it
+  step0Phase?: 'choose-type' | 'dapp-type' | 'legacy-question' | 'gallery' | 'details' | null;
 
   // Step-specific state
   appMetadata: AppMetadata;
@@ -76,6 +78,7 @@ const initialState: StudioState = {
   dappVisibility: null,
   templateId: null,
   workspaceId: 'personal',
+  step0Phase: null,
   appMetadata: { appName: '', appDescription: '' },
   networkConfig: {},
   appGoal: {

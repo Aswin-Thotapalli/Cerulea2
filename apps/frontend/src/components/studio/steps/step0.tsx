@@ -213,11 +213,13 @@ export default function Step0({
   const setPhase = React.useCallback((p: Step0Phase) => {
     setPhaseRaw(p);
     onSubStepChange?.(PHASE_TO_SUBSTEP[p] ?? 0);
-  }, [onSubStepChange]);
+    setStudioState({ step0Phase: p } as any);
+  }, [onSubStepChange, setStudioState]);
 
   // Report initial phase on mount
   React.useEffect(() => {
     onSubStepChange?.(PHASE_TO_SUBSTEP[phase] ?? 0);
+    setStudioState({ step0Phase: phase } as any);
   }, []); // eslint-disable-line
 
   /* ---- Effects ---- */

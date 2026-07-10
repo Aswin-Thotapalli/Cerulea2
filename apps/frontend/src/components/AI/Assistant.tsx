@@ -281,6 +281,7 @@ export default function Assistant() {
       studioState: {
         projectId: studio.projectId,
         projectType: studio.projectType,
+        step0Phase: studio.step0Phase ?? null,
         templateId: studio.templateId,
         selectedModules: studio.selectedModules,
         appMetadata: studio.appMetadata,
