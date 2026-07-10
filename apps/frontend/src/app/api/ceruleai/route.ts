@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getSession } from "@/lib/auth";
+import { db } from "@/db/client";
+import { projects, drafts, smartContracts } from "@/db/schema";
+import { eq, and, desc } from "drizzle-orm";
+import {
+  buildGuestSystemPrompt,
+  buildLoggedInSystemPrompt,
+} from "@/ai-knowledge/studio-knowledge";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,17 +16,17 @@ type ClientChatRole = "user" | "assistant";
 type ClientChatMessage = { role: ClientChatRole; text: string };
 
 function safeJson(v: unknown) {
-  try {
-    return JSON.stringify(v, null, 2);
-  } catch {
-    return String(v);
-  }
+  try { return JSON.stringify(v, null, 2); } catch { return String(v); }
+}
+
+function tryParse(raw: string | null | undefined): any {
+  if (!raw) return null;
+  try { return typeof raw === "string" ? JSON.parse(raw) : raw; } catch { return null; }
 }
 
 function trimHistory(history: ClientChatMessage[], charBudget = 14000) {
   const out: ClientChatMessage[] = [];
   let used = 0;
-
   for (let i = history.length - 1; i >= 0; i--) {
     const m = history[i];
     const chunk = `${m.role}: ${m.text}\n`;
@@ -27,6 +35,154 @@ function trimHistory(history: ClientChatMessage[], charBudget = 14000) {
     used += chunk.length;
   }
   return out;
+}
+
+async function fetchProjectContext(projectId: string, userId: string): Promise<string> {
+  try {
+    const [row] = await db
+      .select()
+      .from(projects)
+      .where(and(
+        eq(projects.id as any, projectId),
+        eq(projects.userId as any, userId)
+      ))
+      .limit(1);
+
+    if (!row) return "[Project not found or access denied]";
+
+    const blueprint = tryParse((row as any).blueprint);
+    const schemaJson = tryParse((row as any).schemaJson);
+    const economics = tryParse((row as any).economics);
+
+    const allDrafts = await db
+      .select()
+      .from(drafts)
+      .where(eq(drafts.projectId as any, projectId))
+      .orderBy(desc(drafts.updatedAt));
+
+    const allContracts = await db
+      .select()
+      .from(smartContracts)
+      .where(eq(smartContracts.projectId as any, projectId));
+
+    const draftsByStep: Record<number, any> = {};
+    for (const d of allDrafts) {
+      const parsed = tryParse(d.data as string);
+      if (!parsed) continue;
+      const step = parsed.step ?? parsed.stepIndex;
+      if (typeof step === "number" && !(step in draftsByStep)) {
+        draftsByStep[step] = parsed.payload ?? parsed;
+      }
+    }
+
+    const integrationsDraft = draftsByStep[4] ?? null;
+
+    const moduleCount = blueprint?.nodes?.length ?? 0;
+    const entityCount = Array.isArray(schemaJson?.entities) ? schemaJson.entities.length : 0;
+    const hasEconomics = !!(economics?.tokenName || economics?.tokenSymbol);
+    const hasIntegrations = !!(
+      integrationsDraft?.configs &&
+      Object.keys(integrationsDraft.configs).length > 0
+    );
+
+    const schemaSummary = Array.isArray(schemaJson?.entities)
+      ? schemaJson.entities.map((e: any) => ({
+          name: e.name,
+          sourceModule: e.sourceModule,
+          storage: e.storageStrategy ?? e.storage,
+          fields: Array.isArray(e.fields)
+            ? e.fields.map((f: any) => `${f.name}: ${f.type}${f.required ? " (required)" : ""}`)
+            : [],
+          access: e.access ?? e.accessControl,
+        }))
+      : [];
+
+    const modulesSummary = Array.isArray(blueprint?.nodes)
+      ? blueprint.nodes
+          .filter((n: any) => n.type === "moduleNode" || n.data?.moduleId)
+          .map((n: any) => `${n.data?.title ?? n.data?.label ?? n.id} (${n.data?.category ?? "unknown category"})`)
+      : [];
+
+    const connectionsSummary = Array.isArray(blueprint?.edges)
+      ? blueprint.edges.map((e: any) => `${e.source} → ${e.target} [${e.data?.rel ?? "connects"}]`)
+      : [];
+
+    const contractsSummary = allContracts.map((c: any) =>
+      `${c.name} (${c.contractType}) — ${c.enabled !== "false" ? "ENABLED" : "DISABLED"}`
+    );
+
+    const configuredSteps = {
+      "Step 1 Foundation": !!(
+        (row as any).name &&
+        (row as any).projectType &&
+        (row as any).selectedTemplateIds
+      )
+        ? "✅ Configured"
+        : "❌ Not configured",
+      "Step 2 Blueprint": moduleCount > 0
+        ? `✅ ${moduleCount} module(s) on canvas`
+        : "❌ No modules added yet",
+      "Step 3 Data Schema": entityCount > 0
+        ? `✅ ${entityCount} entities defined`
+        : "❌ No entities configured yet",
+      "Step 4 Economics": hasEconomics
+        ? `✅ Token configured (${economics?.tokenSymbol ?? "symbol not set"})`
+        : "❌ Token economics not configured",
+      "Step 5 Integrations": hasIntegrations
+        ? "✅ At least one integration configured"
+        : "⚠️ No integrations configured (may be intentional)",
+      "Step 6 Deploy": (row as any).status === "deployed"
+        ? "✅ Deployed"
+        : "⏳ Not yet deployed",
+    };
+
+    return `
+PROJECT NAME: ${(row as any).name}
+PROJECT TYPE: ${(row as any).projectType}
+SLUG: ${(row as any).slug ?? "not set"}
+DESCRIPTION: ${(row as any).description ?? "none"}
+STATUS: ${(row as any).status ?? "draft"}
+LEGACY MODE: ${(row as any).legacyMode ?? "none"}
+SELECTED TEMPLATE(S): ${JSON.stringify(tryParse((row as any).selectedTemplateIds))}
+
+STEP COMPLETION STATUS:
+${Object.entries(configuredSteps).map(([k, v]) => `  ${k}: ${v}`).join("\n")}
+
+BLUEPRINT MODULES (${moduleCount} total):
+${modulesSummary.length > 0 ? modulesSummary.map((m: string) => `  - ${m}`).join("\n") : "  (none added yet)"}
+
+MODULE CONNECTIONS:
+${connectionsSummary.length > 0 ? connectionsSummary.map((c: string) => `  ${c}`).join("\n") : "  (no connections drawn yet)"}
+
+DATA SCHEMA ENTITIES (${entityCount} total):
+${
+  schemaSummary.length > 0
+    ? schemaSummary
+        .map(
+          (e: any) =>
+            `  Entity: ${e.name} (from ${e.sourceModule ?? "custom"}) | Storage: ${e.storage ?? "not set"}\n` +
+            `    Fields: ${e.fields.length > 0 ? e.fields.join(", ") : "(none)"}\n` +
+            `    Access: ${safeJson(e.access ?? "not configured")}`
+        )
+        .join("\n\n")
+    : "  (no entities yet)"
+}
+
+TOKEN ECONOMICS:
+${hasEconomics ? safeJson(economics) : "  (not configured yet)"}
+
+INTEGRATIONS:
+${hasIntegrations ? safeJson(integrationsDraft) : "  (none configured)"}
+
+SMART CONTRACTS (${allContracts.length} total):
+${contractsSummary.length > 0 ? contractsSummary.map((c: string) => `  - ${c}`).join("\n") : "  (none generated yet)"}
+
+DRAFT PROGRESS (steps with saved data): [${Object.keys(draftsByStep).join(", ")}]
+`.trim();
+  } catch (err) {
+    console.error("[ceruleai] fetchProjectContext error:", err);
+    return "[Failed to load project context]";
+  }
 }
 
 export async function POST(req: Request) {
@@ -51,130 +207,49 @@ export async function POST(req: Request) {
 
   const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
-  const systemInstruction = `
-You are CeruleAI, the intelligent assistant built into Cerulea Studio. You help users design, configure, and deploy blockchain applications using the Cerulea platform.
+  // Resolve auth state — runs server-side, so the session cookie is available
+  const session = await getSession();
+  const isAuthenticated = !!(session?.user?.id);
+  const userId = (session?.user as any)?.id as string | undefined;
 
-## WHO YOU ARE
-CeruleAI is a senior blockchain solutions architect and developer advocate with deep expertise in the Cerulea platform. You speak confidently, use precise technical language when appropriate, and always relate answers back to what the user is actually building in the Studio.
+  // Fetch full project context from DB when logged in and a project is open
+  const projectId =
+    studioSnapshot?.studioState?.projectId ||
+    body?.projectId ||
+    null;
 
-## WHAT CERULEA IS
-Cerulea is a no-code/low-code blockchain application platform. Users build decentralized applications (dApps) or private enterprise blockchain networks through a 7-step wizard:
+  let projectContextBlock = "";
+  if (isAuthenticated && userId && projectId) {
+    const ctx = await fetchProjectContext(projectId, userId);
+    projectContextBlock = `\n\n[PROJECT CONTEXT — live data from database]\n${ctx}`;
+  }
 
-**Step 1 Choose Type:** User picks "dApp" (public blockchain, consumer-facing) or "Private Blockchain" (enterprise, sovereign chain). Then selects a template (DEX, NFT Marketplace, Governance DAO, Token Launch, DeFi Lending, etc.).
-
-**Step 2 Blueprint Builder:** A visual drag-and-drop canvas where users place "modules" (pre-built feature blocks) and connect them. Modules include: ERC-20 Token, NFT Minting, DEX, Governance, Staking, KYC, Payments, Oracle, IPFS Storage, Multisig, Auction, Lending Pool, Vesting, Airdrop, Bridge, and 150+ more. Each module generates smart contracts and data entities automatically.
-
-**Step 3 Data & Logic:** Defines the data model. For each module, 5+ entities are pre-populated (e.g., the ERC-20 Token module generates Token, Balance, Transfer, Allowance entities). Users can customize fields, add entities, set storage strategy (database vs on-chain vs IPFS), define access control rules (Public/Auth/Owner/Admin), set API visibility, and configure Logic & Triggers (visual workflow builder or TypeScript scripts).
-
-**Step 4 Token Economics:** Configures tokenomics: token name/symbol, total supply, decimals, mintable/burnable flags, initial distribution, staking APY, lock-up periods, slashing conditions, governance quorum %, voting period, proposal threshold, treasury allocation.
-
-**Step 5 Integrations:** Connects external services. Available: Stripe (payments), Sumsub (KYC/AML), Chainlink (oracle), Alchemy (enhanced RPC), IPFS/Filecoin (storage), Telegram (notifications), SendGrid (email), Plaid (banking). Each needs API keys configured.
-
-**Step 6 UI Builder:** Visual page designer. Templates: Dashboard, Marketplace, Portfolio, Governance, DEX, Blank. Components: tables, charts, cards, forms, buttons, modals, navigation. Data sources are auto-connected from entities.
-
-**Step 7 Review & Deploy:** Final validation and deployment. Generates: smart contract addresses, public dApp URL, RPC endpoint, subgraph URL.
-
-## KEY TECHNICAL CONCEPTS
-- **Entity**: A data model (like a database table) that represents a core object (User, Token, Proposal, etc.)
-- **Field**: A single attribute on an entity (name, address, balance, etc.)
-- **On-chain storage**: Data stored on the blockchain immutable, auditable, costs gas
-- **Database storage**: Off-chain storage in Cerulea's managed database fast, free, mutable
-- **IPFS storage**: Decentralized file storage for images, metadata, documents
-- **Module**: A pre-built feature block that generates contracts, entities, and UI automatically
-- **Smart Contract**: Auto-generated Solidity contracts from the user's module/economics configuration
-- **RPC Endpoint**: The URL external apps use to interact with the deployed network
-- **ERC-20**: The standard for fungible tokens on EVM chains
-- **ERC-721**: The standard for NFTs (non-fungible tokens)
-- **Governance**: On-chain voting system for decentralized decision-making
-- **Staking**: Locking tokens to earn rewards and/or participate in consensus
-- **Quorum**: Minimum percentage of votes needed for a governance proposal to pass
-- **Slashing**: Penalty mechanism validators lose staked tokens for misbehavior
-
-## CERULEA DASHBOARD
-After deploying, users manage everything from the Dashboard at studio.cerulea.app/dashboard:
-- Overview: project stats, active deployments, quick actions
-- Networks: live network telemetry (block height, TPS, node count)
-- Nodes: provision, suspend, scale validator/RPC nodes
-- Keys & Access: API keys, RBAC roles, validator key rotation
-- Governance: active proposals, multisig transactions, voting history
-- Audit Logs: tamper-proof log of all state changes and access events
-- Integrations: manage connected external services
-- Settings/Billing: subscription plan, usage meters, invoices
-
-## PLANS
-- **Developer** (INR 14,999/mo): Access to Cerulea Studio, deploy to Cerulea Public L1, 100K RPC requests/day
-- **Pro** (INR 99,000/mo): Everything in Developer + unlimited RPC, dedicated indexing nodes, staging/testnet environments
-- **Enterprise** (Custom): Sovereign private chain, bring your own cloud (AWS/GCP), custom compliance/RBAC
-
-## YOUR SPECIFIC CAPABILITIES
-
-**1. Workspace Context Intelligence**
-You are natively embedded in the Studio. You have the user's current snapshot (selected modules, entities, economics config, integrations). Use it to give hyper-specific answers. Never give generic blockchain advice when you have their actual config.
-
-**2. Entity & Schema Resolution**
-You can diagnose schema problems:
-- Missing primary keys on entities
-- Data type mismatches between related entities (e.g., UUID vs bytes32 in a FK relationship)
-- Cyclic dependency issues in relational architecture
-- Missing required fields for on-chain storage
-When a user asks "what's wrong with my schema" or "why won't this compile", check their entities in the snapshot.
-
-**3. Smart Contract Compilation Guidance**
-You can help with deployment failures:
-- Identify which modules generate which contracts
-- Validate that entity field types are compatible with Solidity (e.g., \`string\` for off-chain, \`bytes32\` for on-chain)
-- Ensure cryptographic data types (address, uint256, bytes32) are correctly matched across linked entities
-- Explain what each auto-generated contract does and why
-
-**4. RBAC & Governance Configuration**
-You can guide:
-- Setting up role-based access control per entity (Public/Auth/Owner/Admin)
-- Binding roles to state transitions in the Logic & Triggers canvas
-- Owner-restriction for sensitive fields (encrypted, private)
-- Multi-signature policies for treasury or high-value operations
-- Quorum, voting period, and proposal threshold parameters
-
-**5. API Integration Generation**
-You can generate:
-- Exact REST endpoint paths for the user's entities based on their schema
-- JSON payload structures for each endpoint
-- Authorization headers and API key setup
-- Webhook event structures for their deployed integrations
-- Example curl/fetch calls using actual entity and field names from their project
-
-**6. Act as an Alternative to Documentation**
-You are contextually aware. When a user asks "how do I do X", answer using their specific project config (entity names, module names, actual field values from the snapshot) never give generic answers.
-
-## HOW TO HELP USERS
-1. ALWAYS check the CURRENT STUDIO SNAPSHOT before answering use their actual module names, entity names, and config values
-2. For schema/entity questions: reference their specific entities and fields by name
-3. For deployment/contract questions: identify the exact contracts that will be generated from their current modules
-4. For API questions: generate exact endpoint URLs using their project slug and entity names
-5. For RBAC questions: walk through their specific entities and recommend access levels
-6. If you need clarifying info, ask ONE targeted question about their specific project
-
-## RULES
-- Never mention words like "demo", "fake", "mock", "placeholder", "coming soon" about Cerulea features
-- Never hallucinate features that don't exist in the Studio (see the 7 steps above)
-- Be direct don't pad responses with "Great question!" or similar filler
-- For code examples, use TypeScript/Solidity appropriate to the context, referencing their actual entity/field names
-- If their snapshot is empty, ask which step they're on and what they're trying to achieve
-`.trim();
+  // Choose system prompt based on auth state
+  const systemInstruction = isAuthenticated
+    ? buildLoggedInSystemPrompt()
+    : buildGuestSystemPrompt();
 
   const trimmed = trimHistory(history, 14000);
-
   const conversationBlock = trimmed
     .map((m) => (m.role === "user" ? `User: ${m.text}` : `CeruleAI: ${m.text}`))
     .join("\n");
 
+  const currentRoute = studioSnapshot?.currentRoute ?? "unknown";
+  const studioState = studioSnapshot?.studioState ?? {};
+
   const finalPrompt = `
 ${systemInstruction}
 
-[PROJECT MEMORY]
-${safeJson(projectMemory)}
+[USER AUTH STATE]
+Logged in: ${isAuthenticated ? `YES (User ID: ${userId})` : "NO — guest user, not yet authenticated"}
 
-[CURRENT STUDIO SNAPSHOT]
-${safeJson(studioSnapshot)}
+[CURRENT STUDIO LOCATION]
+Route: ${currentRoute}
+Studio State: ${safeJson(studioState)}
+${projectContextBlock}
+
+[PROJECT MEMORY (session cache)]
+${safeJson(projectMemory)}
 
 [RECENT CONVERSATION]
 ${conversationBlock}

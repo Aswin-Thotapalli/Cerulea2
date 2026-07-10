@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Fab, Drawer, Box, Typography, TextField, IconButton, Stack,
-  Chip, Divider, Avatar, Paper, Tooltip,
+  Chip, Divider, Avatar, Paper, Tooltip, Button,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,7 +11,10 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import LoginIcon from '@mui/icons-material/Login';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import { useStudio } from '@/context/StudioContext';
 import { api } from '@/lib/apiClient';
 
@@ -30,27 +33,43 @@ function makeId(prefix = 'msg') {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
 }
 
-function normalize(s: string) {
-  return s.trim().toLowerCase().replace(/[?!.]+$/g, '').replace(/\s+/g, ' ');
-}
-
 function formatTime(d: Date) {
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-const QUICK_PROMPTS = [
-  'What modules should I add?',
-  'Explain smart contracts',
-  'How does tokenomics work?',
-  'What is an entity?',
+const GUEST_PROMPTS = [
+  'What can I build with Cerulea?',
+  'Help me choose a template',
+  'What is a dApp vs Private Blockchain?',
+  'Which modules do I need for a DEX?',
 ];
+
+const PROJECT_PROMPTS = [
+  'What should I configure next?',
+  'Check my project for issues',
+  'Explain my smart contracts',
+  'How do I set access control?',
+];
+
+function getInitialMessage(isAuthenticated: boolean, projectName?: string) {
+  if (!isAuthenticated) {
+    return "Hi! I'm Cerulea AI.\n\nI can help you figure out what to build and guide you step-by-step through Cerulea Studio — even before you sign up.\n\nTell me about the application you have in mind. What should it do?";
+  }
+  if (projectName) {
+    return `Hi! I'm Cerulea AI.\n\nI have full context on your project **${projectName}** — including your modules, schema, economics, and what's been configured so far.\n\nWhat do you need help with?`;
+  }
+  return "Hi! I'm Cerulea AI.\n\nI'm aware of your account and can see your project details when you're inside a project.\n\nWhat would you like to work on?";
+}
 
 export default function Assistant() {
   const pathname = usePathname();
   const studio = useStudio();
   const theme = useTheme();
+  const { data: session, status: sessionStatus } = useSession();
+
+  const isAuthenticated = !!(session?.user);
+  const hasProject = !!(studio.projectId);
+  const projectName = studio.appMetadata?.appName || null;
 
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -58,7 +77,7 @@ export default function Assistant() {
     {
       id: makeId('assistant'),
       role: 'assistant',
-      text: "Hi! I'm Cerulea AI. I can help you design your app, choose modules, configure your tokenomics, or answer any question about the Studio.\n\nWhat would you like to build?",
+      text: getInitialMessage(false, undefined),
       createdAt: new Date(),
     },
   ]);
@@ -66,6 +85,20 @@ export default function Assistant() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const typingTimerRef = useRef<number | null>(null);
   const streamTimerRef = useRef<number | null>(null);
+  const initializedRef = useRef(false);
+
+  // Re-initialize greeting when auth state becomes known
+  useEffect(() => {
+    if (sessionStatus === 'loading') return;
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+    setMessages([{
+      id: makeId('assistant'),
+      role: 'assistant',
+      text: getInitialMessage(isAuthenticated, projectName ?? undefined),
+      createdAt: new Date(),
+    }]);
+  }, [sessionStatus, isAuthenticated, projectName]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -107,6 +140,9 @@ export default function Assistant() {
         selectedModules: studio.selectedModules,
         appMetadata: studio.appMetadata,
         appGoal: studio.appGoal,
+        networkConfig: studio.networkConfig,
+        dappVisibility: studio.dappVisibility,
+        legacyMode: studio.legacyMode,
       },
     };
   }
@@ -120,7 +156,13 @@ export default function Assistant() {
 
   function buildProjectMemory() {
     const prev = readProjectMemory();
-    const next = { ...prev, projectType: studio.projectType, selectedModules: studio.selectedModules, appMetadata: studio.appMetadata, updatedAt: new Date().toISOString() };
+    const next = {
+      ...prev,
+      projectType: studio.projectType,
+      selectedModules: studio.selectedModules,
+      appMetadata: studio.appMetadata,
+      updatedAt: new Date().toISOString(),
+    };
     try { localStorage.setItem(`ceruleai:memory:${studio.projectId || 'local'}`, JSON.stringify(next)); } catch {}
     return next;
   }
@@ -159,12 +201,27 @@ export default function Assistant() {
         streamAssistantMessage(res.reply || "I couldn't generate a response right now.");
       } catch (e: any) {
         setIsTyping(false);
-        streamAssistantMessage(typeof e?.message === 'string' ? `Something went wrong: ${e.message}` : 'Something went wrong generating the response.');
+        streamAssistantMessage(
+          typeof e?.message === 'string'
+            ? `Something went wrong: ${e.message}`
+            : 'Something went wrong generating the response.'
+        );
       }
     }, 400 + Math.floor(Math.random() * 300));
   }
 
   const isLight = theme.palette.mode === 'light';
+  const quickPrompts = (isAuthenticated && hasProject) ? PROJECT_PROMPTS : GUEST_PROMPTS;
+
+  // Context chip label
+  let contextChipLabel: string | null = null;
+  if (isAuthenticated && projectName) {
+    contextChipLabel = projectName;
+  } else if (isAuthenticated && !hasProject) {
+    contextChipLabel = 'No active project';
+  } else if (!isAuthenticated) {
+    contextChipLabel = 'Guest — not signed in';
+  }
 
   return (
     <>
@@ -239,7 +296,7 @@ export default function Assistant() {
                 <Stack direction="row" alignItems="center" spacing={0.5}>
                   <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#4ade80' }} />
                   <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.75)', fontWeight: 600 }}>
-                    Online
+                    {isAuthenticated ? 'Project-aware' : 'Discovery mode'}
                   </Typography>
                 </Stack>
               </Box>
@@ -254,17 +311,48 @@ export default function Assistant() {
           </Stack>
 
           {/* Context chip */}
-          {studio.projectType && (
+          {contextChipLabel && (
             <Chip
-              label={studio.projectType === 'blockchain' ? 'Private Blockchain project' : 'dApp project'}
+              label={contextChipLabel}
               size="small"
               sx={{
-                mt: 1.5, bgcolor: 'rgba(255,255,255,0.18)', color: 'white',
-                fontWeight: 600, fontSize: '0.68rem', border: '1px solid rgba(255,255,255,0.25)',
+                mt: 1.5,
+                bgcolor: isAuthenticated && hasProject
+                  ? 'rgba(74,222,128,0.2)'
+                  : 'rgba(255,255,255,0.18)',
+                color: 'white',
+                fontWeight: 600,
+                fontSize: '0.68rem',
+                border: `1px solid ${isAuthenticated && hasProject ? 'rgba(74,222,128,0.4)' : 'rgba(255,255,255,0.25)'}`,
               }}
             />
           )}
         </Box>
+
+        {/* Guest sign-up nudge */}
+        {!isAuthenticated && messages.length > 3 && (
+          <Box sx={{
+            mx: 2.5, mt: 1.5, px: 2, py: 1.25, borderRadius: 2,
+            bgcolor: isLight ? alpha('#3d5afe', 0.06) : alpha('#3d5afe', 0.12),
+            border: `1px solid ${alpha('#3d5afe', 0.2)}`,
+            display: 'flex', alignItems: 'center', gap: 1.5,
+          }}>
+            <LoginIcon sx={{ fontSize: 16, color: 'primary.main', flexShrink: 0 }} />
+            <Typography variant="caption" sx={{ flex: 1, color: 'text.secondary', fontSize: '0.72rem', lineHeight: 1.4 }}>
+              Sign in to let Cerulea AI read your live project data
+            </Typography>
+            <Button
+              component={Link}
+              href="/auth/login"
+              size="small"
+              variant="contained"
+              disableElevation
+              sx={{ fontSize: '0.68rem', py: 0.4, px: 1.25, minWidth: 0, flexShrink: 0 }}
+            >
+              Sign in
+            </Button>
+          </Box>
+        )}
 
         {/* Messages */}
         <Box
@@ -372,7 +460,7 @@ export default function Assistant() {
               QUICK QUESTIONS
             </Typography>
             <Stack direction="row" flexWrap="wrap" gap={0.75}>
-              {QUICK_PROMPTS.map((q) => (
+              {quickPrompts.map((q) => (
                 <Chip
                   key={q}
                   label={q}
@@ -404,7 +492,7 @@ export default function Assistant() {
             maxRows={4}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask anything about your project..."
+            placeholder={isAuthenticated ? 'Ask anything about your project...' : 'Tell me what you want to build...'}
             size="small"
             disabled={isTyping}
             onKeyDown={(e) => {
