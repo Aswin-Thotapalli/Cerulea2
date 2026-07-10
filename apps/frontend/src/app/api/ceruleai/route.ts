@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getSession } from "@/lib/auth";
 import { db } from "@/db/client";
-import { projects, drafts, smartContracts } from "@/db/schema";
+import { projects, drafts, smartContracts, aiThreads, aiMessages } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { randomUUID } from "crypto";
 import {
   buildGuestSystemPrompt,
   buildLoggedInSystemPrompt,
@@ -192,6 +193,7 @@ export async function POST(req: Request) {
   const history: ClientChatMessage[] = Array.isArray(body?.history) ? body.history : [];
   const studioSnapshot = body?.studioSnapshot ?? {};
   const projectMemory = body?.projectMemory ?? {};
+  const threadId: string | null = body?.threadId ?? null;
 
   if (!userMessage.trim()) {
     return NextResponse.json({ message: "Message is required" }, { status: 400 });
@@ -266,6 +268,24 @@ Respond as CeruleAI:
 
     const result = await model.generateContent(finalPrompt);
     const text = result.response.text() || "";
+
+    // Persist messages to thread when authenticated
+    if (isAuthenticated && userId && threadId && text) {
+      try {
+        const userTs = new Date().toISOString();
+        const aiTs = new Date(Date.now() + 1).toISOString();
+        await db.insert(aiMessages).values([
+          { id: randomUUID(), threadId, role: "user", content: userMessage, createdAt: userTs } as any,
+          { id: randomUUID(), threadId, role: "assistant", content: text, createdAt: aiTs } as any,
+        ]);
+        await db
+          .update(aiThreads)
+          .set({ updatedAt: aiTs } as any)
+          .where(eq(aiThreads.id, threadId));
+      } catch (saveErr) {
+        console.error("[ceruleai] thread save failed (non-fatal):", saveErr);
+      }
+    }
 
     return NextResponse.json({ reply: text });
   } catch (err: any) {

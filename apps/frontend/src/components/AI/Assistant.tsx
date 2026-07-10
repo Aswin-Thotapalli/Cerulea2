@@ -1,17 +1,20 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Fab, Drawer, Box, Typography, TextField, IconButton, Stack,
   Chip, Divider, Avatar, Paper, Tooltip, Button,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { motion, AnimatePresence } from 'framer-motion';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import AddIcon from '@mui/icons-material/Add';
+import HistoryIcon from '@mui/icons-material/History';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import LoginIcon from '@mui/icons-material/Login';
+import ForumIcon from '@mui/icons-material/Forum';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -28,6 +31,18 @@ const fabVariants = {
 
 type ChatRole = 'user' | 'assistant';
 type ChatMessage = { id: string; role: ChatRole; text: string; createdAt: Date };
+type ThreadSummary = { id: string; title: string; updatedAt: string };
+type View = 'chat' | 'history';
+
+// Guest thread stored in localStorage
+type GuestThread = {
+  id: string;
+  title: string;
+  updatedAt: string;
+  messages: { id: string; role: ChatRole; text: string; createdAt: string }[];
+};
+
+const GUEST_THREADS_KEY = 'ceruleai:guest_threads';
 
 function makeId(prefix = 'msg') {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
@@ -36,6 +51,60 @@ function makeId(prefix = 'msg') {
 function formatTime(d: Date) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
+
+function formatRelative(dateStr: string) {
+  const d = new Date(dateStr);
+  const diffMs = Date.now() - d.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return d.toLocaleDateString();
+}
+
+// ---------------------------------------------------------------------------
+// Guest localStorage helpers
+// ---------------------------------------------------------------------------
+
+function readGuestThreads(): GuestThread[] {
+  try {
+    const raw = localStorage.getItem(GUEST_THREADS_KEY);
+    return raw ? (JSON.parse(raw).threads ?? []) : [];
+  } catch { return []; }
+}
+
+function writeGuestThreads(threads: GuestThread[]) {
+  try {
+    localStorage.setItem(GUEST_THREADS_KEY, JSON.stringify({ threads: threads.slice(0, 10) }));
+  } catch {}
+}
+
+function saveGuestThread(id: string, title: string, msgs: ChatMessage[]) {
+  const threads = readGuestThreads();
+  const serialized: GuestThread = {
+    id, title,
+    updatedAt: new Date().toISOString(),
+    messages: msgs.map((m) => ({ id: m.id, role: m.role, text: m.text, createdAt: m.createdAt.toISOString() })),
+  };
+  const idx = threads.findIndex((t) => t.id === id);
+  if (idx >= 0) threads[idx] = serialized;
+  else threads.unshift(serialized);
+  writeGuestThreads(threads);
+}
+
+function loadGuestThreadMessages(id: string): ChatMessage[] | null {
+  const thread = readGuestThreads().find((t) => t.id === id);
+  if (!thread) return null;
+  return thread.messages.map((m) => ({ ...m, createdAt: new Date(m.createdAt) }));
+}
+
+// ---------------------------------------------------------------------------
+// Static prompt lists
+// ---------------------------------------------------------------------------
 
 const GUEST_PROMPTS = [
   'What can I build with Cerulea?',
@@ -51,7 +120,7 @@ const PROJECT_PROMPTS = [
   'How do I set access control?',
 ];
 
-function getInitialMessage(isAuthenticated: boolean, projectName?: string) {
+function getGreeting(isAuthenticated: boolean, projectName?: string) {
   if (!isAuthenticated) {
     return "Hi! I'm Cerulea AI.\n\nI can help you figure out what to build and guide you step-by-step through Cerulea Studio — even before you sign up.\n\nTell me about the application you have in mind. What should it do?";
   }
@@ -61,6 +130,10 @@ function getInitialMessage(isAuthenticated: boolean, projectName?: string) {
   return "Hi! I'm Cerulea AI.\n\nI'm aware of your account and can see your project details when you're inside a project.\n\nWhat would you like to work on?";
 }
 
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export default function Assistant() {
   const pathname = usePathname();
   const studio = useStudio();
@@ -68,26 +141,29 @@ export default function Assistant() {
   const { data: session, status: sessionStatus } = useSession();
 
   const isAuthenticated = !!(session?.user);
+  const userId = (session?.user as any)?.id as string | undefined;
   const hasProject = !!(studio.projectId);
   const projectName = studio.appMetadata?.appName || null;
 
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState<View>('chat');
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [
-    {
-      id: makeId('assistant'),
-      role: 'assistant',
-      text: getInitialMessage(false, undefined),
-      createdAt: new Date(),
-    },
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { id: makeId('assistant'), role: 'assistant', text: getGreeting(false), createdAt: new Date() },
   ]);
   const [isTyping, setIsTyping] = useState(false);
+  const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
+  const [threadList, setThreadList] = useState<ThreadSummary[]>([]);
+
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const typingTimerRef = useRef<number | null>(null);
   const streamTimerRef = useRef<number | null>(null);
   const initializedRef = useRef(false);
+  const lastLoadedForRef = useRef<string | null>(null);
 
-  // Re-initialize greeting when auth state becomes known
+  // ---------------------------------------------------------------------------
+  // Auth-based greeting (runs once when auth state is known)
+  // ---------------------------------------------------------------------------
   useEffect(() => {
     if (sessionStatus === 'loading') return;
     if (initializedRef.current) return;
@@ -95,11 +171,74 @@ export default function Assistant() {
     setMessages([{
       id: makeId('assistant'),
       role: 'assistant',
-      text: getInitialMessage(isAuthenticated, projectName ?? undefined),
+      text: getGreeting(isAuthenticated, projectName ?? undefined),
       createdAt: new Date(),
     }]);
   }, [sessionStatus, isAuthenticated, projectName]);
 
+  // ---------------------------------------------------------------------------
+  // Load threads when drawer opens (or auth changes)
+  // ---------------------------------------------------------------------------
+  const loadAuthThreads = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const projectId = studio.projectId;
+      const url = projectId
+        ? `/api/ai/threads?projectId=${encodeURIComponent(projectId)}`
+        : '/api/ai/threads';
+      const res = await api<{ threads: any[] }>(url);
+      const summaries: ThreadSummary[] = (res.threads ?? []).map((t) => ({
+        id: t.id, title: t.title ?? 'Untitled', updatedAt: t.updatedAt,
+      }));
+      setThreadList(summaries);
+
+      // Auto-restore most recent thread
+      if (summaries.length > 0) {
+        const latest = summaries[0];
+        const msgRes = await api<{ messages: any[] }>(`/api/ai/threads/${latest.id}/messages`);
+        if (msgRes.messages?.length > 0) {
+          const loaded: ChatMessage[] = msgRes.messages.map((m) => ({
+            id: m.id,
+            role: m.role as ChatRole,
+            text: m.content,
+            createdAt: new Date(m.createdAt),
+          }));
+          setMessages(loaded);
+          setCurrentThreadId(latest.id);
+        }
+      }
+    } catch (err) {
+      console.error('[ceruleai] failed to load threads:', err);
+    }
+  }, [isAuthenticated, studio.projectId]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (sessionStatus === 'loading') return;
+    const key = isAuthenticated ? (userId ?? 'auth') : 'guest';
+    if (lastLoadedForRef.current === key) return;
+    lastLoadedForRef.current = key;
+
+    if (isAuthenticated) {
+      loadAuthThreads();
+    } else {
+      const guestThreads = readGuestThreads();
+      setThreadList(guestThreads.map((t) => ({ id: t.id, title: t.title, updatedAt: t.updatedAt })));
+      // Restore most recent guest thread
+      if (guestThreads.length > 0 && !currentThreadId) {
+        const latest = guestThreads[0];
+        const msgs = loadGuestThreadMessages(latest.id);
+        if (msgs && msgs.length > 0) {
+          setMessages(msgs);
+          setCurrentThreadId(latest.id);
+        }
+      }
+    }
+  }, [open, sessionStatus, isAuthenticated, userId, loadAuthThreads]);
+
+  // ---------------------------------------------------------------------------
+  // Scroll to bottom on new messages
+  // ---------------------------------------------------------------------------
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -113,6 +252,9 @@ export default function Assistant() {
     };
   }, []);
 
+  // ---------------------------------------------------------------------------
+  // Stream animation
+  // ---------------------------------------------------------------------------
   function streamAssistantMessage(fullText: string) {
     const msgId = makeId('assistant');
     const createdAt = new Date();
@@ -130,6 +272,9 @@ export default function Assistant() {
     }, 16 + Math.floor(Math.random() * 12));
   }
 
+  // ---------------------------------------------------------------------------
+  // Studio snapshot & memory
+  // ---------------------------------------------------------------------------
   function buildStudioSnapshot() {
     return {
       currentRoute: pathname,
@@ -156,73 +301,160 @@ export default function Assistant() {
 
   function buildProjectMemory() {
     const prev = readProjectMemory();
-    const next = {
-      ...prev,
-      projectType: studio.projectType,
-      selectedModules: studio.selectedModules,
-      appMetadata: studio.appMetadata,
-      updatedAt: new Date().toISOString(),
-    };
+    const next = { ...prev, projectType: studio.projectType, selectedModules: studio.selectedModules, appMetadata: studio.appMetadata, updatedAt: new Date().toISOString() };
     try { localStorage.setItem(`ceruleai:memory:${studio.projectId || 'local'}`, JSON.stringify(next)); } catch {}
     return next;
   }
 
   function toHistoryPayload(msgs: ChatMessage[]) {
-    const budget = 12000;
     const out: { role: ChatRole; text: string }[] = [];
     let used = 0;
     for (let i = msgs.length - 1; i >= 0; i--) {
       const line = `${msgs[i].role}:${msgs[i].text}\n`;
-      if (used + line.length > budget) break;
+      if (used + line.length > 12000) break;
       out.unshift({ role: msgs[i].role, text: msgs[i].text });
       used += line.length;
     }
     return out;
   }
 
-  async function handleSend(text?: string) {
-    const msg = (text || input).trim();
-    if (!msg) return;
+  // ---------------------------------------------------------------------------
+  // New Chat
+  // ---------------------------------------------------------------------------
+  function handleNewChat() {
+    if (typingTimerRef.current) window.clearTimeout(typingTimerRef.current);
+    if (streamTimerRef.current) window.clearInterval(streamTimerRef.current);
+    setIsTyping(false);
     setInput('');
+    setCurrentThreadId(null);
+    setMessages([{
+      id: makeId('assistant'),
+      role: 'assistant',
+      text: getGreeting(isAuthenticated, projectName ?? undefined),
+      createdAt: new Date(),
+    }]);
+    setView('chat');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Load a thread from history
+  // ---------------------------------------------------------------------------
+  async function handleLoadThread(id: string) {
+    if (isAuthenticated) {
+      try {
+        const res = await api<{ messages: any[] }>(`/api/ai/threads/${id}/messages`);
+        if (res.messages?.length > 0) {
+          setMessages(res.messages.map((m) => ({
+            id: m.id, role: m.role as ChatRole, text: m.content, createdAt: new Date(m.createdAt),
+          })));
+        }
+      } catch (err) {
+        console.error('[ceruleai] failed to load thread messages:', err);
+      }
+    } else {
+      const msgs = loadGuestThreadMessages(id);
+      if (msgs) setMessages(msgs);
+    }
+    setCurrentThreadId(id);
+    setView('chat');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Send message
+  // ---------------------------------------------------------------------------
+  async function handleSend(msgText?: string) {
+    const msg = (msgText || input).trim();
+    if (!msg || isTyping) return;
+    setInput('');
+
+    // Ensure a thread exists before sending
+    let threadId = currentThreadId;
+    if (!threadId) {
+      const title = msg.slice(0, 80);
+      if (isAuthenticated) {
+        try {
+          const res = await api<{ thread: any }>('/api/ai/threads', {
+            method: 'POST',
+            body: JSON.stringify({ projectId: studio.projectId || null, title }),
+          });
+          threadId = res.thread.id;
+          setCurrentThreadId(threadId);
+          setThreadList((prev) => [{ id: res.thread.id, title, updatedAt: new Date().toISOString() }, ...prev]);
+        } catch {
+          // Non-fatal — continue without persistence
+        }
+      } else {
+        threadId = makeId('gth');
+        setCurrentThreadId(threadId);
+        setThreadList((prev) => [{ id: threadId!, title, updatedAt: new Date().toISOString() }, ...prev.slice(0, 9)]);
+      }
+    }
+
     const userMsg: ChatMessage = { id: makeId('user'), role: 'user', text: msg, createdAt: new Date() };
     setMessages((prev) => [...prev, userMsg]);
     setIsTyping(true);
+
+    const capturedMessages = messages; // snapshot for history payload
+
     typingTimerRef.current = window.setTimeout(async () => {
       try {
-        const res = await api<{ reply: string }>(`/api/ceruleai`, {
+        const res = await api<{ reply: string }>('/api/ceruleai', {
           method: 'POST',
           body: JSON.stringify({
             message: msg,
-            history: toHistoryPayload(messages),
+            history: toHistoryPayload(capturedMessages),
             studioSnapshot: buildStudioSnapshot(),
             projectMemory: buildProjectMemory(),
+            threadId: threadId || undefined,
           }),
         });
-        streamAssistantMessage(res.reply || "I couldn't generate a response right now.");
+        const replyText = res.reply || "I couldn't generate a response right now.";
+        streamAssistantMessage(replyText);
+
+        // Guest: save to localStorage
+        if (!isAuthenticated && threadId) {
+          const title = capturedMessages.length === 0 || (capturedMessages.length === 1 && capturedMessages[0].role === 'assistant')
+            ? msg.slice(0, 80)
+            : (threadList.find((t) => t.id === threadId)?.title ?? msg.slice(0, 80));
+          const allMsgs = [
+            ...capturedMessages,
+            userMsg,
+            { id: makeId('assistant'), role: 'assistant' as const, text: replyText, createdAt: new Date() },
+          ];
+          saveGuestThread(threadId, title, allMsgs);
+        }
+
+        // Move thread to top of list (both auth and guest)
+        if (threadId) {
+          setThreadList((prev) => {
+            const existing = prev.find((t) => t.id === threadId);
+            if (!existing) return prev;
+            return [{ ...existing, updatedAt: new Date().toISOString() }, ...prev.filter((t) => t.id !== threadId)];
+          });
+        }
       } catch (e: any) {
         setIsTyping(false);
         streamAssistantMessage(
-          typeof e?.message === 'string'
-            ? `Something went wrong: ${e.message}`
-            : 'Something went wrong generating the response.'
+          typeof e?.message === 'string' ? `Something went wrong: ${e.message}` : 'Something went wrong generating the response.'
         );
       }
     }, 400 + Math.floor(Math.random() * 300));
   }
 
+  // ---------------------------------------------------------------------------
+  // Derived state
+  // ---------------------------------------------------------------------------
   const isLight = theme.palette.mode === 'light';
   const quickPrompts = (isAuthenticated && hasProject) ? PROJECT_PROMPTS : GUEST_PROMPTS;
 
-  // Context chip label
   let contextChipLabel: string | null = null;
-  if (isAuthenticated && projectName) {
-    contextChipLabel = projectName;
-  } else if (isAuthenticated && !hasProject) {
-    contextChipLabel = 'No active project';
-  } else if (!isAuthenticated) {
-    contextChipLabel = 'Guest — not signed in';
-  }
+  if (isAuthenticated && projectName) contextChipLabel = projectName;
+  else if (isAuthenticated && !hasProject) contextChipLabel = 'No active project';
+  else if (!isAuthenticated) contextChipLabel = 'Guest — not signed in';
 
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
   return (
     <>
       <AnimatePresence>
@@ -273,53 +505,87 @@ export default function Assistant() {
         {/* Header */}
         <Box
           sx={{
-            px: 3, pt: 2.5, pb: 2,
+            px: 2.5, pt: 2.5, pb: 2,
             background: 'linear-gradient(135deg, #3d5afe 0%, #7c3aed 100%)',
             flexShrink: 0,
           }}
         >
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Stack direction="row" alignItems="center" spacing={1.5}>
-              <Box
-                sx={{
-                  width: 36, height: 36, borderRadius: '50%',
-                  bgcolor: 'rgba(255,255,255,0.2)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >
-                <AutoAwesomeIcon sx={{ fontSize: 18, color: 'white' }} />
-              </Box>
+              {view === 'history' ? (
+                <IconButton
+                  size="small"
+                  onClick={() => setView('chat')}
+                  sx={{ color: 'rgba(255,255,255,0.8)', '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
+                >
+                  <ArrowBackIcon fontSize="small" />
+                </IconButton>
+              ) : (
+                <Box
+                  sx={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    bgcolor: 'rgba(255,255,255,0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}
+                >
+                  <AutoAwesomeIcon sx={{ fontSize: 18, color: 'white' }} />
+                </Box>
+              )}
               <Box>
                 <Typography variant="subtitle1" fontWeight={800} sx={{ color: 'white', lineHeight: 1.2 }}>
-                  Cerulea AI
+                  {view === 'history' ? 'Past conversations' : 'Cerulea AI'}
                 </Typography>
-                <Stack direction="row" alignItems="center" spacing={0.5}>
-                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#4ade80' }} />
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.75)', fontWeight: 600 }}>
-                    {isAuthenticated ? 'Project-aware' : 'Discovery mode'}
-                  </Typography>
-                </Stack>
+                {view === 'chat' && (
+                  <Stack direction="row" alignItems="center" spacing={0.5}>
+                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#4ade80' }} />
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.75)', fontWeight: 600 }}>
+                      {isAuthenticated ? 'Project-aware' : 'Discovery mode'}
+                    </Typography>
+                  </Stack>
+                )}
               </Box>
             </Stack>
-            <IconButton
-              onClick={() => setOpen(false)}
-              size="small"
-              sx={{ color: 'rgba(255,255,255,0.8)', '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
+
+            <Stack direction="row" alignItems="center" spacing={0.5}>
+              <Tooltip title="New conversation">
+                <IconButton
+                  size="small"
+                  onClick={handleNewChat}
+                  sx={{ color: 'rgba(255,255,255,0.8)', '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
+                >
+                  <AddIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={view === 'history' ? 'Back to chat' : 'Past conversations'}>
+                <IconButton
+                  size="small"
+                  onClick={() => setView((v) => v === 'history' ? 'chat' : 'history')}
+                  sx={{
+                    color: view === 'history' ? 'white' : 'rgba(255,255,255,0.8)',
+                    bgcolor: view === 'history' ? 'rgba(255,255,255,0.2)' : 'transparent',
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' },
+                  }}
+                >
+                  <HistoryIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <IconButton
+                onClick={() => setOpen(false)}
+                size="small"
+                sx={{ color: 'rgba(255,255,255,0.8)', '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Stack>
           </Stack>
 
-          {/* Context chip */}
-          {contextChipLabel && (
+          {view === 'chat' && contextChipLabel && (
             <Chip
               label={contextChipLabel}
               size="small"
               sx={{
                 mt: 1.5,
-                bgcolor: isAuthenticated && hasProject
-                  ? 'rgba(74,222,128,0.2)'
-                  : 'rgba(255,255,255,0.18)',
+                bgcolor: isAuthenticated && hasProject ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.18)',
                 color: 'white',
                 fontWeight: 600,
                 fontSize: '0.68rem',
@@ -329,209 +595,286 @@ export default function Assistant() {
           )}
         </Box>
 
-        {/* Guest sign-up nudge */}
-        {!isAuthenticated && messages.length > 3 && (
-          <Box sx={{
-            mx: 2.5, mt: 1.5, px: 2, py: 1.25, borderRadius: 2,
-            bgcolor: isLight ? alpha('#3d5afe', 0.06) : alpha('#3d5afe', 0.12),
-            border: `1px solid ${alpha('#3d5afe', 0.2)}`,
-            display: 'flex', alignItems: 'center', gap: 1.5,
-          }}>
-            <LoginIcon sx={{ fontSize: 16, color: 'primary.main', flexShrink: 0 }} />
-            <Typography variant="caption" sx={{ flex: 1, color: 'text.secondary', fontSize: '0.72rem', lineHeight: 1.4 }}>
-              Sign in to let Cerulea AI read your live project data
-            </Typography>
-            <Button
-              component={Link}
-              href="/auth/login"
-              size="small"
-              variant="contained"
-              disableElevation
-              sx={{ fontSize: '0.68rem', py: 0.4, px: 1.25, minWidth: 0, flexShrink: 0 }}
+        {/* ---------------------------------------------------------------- */}
+        {/* HISTORY VIEW                                                      */}
+        {/* ---------------------------------------------------------------- */}
+        {view === 'history' && (
+          <Box sx={{ flex: 1, overflowY: 'auto', px: 2.5, py: 2 }}>
+            <Box
+              component="button"
+              onClick={handleNewChat}
+              sx={{
+                all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1,
+                width: '100%', px: 2, py: 1.5, mb: 2, borderRadius: 2,
+                border: `1.5px dashed ${alpha(theme.palette.primary.main, 0.4)}`,
+                color: 'primary.main', fontWeight: 700, fontSize: '0.85rem',
+                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) },
+                transition: 'background 0.15s',
+              }}
             >
-              Sign in
-            </Button>
+              <AddIcon sx={{ fontSize: 18 }} />
+              New conversation
+            </Box>
+
+            {threadList.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 6 }}>
+                <ForumIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1.5 }} />
+                <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                  No past conversations yet
+                </Typography>
+                <Typography variant="caption" color="text.disabled">
+                  Start a chat and it will appear here
+                </Typography>
+              </Box>
+            ) : (
+              threadList.map((t) => (
+                <Box
+                  key={t.id}
+                  component="button"
+                  onClick={() => handleLoadThread(t.id)}
+                  sx={{
+                    all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between', gap: 1,
+                    width: '100%', px: 2, py: 1.5, mb: 0.75, borderRadius: 2,
+                    bgcolor: currentThreadId === t.id
+                      ? alpha(theme.palette.primary.main, 0.1)
+                      : 'transparent',
+                    border: `1px solid ${currentThreadId === t.id
+                      ? alpha(theme.palette.primary.main, 0.3)
+                      : alpha(theme.palette.divider, 0.6)}`,
+                    '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) },
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      variant="body2"
+                      fontWeight={600}
+                      noWrap
+                      sx={{ color: 'text.primary', maxWidth: 260 }}
+                    >
+                      {t.title}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {formatRelative(t.updatedAt)}
+                    </Typography>
+                  </Box>
+                  {currentThreadId === t.id && (
+                    <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: 'primary.main', flexShrink: 0 }} />
+                  )}
+                </Box>
+              ))
+            )}
           </Box>
         )}
 
-        {/* Messages */}
-        <Box
-          ref={scrollRef}
-          sx={{ flex: 1, overflowY: 'auto', px: 2.5, py: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}
-        >
-          {messages.map((m) => {
-            const isUser = m.role === 'user';
-            return (
-              <Box key={m.id} sx={{ display: 'flex', flexDirection: isUser ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: 1 }}>
-                {!isUser && (
+        {/* ---------------------------------------------------------------- */}
+        {/* CHAT VIEW                                                         */}
+        {/* ---------------------------------------------------------------- */}
+        {view === 'chat' && (
+          <>
+            {/* Guest sign-up nudge */}
+            {!isAuthenticated && messages.length > 3 && (
+              <Box sx={{
+                mx: 2.5, mt: 1.5, px: 2, py: 1.25, borderRadius: 2,
+                bgcolor: isLight ? alpha('#3d5afe', 0.06) : alpha('#3d5afe', 0.12),
+                border: `1px solid ${alpha('#3d5afe', 0.2)}`,
+                display: 'flex', alignItems: 'center', gap: 1.5,
+              }}>
+                <LoginIcon sx={{ fontSize: 16, color: 'primary.main', flexShrink: 0 }} />
+                <Typography variant="caption" sx={{ flex: 1, color: 'text.secondary', fontSize: '0.72rem', lineHeight: 1.4 }}>
+                  Sign in to let Cerulea AI read your live project data
+                </Typography>
+                <Button
+                  component={Link}
+                  href="/auth/login"
+                  size="small"
+                  variant="contained"
+                  disableElevation
+                  sx={{ fontSize: '0.68rem', py: 0.4, px: 1.25, minWidth: 0, flexShrink: 0 }}
+                >
+                  Sign in
+                </Button>
+              </Box>
+            )}
+
+            {/* Messages */}
+            <Box
+              ref={scrollRef}
+              sx={{ flex: 1, overflowY: 'auto', px: 2.5, py: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}
+            >
+              {messages.map((m) => {
+                const isUser = m.role === 'user';
+                return (
+                  <Box key={m.id} sx={{ display: 'flex', flexDirection: isUser ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: 1 }}>
+                    {!isUser && (
+                      <Avatar
+                        sx={{
+                          width: 28, height: 28, flexShrink: 0, mb: 0.5,
+                          background: 'linear-gradient(135deg, #3d5afe 0%, #7c3aed 100%)',
+                          fontSize: '0.75rem',
+                        }}
+                      >
+                        <AutoAwesomeIcon sx={{ fontSize: 14 }} />
+                      </Avatar>
+                    )}
+                    <Box sx={{ maxWidth: '82%' }}>
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          px: 1.75, py: 1.25,
+                          borderRadius: isUser ? '18px 18px 4px 18px' : '4px 18px 18px 18px',
+                          bgcolor: isUser
+                            ? 'primary.main'
+                            : isLight ? '#f1f5ff' : 'rgba(255,255,255,0.07)',
+                          border: `1px solid ${isUser ? 'transparent' : alpha(theme.palette.divider, 0.5)}`,
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            lineHeight: 1.6, whiteSpace: 'pre-line',
+                            color: isUser ? 'white' : 'text.primary',
+                            fontSize: '0.84rem',
+                          }}
+                        >
+                          {m.text}
+                        </Typography>
+                      </Paper>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          opacity: 0.45, display: 'block',
+                          mt: 0.4, fontSize: '0.6rem', fontWeight: 600,
+                          textAlign: isUser ? 'right' : 'left',
+                          mr: isUser ? 0.5 : 0, ml: isUser ? 0 : 0.5,
+                        }}
+                      >
+                        {formatTime(m.createdAt)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                );
+              })}
+
+              {isTyping && (
+                <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
                   <Avatar
                     sx={{
                       width: 28, height: 28, flexShrink: 0, mb: 0.5,
                       background: 'linear-gradient(135deg, #3d5afe 0%, #7c3aed 100%)',
-                      fontSize: '0.75rem',
                     }}
                   >
                     <AutoAwesomeIcon sx={{ fontSize: 14 }} />
                   </Avatar>
-                )}
-                <Box sx={{ maxWidth: '82%' }}>
                   <Paper
                     elevation={0}
                     sx={{
-                      px: 1.75, py: 1.25, borderRadius: isUser ? '18px 18px 4px 18px' : '4px 18px 18px 18px',
-                      bgcolor: isUser
-                        ? 'primary.main'
-                        : isLight ? '#f1f5ff' : 'rgba(255,255,255,0.07)',
-                      border: `1px solid ${isUser ? 'transparent' : alpha(theme.palette.divider, 0.5)}`,
+                      px: 2, py: 1.25, borderRadius: '4px 18px 18px 18px',
+                      bgcolor: isLight ? '#f1f5ff' : 'rgba(255,255,255,0.07)',
+                      border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+                      display: 'flex', alignItems: 'center', gap: 0.5,
                     }}
                   >
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        lineHeight: 1.6, whiteSpace: 'pre-line',
-                        color: isUser ? 'white' : 'text.primary',
-                        fontSize: '0.84rem',
-                      }}
-                    >
-                      {m.text}
-                    </Typography>
+                    {[0, 0.18, 0.36].map((delay, i) => (
+                      <Box
+                        key={i}
+                        sx={{
+                          width: 7, height: 7, borderRadius: '50%', bgcolor: 'primary.main',
+                          animation: 'dotBlink 1.1s infinite',
+                          animationDelay: `${delay}s`,
+                          '@keyframes dotBlink': {
+                            '0%': { opacity: 0.3, transform: 'translateY(0px)' },
+                            '20%': { opacity: 1, transform: 'translateY(-3px)' },
+                            '40%': { opacity: 0.3, transform: 'translateY(0px)' },
+                            '100%': { opacity: 0.3 },
+                          },
+                        }}
+                      />
+                    ))}
                   </Paper>
-                  <Typography
-                    variant="caption"
+                </Box>
+              )}
+            </Box>
+
+            {/* Quick prompts */}
+            {messages.length <= 2 && !isTyping && (
+              <Box sx={{ px: 2.5, pb: 1.5, flexShrink: 0 }}>
+                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ px: 0.5, mb: 0.75, display: 'block', letterSpacing: 0.5 }}>
+                  QUICK QUESTIONS
+                </Typography>
+                <Stack direction="row" flexWrap="wrap" gap={0.75}>
+                  {quickPrompts.map((q) => (
+                    <Chip
+                      key={q}
+                      label={q}
+                      size="small"
+                      variant="outlined"
+                      clickable
+                      onClick={() => handleSend(q)}
+                      sx={{ fontWeight: 600, fontSize: '0.72rem', borderRadius: '999px' }}
+                    />
+                  ))}
+                </Stack>
+              </Box>
+            )}
+
+            <Divider />
+
+            {/* Input */}
+            <Box
+              component="form"
+              onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+              sx={{ px: 2, py: 1.75, flexShrink: 0, display: 'flex', alignItems: 'flex-end', gap: 1 }}
+            >
+              <TextField
+                fullWidth
+                multiline
+                maxRows={4}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={isAuthenticated ? 'Ask anything about your project...' : 'Tell me what you want to build...'}
+                size="small"
+                disabled={isTyping}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 3,
+                    bgcolor: isLight ? alpha('#3d5afe', 0.04) : alpha('#3d5afe', 0.1),
+                  },
+                }}
+              />
+              <Tooltip title="Send (Enter)">
+                <span>
+                  <IconButton
+                    color="primary"
+                    type="submit"
+                    disabled={isTyping || !input.trim()}
                     sx={{
-                      opacity: 0.45, display: 'block',
-                      mt: 0.4, fontSize: '0.6rem', fontWeight: 600,
-                      textAlign: isUser ? 'right' : 'left',
-                      mr: isUser ? 0.5 : 0, ml: isUser ? 0 : 0.5,
+                      mb: 0.25, width: 40, height: 40,
+                      bgcolor: input.trim() && !isTyping ? 'primary.main' : 'transparent',
+                      color: input.trim() && !isTyping ? 'white' : 'text.disabled',
+                      borderRadius: 2,
+                      '&:hover': { bgcolor: 'primary.dark', color: 'white' },
+                      transition: 'all 0.2s',
                     }}
                   >
-                    {formatTime(m.createdAt)}
-                  </Typography>
-                </Box>
-              </Box>
-            );
-          })}
-
-          {isTyping && (
-            <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
-              <Avatar
-                sx={{
-                  width: 28, height: 28, flexShrink: 0, mb: 0.5,
-                  background: 'linear-gradient(135deg, #3d5afe 0%, #7c3aed 100%)',
-                }}
-              >
-                <AutoAwesomeIcon sx={{ fontSize: 14 }} />
-              </Avatar>
-              <Paper
-                elevation={0}
-                sx={{
-                  px: 2, py: 1.25, borderRadius: '4px 18px 18px 18px',
-                  bgcolor: isLight ? '#f1f5ff' : 'rgba(255,255,255,0.07)',
-                  border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
-                  display: 'flex', alignItems: 'center', gap: 0.5,
-                }}
-              >
-                {[0, 0.18, 0.36].map((delay, i) => (
-                  <Box
-                    key={i}
-                    sx={{
-                      width: 7, height: 7, borderRadius: '50%',
-                      bgcolor: 'primary.main',
-                      animation: 'dotBlink 1.1s infinite',
-                      animationDelay: `${delay}s`,
-                      '@keyframes dotBlink': {
-                        '0%': { opacity: 0.3, transform: 'translateY(0px)' },
-                        '20%': { opacity: 1, transform: 'translateY(-3px)' },
-                        '40%': { opacity: 0.3, transform: 'translateY(0px)' },
-                        '100%': { opacity: 0.3 },
-                      },
-                    }}
-                  />
-                ))}
-              </Paper>
+                    <SendIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
             </Box>
-          )}
-        </Box>
 
-        {/* Quick prompts */}
-        {messages.length <= 2 && !isTyping && (
-          <Box sx={{ px: 2.5, pb: 1.5, flexShrink: 0 }}>
-            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ px: 0.5, mb: 0.75, display: 'block', letterSpacing: 0.5 }}>
-              QUICK QUESTIONS
-            </Typography>
-            <Stack direction="row" flexWrap="wrap" gap={0.75}>
-              {quickPrompts.map((q) => (
-                <Chip
-                  key={q}
-                  label={q}
-                  size="small"
-                  variant="outlined"
-                  clickable
-                  onClick={() => handleSend(q)}
-                  sx={{ fontWeight: 600, fontSize: '0.72rem', borderRadius: '999px' }}
-                />
-              ))}
-            </Stack>
-          </Box>
+            {/* Branding */}
+            <Box sx={{ px: 2.5, pb: 1.75, flexShrink: 0, textAlign: 'center' }}>
+              <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.62rem' }}>
+                Powered by Cerulea AI. May make mistakes. Always verify critical details.
+              </Typography>
+            </Box>
+          </>
         )}
-
-        <Divider />
-
-        {/* Input */}
-        <Box
-          component="form"
-          onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-          sx={{
-            px: 2, py: 1.75, flexShrink: 0,
-            display: 'flex', alignItems: 'flex-end', gap: 1,
-          }}
-        >
-          <TextField
-            fullWidth
-            multiline
-            maxRows={4}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={isAuthenticated ? 'Ask anything about your project...' : 'Tell me what you want to build...'}
-            size="small"
-            disabled={isTyping}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
-            }}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 3,
-                bgcolor: isLight ? alpha('#3d5afe', 0.04) : alpha('#3d5afe', 0.1),
-              },
-            }}
-          />
-          <Tooltip title="Send (Enter)">
-            <span>
-              <IconButton
-                color="primary"
-                type="submit"
-                disabled={isTyping || !input.trim()}
-                sx={{
-                  mb: 0.25, width: 40, height: 40,
-                  bgcolor: input.trim() && !isTyping ? 'primary.main' : 'transparent',
-                  color: input.trim() && !isTyping ? 'white' : 'text.disabled',
-                  borderRadius: 2,
-                  '&:hover': { bgcolor: 'primary.dark', color: 'white' },
-                  transition: 'all 0.2s',
-                }}
-              >
-                <SendIcon sx={{ fontSize: 18 }} />
-              </IconButton>
-            </span>
-          </Tooltip>
-        </Box>
-
-        {/* Branding */}
-        <Box sx={{ px: 2.5, pb: 1.75, flexShrink: 0, textAlign: 'center' }}>
-          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.62rem' }}>
-            Powered by Cerulea AI. May make mistakes. Always verify critical details.
-          </Typography>
-        </Box>
       </Drawer>
     </>
   );
