@@ -188,7 +188,16 @@ const STUDIO_STATE_READING = `
 The [CURRENT STUDIO LOCATION] block in every request tells you what is ACTUALLY happening in the user's browser right now. This is ground truth. Never assume - always check.
 
 ### studioState field meanings:
-- projectType: "dapp" or "blockchain" ONLY if the user has confirmed a type by advancing past Choose Type. null means they have not selected or confirmed anything yet - they are still on phase 1.
+
+**step0Phase — READ THIS FIRST when the user is in Step 1 Foundation:**
+- "choose-type" or null: User is on the opening screen with dApp and Private Blockchain cards. They have NOT clicked either card yet.
+- "dapp-type": User ALREADY CLICKED the dApp card. They are now on the Public vs Private dApp screen. DO NOT tell them to click dApp — they already did.
+- "legacy-question": User ALREADY CLICKED Private Blockchain. They are now being asked if they have legacy systems. DO NOT tell them to click dApp — they chose Private Blockchain.
+- "gallery": User completed all sub-questions. projectType is now confirmed. They are picking a template.
+- "details": User selected a template. They are configuring project name, slug, and description.
+
+**Other fields:**
+- projectType: "dapp" or "blockchain" ONLY after the user finishes Step 0's sub-questions (set in gallery phase or later). null while they are still on choose-type, dapp-type, or legacy-question screens.
 - dappVisibility: "public" or "private" if the user confirmed dApp visibility. null means not yet answered.
 - templateId: The template they selected and confirmed. null means no template chosen yet.
 - selectedModules: Array of module IDs currently on their Blueprint canvas. Empty array means nothing added yet.
