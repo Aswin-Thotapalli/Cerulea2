@@ -58,6 +58,15 @@ export const STEP_REGISTRY: StepMeta[] = [
   // Add more steps here as you build them; prefer 'common' unless truly path-specific.
 ];
 
+// ─── AI KNOWLEDGE ENFORCEMENT ─────────────────────────────────────────────────
+// STUDIO_STEP_IDS is the canonical list of step IDs that exist in this Studio.
+// ui-element-map.ts is typed as Record<StudioStepId, ...>, so TypeScript will
+// error there if you add a new ID here but forget to document the step's UI.
+// WHEN ADDING A STEP: add its id here AND add a full entry in ui-element-map.ts.
+export const STUDIO_STEP_IDS = [0, 1, 2, 3, 4, 5] as const;
+export type StudioStepId = typeof STUDIO_STEP_IDS[number];
+// ──────────────────────────────────────────────────────────────────────────────
+
 // Back-compat alias for code that still imports ALL_STEPS
 export const ALL_STEPS = STEP_REGISTRY;
 
@@ -66,3 +75,4 @@ export const TOTAL_STEPS = STEP_REGISTRY.length;
 export function getStepLabel(step: number): string {
   return STEP_REGISTRY[step - 1]?.label || `Step ${step}`;
 }
+
