@@ -13,8 +13,9 @@ import SendIcon from '@mui/icons-material/Send';
 import AddIcon from '@mui/icons-material/Add';
 import HistoryIcon from '@mui/icons-material/History';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import LoginIcon from '@mui/icons-material/Login';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ForumIcon from '@mui/icons-material/Forum';
+import LockPersonIcon from '@mui/icons-material/LockPerson';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -33,16 +34,6 @@ type ChatRole = 'user' | 'assistant';
 type ChatMessage = { id: string; role: ChatRole; text: string; createdAt: Date };
 type ThreadSummary = { id: string; title: string; updatedAt: string };
 type View = 'chat' | 'history';
-
-// Guest thread stored in localStorage
-type GuestThread = {
-  id: string;
-  title: string;
-  updatedAt: string;
-  messages: { id: string; role: ChatRole; text: string; createdAt: string }[];
-};
-
-const GUEST_THREADS_KEY = 'ceruleai:guest_threads';
 
 function makeId(prefix = 'msg') {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
@@ -65,46 +56,6 @@ function formatRelative(dateStr: string) {
   if (diffDays < 7) return `${diffDays}d ago`;
   return d.toLocaleDateString();
 }
-
-// ---------------------------------------------------------------------------
-// Guest localStorage helpers
-// ---------------------------------------------------------------------------
-
-function readGuestThreads(): GuestThread[] {
-  try {
-    const raw = localStorage.getItem(GUEST_THREADS_KEY);
-    return raw ? (JSON.parse(raw).threads ?? []) : [];
-  } catch { return []; }
-}
-
-function writeGuestThreads(threads: GuestThread[]) {
-  try {
-    localStorage.setItem(GUEST_THREADS_KEY, JSON.stringify({ threads: threads.slice(0, 10) }));
-  } catch {}
-}
-
-function saveGuestThread(id: string, title: string, msgs: ChatMessage[]) {
-  const threads = readGuestThreads();
-  const serialized: GuestThread = {
-    id, title,
-    updatedAt: new Date().toISOString(),
-    messages: msgs.map((m) => ({ id: m.id, role: m.role, text: m.text, createdAt: m.createdAt.toISOString() })),
-  };
-  const idx = threads.findIndex((t) => t.id === id);
-  if (idx >= 0) threads[idx] = serialized;
-  else threads.unshift(serialized);
-  writeGuestThreads(threads);
-}
-
-function loadGuestThreadMessages(id: string): ChatMessage[] | null {
-  const thread = readGuestThreads().find((t) => t.id === id);
-  if (!thread) return null;
-  return thread.messages.map((m) => ({ ...m, createdAt: new Date(m.createdAt) }));
-}
-
-// ---------------------------------------------------------------------------
-// Static prompt lists
-// ---------------------------------------------------------------------------
 
 const GUEST_PROMPTS = [
   'What can I build with Cerulea?',
@@ -130,10 +81,6 @@ function getGreeting(isAuthenticated: boolean, projectName?: string) {
   return "Hi! I'm Cerulea AI.\n\nI'm aware of your account and can see your project details when you're inside a project.\n\nWhat would you like to work on?";
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export default function Assistant() {
   const pathname = usePathname();
   const studio = useStudio();
@@ -154,6 +101,7 @@ export default function Assistant() {
   const [isTyping, setIsTyping] = useState(false);
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [threadList, setThreadList] = useState<ThreadSummary[]>([]);
+  const [signInDismissed, setSignInDismissed] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const typingTimerRef = useRef<number | null>(null);
@@ -162,7 +110,7 @@ export default function Assistant() {
   const lastLoadedForRef = useRef<string | null>(null);
 
   // ---------------------------------------------------------------------------
-  // Auth-based greeting (runs once when auth state is known)
+  // Greeting
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (sessionStatus === 'loading') return;
@@ -177,7 +125,7 @@ export default function Assistant() {
   }, [sessionStatus, isAuthenticated, projectName]);
 
   // ---------------------------------------------------------------------------
-  // Load threads when drawer opens (or auth changes)
+  // Load auth threads when drawer opens
   // ---------------------------------------------------------------------------
   const loadAuthThreads = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -192,18 +140,13 @@ export default function Assistant() {
       }));
       setThreadList(summaries);
 
-      // Auto-restore most recent thread
       if (summaries.length > 0) {
         const latest = summaries[0];
         const msgRes = await api<{ messages: any[] }>(`/api/ai/threads/${latest.id}/messages`);
         if (msgRes.messages?.length > 0) {
-          const loaded: ChatMessage[] = msgRes.messages.map((m) => ({
-            id: m.id,
-            role: m.role as ChatRole,
-            text: m.content,
-            createdAt: new Date(m.createdAt),
-          }));
-          setMessages(loaded);
+          setMessages(msgRes.messages.map((m) => ({
+            id: m.id, role: m.role as ChatRole, text: m.content, createdAt: new Date(m.createdAt),
+          })));
           setCurrentThreadId(latest.id);
         }
       }
@@ -218,26 +161,12 @@ export default function Assistant() {
     const key = isAuthenticated ? (userId ?? 'auth') : 'guest';
     if (lastLoadedForRef.current === key) return;
     lastLoadedForRef.current = key;
-
-    if (isAuthenticated) {
-      loadAuthThreads();
-    } else {
-      const guestThreads = readGuestThreads();
-      setThreadList(guestThreads.map((t) => ({ id: t.id, title: t.title, updatedAt: t.updatedAt })));
-      // Restore most recent guest thread
-      if (guestThreads.length > 0 && !currentThreadId) {
-        const latest = guestThreads[0];
-        const msgs = loadGuestThreadMessages(latest.id);
-        if (msgs && msgs.length > 0) {
-          setMessages(msgs);
-          setCurrentThreadId(latest.id);
-        }
-      }
-    }
+    if (isAuthenticated) loadAuthThreads();
+    // Guests: no history — nothing to load
   }, [open, sessionStatus, isAuthenticated, userId, loadAuthThreads]);
 
   // ---------------------------------------------------------------------------
-  // Scroll to bottom on new messages
+  // Scroll
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (scrollRef.current) {
@@ -328,6 +257,7 @@ export default function Assistant() {
     setIsTyping(false);
     setInput('');
     setCurrentThreadId(null);
+    setSignInDismissed(false);
     setMessages([{
       id: makeId('assistant'),
       role: 'assistant',
@@ -341,23 +271,28 @@ export default function Assistant() {
   // Load a thread from history
   // ---------------------------------------------------------------------------
   async function handleLoadThread(id: string) {
-    if (isAuthenticated) {
-      try {
-        const res = await api<{ messages: any[] }>(`/api/ai/threads/${id}/messages`);
-        if (res.messages?.length > 0) {
-          setMessages(res.messages.map((m) => ({
-            id: m.id, role: m.role as ChatRole, text: m.content, createdAt: new Date(m.createdAt),
-          })));
-        }
-      } catch (err) {
-        console.error('[ceruleai] failed to load thread messages:', err);
+    if (!isAuthenticated) return;
+    try {
+      const res = await api<{ messages: any[] }>(`/api/ai/threads/${id}/messages`);
+      if (res.messages?.length > 0) {
+        setMessages(res.messages.map((m) => ({
+          id: m.id, role: m.role as ChatRole, text: m.content, createdAt: new Date(m.createdAt),
+        })));
       }
-    } else {
-      const msgs = loadGuestThreadMessages(id);
-      if (msgs) setMessages(msgs);
-    }
+    } catch {}
     setCurrentThreadId(id);
     setView('chat');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Delete a thread
+  // ---------------------------------------------------------------------------
+  async function handleDeleteThread(id: string) {
+    try {
+      await api<{ ok: boolean }>(`/api/ai/threads/${id}`, { method: 'DELETE' });
+      setThreadList((prev) => prev.filter((t) => t.id !== id));
+      if (currentThreadId === id) handleNewChat();
+    } catch {}
   }
 
   // ---------------------------------------------------------------------------
@@ -368,34 +303,26 @@ export default function Assistant() {
     if (!msg || isTyping) return;
     setInput('');
 
-    // Ensure a thread exists before sending
     let threadId = currentThreadId;
-    if (!threadId) {
-      const title = msg.slice(0, 80);
-      if (isAuthenticated) {
-        try {
-          const res = await api<{ thread: any }>('/api/ai/threads', {
-            method: 'POST',
-            body: JSON.stringify({ projectId: studio.projectId || null, title }),
-          });
-          threadId = res.thread.id;
-          setCurrentThreadId(threadId);
-          setThreadList((prev) => [{ id: res.thread.id, title, updatedAt: new Date().toISOString() }, ...prev]);
-        } catch {
-          // Non-fatal — continue without persistence
-        }
-      } else {
-        threadId = makeId('gth');
+
+    // Auth users: create a thread on first message
+    if (!threadId && isAuthenticated) {
+      try {
+        const res = await api<{ thread: any }>('/api/ai/threads', {
+          method: 'POST',
+          body: JSON.stringify({ projectId: studio.projectId || null, title: msg.slice(0, 80) }),
+        });
+        threadId = res.thread.id;
         setCurrentThreadId(threadId);
-        setThreadList((prev) => [{ id: threadId!, title, updatedAt: new Date().toISOString() }, ...prev.slice(0, 9)]);
-      }
+        setThreadList((prev) => [{ id: res.thread.id, title: msg.slice(0, 80), updatedAt: new Date().toISOString() }, ...prev]);
+      } catch { /* non-fatal */ }
     }
 
     const userMsg: ChatMessage = { id: makeId('user'), role: 'user', text: msg, createdAt: new Date() };
     setMessages((prev) => [...prev, userMsg]);
     setIsTyping(true);
 
-    const capturedMessages = messages; // snapshot for history payload
+    const capturedMessages = messages;
 
     typingTimerRef.current = window.setTimeout(async () => {
       try {
@@ -412,21 +339,8 @@ export default function Assistant() {
         const replyText = res.reply || "I couldn't generate a response right now.";
         streamAssistantMessage(replyText);
 
-        // Guest: save to localStorage
-        if (!isAuthenticated && threadId) {
-          const title = capturedMessages.length === 0 || (capturedMessages.length === 1 && capturedMessages[0].role === 'assistant')
-            ? msg.slice(0, 80)
-            : (threadList.find((t) => t.id === threadId)?.title ?? msg.slice(0, 80));
-          const allMsgs = [
-            ...capturedMessages,
-            userMsg,
-            { id: makeId('assistant'), role: 'assistant' as const, text: replyText, createdAt: new Date() },
-          ];
-          saveGuestThread(threadId, title, allMsgs);
-        }
-
-        // Move thread to top of list (both auth and guest)
-        if (threadId) {
+        // Move thread to top of list
+        if (isAuthenticated && threadId) {
           setThreadList((prev) => {
             const existing = prev.find((t) => t.id === threadId);
             if (!existing) return prev;
@@ -447,6 +361,9 @@ export default function Assistant() {
   // ---------------------------------------------------------------------------
   const isLight = theme.palette.mode === 'light';
   const quickPrompts = (isAuthenticated && hasProject) ? PROJECT_PROMPTS : GUEST_PROMPTS;
+
+  // Show sign-in prompt after first AI reply for unauthenticated users
+  const showSignInPrompt = !isAuthenticated && !signInDismissed && messages.length >= 3;
 
   let contextChipLabel: string | null = null;
   if (isAuthenticated && projectName) contextChipLabel = projectName;
@@ -601,70 +518,103 @@ export default function Assistant() {
         {/* ---------------------------------------------------------------- */}
         {view === 'history' && (
           <Box sx={{ flex: 1, overflowY: 'auto', px: 2.5, py: 2 }}>
-            <Box
-              component="button"
-              onClick={handleNewChat}
-              sx={{
-                all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1,
-                width: '100%', px: 2, py: 1.5, mb: 2, borderRadius: 2,
-                border: `1.5px dashed ${alpha(theme.palette.primary.main, 0.4)}`,
-                color: 'primary.main', fontWeight: 700, fontSize: '0.85rem',
-                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) },
-                transition: 'background 0.15s',
-              }}
-            >
-              <AddIcon sx={{ fontSize: 18 }} />
-              New conversation
-            </Box>
-
-            {threadList.length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 6 }}>
-                <ForumIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1.5 }} />
-                <Typography variant="body2" color="text.secondary" fontWeight={600}>
-                  No past conversations yet
+            {!isAuthenticated ? (
+              /* Guest: no history, nudge to sign in */
+              <Box sx={{ textAlign: 'center', py: 6, px: 2 }}>
+                <LockPersonIcon sx={{ fontSize: 44, color: 'text.disabled', mb: 1.5 }} />
+                <Typography variant="body2" color="text.secondary" fontWeight={600} sx={{ mb: 0.75 }}>
+                  Conversations aren't saved for guests
                 </Typography>
-                <Typography variant="caption" color="text.disabled">
-                  Start a chat and it will appear here
+                <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 2.5, lineHeight: 1.5 }}>
+                  Sign in to save your chats, access past conversations, and unlock project-aware assistance.
                 </Typography>
+                <Stack direction="row" spacing={1} justifyContent="center">
+                  <Button component={Link} href="/auth/register" variant="contained" size="small" disableElevation sx={{ borderRadius: 2, fontSize: '0.75rem' }}>
+                    Sign up free
+                  </Button>
+                  <Button component={Link} href="/auth/login" variant="outlined" size="small" sx={{ borderRadius: 2, fontSize: '0.75rem' }}>
+                    Sign in
+                  </Button>
+                </Stack>
               </Box>
             ) : (
-              threadList.map((t) => (
+              <>
                 <Box
-                  key={t.id}
                   component="button"
-                  onClick={() => handleLoadThread(t.id)}
+                  onClick={handleNewChat}
                   sx={{
-                    all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center',
-                    justifyContent: 'space-between', gap: 1,
-                    width: '100%', px: 2, py: 1.5, mb: 0.75, borderRadius: 2,
-                    bgcolor: currentThreadId === t.id
-                      ? alpha(theme.palette.primary.main, 0.1)
-                      : 'transparent',
-                    border: `1px solid ${currentThreadId === t.id
-                      ? alpha(theme.palette.primary.main, 0.3)
-                      : alpha(theme.palette.divider, 0.6)}`,
+                    all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1,
+                    width: '100%', px: 2, py: 1.5, mb: 2, borderRadius: 2,
+                    border: `1.5px dashed ${alpha(theme.palette.primary.main, 0.4)}`,
+                    color: 'primary.main', fontWeight: 700, fontSize: '0.85rem',
                     '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) },
-                    transition: 'all 0.15s',
+                    transition: 'background 0.15s',
                   }}
                 >
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography
-                      variant="body2"
-                      fontWeight={600}
-                      noWrap
-                      sx={{ color: 'text.primary', maxWidth: 260 }}
-                    >
-                      {t.title}
+                  <AddIcon sx={{ fontSize: 18 }} />
+                  New conversation
+                </Box>
+
+                {threadList.length === 0 ? (
+                  <Box sx={{ textAlign: 'center', py: 6 }}>
+                    <ForumIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1.5 }} />
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                      No past conversations yet
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {formatRelative(t.updatedAt)}
+                    <Typography variant="caption" color="text.disabled">
+                      Start a chat and it will appear here
                     </Typography>
                   </Box>
-                  {currentThreadId === t.id && (
-                    <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: 'primary.main', flexShrink: 0 }} />
-                  )}
-                </Box>
-              ))
+                ) : (
+                  threadList.map((t) => (
+                    <Box
+                      key={t.id}
+                      onClick={() => handleLoadThread(t.id)}
+                      sx={{
+                        cursor: 'pointer', display: 'flex', alignItems: 'center',
+                        justifyContent: 'space-between', gap: 1,
+                        width: '100%', px: 2, py: 1.5, mb: 0.75, borderRadius: 2,
+                        bgcolor: currentThreadId === t.id
+                          ? alpha(theme.palette.primary.main, 0.1)
+                          : 'transparent',
+                        border: `1px solid ${currentThreadId === t.id
+                          ? alpha(theme.palette.primary.main, 0.3)
+                          : alpha(theme.palette.divider, 0.6)}`,
+                        '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) },
+                        '&:hover .delete-btn': { opacity: 1 },
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography variant="body2" fontWeight={600} noWrap sx={{ color: 'text.primary', maxWidth: 260 }}>
+                          {t.title}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatRelative(t.updatedAt)}
+                        </Typography>
+                      </Box>
+                      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexShrink: 0 }}>
+                        {currentThreadId === t.id && (
+                          <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: 'primary.main' }} />
+                        )}
+                        <IconButton
+                          className="delete-btn"
+                          size="small"
+                          onClick={(e) => { e.stopPropagation(); handleDeleteThread(t.id); }}
+                          sx={{
+                            p: 0.5, opacity: 0,
+                            color: 'text.disabled',
+                            transition: 'all 0.15s',
+                            '&:hover': { color: 'error.main', bgcolor: alpha('#ef4444', 0.1) },
+                          }}
+                        >
+                          <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Stack>
+                    </Box>
+                  ))
+                )}
+              </>
             )}
           </Box>
         )}
@@ -674,31 +624,6 @@ export default function Assistant() {
         {/* ---------------------------------------------------------------- */}
         {view === 'chat' && (
           <>
-            {/* Guest sign-up nudge */}
-            {!isAuthenticated && messages.length > 3 && (
-              <Box sx={{
-                mx: 2.5, mt: 1.5, px: 2, py: 1.25, borderRadius: 2,
-                bgcolor: isLight ? alpha('#3d5afe', 0.06) : alpha('#3d5afe', 0.12),
-                border: `1px solid ${alpha('#3d5afe', 0.2)}`,
-                display: 'flex', alignItems: 'center', gap: 1.5,
-              }}>
-                <LoginIcon sx={{ fontSize: 16, color: 'primary.main', flexShrink: 0 }} />
-                <Typography variant="caption" sx={{ flex: 1, color: 'text.secondary', fontSize: '0.72rem', lineHeight: 1.4 }}>
-                  Sign in to let Cerulea AI read your live project data
-                </Typography>
-                <Button
-                  component={Link}
-                  href="/auth/login"
-                  size="small"
-                  variant="contained"
-                  disableElevation
-                  sx={{ fontSize: '0.68rem', py: 0.4, px: 1.25, minWidth: 0, flexShrink: 0 }}
-                >
-                  Sign in
-                </Button>
-              </Box>
-            )}
-
             {/* Messages */}
             <Box
               ref={scrollRef}
@@ -757,6 +682,66 @@ export default function Assistant() {
                   </Box>
                 );
               })}
+
+              {/* Sign-in prompt — appears after first AI reply for guests */}
+              {showSignInPrompt && (
+                <Box
+                  sx={{
+                    mx: 0.5, mt: 0.5, px: 2, py: 1.75, borderRadius: 2.5,
+                    background: isLight
+                      ? `linear-gradient(135deg, ${alpha('#3d5afe', 0.06)} 0%, ${alpha('#7c3aed', 0.06)} 100%)`
+                      : `linear-gradient(135deg, ${alpha('#3d5afe', 0.15)} 0%, ${alpha('#7c3aed', 0.15)} 100%)`,
+                    border: `1px solid ${alpha('#3d5afe', 0.25)}`,
+                    position: 'relative',
+                  }}
+                >
+                  <IconButton
+                    size="small"
+                    onClick={() => setSignInDismissed(true)}
+                    sx={{ position: 'absolute', top: 6, right: 6, color: 'text.disabled', p: 0.25, '&:hover': { color: 'text.secondary' } }}
+                  >
+                    <CloseIcon sx={{ fontSize: 14 }} />
+                  </IconButton>
+                  <Stack direction="row" spacing={1.25} alignItems="flex-start" sx={{ mb: 1.25 }}>
+                    <Box sx={{
+                      width: 30, height: 30, borderRadius: '8px', flexShrink: 0,
+                      background: 'linear-gradient(135deg, #3d5afe 0%, #7c3aed 100%)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <AutoAwesomeIcon sx={{ fontSize: 15, color: 'white' }} />
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" fontWeight={700} sx={{ color: 'text.primary', mb: 0.4 }}>
+                        Get full project-aware assistance
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.55 }}>
+                        Sign in so I can read your live project — exact modules selected, schema configured, economics set — and give you specific, accurate guidance instead of generic steps.
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      component={Link}
+                      href="/auth/register"
+                      size="small"
+                      variant="contained"
+                      disableElevation
+                      sx={{ fontSize: '0.72rem', py: 0.5, px: 1.75, borderRadius: 1.5, fontWeight: 700 }}
+                    >
+                      Sign up free
+                    </Button>
+                    <Button
+                      component={Link}
+                      href="/auth/login"
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontSize: '0.72rem', py: 0.5, px: 1.75, borderRadius: 1.5 }}
+                    >
+                      Sign in
+                    </Button>
+                  </Stack>
+                </Box>
+              )}
 
               {isTyping && (
                 <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
