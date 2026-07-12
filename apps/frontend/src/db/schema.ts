@@ -190,6 +190,18 @@ export const snapshots = pgTable("snapshots", {
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
 });
 
+// MCP API keys. Cerulea generates a ck_live_* key once on creation;
+// only the SHA-256 hex digest is stored here. The key is shown once in the
+// Studio UI and never again — if lost, a new key must be issued.
+export const apiKeys = pgTable("apiKeys", {
+  id: text("id").primaryKey(),
+  userId: text("userId").notNull(),
+  keyHash: text("keyHash").notNull().unique(),
+  name: text("name").notNull(),
+  lastUsedAt: text("lastUsedAt"),
+  createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
+});
+
 export const userPlanSelections = pgTable("userPlanSelections", {
   id: text("id").primaryKey(),
   userId: text("userId").notNull(),
