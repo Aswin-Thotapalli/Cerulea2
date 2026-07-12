@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-12",
+  "integrations": [
+
+    { "id": "stripe",           "name": "Stripe",              "category": "Payments",       "description": "The standard for online payments and subscriptions.",               "docsUrl": "https://stripe.com/docs",              "fields": ["publishableKey","secretKey","webhookSecret"] },
+    { "id": "paypal",           "name": "PayPal",              "category": "Payments",       "description": "Accept PayPal, Venmo, and Pay Later options.",                      "fields": ["clientId","clientSecret","webhookId"] },
+    { "id": "coinbase",         "name": "Coinbase Commerce",   "category": "Payments",       "description": "Accept crypto payments directly to your wallet.",                   "fields": ["apiKey","webhookSecret"] },
+    { "id": "lemonsqueezy",     "name": "Lemon Squeezy",       "category": "Payments",       "description": "Merchant of record for SaaS tax compliance.",                       "fields": ["apiKey","storeId","webhookSecret"] },
+    { "id": "razorpay",         "name": "Razorpay",            "category": "Payments",       "description": "Payment gateway solution for India.",                               "fields": ["keyId","keySecret"] },
+
+    { "id": "clerk",            "name": "Clerk",               "category": "Auth",           "description": "Complete user management UIs and APIs.",                            "fields": ["publishableKey","secretKey"] },
+    { "id": "privy",            "name": "Privy",               "category": "Auth",           "description": "Onboard users to Web3 with embedded wallets.",                     "docsUrl": "https://docs.privy.io", "fields": ["appId","appSecret","verificationKey"] },
+    { "id": "dynamic",          "name": "Dynamic",             "category": "Auth",           "description": "Multi-chain wallet authentication adapter.",                        "fields": ["environmentId","apiSecret"] },
+    { "id": "auth0",            "name": "Auth0",               "category": "Auth",           "description": "Enterprise grade identity management.",                             "fields": ["domain","clientId","clientSecret"] },
+    { "id": "firebase",         "name": "Firebase Auth",       "category": "Auth",           "description": "Google's identity platform for apps.",                             "fields": ["apiKey","authDomain","projectId"] },
+    { "id": "sumsub",           "name": "Sumsub KYC",          "category": "Auth",           "description": "Identity verification and KYC.",                                    "docsUrl": "https://developers.sumsub.com", "fields": ["appToken","secretKey","baseUrl"] },
+    { "id": "chainalysis",      "name": "Chainalysis KYT",     "category": "Auth",           "description": "AML and sanctions screening of wallets.",                           "docsUrl": "https://docs.chainalysis.com", "fields": ["apiKey","endpoint"] },
+    { "id": "docusign",         "name": "DocuSign",            "category": "Auth",           "description": "E-signature for actors who cannot use wallet signatures.",          "docsUrl": "https://developers.docusign.com", "fields": ["integrationKey","userId","accountId","privateKey"] },
+
+    { "id": "sendgrid",         "name": "SendGrid",            "category": "Communication",  "description": "Transactional email delivery at scale.",                            "fields": ["apiKey","fromEmail"] },
+    { "id": "resend",           "name": "Resend",              "category": "Communication",  "description": "Modern email API for developers.",                                  "fields": ["apiKey","domain"] },
+    { "id": "twilio",           "name": "Twilio",              "category": "Communication",  "description": "SMS, WhatsApp, and Voice APIs.",                                    "fields": ["accountSid","authToken","messagingServiceSid"] },
+    { "id": "xmtp",             "name": "XMTP",                "category": "Communication",  "description": "Secure web3 messaging protocol.",                                   "fields": ["privateKey","env"] },
+    { "id": "push",             "name": "Push Protocol",       "category": "Communication",  "description": "Cross-chain notifications and messaging.",                          "fields": ["channelAddress","privateKey"] },
+
+    { "id": "s3",               "name": "AWS S3",              "category": "Storage",        "description": "Standard object storage.",                                          "fields": ["bucket","region","accessKey","secretKey"] },
+    { "id": "pinata",           "name": "Pinata",              "category": "Storage",        "description": "IPFS pinning service for NFTs.",                                    "fields": ["jwt","gateway"] },
+    { "id": "arweave",          "name": "Irys (Arweave)",      "category": "Storage",        "description": "Permanent decentralized data storage.",                             "fields": ["rpcUrl","privateKey"] },
+    { "id": "filecoin",         "name": "Lighthouse (Filecoin)","category": "Storage",       "description": "Perpetual file storage on Filecoin.",                               "fields": ["apiKey"] },
+    { "id": "supabase_storage", "name": "Supabase Storage",    "category": "Storage",        "description": "Storage integrated with Postgres RLS.",                             "fields": ["projectUrl","serviceKey","bucket"] },
+    { "id": "aws_kms",          "name": "AWS KMS",             "category": "Storage",        "description": "Platform signing keys for audit trail PDFs and chain signing.",     "docsUrl": "https://docs.aws.amazon.com/kms", "fields": ["keyArn","accessKey","secretKey","region"] },
+
+    { "id": "chainlink",        "name": "Chainlink",           "category": "Data",           "description": "Decentralized oracle networks.",                                    "fields": ["subId","rpcUrl"] },
+    { "id": "graph",            "name": "The Graph",           "category": "Data",           "description": "Index blockchain data with Subgraphs.",                             "fields": ["apiKey","subgraphId"] },
+    { "id": "alchemy",          "name": "Alchemy",             "category": "Data",           "description": "Web3 development platform and nodes.",                              "fields": ["apiKey","appId"] },
+    { "id": "moralis",          "name": "Moralis",             "category": "Data",           "description": "Enterprise-grade Web3 APIs.",                                       "fields": ["apiKey"] },
+    { "id": "pyth",             "name": "Pyth Network",        "category": "Data",           "description": "Real-time market data oracle.",                                     "fields": ["hermesUrl"] },
+    { "id": "apeda_agriexchange","name": "APEDA AgriExchange", "category": "Data",           "description": "Validate APEDA registration numbers and fetch exporter data.",      "fields": ["apiKey","endpoint"] },
+    { "id": "icegate_api",      "name": "ICEGATE (CBIC)",      "category": "Data",           "description": "Validate shipping bill numbers and LEO status from ICEGATE.",       "fields": ["userId","password","endpoint"] },
+    { "id": "nppo_dppq",        "name": "NPPO India / DPPQ",   "category": "Data",           "description": "Validate phytosanitary certificate numbers against DPPQ.",          "fields": ["apiKey","endpoint"] },
+
+    { "id": "posthog",          "name": "PostHog",             "category": "Analytics",      "description": "Product analytics and feature flags.",                              "fields": ["apiKey","host"] },
+    { "id": "segment",          "name": "Segment",             "category": "Analytics",      "description": "Customer data platform (CDP).",                                     "fields": ["writeKey"] },
+    { "id": "dune",             "name": "Dune API",            "category": "Analytics",      "description": "Blockchain data analytics.",                                        "fields": ["apiKey"] },
+    { "id": "ga4",              "name": "Google Analytics 4",  "category": "Analytics",      "description": "Web traffic measurement.",                                          "fields": ["measurementId","apiSecret"] },
+    { "id": "mixpanel",         "name": "Mixpanel",            "category": "Analytics",      "description": "Event analytics for mobile and web.",                              "fields": ["projectToken"] },
+    { "id": "cloudwatch_elk",   "name": "CloudWatch + ELK",    "category": "Analytics",      "description": "Centralized log aggregation for chain events and audit trails.",    "fields": ["awsAccessKey","awsSecretKey","awsRegion","elkEndpoint","elkApiKey"] },
+    { "id": "prometheus_grafana","name": "Prometheus + Grafana","category": "Analytics",     "description": "Real-time metrics for validator health, block time, and throughput.","fields": ["prometheusEndpoint","grafanaEndpoint","grafanaApiKey","alertmanagerUrl"] },
+
+    { "id": "slack_webhook",    "name": "Slack",               "category": "Webhooks",       "description": "Post messages to a Slack channel.",                                 "fields": ["webhookUrl"] },
+    { "id": "discord_webhook",  "name": "Discord",             "category": "Webhooks",       "description": "Send alerts to a Discord channel.",                                 "fields": ["webhookUrl"] },
+    { "id": "telegram_bot",     "name": "Telegram Bot",        "category": "Webhooks",       "description": "Send messages via a Telegram Bot.",                                 "fields": ["botToken","chatId"] },
+    { "id": "zapier",           "name": "Zapier",              "category": "Webhooks",       "description": "Trigger multi-step Zapier workflows.",                              "fields": ["webhookUrl"] },
+    { "id": "custom_webhook",   "name": "Custom Endpoint",     "category": "Webhooks",       "description": "Send JSON payloads to your own server.",                            "fields": ["url","secret","headers"] },
+    { "id": "pagerduty",        "name": "PagerDuty",           "category": "Webhooks",       "description": "Critical incident alerts — chain halt, validator down.",            "docsUrl": "https://developer.pagerduty.com", "fields": ["integrationKey","apiToken","serviceId"] }
+
+  ]
+}
