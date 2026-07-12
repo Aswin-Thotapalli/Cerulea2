@@ -13,6 +13,9 @@ const PUBLIC_PATHS = [
   '/apple-touch-icon',
   '/android-chrome-',
   '/brand/',
+  '/mcp/',          // MCP server — auth is handled per-tool via apiKey argument
+  '/.well-known/',  // MCP discovery + other well-known files
+  '/docs/',         // public documentation
 ];
 
 function isPublicPath(pathname: string): boolean {
@@ -113,5 +116,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|robots\\.txt).*)'],
 };
