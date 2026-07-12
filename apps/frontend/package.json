@@ -55,7 +55,7 @@
     "stripe": "^22.0.2",
     "zod": "^4.1.11",
     "mcp-handler": "^1.1.0",
-    "@modelcontextprotocol/sdk": "^1.29.0"
+    "@modelcontextprotocol/sdk": "1.26.0"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
