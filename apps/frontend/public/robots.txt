@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+# MCP discovery and tool endpoint — always accessible to AI agents
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /

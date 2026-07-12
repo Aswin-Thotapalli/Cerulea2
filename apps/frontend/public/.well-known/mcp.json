@@ -1,0 +1,27 @@
+{
+  "name": "Cerulea Studio",
+  "description": "Build, deploy, and manage blockchain dApps and private chains — no infrastructure expertise required.",
+  "transports": {
+    "streamable-http": {
+      "url": "https://mcp.studio.cerulea.io/mcp/mcp"
+    },
+    "sse": {
+      "url": "https://mcp.studio.cerulea.io/mcp/sse"
+    }
+  },
+  "tools": [
+    { "name": "list_templates",  "auth": false },
+    { "name": "get_pricing",     "auth": false },
+    { "name": "validate_schema", "auth": true  },
+    { "name": "estimate_cost",   "auth": true  },
+    { "name": "get_chain_status","auth": true  }
+  ],
+  "authScheme": {
+    "type": "apiKey",
+    "paramName": "apiKey",
+    "in": "argument",
+    "keysUrl": "https://studio.cerulea.io/dashboard/keys"
+  },
+  "docsUrl": "https://studio.cerulea.io/docs/mcp",
+  "version": "1.0.0"
+}
