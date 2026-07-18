@@ -320,7 +320,7 @@ export default function KeysPage() {
               </Paper>
               <Typography variant="caption" color="text.secondary">
                 Add this to your MCP client config under{' '}
-                <code>mcp.studio.cerulea.io/mcp/mcp</code>.
+                <code>studio.cerulea.io/mcp/mcp</code>.
                 Pass it as the <code>apiKey</code> argument in any Cerulea tool call.
               </Typography>
             </Stack>

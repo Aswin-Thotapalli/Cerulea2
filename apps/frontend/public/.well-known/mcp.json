@@ -3,10 +3,10 @@
   "description": "Build, deploy, and manage blockchain dApps and private chains — no infrastructure expertise required.",
   "transports": {
     "streamable-http": {
-      "url": "https://mcp.studio.cerulea.io/mcp/mcp"
+      "url": "https://studio.cerulea.io/mcp/mcp"
     },
     "sse": {
-      "url": "https://mcp.studio.cerulea.io/mcp/sse"
+      "url": "https://studio.cerulea.io/mcp/sse"
     }
   },
   "tools": [

@@ -9,8 +9,8 @@ export const metadata: Metadata = {
     'Connect Claude, Cursor, Copilot, and other AI agents to Cerulea Studio via the Model Context Protocol.',
 };
 
-const ENDPOINT = 'https://mcp.studio.cerulea.io/mcp/mcp';
-const SSE_ENDPOINT = 'https://mcp.studio.cerulea.io/mcp/sse';
+const ENDPOINT = 'https://studio.cerulea.io/mcp/mcp';
+const SSE_ENDPOINT = 'https://studio.cerulea.io/mcp/sse';
 const KEYS_URL = 'https://studio.cerulea.io/dashboard/keys';
 
 const tools = [

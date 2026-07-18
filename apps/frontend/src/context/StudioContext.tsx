@@ -65,6 +65,9 @@ export interface StudioState {
 
   // Legacy sub-path (Private Blockchain track only)
   legacyMode?: 'none' | 'connect' | 'port';
+
+  // Transient: prompt pre-filled from homepage URL, consumed by Assistant
+  pendingPrompt?: string | null;
 }
 
 export interface StudioContextType extends StudioState {

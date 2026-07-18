@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
@@ -11,6 +11,17 @@ export default function LoginPage() {
   const sp = useSearchParams();
   const router = useRouter();
   const next = sp.get('next') || '/dashboard';
+
+  // Save any prompt embedded in the `next` URL to sessionStorage so the
+  // register flow can pick it up even though it doesn't use the `next` param.
+  useEffect(() => {
+    try {
+      const nextUrl = new URL(next, window.location.origin);
+      const prompt = nextUrl.searchParams.get('prompt');
+      if (prompt) sessionStorage.setItem('ceruleai:pendingPrompt', prompt);
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const urlError = sp.get('error'); // NextAuth puts error here when it redirects to the error page
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
