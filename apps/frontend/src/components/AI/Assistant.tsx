@@ -125,6 +125,36 @@ export default function Assistant() {
   }, [sessionStatus, isAuthenticated, projectName]);
 
   // ---------------------------------------------------------------------------
+  // Auto-open on first load (before user has ever collapsed the panel)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!localStorage.getItem('ceruleai:hasCollapsed')) setOpen(true);
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Consume pending prompt from context (set by StudioEntry from ?prompt= URL)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const prompt = studio.pendingPrompt;
+    if (!prompt) return;
+    setInput(prompt);
+    setOpen(true);
+    studio.setStudioState({ pendingPrompt: null });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studio.pendingPrompt]);
+
+  // ---------------------------------------------------------------------------
+  // Consume pending prompt from sessionStorage (register flow fallback)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const saved = sessionStorage.getItem('ceruleai:pendingPrompt');
+    if (!saved) return;
+    sessionStorage.removeItem('ceruleai:pendingPrompt');
+    setInput(saved);
+    setOpen(true);
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // Load auth threads when drawer opens
   // ---------------------------------------------------------------------------
   const loadAuthThreads = useCallback(async () => {
@@ -409,7 +439,10 @@ export default function Assistant() {
       <Drawer
         anchor="right"
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={() => {
+          localStorage.setItem('ceruleai:hasCollapsed', '1');
+          setOpen(false);
+        }}
         PaperProps={{
           sx: {
             width: { xs: '92%', sm: 420 },
@@ -488,7 +521,10 @@ export default function Assistant() {
                 </IconButton>
               </Tooltip>
               <IconButton
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  localStorage.setItem('ceruleai:hasCollapsed', '1');
+                  setOpen(false);
+                }}
                 size="small"
                 sx={{ color: 'rgba(255,255,255,0.8)', '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
               >

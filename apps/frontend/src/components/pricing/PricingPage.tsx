@@ -195,8 +195,7 @@ export default function PricingPage() {
           Choose your plan
         </Typography>
         <Typography variant="body1" sx={{ opacity: 0.7, fontSize: '1.05rem' }}>
-          Start free on the testnet. Upgrade when you&apos;re ready to deploy to production.
-          All plans include access to Cerulea AI and the full module library.
+          Pick the plan that fits your scale. All plans include access to Cerulea AI and the full module library.
         </Typography>
         {session?.user && (
           <Typography variant="body2" sx={{ mt: 2, opacity: 0.6 }}>
@@ -211,8 +210,6 @@ export default function PricingPage() {
         spacing={3}
         sx={{ width: '100%', maxWidth: 1400, alignItems: 'stretch' }}
       >
-        <PlanCard plan={SANDBOX} isDark={isDark} theme={theme} onSelect={() => handleStaticSelect(SANDBOX)} />
-
         {TIERS.map((tier) => (
           <PlanCard
             key={tier.id}

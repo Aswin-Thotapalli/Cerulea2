@@ -47,8 +47,15 @@ export default function RegisterPage() {
       return;
     }
 
-    // 3. Go straight to the dashboard (pricing page is offline)
-    window.location.href = '/dashboard';
+    // 3. If the user arrived with a prompt from the homepage, send them to Studio with it.
+    //    Otherwise go to the dashboard.
+    const pendingPrompt = sessionStorage.getItem('ceruleai:pendingPrompt');
+    if (pendingPrompt) {
+      sessionStorage.removeItem('ceruleai:pendingPrompt');
+      window.location.href = `/?prompt=${encodeURIComponent(pendingPrompt)}`;
+    } else {
+      window.location.href = '/dashboard';
+    }
   };
 
   return (

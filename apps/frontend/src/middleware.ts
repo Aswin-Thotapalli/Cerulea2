@@ -58,7 +58,7 @@ export async function middleware(req: NextRequest) {
     const loginUrl = req.nextUrl.clone();
     loginUrl.pathname = '/auth/login';
     loginUrl.search = '';
-    loginUrl.searchParams.set('next', pathname);
+    loginUrl.searchParams.set('next', pathname + (req.nextUrl.search || ''));
     return NextResponse.redirect(loginUrl);
   }
 
