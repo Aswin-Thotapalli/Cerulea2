@@ -287,7 +287,6 @@ export default function Assistant() {
   // ---------------------------------------------------------------------------
   function handleNewChat() {
     if (typingTimerRef.current) window.clearTimeout(typingTimerRef.current);
-    if (streamTimerRef.current) window.clearInterval(streamTimerRef.current);
     setIsTyping(false);
     setInput('');
     setCurrentThreadId(null);
