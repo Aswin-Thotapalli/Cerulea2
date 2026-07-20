@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { hashPassword } from "@/lib/passwords";
 import { randomUUID } from "crypto";
+import { rateLimit, getClientIp } from "@/lib/rateLimit";
 
 const RegisterSchema = z.object({
   email: z.string().email(),
@@ -16,6 +17,12 @@ const RegisterSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const ip = getClientIp(req);
+  const rl = rateLimit(`register:${ip}`, 5, 60_000); // 5 registrations per minute per IP
+  if (!rl.ok) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } });
+  }
+
   const body = await req.json();
   const parsed = RegisterSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid inputs" }, { status: 400 });

@@ -118,7 +118,7 @@ export async function cancelSubscription(subscriptionId: string, atPeriodEnd: bo
     .update(subscriptions)
     .set({
       status: atPeriodEnd ? sub.status : 'canceled',
-      cancelAtPeriodEnd: atPeriodEnd ? 'true' : 'false',
+      cancelAtPeriodEnd: atPeriodEnd,
       updatedAt: new Date().toISOString(),
     })
     .where(eq(subscriptions.id as any, subscriptionId));
@@ -135,6 +135,6 @@ export async function resumeSubscription(subscriptionId: string): Promise<void> 
 
   await db
     .update(subscriptions)
-    .set({ cancelAtPeriodEnd: 'false', updatedAt: new Date().toISOString() })
+    .set({ cancelAtPeriodEnd: false, updatedAt: new Date().toISOString() })
     .where(eq(subscriptions.id as any, subscriptionId));
 }

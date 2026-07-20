@@ -76,7 +76,7 @@ export async function dispatchProvisioning(subscriptionId: string, opts?: { stri
     await queueAction(
       subscriptionId,
       addon.provisioningActionKey,
-      { addonId: addon.id, quantity: Number(row.quantity) || 1 },
+      { addonId: addon.id, quantity: row.quantity || 1 },
       opts?.stripeEventId
     );
   }

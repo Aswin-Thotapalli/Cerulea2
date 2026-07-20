@@ -1,8 +1,6 @@
 // apps/frontend/src/db/schema.ts
-import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, integer } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-
-const now = sql`now()`;
 
 export const workspaces = pgTable("workspaces", {
   id: text("id").primaryKey(),
@@ -35,7 +33,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   hashedPassword: text("hashedPassword"),
   name: text("name"),
-  isTestAccount: text("isTestAccount").default("false"),
+  isTestAccount: boolean("isTestAccount").default(false).notNull(),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
 });
@@ -107,7 +105,7 @@ export const subscriptions = pgTable("subscriptions", {
   stripeTierSubscriptionItemId: text("stripeTierSubscriptionItemId"),
   // Mirrors Stripe's cancel_at_period_end — true once the customer has
   // requested cancellation but the current paid period hasn't ended yet.
-  cancelAtPeriodEnd: text("cancelAtPeriodEnd").notNull().default("false"),
+  cancelAtPeriodEnd: boolean("cancelAtPeriodEnd").notNull().default(false),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
 });
@@ -122,7 +120,7 @@ export const subscriptionAddons = pgTable("subscriptionAddons", {
   id: text("id").primaryKey(),
   subscriptionId: text("subscriptionId").notNull(),
   addonId: text("addonId").notNull(),
-  quantity: text("quantity").notNull().default("1"),
+  quantity: integer("quantity").notNull().default(1),
   stripeSubscriptionItemId: text("stripeSubscriptionItemId"),
   status: text("status").notNull().default("active"), // active | removed
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
@@ -139,7 +137,7 @@ export const billingOneTimePurchases = pgTable("billingOneTimePurchases", {
   kind: text("kind").notNull(), // 'addon_one_time' | 'export'
   addonId: text("addonId"), // catalog addon id, or EXPORT_ACTION.id for exports
   stripeCheckoutSessionId: text("stripeCheckoutSessionId"),
-  amountCents: text("amountCents"),
+  amountCents: integer("amountCents"),
   status: text("status").notNull().default("pending"), // pending | paid | failed
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
@@ -165,7 +163,7 @@ export const smartContracts = pgTable("smartContracts", {
   projectId: text("projectId").notNull(),
   name: text("name").notNull(),
   contractType: text("contractType").notNull(),
-  enabled: text("enabled").notNull().default("true"),
+  enabled: boolean("enabled").notNull().default(true),
   description: text("description"),
   whyItExists: text("whyItExists"),
   ifDisabled: text("ifDisabled"),

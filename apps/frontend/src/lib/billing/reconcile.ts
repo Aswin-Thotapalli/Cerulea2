@@ -86,7 +86,7 @@ export async function reconcileFromStripeSubscription(
 
   const subscriptionId = existing?.id ?? randomUUID();
 
-  const cancelAtPeriodEnd = (sub as any).cancel_at_period_end ? 'true' : 'false';
+  const cancelAtPeriodEnd = !!(sub as any).cancel_at_period_end;
 
   if (existing) {
     await db
