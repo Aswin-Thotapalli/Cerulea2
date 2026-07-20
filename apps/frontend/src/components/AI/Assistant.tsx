@@ -109,6 +109,7 @@ export default function Assistant() {
   const initializedRef = useRef(false);
   const lastLoadedForRef = useRef<string | null>(null);
   const skipThreadLoadRef = useRef(false);
+  const pendingAutoSendRef = useRef<string | null>(null);
 
   // ---------------------------------------------------------------------------
   // Greeting
@@ -144,7 +145,7 @@ export default function Assistant() {
     const urlPrompt = params.get('prompt');
     if (urlPrompt) {
       skipThreadLoadRef.current = true;
-      setInput(urlPrompt);
+      pendingAutoSendRef.current = urlPrompt;
       setOpen(true);
       const clean = new URL(window.location.href);
       clean.searchParams.delete('prompt');
@@ -154,11 +155,24 @@ export default function Assistant() {
     const saved = sessionStorage.getItem('ceruleai:pendingPrompt');
     if (saved) {
       skipThreadLoadRef.current = true;
+      pendingAutoSendRef.current = saved;
       sessionStorage.removeItem('ceruleai:pendingPrompt');
-      setInput(saved);
       setOpen(true);
     }
   }, []);
+
+  // Fire the auto-send once the session has resolved so auth state is known
+  // before we create a thread and send the first message.
+  useEffect(() => {
+    if (sessionStatus === 'loading') return;
+    if (!pendingAutoSendRef.current) return;
+    const prompt = pendingAutoSendRef.current;
+    pendingAutoSendRef.current = null;
+    // Small delay so the greeting message renders before the user turn appears
+    const t = window.setTimeout(() => handleSend(prompt), 300);
+    return () => window.clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionStatus]);
 
   // ---------------------------------------------------------------------------
   // Load auth threads when drawer opens
