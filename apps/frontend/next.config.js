@@ -3,10 +3,6 @@ const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@cerulea/types', '@cerulea/ui', '@cerulea/utils'],
 
-  // Prevent webpack from bundling these server packages that use package-export
-  // wildcard patterns webpack 5 can't resolve at build time.
-  serverExternalPackages: ['@modelcontextprotocol/sdk', 'mcp-handler'],
-
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
 

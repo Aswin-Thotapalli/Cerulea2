@@ -319,9 +319,8 @@ export default function KeysPage() {
                 </Stack>
               </Paper>
               <Typography variant="caption" color="text.secondary">
-                Add this to your MCP client config under{' '}
-                <code>studio.cerulea.io/mcp/mcp</code>.
-                Pass it as the <code>apiKey</code> argument in any Cerulea tool call.
+                Pass this key as the <code>apiKey</code> argument when using Cerulea API tools.
+                Keep it secret — it grants access to your account.
               </Typography>
             </Stack>
           )}

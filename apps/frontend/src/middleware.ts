@@ -13,8 +13,7 @@ const PUBLIC_PATHS = [
   '/apple-touch-icon',
   '/android-chrome-',
   '/brand/',
-  '/mcp/',          // MCP server — auth is handled per-tool via apiKey argument
-  '/.well-known/',  // MCP discovery + other well-known files
+  '/.well-known/',  // well-known files
   '/docs/',         // public documentation
 ];
 
