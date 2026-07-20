@@ -13,9 +13,7 @@ export function rateLimit(
 
   // Lazy cleanup to keep the map from growing unbounded
   if (cache.size > 5000) {
-    for (const [k, v] of cache) {
-      if (now > v.expiresAt) cache.delete(k);
-    }
+    cache.forEach((v, k) => { if (now > v.expiresAt) cache.delete(k); });
   }
 
   const entry = cache.get(key);

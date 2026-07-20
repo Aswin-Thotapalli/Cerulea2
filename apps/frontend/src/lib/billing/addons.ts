@@ -76,7 +76,7 @@ export async function addAddonToSubscription(
     await db
       .update(subscriptionAddons)
       .set({
-        quantity: String(qty),
+        quantity: qty,
         stripeSubscriptionItemId: stripeItemId,
         status: 'active',
         updatedAt: new Date().toISOString(),
@@ -87,7 +87,7 @@ export async function addAddonToSubscription(
       id: randomUUID(),
       subscriptionId,
       addonId,
-      quantity: String(qty),
+      quantity: qty,
       stripeSubscriptionItemId: stripeItemId,
       status: 'active',
     });

@@ -104,7 +104,7 @@ async function recordOneTimePurchase(p: {
     kind: p.kind,
     addonId: p.addonId,
     stripeCheckoutSessionId: p.stripeCheckoutSessionId ?? null,
-    amountCents: p.amountCents != null ? String(p.amountCents) : null,
+    amountCents: p.amountCents,
     status: p.status,
   });
 }
