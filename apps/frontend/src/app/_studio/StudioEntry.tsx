@@ -7,9 +7,9 @@ import StudioShell from '@/app/_studio/shell/StudioShell';
 import StudioLanding from '@/app/_studio/StudioLanding';
 import { useStudio } from '@/context/StudioContext';
 
-type Props = { projectId?: string | null; initialPrompt?: string | null };
+type Props = { projectId?: string | null };
 
-export default function StudioEntry({ projectId: initialProjectId, initialPrompt }: Props) {
+export default function StudioEntry({ projectId: initialProjectId }: Props) {
   const { setStudioState } = useStudio();
   const [resolvedId, setResolvedId] = useState<string | null>(null);
   const [initialStep, setInitialStep] = useState(0);
@@ -18,14 +18,6 @@ export default function StudioEntry({ projectId: initialProjectId, initialPrompt
   const [mode, setMode] = useState<'landing' | 'studio'>('landing');
 
   useEffect(() => {
-    // Write prompt to context so Assistant can consume it, then clean URL
-    if (initialPrompt) {
-      setStudioState({ pendingPrompt: initialPrompt });
-      const url = new URL(window.location.href);
-      url.searchParams.delete('prompt');
-      window.history.replaceState(null, '', url.pathname + (url.search || ''));
-    }
-
     async function init() {
       // If a project param is already in the URL, go straight into studio
       if (initialProjectId) {
