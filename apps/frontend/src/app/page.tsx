@@ -24,10 +24,7 @@ export default async function Home({ searchParams }: { searchParams?: SearchPara
     const projectId = searchParams?.project
       ? String(searchParams.project)
       : null;
-    const initialPrompt = searchParams?.prompt
-      ? String(searchParams.prompt)
-      : null;
-    return <StudioEntry projectId={projectId} initialPrompt={initialPrompt} />;
+    return <StudioEntry projectId={projectId} />;
   }
 
   // Regular marketing / landing page for everything else

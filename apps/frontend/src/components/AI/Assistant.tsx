@@ -132,26 +132,29 @@ export default function Assistant() {
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Consume pending prompt from context (set by StudioEntry from ?prompt= URL)
+  // Consume pending prompt — reads directly from URL or sessionStorage.
+  // URL (?prompt=) is the path for logged-in users redirected from homepage.
+  // sessionStorage is the fallback for the register flow.
+  // Reading from window.location here avoids the dynamic-import timing issue
+  // where StudioEntry may mount after this effect has already run.
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    const prompt = studio.pendingPrompt;
-    if (!prompt) return;
-    setInput(prompt);
-    setOpen(true);
-    studio.setStudioState({ pendingPrompt: null });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studio.pendingPrompt]);
-
-  // ---------------------------------------------------------------------------
-  // Consume pending prompt from sessionStorage (register flow fallback)
-  // ---------------------------------------------------------------------------
-  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlPrompt = params.get('prompt');
+    if (urlPrompt) {
+      setInput(urlPrompt);
+      setOpen(true);
+      const clean = new URL(window.location.href);
+      clean.searchParams.delete('prompt');
+      window.history.replaceState(null, '', clean.toString());
+      return;
+    }
     const saved = sessionStorage.getItem('ceruleai:pendingPrompt');
-    if (!saved) return;
-    sessionStorage.removeItem('ceruleai:pendingPrompt');
-    setInput(saved);
-    setOpen(true);
+    if (saved) {
+      sessionStorage.removeItem('ceruleai:pendingPrompt');
+      setInput(saved);
+      setOpen(true);
+    }
   }, []);
 
   // ---------------------------------------------------------------------------
