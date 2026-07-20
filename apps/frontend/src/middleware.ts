@@ -61,11 +61,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Admin subdomain: only allow test@cerulea.app / isTestAccount
+  // Admin subdomain: allow test@cerulea.app, isTestAccount, or ADMIN_EMAIL env var
   if (isAdminHost) {
+    const adminEmails = (process.env.ADMIN_EMAIL ?? '')
+      .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+    const userEmail = ((token.email as string) ?? '').toLowerCase();
     const isAdminUser =
-      (token.email as string) === 'test@cerulea.app' ||
-      (token.isTestAccount as boolean) === true;
+      userEmail === 'test@cerulea.app' ||
+      (token.isTestAccount as boolean) === true ||
+      adminEmails.includes(userEmail);
 
     if (!isAdminUser) {
       // Redirect non-admin users back to main site
@@ -88,11 +92,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  // Block /admin/* on the main host — only test accounts may access it.
+  // Block /admin/* on the main host — only admin users may access it.
   if (pathname.startsWith('/admin') && !isAdminHost) {
+    const adminEmails = (process.env.ADMIN_EMAIL ?? '')
+      .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+    const userEmail = ((token.email as string) ?? '').toLowerCase();
     const isAdminUser =
-      (token.email as string) === 'test@cerulea.app' ||
-      (token.isTestAccount as boolean) === true;
+      userEmail === 'test@cerulea.app' ||
+      (token.isTestAccount as boolean) === true ||
+      adminEmails.includes(userEmail);
     if (!isAdminUser) {
       const dashboardUrl = req.nextUrl.clone();
       dashboardUrl.pathname = '/dashboard';

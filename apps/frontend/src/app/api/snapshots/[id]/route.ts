@@ -3,6 +3,7 @@ import { db } from '@/db/client';
 import { snapshots } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
+import { logAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     await db.delete(snapshots).where(
       and(eq(snapshots.id, params.id), eq(snapshots.userId, session.user.id))
     );
+    logAudit({ userId: session.user.id, actorEmail: session.user.email ?? undefined, action: 'snapshot.delete', resource: 'snapshot', resourceId: params.id, status: 'success' });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
