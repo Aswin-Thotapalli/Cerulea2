@@ -12,7 +12,8 @@ export async function GET(_: Request, { params }: Params) {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const [proj] = await db.select().from(projects)
-    .where(and(eq(projects.id, params.id), eq(projects.userId, session.user.id)));
+    .where(and(eq(projects.id, params.id), eq(projects.userId, session.user.id)))
+    .limit(1);
   if (!proj) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const [last] = await db.select().from(drafts)
@@ -31,7 +32,8 @@ export async function PUT(req: Request, { params }: Params) {
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
 
   const [proj] = await db.select().from(projects)
-    .where(and(eq(projects.id, params.id), eq(projects.userId, session.user.id)));
+    .where(and(eq(projects.id, params.id), eq(projects.userId, session.user.id)))
+    .limit(1);
   if (!proj) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const { randomUUID } = await import('crypto');

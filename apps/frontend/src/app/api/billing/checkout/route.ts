@@ -46,7 +46,10 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
     }
-    const { tierId, addons, returnUrl } = parsed.data;
+    const { tierId, addons, returnUrl: rawReturnUrl } = parsed.data;
+  const returnUrl = rawReturnUrl && rawReturnUrl.startsWith('/') && !rawReturnUrl.startsWith('//')
+    ? rawReturnUrl
+    : undefined;
 
     const tier = getTierById(tierId);
     if (!tier) return NextResponse.json({ ok: false, error: 'Invalid tier' }, { status: 400 });

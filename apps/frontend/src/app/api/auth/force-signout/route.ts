@@ -11,7 +11,8 @@ const COOKIE_NAMES = [
 ];
 
 export async function GET(req: NextRequest) {
-  const next = req.nextUrl.searchParams.get('next') || '/';
+  const raw = req.nextUrl.searchParams.get('next') || '/';
+  const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
   const cookieDomain = process.env.AUTH_COOKIE_DOMAIN;
   // Use the same HTTPS check as auth.ts — req.nextUrl.protocol is unreliable behind Vercel's proxy
   const isHttps = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;

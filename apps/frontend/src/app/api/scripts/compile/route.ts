@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,9 @@ async function compileSol(source: string) {
 }
 
 export async function POST(req: Request) {
+  const session = await getSession();
+  if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+
   try {
     const { searchParams } = new URL(req.url);
     const lang = (searchParams.get('lang') || 'ts').toLowerCase();

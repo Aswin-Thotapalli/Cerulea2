@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth';
 
 export async function POST(req: Request) {
+  const session = await getSession();
+  if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+
   const { sources } = await req.json().catch(() => ({ sources: {} }));
   try {
     // solc must be installed in apps/frontend: npm i solc

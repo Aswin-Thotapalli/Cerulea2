@@ -31,13 +31,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const patch: Partial<typeof snapshots.$inferInsert> = {};
     if (body.name !== undefined) patch.name = body.name;
     if (body.description !== undefined) patch.description = body.description;
-    if (body.status !== undefined) patch.status = body.status;
+    const ALLOWED_STATUSES = ['ready', 'archived', 'failed'];
+    if (body.status !== undefined && ALLOWED_STATUSES.includes(body.status)) patch.status = body.status;
 
     await db.update(snapshots)
       .set({ ...patch, updatedAt: new Date().toISOString() })
       .where(and(eq(snapshots.id, params.id), eq(snapshots.userId, session.user.id)));
 
-    const [row] = await db.select().from(snapshots).where(eq(snapshots.id, params.id));
+    const [row] = await db.select().from(snapshots)
+      .where(and(eq(snapshots.id, params.id), eq(snapshots.userId, session.user.id)));
     return NextResponse.json({ ok: true, snapshot: row });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
