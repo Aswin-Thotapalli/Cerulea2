@@ -4,6 +4,7 @@ import { snapshots } from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { randomUUID } from 'crypto';
+import { logAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +52,7 @@ export async function POST(req: Request) {
     });
 
     const [row] = await db.select().from(snapshots).where(eq(snapshots.id, id));
+    logAudit({ userId: session.user.id, actorEmail: session.user.email ?? undefined, action: 'snapshot.create', resource: 'snapshot', resourceId: id, status: 'success' });
     return NextResponse.json({ ok: true, snapshot: row }, { status: 201 });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });

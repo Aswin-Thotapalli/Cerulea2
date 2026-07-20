@@ -1,5 +1,5 @@
 // apps/frontend/src/db/schema.ts
-import { pgTable, text, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, integer, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const workspaces = pgTable("workspaces", {
@@ -28,7 +28,10 @@ export const projects = pgTable("projects", {
   status: text("status").default("draft"),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
-});
+}, (t) => [
+  index("idx_projects_userid").on(t.userId),
+  index("idx_projects_status").on(t.status),
+]);
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -56,7 +59,9 @@ export const verificationTokens = pgTable("verificationTokens", {
   token: text("token").notNull(),
   expiresAt: text("expiresAt").notNull(),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
-});
+}, (t) => [
+  index("idx_verificationtokens_identifier").on(t.identifier),
+]);
 
 export const drafts = pgTable("drafts", {
   id: text("id").primaryKey(),
@@ -64,7 +69,9 @@ export const drafts = pgTable("drafts", {
   data: text("data"),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
-});
+}, (t) => [
+  index("idx_drafts_projectid").on(t.projectId),
+]);
 
 export const aiThreads = pgTable("aiThreads", {
   id: text("id").primaryKey(),
@@ -73,7 +80,10 @@ export const aiThreads = pgTable("aiThreads", {
   title: text("title"),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
-});
+}, (t) => [
+  index("idx_aithreads_userid").on(t.userId),
+  index("idx_aithreads_projectid").on(t.projectId),
+]);
 
 export const aiMessages = pgTable("aiMessages", {
   id: text("id").primaryKey(),
@@ -82,7 +92,9 @@ export const aiMessages = pgTable("aiMessages", {
   content: text("content").notNull(),
   meta: text("meta"),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
-});
+}, (t) => [
+  index("idx_aimessages_threadid").on(t.threadId),
+]);
 
 // `plan` historically held 'free' | 'developer' | 'pro' | 'enterprise'.
 // It now also holds the Cerulea Studio billing-catalog tier ids
@@ -103,7 +115,9 @@ export const subscriptions = pgTable("subscriptions", {
   cancelAtPeriodEnd: boolean("cancelAtPeriodEnd").notNull().default(false),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
-});
+}, (t) => [
+  index("idx_subscriptions_userid").on(t.userId),
+]);
 
 export const subscriptionAddons = pgTable("subscriptionAddons", {
   id: text("id").primaryKey(),
@@ -114,7 +128,9 @@ export const subscriptionAddons = pgTable("subscriptionAddons", {
   status: text("status").notNull().default("active"),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
-});
+}, (t) => [
+  index("idx_subscriptionaddons_subscriptionid").on(t.subscriptionId),
+]);
 
 export const billingOneTimePurchases = pgTable("billingOneTimePurchases", {
   id: text("id").primaryKey(),
@@ -155,7 +171,9 @@ export const smartContracts = pgTable("smartContracts", {
   source: text("source").default("module"),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
-});
+}, (t) => [
+  index("idx_smartcontracts_projectid").on(t.projectId),
+]);
 
 export const snapshots = pgTable("snapshots", {
   id: text("id").primaryKey(),
@@ -167,7 +185,9 @@ export const snapshots = pgTable("snapshots", {
   status: text("status").notNull().default("ready"),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
-});
+}, (t) => [
+  index("idx_snapshots_projectid").on(t.projectId),
+]);
 
 export const apiKeys = pgTable("apiKeys", {
   id: text("id").primaryKey(),
@@ -176,7 +196,9 @@ export const apiKeys = pgTable("apiKeys", {
   name: text("name").notNull(),
   lastUsedAt: text("lastUsedAt"),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
-});
+}, (t) => [
+  index("idx_apikeys_userid").on(t.userId),
+]);
 
 // Records the last billing-catalog plan the user clicked "Subscribe" on,
 // regardless of whether checkout completed. Useful for analytics and

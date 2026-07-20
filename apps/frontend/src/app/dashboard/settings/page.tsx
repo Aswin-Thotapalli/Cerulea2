@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box, Typography, Paper, Stack, Button, Switch, FormControlLabel,
-  TextField, Divider, LinearProgress, Chip, Alert,
+  TextField, Divider, LinearProgress, Chip, Alert, CircularProgress,
   Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -27,14 +27,16 @@ import LaptopIcon from '@mui/icons-material/Laptop';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 
 const PLAN_COLOR: Record<string, string> = {
-  Developer: '#4F46E5', Pro: '#9c27b0', Enterprise: '#f59e0b', free: '#6b7280',
+  public_dapps: '#4F46E5',
+  private_dapps: '#9c27b0',
+  private_dapps_pro: '#f59e0b',
+  free: '#6b7280',
 };
-
-const USAGE = {
-  projects: { used: 3, limit: 5 },
-  deployments: { used: 12, limit: 20 },
-  apiCalls: { used: 48_200, limit: 100_000 },
-  storage: { used: 4.8, limit: 10 },
+const PLAN_LABEL: Record<string, string> = {
+  public_dapps: 'Public dApps',
+  private_dapps: 'Private dApps',
+  private_dapps_pro: 'Private dApps Pro',
+  free: 'Free',
 };
 
 function SectionHeader({ icon, label, color = '#4F46E5', badge }: { icon: React.ReactNode; label: string; color?: string; badge?: React.ReactNode }) {
@@ -88,18 +90,18 @@ export default function SettingsPage() {
   const router = useRouter();
   const { data: session } = useSession();
 
-  const [name, setName] = useState(session?.user?.name || '');
-  const [email, setEmail] = useState(session?.user?.email || '');
+  const [name, setName] = useState('');
   const [company, setCompany] = useState('');
   const [role, setRole] = useState('');
+  const [profileLoading, setProfileLoading] = useState(true);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [twoFaEnabled, setTwoFaEnabled] = useState(false);
 
-  const [notifCritical] = useState(true);
   const [notifDigest, setNotifDigest] = useState(true);
   const [notifMarketing, setNotifMarketing] = useState(false);
   const [notifTips, setNotifTips] = useState(true);
@@ -110,13 +112,53 @@ export default function SettingsPage() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetDone, setResetDone] = useState(false);
 
-  const isTestAccount = session?.user?.email === 'test@cerulea.app';
-  const currentPlan = 'Developer';
-  const planColor = PLAN_COLOR[currentPlan] || '#4F46E5';
+  const [projectCount, setProjectCount] = useState<number | null>(null);
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  const isTestAccount = session?.user?.email === 'test@cerulea.app';
+  const user = session?.user as any;
+  const currentPlan: string = user?.plan ?? 'free';
+  const planColor = PLAN_COLOR[currentPlan] ?? '#6b7280';
+  const planLabel = PLAN_LABEL[currentPlan] ?? currentPlan;
+
+  const isDark = theme.palette.mode === 'dark';
+
+  // Load profile data
+  useEffect(() => {
+    fetch('/api/profile')
+      .then(r => r.json())
+      .then(d => {
+        if (d.user) setName(d.user.name ?? '');
+        if (d.profile) {
+          setCompany(d.profile.company ?? '');
+          setRole(d.profile.role ?? '');
+        }
+      })
+      .catch(() => {})
+      .finally(() => setProfileLoading(false));
+  }, []);
+
+  // Load real project count
+  useEffect(() => {
+    fetch('/api/projects')
+      .then(r => r.json())
+      .then(d => setProjectCount((d.projects ?? []).length))
+      .catch(() => {});
+  }, []);
+
+  const handleSave = async () => {
+    setSaveError(null);
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, company, role }),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch {
+      setSaveError('Failed to save. Please try again.');
+    }
   };
 
   const handleResetTestAccount = async () => {
@@ -140,8 +182,6 @@ export default function SettingsPage() {
     } catch {} finally { setResetLoading(false); }
   };
 
-  const isDark = theme.palette.mode === 'dark';
-
   return (
     <Box sx={{ p: 4, maxWidth: 860, mx: 'auto' }}>
       {/* Header */}
@@ -160,16 +200,23 @@ export default function SettingsPage() {
       <Paper variant="outlined" sx={{ borderRadius: 3, mb: 3, overflow: 'hidden' }}>
         <SectionHeader icon={<PersonIcon sx={{ fontSize: 15, color: '#4F46E5' }} />} label="PROFILE" />
         <Box sx={{ p: 3 }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, mb: 2.5 }}>
-            <TextField label="Full Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth size="small" />
-            <TextField label="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth size="small" type="email" />
-            <TextField label="Company / Organisation" value={company} onChange={(e) => setCompany(e.target.value)} fullWidth size="small" placeholder="Cerulea Bytechians" />
-            <TextField label="Role" value={role} onChange={(e) => setRole(e.target.value)} fullWidth size="small" placeholder="Founder, Developer…" />
-          </Box>
-          <Button variant="contained" startIcon={saved ? <CheckCircleIcon /> : <SaveIcon />}
-            onClick={handleSave} color={saved ? 'success' : 'primary'} sx={{ fontWeight: 700, borderRadius: 1 }}>
-            {saved ? 'Saved!' : 'Save Changes'}
-          </Button>
+          {profileLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={24} /></Box>
+          ) : (
+            <>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2.5, mb: 2.5 }}>
+                <TextField label="Full Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth size="small" />
+                <TextField label="Email Address" value={session?.user?.email ?? ''} fullWidth size="small" type="email" disabled helperText="Email cannot be changed" />
+                <TextField label="Company / Organisation" value={company} onChange={(e) => setCompany(e.target.value)} fullWidth size="small" placeholder="Cerulea Bytechians" />
+                <TextField label="Role" value={role} onChange={(e) => setRole(e.target.value)} fullWidth size="small" placeholder="Founder, Developer…" />
+              </Box>
+              {saveError && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{saveError}</Alert>}
+              <Button variant="contained" startIcon={saved ? <CheckCircleIcon /> : <SaveIcon />}
+                onClick={handleSave} color={saved ? 'success' : 'primary'} sx={{ fontWeight: 700, borderRadius: 1 }}>
+                {saved ? 'Saved!' : 'Save Changes'}
+              </Button>
+            </>
+          )}
         </Box>
       </Paper>
 
@@ -208,38 +255,6 @@ export default function SettingsPage() {
             </Box>
             <Switch size="small" checked={twoFaEnabled} onChange={(e) => setTwoFaEnabled(e.target.checked)} sx={{ flexShrink: 0, mt: 0.25 }} />
           </Stack>
-
-          <Divider sx={{ mb: 3 }} />
-
-          {/* Sessions */}
-          <Typography variant="subtitle2" fontWeight={700} mb={1.5}>Active Sessions</Typography>
-          <Stack spacing={1.5} mb={2}>
-            {[
-              { device: 'Chrome on Windows', location: 'Hyderabad, IN', current: true },
-              { device: 'Safari on iPhone', location: 'Hyderabad, IN', current: false },
-            ].map((s, i) => (
-              <Stack key={i} direction="row" alignItems="center" spacing={1.5} sx={{
-                p: 1.5, borderRadius: 1.5, border: '1px solid', borderColor: 'divider',
-                bgcolor: s.current ? alpha('#4F46E5', 0.03) : 'transparent',
-              }}>
-                <Box sx={{ width: 32, height: 32, borderRadius: 1, bgcolor: alpha('#4F46E5', 0.08), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <LaptopIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-                </Box>
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="caption" fontWeight={700} display="block">{s.device}</Typography>
-                  <Typography variant="caption" color="text.secondary">{s.location}</Typography>
-                </Box>
-                {s.current ? (
-                  <Chip label="This device" size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, bgcolor: alpha('#10b981', 0.1), color: '#10b981' }} />
-                ) : (
-                  <Button size="small" color="error" sx={{ fontSize: '0.72rem', minWidth: 0, px: 1 }}>Revoke</Button>
-                )}
-              </Stack>
-            ))}
-          </Stack>
-          <Button size="small" variant="outlined" color="error" sx={{ borderRadius: 1, fontSize: '0.75rem', fontWeight: 700 }}>
-            Sign Out All Other Sessions
-          </Button>
         </Box>
       </Paper>
 
@@ -284,7 +299,7 @@ export default function SettingsPage() {
                 Create and manage API keys for programmatic access to Cerulea APIs.
               </Typography>
               <Button size="small" variant="outlined" endIcon={<ArrowForwardIcon sx={{ fontSize: 13 }} />}
-                onClick={() => router.push('/dashboard/api-keys')}
+                onClick={() => router.push('/dashboard/keys')}
                 sx={{ borderRadius: 1, fontWeight: 700, fontSize: '0.72rem', borderColor: alpha('#06b6d4', 0.4), color: '#06b6d4' }}>
                 Manage Keys
               </Button>
@@ -346,16 +361,13 @@ export default function SettingsPage() {
               <Typography variant="overline" sx={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: 1, color: planColor }}>SUBSCRIPTION</Typography>
             </Stack>
             <Box sx={{ px: 1.5, py: 0.5, borderRadius: 2, bgcolor: alpha(planColor, 0.12), color: planColor, fontWeight: 900, fontSize: '0.8rem', border: `1px solid ${alpha(planColor, 0.25)}` }}>
-              {currentPlan}
+              {planLabel}
             </Box>
           </Stack>
         </Box>
         <Box sx={{ p: 3 }}>
           <Stack spacing={2.5} mb={3}>
-            <UsageMeter label="Projects" used={USAGE.projects.used} limit={USAGE.projects.limit} />
-            <UsageMeter label="Deployments this month" used={USAGE.deployments.used} limit={USAGE.deployments.limit} />
-            <UsageMeter label="API Calls" used={USAGE.apiCalls.used} limit={USAGE.apiCalls.limit} unit="calls" />
-            <UsageMeter label="Storage" used={USAGE.storage.used} limit={USAGE.storage.limit} unit="GB" />
+            <UsageMeter label="Projects" used={projectCount ?? 0} limit={currentPlan === 'free' ? 1 : currentPlan === 'public_dapps' ? 3 : 999} />
           </Stack>
           <Divider sx={{ mb: 2.5 }} />
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} justifyContent="space-between">
