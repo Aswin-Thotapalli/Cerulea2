@@ -14,11 +14,9 @@ export const maxDuration = 60;
 export async function GET(req: Request) {
   // Vercel cron calls this with Authorization: Bearer $CRON_SECRET
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const auth = req.headers.get('authorization');
-    if (auth !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const auth = req.headers.get('authorization');
+  if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const queued = await db
