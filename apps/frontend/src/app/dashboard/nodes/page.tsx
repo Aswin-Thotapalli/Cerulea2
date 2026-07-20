@@ -55,22 +55,25 @@ export default function NodesPage() {
   useEffect(() => {
     if (!session) return;
     if (isTestAccount) { setNodes(TEST_NODES); setLoading(false); return; }
-    (async () => {
-      try {
-        const res = await fetch('/api/projects');
-        if (!res.ok) { setLoading(false); return; }
-        const j = await res.json();
-        const userProjects = (j.projects || []).filter((p: any) => p.status === 'active');
-        const derived: Node[] = [];
-        userProjects.forEach((p: any) => {
-          derived.push(
-            { id: `node-val-${p.id.slice(0, 6)}`, role: 'Validator', status: 'Active', region: 'us-east-1', uptime: 99.9, network: p.name, cpuPct: 25, memPct: 45 },
-            { id: `node-rpc-${p.id.slice(0, 6)}`, role: 'RPC', status: 'Active', region: 'eu-west-1', uptime: 100, network: p.name, cpuPct: 18, memPct: 38 },
-          );
-        });
+    // Nodes map 1:1 with projects — no real node metrics until infrastructure is provisioned.
+    fetch('/api/projects')
+      .then(r => r.json())
+      .then(j => {
+        const userProjects = (j.projects || []);
+        const derived: Node[] = userProjects.map((p: any) => ({
+          id: p.id,
+          role: 'Validator' as const,
+          status: p.status === 'active' ? 'Active' as const : 'Syncing' as const,
+          region: '—',
+          uptime: 0,
+          network: p.name,
+          cpuPct: 0,
+          memPct: 0,
+        }));
         setNodes(derived);
-      } catch {} finally { setLoading(false); }
-    })();
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [session, isTestAccount]);
 
   const activeNodes = nodes.filter((n) => n.status === 'Active');

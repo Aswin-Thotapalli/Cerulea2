@@ -4,7 +4,9 @@ import { sql } from "drizzle-orm";
 
 export const workspaces = pgTable("workspaces", {
   id: text("id").primaryKey(),
+  userId: text("userId"),
   name: text("name").notNull(),
+  slug: text("slug"),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
 });
 
@@ -15,7 +17,7 @@ export const projects = pgTable("projects", {
   description: text("description"),
   projectType: text("projectType").notNull(),
   workspaceId: text("workspaceId"),
-  userId: text("userId"),
+  userId: text("userId").notNull(),
   selectedTemplateIds: text("selectedTemplateIds"),
   blueprint: text("blueprint"),
   graph: text("graph"),
@@ -96,64 +98,43 @@ export const subscriptions = pgTable("subscriptions", {
   stripeSubscriptionId: text("stripeSubscriptionId"),
   status: text("status").notNull().default("inactive"),
   currentPeriodEnd: text("currentPeriodEnd"),
-  // Guards webhook handlers against reprocessing the same Stripe event twice.
   lastWebhookEventId: text("lastWebhookEventId"),
-  // The Stripe Subscription Item id for the TIER's own recurring price
-  // (distinct from subscriptionAddons, which only tracks add-on items).
-  // Needed so changeSubscriptionTier can update the right line item when
-  // a customer upgrades/downgrades.
   stripeTierSubscriptionItemId: text("stripeTierSubscriptionItemId"),
-  // Mirrors Stripe's cancel_at_period_end — true once the customer has
-  // requested cancellation but the current paid period hasn't ended yet.
   cancelAtPeriodEnd: boolean("cancelAtPeriodEnd").notNull().default(false),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
 });
 
-// One row per active (or formerly active) add-on line item on a
-// subscription. `addonId` is a catalog id from billing-catalog.ts.
-// `quantity` is stored as text (project convention) and parsed as an int
-// in application code. `stripeSubscriptionItemId` is set for the recurring
-// component of an add-on (Stripe Subscription Items API); it is null for
-// purely one-time add-ons, which have no ongoing subscription item.
 export const subscriptionAddons = pgTable("subscriptionAddons", {
   id: text("id").primaryKey(),
   subscriptionId: text("subscriptionId").notNull(),
   addonId: text("addonId").notNull(),
   quantity: integer("quantity").notNull().default(1),
   stripeSubscriptionItemId: text("stripeSubscriptionItemId"),
-  status: text("status").notNull().default("active"), // active | removed
+  status: text("status").notNull().default("active"),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
 });
 
-// Records one-off charges that are NOT recurring subscription items:
-// one-time add-on components (custom domain, block explorer setup fee)
-// and pay-per-use actions (chain data export). `kind` distinguishes them.
 export const billingOneTimePurchases = pgTable("billingOneTimePurchases", {
   id: text("id").primaryKey(),
   subscriptionId: text("subscriptionId"),
   userId: text("userId").notNull(),
-  kind: text("kind").notNull(), // 'addon_one_time' | 'export'
-  addonId: text("addonId"), // catalog addon id, or EXPORT_ACTION.id for exports
+  kind: text("kind").notNull(),
+  addonId: text("addonId"),
   stripeCheckoutSessionId: text("stripeCheckoutSessionId"),
   amountCents: integer("amountCents"),
-  status: text("status").notNull().default("pending"), // pending | paid | failed
+  status: text("status").notNull().default("pending"),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
 });
 
-// Audit/dispatch log for infrastructure provisioning actions triggered by
-// webhook-driven subscription reconciliation (see
-// src/lib/billing/provisioning.ts). Lets the webhook dispatcher stay
-// idempotent and gives ops a queue/audit trail of what should happen on
-// the infra side for a given subscription state change.
 export const provisioningLog = pgTable("provisioningLog", {
   id: text("id").primaryKey(),
   subscriptionId: text("subscriptionId").notNull(),
   actionKey: text("actionKey").notNull(),
-  payload: text("payload"), // JSON.stringify'd action payload
-  status: text("status").notNull().default("queued"), // queued | done | failed
+  payload: text("payload"),
+  status: text("status").notNull().default("queued"),
   stripeEventId: text("stripeEventId"),
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
 });
@@ -188,9 +169,6 @@ export const snapshots = pgTable("snapshots", {
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
 });
 
-// MCP API keys. Cerulea generates a ck_live_* key once on creation;
-// only the SHA-256 hex digest is stored here. The key is shown once in the
-// Studio UI and never again — if lost, a new key must be issued.
 export const apiKeys = pgTable("apiKeys", {
   id: text("id").primaryKey(),
   userId: text("userId").notNull(),
@@ -200,9 +178,28 @@ export const apiKeys = pgTable("apiKeys", {
   createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
 });
 
+// Records the last billing-catalog plan the user clicked "Subscribe" on,
+// regardless of whether checkout completed. Useful for analytics and
+// recovering abandoned checkouts.
 export const userPlanSelections = pgTable("userPlanSelections", {
   id: text("id").primaryKey(),
   userId: text("userId").notNull(),
   selectedPlan: text("selectedPlan").notNull(),
   selectedAt: text("selectedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
+});
+
+// Platform-level audit trail. Written on login, register, project CRUD,
+// snapshot CRUD, billing events. Admin panel reads this for operations visibility.
+export const auditLogs = pgTable("auditLogs", {
+  id: text("id").primaryKey(),
+  userId: text("userId"),
+  actorEmail: text("actorEmail"),
+  actorType: text("actorType").default("user"),
+  action: text("action").notNull(),
+  resource: text("resource"),
+  resourceId: text("resourceId"),
+  metadata: text("metadata"),
+  ip: text("ip"),
+  status: text("status").notNull().default("success"),
+  createdAt: text("createdAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
 });

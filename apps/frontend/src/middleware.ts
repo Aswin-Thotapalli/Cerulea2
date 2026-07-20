@@ -88,6 +88,19 @@ export async function middleware(req: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
+  // Block /admin/* on the main host — only test accounts may access it.
+  if (pathname.startsWith('/admin') && !isAdminHost) {
+    const isAdminUser =
+      (token.email as string) === 'test@cerulea.app' ||
+      (token.isTestAccount as boolean) === true;
+    if (!isAdminUser) {
+      const dashboardUrl = req.nextUrl.clone();
+      dashboardUrl.pathname = '/dashboard';
+      dashboardUrl.search = '';
+      return NextResponse.redirect(dashboardUrl);
+    }
+  }
+
   // Require an active paid plan to access the app. New users (plan === 'free')
   // and users whose subscription lapsed are sent to /pricing to subscribe.
   // /pricing and /pricing/success are already in PUBLIC_PATHS so they pass through.

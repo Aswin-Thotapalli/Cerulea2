@@ -12,7 +12,7 @@ import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { getSession } from '@/lib/auth';
 import { db } from '@/db/client';
-import { subscriptions } from '@/db/schema';
+import { subscriptions, userPlanSelections } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import {
   TIERS,
@@ -53,6 +53,9 @@ export async function POST(req: Request) {
 
     const tier = getTierById(tierId);
     if (!tier) return NextResponse.json({ ok: false, error: 'Invalid tier' }, { status: 400 });
+
+    // Record the plan selection regardless of checkout outcome.
+    db.insert(userPlanSelections).values({ id: randomUUID(), userId: session.user.id, selectedPlan: tierId }).catch(() => {});
 
     // Validate every selected add-on is eligible for this tier.
     for (const sel of addons) {

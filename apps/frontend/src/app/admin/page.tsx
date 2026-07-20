@@ -1,7 +1,8 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import {
-  Box, Typography, Paper, Stack, Chip, LinearProgress, Divider,
+  Box, Typography, Paper, Stack, Chip, LinearProgress, Divider, CircularProgress,
 } from '@mui/material';
 import Grid from '@mui/material/GridLegacy';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -10,9 +11,9 @@ import PeopleIcon from '@mui/icons-material/People';
 import CorporateFareIcon from '@mui/icons-material/CorporateFare';
 import FolderIcon from '@mui/icons-material/Folder';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
-import ErrorIcon from '@mui/icons-material/Error';
-import ApiIcon from '@mui/icons-material/Api';
+import HexagonOutlinedIcon from '@mui/icons-material/HexagonOutlined';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import CameraIcon from '@mui/icons-material/Camera';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -75,80 +76,19 @@ function KpiCard({ label, value, sub, delta, deltaUp, color, icon }: KpiProps) {
   );
 }
 
-const KPI_DATA: KpiProps[] = [
-  {
-    label: 'Total Users',
-    value: '2,841',
-    sub: '+18 this week',
-    delta: '+0.6%',
-    deltaUp: true,
-    color: '#448aff',
-    icon: <PeopleIcon sx={{ fontSize: 24 }} />,
-  },
-  {
-    label: 'Active Orgs',
-    value: '312',
-    sub: '28 enterprise',
-    delta: '+4',
-    deltaUp: true,
-    color: '#ce93d8',
-    icon: <CorporateFareIcon sx={{ fontSize: 24 }} />,
-  },
-  {
-    label: 'Total Projects',
-    value: '4,190',
-    sub: '1,247 dApp / 2,943 Chain',
-    delta: '+31',
-    deltaUp: true,
-    color: '#80deea',
-    icon: <FolderIcon sx={{ fontSize: 24 }} />,
-  },
-  {
-    label: 'Active Deployments',
-    value: '817',
-    sub: 'Across all networks',
-    delta: '+5',
-    deltaUp: true,
-    color: '#4caf50',
-    icon: <RocketLaunchIcon sx={{ fontSize: 24 }} />,
-  },
-  {
-    label: 'Failed Deployments',
-    value: '14',
-    sub: 'Last 24 hours',
-    delta: '-3',
-    deltaUp: true,
-    color: '#f44336',
-    icon: <ErrorIcon sx={{ fontSize: 24 }} />,
-  },
-  {
-    label: 'API Requests Today',
-    value: '9.2M',
-    sub: 'Avg 106/s',
-    delta: '+12%',
-    deltaUp: true,
-    color: '#ff9800',
-    icon: <ApiIcon sx={{ fontSize: 24 }} />,
-  },
-  {
-    label: 'AI Requests Today',
-    value: '142K',
-    sub: 'CeruleAI completions',
-    delta: '+7%',
-    deltaUp: true,
-    color: '#ab47bc',
-    icon: <SmartToyIcon sx={{ fontSize: 24 }} />,
-  },
-  {
-    label: 'Revenue Today',
-    value: '$3,840',
-    sub: 'Stripe + subscriptions',
-    delta: '+$210',
-    deltaUp: true,
-    color: '#26a69a',
-    icon: <AttachMoneyIcon sx={{ fontSize: 24 }} />,
-  },
-];
+type AdminStats = {
+  totalUsers: number;
+  totalProjects: number;
+  activeSubscriptions: number;
+  revenueTotal: number;
+  blockchainProjects: number;
+  dappProjects: number;
+  totalSnapshots: number;
+  totalAiThreads: number;
+  planBreakdown: Record<string, number>;
+  recentUsers: any[];
+  recentProjects: any[];
+};
 
 type ServiceStatus = {
   name: string;
@@ -213,6 +153,22 @@ export default function AdminOverviewPage() {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/admin/stats').then(r => r.json()).then(d => { setStats(d); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
+
+  const kpiData: KpiProps[] = stats ? [
+    { label: 'Total Users', value: stats.totalUsers.toLocaleString(), sub: `${stats.activeSubscriptions} with active plan`, color: '#448aff', icon: <PeopleIcon sx={{ fontSize: 24 }} /> },
+    { label: 'Total Projects', value: stats.totalProjects.toLocaleString(), sub: `${stats.dappProjects} dApp / ${stats.blockchainProjects} Chain`, color: '#80deea', icon: <FolderIcon sx={{ fontSize: 24 }} /> },
+    { label: 'Blockchain Projects', value: stats.blockchainProjects.toLocaleString(), sub: 'L1 chains created', color: '#ce93d8', icon: <HexagonOutlinedIcon sx={{ fontSize: 24 }} /> },
+    { label: 'Active Subscriptions', value: stats.activeSubscriptions.toLocaleString(), sub: 'Paid plans', color: '#4caf50', icon: <RocketLaunchIcon sx={{ fontSize: 24 }} /> },
+    { label: 'AI Conversations', value: stats.totalAiThreads.toLocaleString(), sub: 'CeruleAI threads total', color: '#ab47bc', icon: <SmartToyIcon sx={{ fontSize: 24 }} /> },
+    { label: 'Snapshots', value: stats.totalSnapshots.toLocaleString(), sub: 'Studio checkpoints saved', color: '#ff9800', icon: <CameraIcon sx={{ fontSize: 24 }} /> },
+  ] : [];
+
   return (
     <Box sx={{ maxWidth: 1400 }}>
       {/* Header */}
@@ -242,13 +198,17 @@ export default function AdminOverviewPage() {
       </Stack>
 
       {/* KPI Cards */}
-      <Grid container spacing={2} mb={4}>
-        {KPI_DATA.map((kpi) => (
-          <Grid key={kpi.label} xs={12} sm={6} md={3}>
-            <KpiCard {...kpi} />
-          </Grid>
-        ))}
-      </Grid>
+      {loading ? (
+        <Box display="flex" justifyContent="center" py={6}><CircularProgress size={32} /></Box>
+      ) : (
+        <Grid container spacing={2} mb={4}>
+          {kpiData.map((kpi) => (
+            <Grid key={kpi.label} xs={12} sm={6} md={4}>
+              <KpiCard {...kpi} />
+            </Grid>
+          ))}
+        </Grid>
+      )}
 
       <Grid container spacing={3}>
         {/* Platform Health */}

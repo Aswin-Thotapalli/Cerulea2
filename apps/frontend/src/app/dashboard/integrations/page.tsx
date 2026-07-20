@@ -111,11 +111,40 @@ export default function IntegrationsPage() {
       .catch(() => {});
   }, []);
 
+  // Load saved integration configs when the selected project changes.
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    fetch(`/api/projects/${selectedProjectId}/integrations`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.ok && j.configs) {
+          setIntegrations(STUB_INTEGRATIONS.map((i) => ({
+            ...i,
+            enabled: i.id in j.configs,
+          })));
+        }
+      })
+      .catch(() => {});
+  }, [selectedProjectId]);
+
   const apiEndpoints = selectedProjectId ? makeEndpoints(selectedProjectId) : [];
   const webhookConfig = selectedProjectId ? makeWebhook(selectedProjectId) : null;
 
   const toggle = (id: string) => {
-    setIntegrations((prev) => prev.map((i) => (i.id === id ? { ...i, enabled: !i.enabled } : i)));
+    setIntegrations((prev) => {
+      const next = prev.map((i) => (i.id === id ? { ...i, enabled: !i.enabled } : i));
+      // Persist the updated enabled set to the project's integration config.
+      if (selectedProjectId) {
+        const configs: Record<string, boolean> = {};
+        next.filter((i) => i.enabled).forEach((i) => { configs[i.id] = true; });
+        fetch(`/api/projects/${selectedProjectId}/integrations`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ configs }),
+        }).catch(() => {});
+      }
+      return next;
+    });
   };
 
   const current = integrations.find((i) => i.id === reConfigId);

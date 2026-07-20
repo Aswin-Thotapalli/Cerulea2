@@ -20,13 +20,13 @@ import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 type Network = {
   id: string;
   name: string;
-  type: 'L1' | 'dApp';
-  status: 'live' | 'deploying' | 'paused';
-  blockHeight: number;
-  tps: number;
+  type: string;
+  status: string;
+  blockHeight: number | null;
+  tps: number | null;
   lastBlock: string;
   region: string;
-  consensusHealth: number;
+  consensusHealth: number | null;
 };
 
 const TEST_NETWORKS: Network[] = [
@@ -39,9 +39,10 @@ const TEST_NETWORKS: Network[] = [
 ];
 
 const STATUS_META: Record<string, { color: string; label: string }> = {
-  live: { color: '#10b981', label: 'Live' },
+  live:      { color: '#10b981', label: 'Live' },
   deploying: { color: '#f59e0b', label: 'Deploying' },
-  paused: { color: '#6b7db3', label: 'Paused' },
+  paused:    { color: '#6b7db3', label: 'Paused' },
+  building:  { color: '#6b7db3', label: 'Building' },
 };
 
 type Project = { id: string; name: string; projectType: string; status: string };
@@ -57,32 +58,29 @@ export default function NetworksPage() {
   useEffect(() => {
     if (!session) return;
     if (isTestAccount) { setNetworks(TEST_NETWORKS); setLoading(false); return; }
-    (async () => {
-      try {
-        const res = await fetch('/api/projects');
-        if (!res.ok) { setLoading(false); return; }
-        const j = await res.json();
-        const userProjects: Project[] = j.projects || [];
-        const derived: Network[] = userProjects
-          .filter((p) => p.status === 'active' || p.status === 'deploying')
-          .map((p, i) => ({
-            id: `net-${p.id}`, name: p.name, type: p.projectType === 'blockchain' ? 'L1' : 'dApp',
-            status: p.status === 'active' ? 'live' : 'deploying',
-            blockHeight: p.status === 'active' ? Math.floor(Math.random() * 100_000) + 1000 : 0,
-            tps: p.status === 'active' ? Math.floor(Math.random() * 30) + 1 : 0,
-            lastBlock: p.status === 'active' ? `${i * 3 + 2} sec ago` : 'N/A',
-            region: ['us-east-1', 'eu-west-1', 'ap-southeast-1'][i % 3],
-            consensusHealth: p.status === 'active' ? 99.0 + Math.random() * 0.9 : 0,
-          }));
+    fetch('/api/dashboard/networks')
+      .then(r => r.json())
+      .then(j => {
+        const raw: any[] = j.networks || [];
+        const derived: Network[] = raw.map(n => ({
+          id: n.id, name: n.name, type: n.type ?? (n.projectType === 'blockchain' ? 'L1' : 'dApp'),
+          status: n.status ?? 'building',
+          blockHeight: n.blockHeight ?? null,
+          tps: n.tps ?? null,
+          lastBlock: n.blockHeight ? 'live' : 'not deployed',
+          region: '—',
+          consensusHealth: n.consensusHealth ?? null,
+        }));
         setNetworks(derived);
-      } catch {} finally { setLoading(false); }
-    })();
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [session, isTestAccount]);
 
   const liveNets = networks.filter((n) => n.status === 'live');
-  const totalTPS = liveNets.reduce((s, n) => s + n.tps, 0);
+  const totalTPS = liveNets.reduce((s, n) => s + (n.tps ?? 0), 0);
   const avgConsensus = liveNets.length > 0
-    ? (liveNets.reduce((s, n) => s + n.consensusHealth, 0) / liveNets.length).toFixed(1)
+    ? (liveNets.reduce((s, n) => s + (n.consensusHealth ?? 0), 0) / liveNets.length).toFixed(1)
     : 'N/A';
 
   const goToStudio = () => {
@@ -175,7 +173,7 @@ export default function NetworksPage() {
                 </TableHead>
                 <TableBody>
                   {networks.map((net) => {
-                    const sm = STATUS_META[net.status];
+                    const sm = STATUS_META[net.status] ?? STATUS_META['building'];
                     const typeColor = net.type === 'L1' ? '#8b5cf6' : '#4F46E5';
                     return (
                       <TableRow key={net.id} sx={{
@@ -198,15 +196,15 @@ export default function NetworksPage() {
                           </Stack>
                         </TableCell>
                         <TableCell>
-                          <Typography variant="body2" fontWeight={600}>{net.blockHeight > 0 ? net.blockHeight.toLocaleString() : '—'}</Typography>
+                          <Typography variant="body2" fontWeight={600}>{(net.blockHeight ?? 0) > 0 ? net.blockHeight!.toLocaleString() : '—'}</Typography>
                         </TableCell>
                         <TableCell>
-                          <Typography variant="body2" fontWeight={600}>{net.tps > 0 ? `${net.tps} tx/s` : '—'}</Typography>
+                          <Typography variant="body2" fontWeight={600}>{(net.tps ?? 0) > 0 ? `${net.tps} tx/s` : '—'}</Typography>
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" fontWeight={600}
-                            sx={{ color: net.consensusHealth >= 99 ? '#10b981' : net.consensusHealth >= 90 ? '#f59e0b' : net.consensusHealth > 0 ? '#ef4444' : 'text.disabled' }}>
-                            {net.consensusHealth > 0 ? `${net.consensusHealth.toFixed(1)}%` : '—'}
+                            sx={{ color: (net.consensusHealth ?? 0) >= 99 ? '#10b981' : (net.consensusHealth ?? 0) >= 90 ? '#f59e0b' : (net.consensusHealth ?? 0) > 0 ? '#ef4444' : 'text.disabled' }}>
+                            {(net.consensusHealth ?? 0) > 0 ? `${net.consensusHealth!.toFixed(1)}%` : '—'}
                           </Typography>
                         </TableCell>
                         <TableCell>
