@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Box, Typography, Paper, Stack, Chip, Button,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -60,27 +60,59 @@ function exportCSV(logs: LogEntry[]) {
   a.click(); URL.revokeObjectURL(url);
 }
 
+type RealLog = {
+  id: string;
+  createdAt: string;
+  actorEmail: string | null;
+  actorType: string | null;
+  action: string;
+  resource: string | null;
+  status: string;
+};
+
 export default function AuditPage() {
   const theme = useTheme();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [realLogs, setRealLogs] = useState<RealLog[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = useMemo(() => STUB_LOGS.filter((l) => {
-    const matchSearch = l.actor.toLowerCase().includes(search.toLowerCase()) ||
+  useEffect(() => {
+    fetch('/api/dashboard/audit-logs')
+      .then(r => r.json())
+      .then(d => { setRealLogs(d.logs ?? []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  // Map real logs to the LogEntry shape the UI expects.
+  const logs: LogEntry[] = realLogs.map(l => ({
+    id: l.id,
+    timestamp: l.createdAt,
+    actor: l.actorEmail ?? 'system',
+    action: l.action,
+    resource: l.resource ?? '',
+    category: l.action.split('.')[0] ?? 'other',
+    status: (l.status === 'success' || l.status === 'failure' || l.status === 'warning') ? l.status : 'success',
+  }));
+
+  const filtered = useMemo(() => logs.filter((l) => {
+    const matchSearch = !search ||
+      l.actor.toLowerCase().includes(search.toLowerCase()) ||
       l.action.toLowerCase().includes(search.toLowerCase()) ||
       l.resource.toLowerCase().includes(search.toLowerCase());
-    const matchCat = category === 'all' || l.category === category;
     const matchStatus = statusFilter === 'all' || l.status === statusFilter;
-    return matchSearch && matchCat && matchStatus;
-  }), [search, category, statusFilter]);
+    const matchCategory = category === 'all' || l.category === category;
+    return matchSearch && matchStatus && matchCategory;
+  }), [logs, search, statusFilter, category]);
 
-  const todayCount = STUB_LOGS.filter((l) => l.timestamp.startsWith('2026-04-17')).length;
-  const failureCount = STUB_LOGS.filter((l) => l.status === 'failure').length;
-  const warningCount = STUB_LOGS.filter((l) => l.status === 'warning').length;
+  const today = new Date().toISOString().slice(0, 10);
+  const todayCount = logs.filter((l) => l.timestamp.startsWith(today)).length;
+  const failureCount = logs.filter((l) => l.status === 'failure').length;
+  const warningCount = logs.filter((l) => l.status === 'warning').length;
 
   const stats = [
-    { label: 'Total Events', value: STUB_LOGS.length, color: '#4F46E5' },
+    { label: 'Total Events', value: logs.length, color: '#4F46E5' },
     { label: 'Today', value: todayCount, color: '#06b6d4' },
     { label: 'Failures', value: failureCount, color: '#ef4444' },
     { label: 'Warnings', value: warningCount, color: '#f59e0b' },
@@ -137,7 +169,7 @@ export default function AuditPage() {
           {CATEGORIES.map((c) => {
             const isActive = category === c;
             const color = CAT_COLOR[c] || '#4F46E5';
-            const enabledCount = c === 'all' ? STUB_LOGS.length : STUB_LOGS.filter((l) => l.category === c).length;
+            const enabledCount = c === 'all' ? logs.length : logs.filter((l) => l.category === c).length;
             return (
               <Box key={c} onClick={() => setCategory(c)} sx={{
                 display: 'flex', alignItems: 'center', gap: 0.75,

@@ -1,25 +1,39 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
+import { db } from '@/db/client';
+import { projects } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
-// Stub network data replace with real on-chain queries after deployment infrastructure is wired.
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const session = await getSession();
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const networks = [
-    {
-      id: 'net-001',
-      name: 'Cerulea Testnet',
-      type: 'L1',
-      status: 'live',
-      blockHeight: 1842371,
-      tps: 47.2,
-      lastBlock: new Date(Date.now() - 3000).toISOString(),
-      region: 'apac-south',
-      nodeCount: 3,
-      consensusHealth: 99.7,
-    },
-  ];
+  try {
+    const userProjects = await db
+      .select({ id: projects.id, name: projects.name, projectType: projects.projectType, status: projects.status, createdAt: projects.createdAt, updatedAt: projects.updatedAt })
+      .from(projects)
+      .where(eq(projects.userId, session.user.id));
 
-  return NextResponse.json({ networks });
+    // Real on-chain metrics are unavailable until deployment infrastructure is
+    // wired — null values distinguish "not deployed yet" from "0 TPS".
+    const networks = userProjects.map(p => ({
+      id: p.id,
+      name: p.name,
+      type: p.projectType === 'blockchain' ? 'L1' : 'dApp',
+      projectType: p.projectType,
+      status: p.status === 'active' ? 'live' : 'building',
+      blockHeight: null,
+      tps: null,
+      lastUpdated: p.updatedAt,
+      createdAt: p.createdAt,
+      nodeCount: null,
+      consensusHealth: null,
+    }));
+
+    return NextResponse.json({ networks });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
 }

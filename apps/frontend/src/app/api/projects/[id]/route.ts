@@ -6,6 +6,7 @@ import { db } from '@/db/client';
 import { projects, drafts } from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
+import { logAudit } from '@/lib/audit';
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -83,6 +84,8 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
 
     await db.delete(drafts).where(eq(drafts.projectId as any, params.id));
     await db.delete(projects).where(eq(projects.id as any, params.id));
+
+    logAudit({ userId: session.user.id, actorEmail: session.user.email ?? undefined, action: 'project.delete', resource: 'project', resourceId: params.id, status: 'success' });
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {

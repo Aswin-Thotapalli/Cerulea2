@@ -7,6 +7,7 @@ import { users, subscriptions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs"; // pure-JS — no native bindings, works on Vercel serverless
 import { rateLimit } from "@/lib/rateLimit";
+import { logAudit } from "@/lib/audit";
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
@@ -97,6 +98,12 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+
+  events: {
+    async signIn({ user }) {
+      logAudit({ userId: (user as any).id, actorEmail: user.email ?? undefined, action: 'auth.login', resource: 'user', resourceId: (user as any).id, status: 'success' });
+    },
+  },
 
   callbacks: {
     async jwt({ token, user, trigger }) {

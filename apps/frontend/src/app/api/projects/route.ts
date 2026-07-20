@@ -4,6 +4,7 @@ import { projects, workspaces } from '@/db/schema';
 import { eq, and, like, desc } from 'drizzle-orm';
 import slugifyLib from 'slugify';
 import { getSession } from '@/lib/auth';
+import { logAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -125,6 +126,8 @@ export async function POST(req: Request) {
       status: (body?.status ?? 'draft') as any,
       legacyMode: (body?.legacyMode ?? 'none') as any,
     });
+
+    logAudit({ userId, actorEmail: session.user.email ?? undefined, action: 'project.create', resource: 'project', resourceId: id, status: 'success' });
 
     return NextResponse.json({ ok: true, id });
   } catch (err: any) {

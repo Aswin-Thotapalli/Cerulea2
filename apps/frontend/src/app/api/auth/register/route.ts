@@ -7,6 +7,7 @@ import { z } from "zod";
 import { hashPassword } from "@/lib/passwords";
 import { randomUUID } from "crypto";
 import { rateLimit, getClientIp } from "@/lib/rateLimit";
+import { logAudit } from "@/lib/audit";
 
 const RegisterSchema = z.object({
   email: z.string().email(),
@@ -44,6 +45,8 @@ export async function POST(req: Request) {
     company: parsed.data.company,
     role: parsed.data.role,
   });
+
+  logAudit({ userId: newUser.id, actorEmail: email, action: 'auth.register', resource: 'user', resourceId: newUser.id, ip, status: 'success' });
 
   return NextResponse.json({ ok: true });
 }
