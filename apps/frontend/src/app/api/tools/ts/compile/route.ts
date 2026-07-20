@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth';
 
 export async function POST(req: Request) {
+  const session = await getSession();
+  if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+
   const { code } = await req.json().catch(() => ({ code: '' }));
   try {
     const ts = await import('typescript'); // lazy load

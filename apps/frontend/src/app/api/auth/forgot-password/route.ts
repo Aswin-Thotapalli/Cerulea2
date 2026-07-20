@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { db } from "@/db/client";
 import { users, verificationTokens } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { rateLimit, getClientIp } from "@/lib/rateLimit";
 
 /**
  * IMPORTANT:
@@ -45,6 +46,10 @@ async function sendResetEmail(email: string, token: string) {
 }
 
 export async function POST(req: Request) {
+  const ip = getClientIp(req);
+  const rl = rateLimit(`forgot-password:${ip}`, 5, 60_000);
+  if (!rl.ok) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+
   try {
     const body = await req.json();
     const email = body?.email;
@@ -65,6 +70,9 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ success: true });
     }
+
+    // Invalidate any prior tokens for this user so old reset emails can't be reused
+    await db.delete(verificationTokens).where(eq(verificationTokens.identifier, `pwd:${user.id}`));
 
     const token = randomUUID();
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60).toISOString(); // 1 hour

@@ -10,7 +10,8 @@ function PricingSuccessInner() {
   const { update } = useSession();
   const router = useRouter();
   const params = useSearchParams();
-  const returnUrl = params.get('return');
+  const raw = params.get('return');
+  const returnUrl = raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : null;
   const [done, setDone] = React.useState(false);
 
   React.useEffect(() => {
