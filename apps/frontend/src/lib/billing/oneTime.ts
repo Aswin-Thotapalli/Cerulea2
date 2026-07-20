@@ -85,7 +85,8 @@ export async function createOneTimeCheckout(
     cancel_url: params.cancelUrl,
   });
 
-  return { url: session.url! };
+  if (!session.url) throw new Error('Stripe did not return a checkout URL');
+  return { url: session.url };
 }
 
 async function recordOneTimePurchase(p: {

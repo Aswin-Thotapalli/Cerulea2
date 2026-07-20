@@ -22,13 +22,16 @@ export async function GET() {
     });
   }
 
-  const [sub] = await db
-    .select()
-    .from(subscriptions)
-    .where(eq(subscriptions.userId as any, session.user.id))
-    .limit(1);
-
-  return NextResponse.json({ ok: true, subscription: sub ?? null });
+  try {
+    const [sub] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.userId as any, session.user.id))
+      .limit(1);
+    return NextResponse.json({ ok: true, subscription: sub ?? null });
+  } catch (err: any) {
+    return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
+  }
 }
 
 export async function DELETE() {
