@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getSession } from "@/lib/auth";
+import { rateLimit, getClientIp } from "@/lib/rateLimit";
 import { db } from "@/db/client";
 import { projects, drafts, smartContracts, aiThreads, aiMessages } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
@@ -109,7 +110,7 @@ async function fetchProjectContext(projectId: string, userId: string): Promise<s
       : [];
 
     const contractsSummary = allContracts.map((c: any) =>
-      `${c.name} (${c.contractType}) — ${c.enabled !== "false" ? "ENABLED" : "DISABLED"}`
+      `${c.name} (${c.contractType}) — ${String(c.enabled) !== 'false' ? "ENABLED" : "DISABLED"}`
     );
 
     const configuredSteps = {
@@ -187,6 +188,13 @@ DRAFT PROGRESS (steps with saved data): [${Object.keys(draftsByStep).join(", ")}
 }
 
 export async function POST(req: Request) {
+  // Rate limit: 30 requests per minute per IP
+  const ip = getClientIp(req);
+  const rl = rateLimit(`ceruleai:${ip}`, 30, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json({ message: 'Too many requests' }, { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } });
+  }
+
   const body = await req.json().catch(() => ({}));
 
   const userMessage: string = body?.message ?? "";
@@ -275,31 +283,55 @@ Respond as CeruleAI:
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: modelName });
 
-    const result = await model.generateContent(finalPrompt);
-    const text = result.response.text() || "";
+    const result = await model.generateContentStream(finalPrompt);
 
-    // Persist messages to thread when authenticated
-    if (isAuthenticated && userId && threadId && text) {
-      try {
-        const userTs = new Date().toISOString();
-        const aiTs = new Date(Date.now() + 1).toISOString();
-        await db.insert(aiMessages).values([
-          { id: randomUUID(), threadId, role: "user", content: userMessage, createdAt: userTs } as any,
-          { id: randomUUID(), threadId, role: "assistant", content: text, createdAt: aiTs } as any,
-        ]);
-        await db
-          .update(aiThreads)
-          .set({ updatedAt: aiTs } as any)
-          .where(eq(aiThreads.id, threadId));
-      } catch (saveErr) {
-        console.error("[ceruleai] thread save failed (non-fatal):", saveErr);
-      }
-    }
+    let fullText = '';
+    const encoder = new TextEncoder();
 
-    return NextResponse.json({ reply: text });
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of result.stream) {
+            const text = chunk.text();
+            if (text) {
+              fullText += text;
+              controller.enqueue(encoder.encode(text));
+            }
+          }
+        } finally {
+          controller.close();
+        }
+
+        // Persist after the full response is accumulated
+        if (isAuthenticated && userId && threadId && fullText) {
+          try {
+            const userTs = new Date().toISOString();
+            const aiTs = new Date(Date.now() + 1).toISOString();
+            await db.insert(aiMessages).values([
+              { id: randomUUID(), threadId, role: "user", content: userMessage, createdAt: userTs } as any,
+              { id: randomUUID(), threadId, role: "assistant", content: fullText, createdAt: aiTs } as any,
+            ]);
+            await db
+              .update(aiThreads)
+              .set({ updatedAt: aiTs } as any)
+              .where(eq(aiThreads.id, threadId));
+          } catch (saveErr) {
+            console.error("[ceruleai] thread save failed (non-fatal):", saveErr);
+          }
+        }
+      },
+    });
+
+    return new Response(readable, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-cache',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    });
   } catch (err: any) {
     return NextResponse.json(
-      { message: typeof err?.message === "string" ? err.message : "Gemini request failed" },
+      { message: "Gemini request failed" },
       { status: 500 }
     );
   }

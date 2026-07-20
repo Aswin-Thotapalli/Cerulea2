@@ -20,7 +20,7 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useStudio } from '@/context/StudioContext';
-import { api } from '@/lib/apiClient';
+import { api } from '@/lib/apiClient'; // used by history/thread routes
 
 const fabVariants = {
   hidden: { scale: 0, y: 50, opacity: 0 },
@@ -105,7 +105,6 @@ export default function Assistant() {
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const typingTimerRef = useRef<number | null>(null);
-  const streamTimerRef = useRef<number | null>(null);
   const initializedRef = useRef(false);
   const lastLoadedForRef = useRef<string | null>(null);
   const skipThreadLoadRef = useRef(false);
@@ -232,29 +231,9 @@ export default function Assistant() {
   useEffect(() => {
     return () => {
       if (typingTimerRef.current) window.clearTimeout(typingTimerRef.current);
-      if (streamTimerRef.current) window.clearInterval(streamTimerRef.current);
     };
   }, []);
 
-  // ---------------------------------------------------------------------------
-  // Stream animation
-  // ---------------------------------------------------------------------------
-  function streamAssistantMessage(fullText: string) {
-    const msgId = makeId('assistant');
-    const createdAt = new Date();
-    setMessages((prev) => [...prev, { id: msgId, role: 'assistant', text: '', createdAt }]);
-    let i = 0;
-    streamTimerRef.current = window.setInterval(() => {
-      const chunk = fullText.slice(i, i + (Math.random() < 0.85 ? 1 : 2));
-      i += chunk.length;
-      setMessages((prev) => prev.map((m) => m.id === msgId ? { ...m, text: m.text + chunk } : m));
-      if (i >= fullText.length) {
-        window.clearInterval(streamTimerRef.current!);
-        streamTimerRef.current = null;
-        setIsTyping(false);
-      }
-    }, 16 + Math.floor(Math.random() * 12));
-  }
 
   // ---------------------------------------------------------------------------
   // Studio snapshot & memory
@@ -381,8 +360,9 @@ export default function Assistant() {
 
     typingTimerRef.current = window.setTimeout(async () => {
       try {
-        const res = await api<{ reply: string }>('/api/ceruleai', {
+        const res = await fetch('/api/ceruleai', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             message: msg,
             history: toHistoryPayload(capturedMessages),
@@ -391,8 +371,43 @@ export default function Assistant() {
             threadId: threadId || undefined,
           }),
         });
-        const replyText = res.reply || "I couldn't generate a response right now.";
-        streamAssistantMessage(replyText);
+
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(errBody?.message ?? `Server error ${res.status}`);
+        }
+
+        if (!res.body) throw new Error('No response body');
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        const msgId = makeId('assistant');
+        const createdAt = new Date();
+        let firstChunk = true;
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          if (!chunk) continue;
+
+          if (firstChunk) {
+            // Switch from typing dots to the actual message bubble on first text
+            setMessages((prev) => [...prev, { id: msgId, role: 'assistant', text: chunk, createdAt }]);
+            setIsTyping(false);
+            firstChunk = false;
+          } else {
+            setMessages((prev) =>
+              prev.map((m) => m.id === msgId ? { ...m, text: m.text + chunk } : m)
+            );
+          }
+        }
+
+        // Guard: if stream closed with no content
+        if (firstChunk) {
+          setMessages((prev) => [...prev, { id: msgId, role: 'assistant', text: "I couldn't generate a response right now.", createdAt }]);
+          setIsTyping(false);
+        }
 
         // Move thread to top of list
         if (isAuthenticated && threadId) {
@@ -404,9 +419,8 @@ export default function Assistant() {
         }
       } catch (e: any) {
         setIsTyping(false);
-        streamAssistantMessage(
-          typeof e?.message === 'string' ? `Something went wrong: ${e.message}` : 'Something went wrong generating the response.'
-        );
+        const errText = typeof e?.message === 'string' ? `Something went wrong: ${e.message}` : 'Something went wrong generating the response.';
+        setMessages((prev) => [...prev, { id: makeId('assistant'), role: 'assistant', text: errText, createdAt: new Date() }]);
       }
     }, 400 + Math.floor(Math.random() * 300));
   }

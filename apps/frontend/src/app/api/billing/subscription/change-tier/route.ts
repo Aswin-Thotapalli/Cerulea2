@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: 'No active subscription' }, { status: 404 });
   }
 
-  if (sub.cancelAtPeriodEnd === 'true') {
+  if (String(sub.cancelAtPeriodEnd) === 'true') {
     return NextResponse.json(
       { ok: false, error: 'Resume your subscription before changing tiers' },
       { status: 409 }

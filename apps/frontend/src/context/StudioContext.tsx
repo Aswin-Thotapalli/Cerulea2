@@ -1,6 +1,8 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+
+const SNAPSHOT_KEY = 'cerulea.context.snapshot';
 
 // --- CORE TYPES ---
 
@@ -111,6 +113,52 @@ export const StudioContext = createContext<StudioContextType | undefined>(undefi
 
 export const StudioProvider = ({ children }: { children: ReactNode }) => {
   const [state, setStateValue] = useState<StudioState>(initialState);
+  const hydratedRef = useRef(false);
+
+  // Hydrate from localStorage on mount so state survives page refreshes
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SNAPSHOT_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as Partial<StudioState>;
+        setStateValue((prev) => ({
+          ...prev,
+          projectId: saved.projectId ?? prev.projectId,
+          slug: saved.slug ?? prev.slug,
+          projectType: saved.projectType ?? prev.projectType,
+          dappVisibility: saved.dappVisibility ?? prev.dappVisibility,
+          templateId: saved.templateId ?? prev.templateId,
+          step0Phase: saved.step0Phase ?? prev.step0Phase,
+          selectedModules: saved.selectedModules ?? prev.selectedModules,
+          appMetadata: saved.appMetadata ? { ...prev.appMetadata, ...saved.appMetadata } : prev.appMetadata,
+          networkConfig: saved.networkConfig ? { ...prev.networkConfig, ...saved.networkConfig } : prev.networkConfig,
+          appGoal: saved.appGoal ? { ...prev.appGoal, ...saved.appGoal } : prev.appGoal,
+          legacyMode: saved.legacyMode ?? prev.legacyMode,
+        }));
+      }
+    } catch {}
+    hydratedRef.current = true;
+  }, []);
+
+  // Persist state to localStorage whenever it changes (after initial hydration)
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    try {
+      localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({
+        projectId: state.projectId,
+        slug: state.slug,
+        projectType: state.projectType,
+        dappVisibility: state.dappVisibility,
+        templateId: state.templateId,
+        step0Phase: state.step0Phase,
+        selectedModules: state.selectedModules,
+        appMetadata: state.appMetadata,
+        networkConfig: state.networkConfig,
+        appGoal: state.appGoal,
+        legacyMode: state.legacyMode,
+      }));
+    } catch {}
+  }, [state]);
 
   const setStudioState = (newState: Partial<StudioState>) => {
     setStateValue((prev) => {

@@ -71,7 +71,7 @@ export async function POST(req: Request) {
 
     await db.insert(verificationTokens).values({
       id: randomUUID(),
-      identifier: email,
+      identifier: `pwd:${user.id}`,
       token,
       expiresAt,
     });

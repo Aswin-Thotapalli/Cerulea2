@@ -6,6 +6,7 @@ import { db } from "@/db/client";
 import { users, subscriptions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs"; // pure-JS — no native bindings, works on Vercel serverless
+import { rateLimit } from "@/lib/rateLimit";
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
@@ -47,6 +48,13 @@ export const authOptions: NextAuthOptions = {
         try {
           if (!credentials?.email || !credentials?.password) return null;
 
+          // Rate limit login attempts per email (10 per minute)
+          const rl = rateLimit(`login:${credentials.email.toLowerCase()}`, 10, 60_000);
+          if (!rl.ok) {
+            console.warn('[auth] login rate limit exceeded for', credentials.email);
+            return null;
+          }
+
           const [user] = await db
             .select()
             .from(users)
@@ -70,7 +78,7 @@ export const authOptions: NextAuthOptions = {
             .where(eq(subscriptions.userId, user.id))
             .limit(1);
 
-          const isTest = user.isTestAccount === "true";
+          const isTest = String(user.isTestAccount) === 'true';
           const plan = isTest ? "pro" : (sub?.status === "active" ? sub.plan : "free");
 
           console.log('[auth] authorize: success for', credentials.email, '| plan:', plan, '| isTest:', isTest);

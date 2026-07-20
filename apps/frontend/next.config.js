@@ -3,12 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@cerulea/types', '@cerulea/ui', '@cerulea/utils'],
 
-  typescript: { ignoreBuildErrors: true },
-  eslint: { ignoreDuringBuilds: true },
-
-  experimental: {
-    // (bcryptjs is pure-JS and doesn't need to be excluded from webpack bundling)
-  },
+  experimental: {},
 
   output: 'standalone',
   compress: true,
