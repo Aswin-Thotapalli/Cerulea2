@@ -108,6 +108,7 @@ export default function Assistant() {
   const streamTimerRef = useRef<number | null>(null);
   const initializedRef = useRef(false);
   const lastLoadedForRef = useRef<string | null>(null);
+  const skipThreadLoadRef = useRef(false);
 
   // ---------------------------------------------------------------------------
   // Greeting
@@ -142,6 +143,7 @@ export default function Assistant() {
     const params = new URLSearchParams(window.location.search);
     const urlPrompt = params.get('prompt');
     if (urlPrompt) {
+      skipThreadLoadRef.current = true;
       setInput(urlPrompt);
       setOpen(true);
       const clean = new URL(window.location.href);
@@ -151,6 +153,7 @@ export default function Assistant() {
     }
     const saved = sessionStorage.getItem('ceruleai:pendingPrompt');
     if (saved) {
+      skipThreadLoadRef.current = true;
       sessionStorage.removeItem('ceruleai:pendingPrompt');
       setInput(saved);
       setOpen(true);
@@ -191,6 +194,11 @@ export default function Assistant() {
   useEffect(() => {
     if (!open) return;
     if (sessionStatus === 'loading') return;
+    if (skipThreadLoadRef.current) {
+      // Opened from a URL/sessionStorage prompt — keep fresh state, don't load history
+      skipThreadLoadRef.current = false;
+      return;
+    }
     const key = isAuthenticated ? (userId ?? 'auth') : 'guest';
     if (lastLoadedForRef.current === key) return;
     lastLoadedForRef.current = key;
