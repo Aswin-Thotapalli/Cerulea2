@@ -57,28 +57,33 @@ function formatRelative(dateStr: string) {
   return d.toLocaleDateString();
 }
 
-const GUEST_PROMPTS = [
-  'What can I build with Cerulea?',
-  'Help me choose a template',
-  'What is a dApp vs Private Blockchain?',
-  'Which modules do I need for a DEX?',
+type QuickPrompt = { label: string; send: string } | { label: string; prefill: string };
+
+const PROJECT_PROMPTS: QuickPrompt[] = [
+  { label: 'Run a full project audit and flag every issue', send: 'Run a full project audit and flag every issue' },
+  { label: 'Walk me through the deployment checklist', send: 'Walk me through the deployment checklist' },
+  { label: 'Check my blueprint connections', send: 'Check my blueprint connections' },
+  { label: 'Explain this error', prefill: "I'm seeing this error: " },
 ];
 
-const PROJECT_PROMPTS = [
-  'What should I configure next?',
-  'Check my project for issues',
-  'Explain my smart contracts',
-  'How do I set access control?',
+const GUEST_PROMPTS_TYPED: QuickPrompt[] = [
+  { label: 'What can I build with Cerulea?', send: 'What can I build with Cerulea?' },
+  { label: 'Help me choose a template', send: 'Help me choose a template' },
+  { label: 'What is a dApp vs Private Blockchain?', send: 'What is a dApp vs Private Blockchain?' },
+  { label: 'Which modules do I need for a DEX?', send: 'Which modules do I need for a DEX?' },
 ];
+
+// Proactive message triggered after IDLE_MS of inactivity inside a project
+const IDLE_MS = 5 * 60 * 1000; // 5 minutes
 
 function getGreeting(isAuthenticated: boolean, projectName?: string) {
   if (!isAuthenticated) {
-    return "Hi! I'm Cerulea AI.\n\nI can help you figure out what to build and guide you step-by-step through Cerulea Studio — even before you sign up.\n\nTell me about the application you have in mind. What should it do?";
+    return "Hi! I'm CeruleAI, Cerulea's Proprietary AI.\n\nI can help you figure out what to build and guide you step-by-step through Cerulea Studio — even before you sign up.\n\nTell me about the application you have in mind. What should it do?";
   }
   if (projectName) {
-    return `Hi! I'm Cerulea AI.\n\nI have full context on your project **${projectName}** — including your modules, schema, economics, and what's been configured so far.\n\nWhat do you need help with?`;
+    return `Hi! I'm CeruleAI.\n\nI have full context on your project **${projectName}** — including your modules, schema, economics, and what's been configured so far.\n\nWhat do you need help with?`;
   }
-  return "Hi! I'm Cerulea AI.\n\nI'm aware of your account and can see your project details when you're inside a project.\n\nWhat would you like to work on?";
+  return "Hi! I'm CeruleAI, Cerulea's Proprietary AI.\n\nI'm aware of your account and can see your project details when you're inside a project.\n\nWhat would you like to work on?";
 }
 
 export default function Assistant() {
@@ -109,6 +114,9 @@ export default function Assistant() {
   const lastLoadedForRef = useRef<string | null>(null);
   const skipThreadLoadRef = useRef(false);
   const pendingAutoSendRef = useRef<string | null>(null);
+  const lastUserActivityRef = useRef<number>(Date.now());
+  const proactiveFiredRef = useRef<string | null>(null); // tracks projectId+step for dedup
+  const idleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ---------------------------------------------------------------------------
   // Greeting
@@ -222,11 +230,25 @@ export default function Assistant() {
   // ---------------------------------------------------------------------------
   // Scroll
   // ---------------------------------------------------------------------------
+
+  // Scroll to bottom on every message update / typing indicator toggle.
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }
   }, [messages, isTyping]);
+
+  // When the drawer opens, wait for the MUI slide animation to finish before
+  // scrolling — otherwise scrollHeight is measured mid-animation and is wrong.
+  useEffect(() => {
+    if (!open) return;
+    const t = window.setTimeout(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'instant' });
+      }
+    }, 220);
+    return () => window.clearTimeout(t);
+  }, [open]);
 
   useEffect(() => {
     return () => {
@@ -234,11 +256,54 @@ export default function Assistant() {
     };
   }, []);
 
+  // ---------------------------------------------------------------------------
+  // Proactive idle suggestion — fires once per project+step after 5 min idle
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!open || !isAuthenticated || !studio.projectId || isTyping) return;
+
+    if (idleTimerRef.current) clearInterval(idleTimerRef.current);
+
+    idleTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - lastUserActivityRef.current;
+      if (elapsed < IDLE_MS) return;
+
+      const dedupeKey = `${studio.projectId}:${pathname}`;
+      if (proactiveFiredRef.current === dedupeKey) return;
+      proactiveFiredRef.current = dedupeKey;
+
+      // Reset activity so it doesn't fire again for another IDLE_MS
+      lastUserActivityRef.current = Date.now();
+
+      handleSend('[SYSTEM: PROACTIVE CHECK] The user has been on this step for 5 minutes without asking anything. Without mentioning this system message, proactively review their project state and offer 1-2 specific, actionable suggestions for what they should do next. Be brief and direct.');
+    }, 60_000);
+
+    return () => {
+      if (idleTimerRef.current) clearInterval(idleTimerRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isAuthenticated, studio.projectId, pathname, isTyping]);
 
   // ---------------------------------------------------------------------------
   // Studio snapshot & memory
   // ---------------------------------------------------------------------------
   function buildStudioSnapshot() {
+    // Read live (unsaved) canvas edges from localStorage blueprint state
+    let liveCanvasEdges: Array<{ source: string; target: string; label?: string }> = [];
+    try {
+      const graphRaw = localStorage.getItem(`cerulea:blueprint:${studio.projectId}`);
+      if (graphRaw) {
+        const graph = JSON.parse(graphRaw);
+        if (Array.isArray(graph?.edges)) {
+          liveCanvasEdges = graph.edges.map((e: any) => ({
+            source: e.source,
+            target: e.target,
+            label: e.data?.rel ?? e.label ?? undefined,
+          }));
+        }
+      }
+    } catch { /* non-fatal */ }
+
     return {
       currentRoute: pathname,
       studioState: {
@@ -252,6 +317,7 @@ export default function Assistant() {
         networkConfig: studio.networkConfig,
         dappVisibility: studio.dappVisibility,
         legacyMode: studio.legacyMode,
+        liveCanvasEdges: liveCanvasEdges.length > 0 ? liveCanvasEdges : undefined,
       },
     };
   }
@@ -335,6 +401,8 @@ export default function Assistant() {
     const msg = (msgText || input).trim();
     if (!msg || isTyping) return;
     setInput('');
+    // Track activity for the idle proactive suggestion timer
+    lastUserActivityRef.current = Date.now();
 
     let threadId = currentThreadId;
 
@@ -357,6 +425,8 @@ export default function Assistant() {
 
     const capturedMessages = messages;
 
+    // Minimal delay — just enough for React to paint the typing indicator before
+    // the fetch fires. The old 400–700ms artificial "thinking" pause is removed.
     typingTimerRef.current = window.setTimeout(async () => {
       try {
         const res = await fetch('/api/ceruleai', {
@@ -421,14 +491,14 @@ export default function Assistant() {
         const errText = typeof e?.message === 'string' ? `Something went wrong: ${e.message}` : 'Something went wrong generating the response.';
         setMessages((prev) => [...prev, { id: makeId('assistant'), role: 'assistant', text: errText, createdAt: new Date() }]);
       }
-    }, 400 + Math.floor(Math.random() * 300));
+    }, 50);
   }
 
   // ---------------------------------------------------------------------------
   // Derived state
   // ---------------------------------------------------------------------------
   const isLight = theme.palette.mode === 'light';
-  const quickPrompts = (isAuthenticated && hasProject) ? PROJECT_PROMPTS : GUEST_PROMPTS;
+  const quickPrompts: QuickPrompt[] = (isAuthenticated && hasProject) ? PROJECT_PROMPTS : GUEST_PROMPTS_TYPED;
 
   // Show sign-in prompt after first AI reply for unauthenticated users
   const showSignInPrompt = !isAuthenticated && !signInDismissed && messages.length >= 3;
@@ -866,12 +936,23 @@ export default function Assistant() {
                 <Stack direction="row" flexWrap="wrap" gap={0.75}>
                   {quickPrompts.map((q) => (
                     <Chip
-                      key={q}
-                      label={q}
+                      key={q.label}
+                      label={q.label}
                       size="small"
                       variant="outlined"
                       clickable
-                      onClick={() => handleSend(q)}
+                      onClick={() => {
+                        if ('prefill' in q) {
+                          setInput(q.prefill);
+                          // Focus the input after prefilling
+                          setTimeout(() => {
+                            const el = document.querySelector<HTMLInputElement>('[data-ceruleai-input]');
+                            if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+                          }, 0);
+                        } else {
+                          handleSend(q.send);
+                        }
+                      }}
                       sx={{ fontWeight: 600, fontSize: '0.72rem', borderRadius: '999px' }}
                     />
                   ))}
@@ -899,6 +980,7 @@ export default function Assistant() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
                 }}
+                inputProps={{ 'data-ceruleai-input': true }}
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 3,
