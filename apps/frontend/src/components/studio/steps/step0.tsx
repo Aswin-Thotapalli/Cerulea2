@@ -260,7 +260,18 @@ export default function Step0({
   /* ---- Handlers ---- */
   const proceedToGallery = (ptype: ProjectType, lmode: LegacyMode = 'none', visibility: DappVisibility = 'public') => {
     setDType(ptype);
-    setStudioState({ projectType: ptype, dappVisibility: ptype === 'dapp' ? visibility : null, templateId: null, legacyMode: lmode } as any);
+    // Clear ALL stale project data from the previous project so the AI
+    // doesn't see the old project name / modules / config during new project creation.
+    setStudioState({
+      projectType: ptype,
+      dappVisibility: ptype === 'dapp' ? visibility : null,
+      templateId: null,
+      legacyMode: lmode,
+      projectId: undefined,
+      slug: undefined,
+      appMetadata: { appName: '', appDescription: '' },
+      selectedModules: [],
+    } as any);
     setSelectedTemplate(null);
     setSearch('');
     if (typeof window !== 'undefined') {
