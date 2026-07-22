@@ -95,7 +95,9 @@ export default function Assistant() {
   const isAuthenticated = !!(session?.user);
   const userId = (session?.user as any)?.id as string | undefined;
   const hasProject = !!(studio.projectId);
-  const projectName = studio.appMetadata?.appName || null;
+  // Only show project name once the project is actually initialized (has a projectId).
+  // Without this gate, stale appMetadata from a previous project bleeds into new project creation.
+  const projectName = (studio.projectId && studio.appMetadata?.appName) ? studio.appMetadata.appName : null;
 
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>('chat');
@@ -111,6 +113,7 @@ export default function Assistant() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const typingTimerRef = useRef<number | null>(null);
   const initializedRef = useRef(false);
+  const lastGreetingKeyRef = useRef<string>('');
   const lastLoadedForRef = useRef<string | null>(null);
   const skipThreadLoadRef = useRef(false);
   const pendingAutoSendRef = useRef<string | null>(null);
@@ -119,20 +122,33 @@ export default function Assistant() {
   const idleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleSendRef = useRef<(msg?: string) => void>(() => {});
 
+  // Smooth streaming display — buffer received chars and animate them out
+  const streamReceivedRef = useRef('');  // full text from the API
+  const streamDisplayedRef = useRef(''); // text currently shown in the bubble
+  const streamMsgIdRef = useRef<string | null>(null);
+  const streamIntervalRef = useRef<number | null>(null);
+
   // ---------------------------------------------------------------------------
-  // Greeting
+  // Greeting — re-generates when auth state or project identity changes,
+  // but never interrupts an active conversation.
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (sessionStatus === 'loading') return;
-    if (initializedRef.current) return;
+    const key = `${isAuthenticated}:${studio.projectId ?? ''}:${projectName ?? ''}`;
+    if (lastGreetingKeyRef.current === key) return;
+    lastGreetingKeyRef.current = key;
     initializedRef.current = true;
-    setMessages([{
-      id: makeId('assistant'),
-      role: 'assistant',
-      text: getGreeting(isAuthenticated, projectName ?? undefined),
-      createdAt: new Date(),
-    }]);
-  }, [sessionStatus, isAuthenticated, projectName]);
+    setMessages(prev => {
+      // Don't reset if the user already has an active conversation
+      if (prev.length > 1) return prev;
+      return [{
+        id: makeId('assistant'),
+        role: 'assistant',
+        text: getGreeting(isAuthenticated, projectName ?? undefined),
+        createdAt: new Date(),
+      }];
+    });
+  }, [sessionStatus, isAuthenticated, projectName, studio.projectId]);
 
   // ---------------------------------------------------------------------------
   // Auto-open on first load (before user has ever collapsed the panel)
@@ -254,6 +270,7 @@ export default function Assistant() {
   useEffect(() => {
     return () => {
       if (typingTimerRef.current) window.clearTimeout(typingTimerRef.current);
+      if (streamIntervalRef.current) window.clearInterval(streamIntervalRef.current);
     };
   }, []);
 
@@ -531,6 +548,33 @@ export default function Assistant() {
         const createdAt = new Date();
         let firstChunk = true;
 
+        // Reset streaming buffer
+        streamReceivedRef.current = '';
+        streamDisplayedRef.current = '';
+        streamMsgIdRef.current = msgId;
+        if (streamIntervalRef.current) {
+          window.clearInterval(streamIntervalRef.current);
+          streamIntervalRef.current = null;
+        }
+
+        // Start the character-queue display interval (runs at ~60fps)
+        streamIntervalRef.current = window.setInterval(() => {
+          const received = streamReceivedRef.current;
+          const displayed = streamDisplayedRef.current;
+          const remaining = received.length - displayed.length;
+          if (remaining <= 0) return;
+          // Speed up if a big backlog builds up (keeps pace with fast responses)
+          const take = remaining > 120 ? 6 : remaining > 40 ? 3 : 1;
+          const newDisplayed = received.slice(0, displayed.length + take);
+          streamDisplayedRef.current = newDisplayed;
+          const id = streamMsgIdRef.current;
+          if (!id) return;
+          setMessages((prev) =>
+            prev.map((m) => m.id === id ? { ...m, text: newDisplayed } : m)
+          );
+        }, 16);
+
+        // Read the HTTP stream, append chunks to the buffer
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
@@ -538,55 +582,60 @@ export default function Assistant() {
           if (!chunk) continue;
 
           if (firstChunk) {
-            // Switch from typing dots to the actual message bubble on first text
-            setMessages((prev) => [...prev, { id: msgId, role: 'assistant', text: chunk, createdAt }]);
+            // Show the bubble (empty) and let the display interval fill it in
+            setMessages((prev) => [...prev, { id: msgId, role: 'assistant', text: '', createdAt }]);
             setIsTyping(false);
             firstChunk = false;
-          } else {
-            setMessages((prev) =>
-              prev.map((m) => m.id === msgId ? { ...m, text: m.text + chunk } : m)
-            );
           }
+          streamReceivedRef.current += chunk;
         }
 
-        // Guard: if stream closed with no content
+        // Guard: stream closed with no content
         if (firstChunk) {
+          if (streamIntervalRef.current) { window.clearInterval(streamIntervalRef.current); streamIntervalRef.current = null; }
           setMessages((prev) => [...prev, { id: msgId, role: 'assistant', text: "I couldn't generate a response right now.", createdAt }]);
           setIsTyping(false);
         }
 
-        // Parse and dispatch any agentic action blocks from the completed response
-        setMessages((prev) => {
-          const lastMsg = prev.find((m) => m.id === msgId);
-          if (!lastMsg) return prev;
-          const actionRegex = /<cerulean-action>([\s\S]*?)<\/cerulean-action>/g;
-          let match;
-          let hasActions = false;
-          while ((match = actionRegex.exec(lastMsg.text)) !== null) {
-            try {
-              const action = JSON.parse(match[1].trim());
-              window.dispatchEvent(new CustomEvent('cerulea:action', { detail: action }));
-              hasActions = true;
-            } catch { /* malformed block — skip */ }
-          }
-          if (!hasActions) return prev;
-          // Strip action blocks from the displayed message
-          return prev.map((m) =>
-            m.id === msgId
-              ? { ...m, text: m.text.replace(/<cerulean-action>[\s\S]*?<\/cerulean-action>/g, '').trim() }
-              : m
-          );
-        });
-
-        // Move thread to top of list
-        if (isAuthenticated && threadId) {
-          setThreadList((prev) => {
-            const existing = prev.find((t) => t.id === threadId);
-            if (!existing) return prev;
-            return [{ ...existing, updatedAt: new Date().toISOString() }, ...prev.filter((t) => t.id !== threadId)];
-          });
+        // Parse action blocks from the complete received text and update the target buffer
+        const fullText = streamReceivedRef.current;
+        const actionRegex = /<cerulean-action>([\s\S]*?)<\/cerulean-action>/g;
+        let actionMatch;
+        let hasActions = false;
+        while ((actionMatch = actionRegex.exec(fullText)) !== null) {
+          try {
+            const action = JSON.parse(actionMatch[1].trim());
+            window.dispatchEvent(new CustomEvent('cerulea:action', { detail: action }));
+            hasActions = true;
+          } catch { /* malformed — skip */ }
         }
+        if (hasActions) {
+          streamReceivedRef.current = fullText.replace(/<cerulean-action>[\s\S]*?<\/cerulean-action>/g, '').trim();
+        }
+
+        // Wait for the display interval to finish flushing the buffer, then clean up
+        const flushCheck = window.setInterval(() => {
+          const rec = streamReceivedRef.current;
+          const disp = streamDisplayedRef.current;
+          if (disp.length >= rec.length) {
+            window.clearInterval(flushCheck);
+            if (streamIntervalRef.current) { window.clearInterval(streamIntervalRef.current); streamIntervalRef.current = null; }
+            // Snap to exact final text in case of off-by-one
+            setMessages((prev) =>
+              prev.map((m) => m.id === msgId ? { ...m, text: rec } : m)
+            );
+            // Move thread to top of list
+            if (isAuthenticated && threadId) {
+              setThreadList((prev) => {
+                const existing = prev.find((t) => t.id === threadId);
+                if (!existing) return prev;
+                return [{ ...existing, updatedAt: new Date().toISOString() }, ...prev.filter((t) => t.id !== threadId)];
+              });
+            }
+          }
+        }, 20);
       } catch (e: any) {
+        if (streamIntervalRef.current) { window.clearInterval(streamIntervalRef.current); streamIntervalRef.current = null; }
         setIsTyping(false);
         const errText = typeof e?.message === 'string' ? `Something went wrong: ${e.message}` : 'Something went wrong generating the response.';
         setMessages((prev) => [...prev, { id: makeId('assistant'), role: 'assistant', text: errText, createdAt: new Date() }]);
