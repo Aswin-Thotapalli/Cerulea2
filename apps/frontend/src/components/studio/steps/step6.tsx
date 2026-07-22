@@ -149,8 +149,8 @@ const INFRA_LOG_POOL = [
 const BLOCKCHAIN_LOG_POOL = [
   "Bootnode: Started P2P networking on 0.0.0.0:30333",
   "Genesis: Initializing chain spec...",
-  "Consensus: Aura (Authorities: 0x4a...e1)",
-  "Grandpa: Voters initialized.",
+  "DCF: Loading validator set (3 authorities)...",
+  "DCF: Validators initialized. Instant finality active.",
   "Sync: 0 peers connected.",
   "Sync: 4 peers connected. Downloading headers...",
   "Imported #1 (0x4a...b2) - 1.2MB",
@@ -159,10 +159,10 @@ const BLOCKCHAIN_LOG_POOL = [
   "RPC: HTTP server started on 127.0.0.1:9933",
   "RPC: WebSocket server started on 127.0.0.1:9944",
   "TxPool: 0 ready, 0 pending",
-  "Mining: Prepared block for proposing at 6000ms",
-  "Grandpa: Finalizing block #1...",
+  "DCF: Block proposed at slot 6000ms",
+  "DCF: Block #1 finalized (2/3+ validators agreed)...",
   "State: Caching trie nodes...",
-  "Database: Compacting RocksDB...",
+  "Database: Compacting state store...",
 ];
 
 const DEPLOYMENT_PHASES: Array<{ id: LogPhase; label: string; icon: React.ReactNode }> = [
@@ -218,6 +218,15 @@ export default function Step6({ goPrev }: { goPrev?: () => void }) {
   const [activePhase, setActivePhase] = useState<LogPhase>("idle");
   const [completedPhases, setCompletedPhases] = useState<Set<LogPhase>>(new Set());
   const [deployMeta, setDeployMeta] = useState<DeployMeta | null>(null);
+  const [deployError, setDeployError] = useState<string | null>(null);
+
+  const DEPLOY_ERRORS = [
+    { code: 'DISTRIBUTION_ERROR', message: 'TokenomicsError: Token distribution sums to 95%, must be exactly 100%.' },
+    { code: 'INTEGRATION_MISSING', message: 'IntegrationError: Oracle module is configured but Chainlink API key is missing in Integrations → Data.' },
+    { code: 'RPC_TIMEOUT', message: 'InfraError: RPC endpoint provisioning timed out after 30s (region: us-east-1). Retry or switch region.' },
+    { code: 'ENTITY_MISSING_ID', message: 'SchemaError: Entity "UserProfile" is missing required id field. Add a uint256 or bytes32 field named "id".' },
+    { code: 'GAS_LIMIT', message: 'CompileError: Contract bytecode exceeds block gas limit (30M gas). Reduce module count or split contracts.' },
+  ];
 
   // Metrics State
   const [metricsActive, setMetricsActive] = useState(false);
@@ -247,6 +256,7 @@ export default function Step6({ goPrev }: { goPrev?: () => void }) {
     };
     setDeployMeta(meta);
     setDeploying(true);
+    setDeployError(null);
     setMetricsActive(false);
     setMetrics({ cpu: 0, ram: 0, net: 0, storage: 200 });
     setLogs([`INITIALIZING DEPLOYMENT: ${meta.deployId}`, `TARGET REGION: ${meta.region}`, `Loading blueprint configuration...`]);
@@ -320,9 +330,57 @@ export default function Step6({ goPrev }: { goPrev?: () => void }) {
         });
 
         const next = prev + speed;
-        return next > 99.9 ? 99.9 : next;
+        if (next > 99.9) {
+          // Complete successfully
+          clearInterval(timerRef.current);
+          setDeploying(false);
+          setActivePhase('background_finalization');
+          setCompletedPhases(s => {
+            const ns = new Set(s);
+            DEPLOYMENT_PHASES.forEach(p => ns.add(p.id as LogPhase));
+            return ns;
+          });
+          setLogs(l => [...l, '✓ Deployment complete. Your project is live.']);
+          return 100;
+        }
+        return next;
       });
     }, 500);
+
+    // Inject a simulated deploy error ~25% of the time at ~40% progress
+    const errorChance = Math.random();
+    if (errorChance < 0.25) {
+      const errorEntry = DEPLOY_ERRORS[Math.floor(Math.random() * DEPLOY_ERRORS.length)];
+      const errorDelay = 8000 + Math.random() * 6000; // 8-14 seconds in
+      setTimeout(() => {
+        clearInterval(timerRef.current);
+        clearInterval(metricsTimerRef.current);
+        setDeploying(false);
+        setDeployError(errorEntry.message);
+        setLogs(l => [
+          ...l,
+          `> ERROR [${errorEntry.code}]: ${errorEntry.message}`,
+          `> Deployment halted. See error details above.`,
+        ]);
+        const currentLogs = [
+          `INITIALIZING DEPLOYMENT: ${meta.deployId}`,
+          `TARGET REGION: ${meta.region}`,
+          `Loading blueprint configuration...`,
+          `> ERROR [${errorEntry.code}]: ${errorEntry.message}`,
+          `> Deployment halted. See error details above.`,
+        ];
+        window.dispatchEvent(new CustomEvent('cerulea:deploy-error', {
+          detail: {
+            phase: 'infra_provisioning',
+            errorCode: errorEntry.code,
+            errorMessage: errorEntry.message,
+            logs: currentLogs,
+            projectType,
+            modules: selectedModules,
+          },
+        }));
+      }, errorDelay);
+    }
 
     // 3. Metrics Random Walk Loop (Smoother)
     metricsTimerRef.current = setInterval(() => {
@@ -669,6 +727,51 @@ export default function Step6({ goPrev }: { goPrev?: () => void }) {
                     }
                   }}
                 />
+              </Box>
+            )}
+
+            {deployError && !deploying && (
+              <Box sx={{
+                px: 2.5, py: 2,
+                bgcolor: alpha('#ef4444', 0.08),
+                borderTop: `1px solid ${alpha('#ef4444', 0.25)}`,
+              }}>
+                <Stack direction="row" alignItems="flex-start" spacing={1.5}>
+                  <Box sx={{ flexShrink: 0, mt: 0.25 }}>
+                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#ef4444' }} />
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="caption" fontFamily="monospace" sx={{ color: '#ef4444', fontWeight: 700, display: 'block', mb: 0.5 }}>
+                      DEPLOYMENT FAILED
+                    </Typography>
+                    <Typography variant="caption" fontFamily="monospace" sx={{ color: alpha('#ef4444', 0.85), display: 'block', mb: 1, lineHeight: 1.5 }}>
+                      {deployError}
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent('cerulea:deploy-error', {
+                          detail: {
+                            phase: 'infra_provisioning',
+                            errorCode: 'DEPLOY_FAILED',
+                            errorMessage: deployError,
+                            logs: logs.slice(-15),
+                            projectType,
+                            modules: selectedModules,
+                          },
+                        }));
+                      }}
+                      sx={{
+                        fontSize: '0.7rem', borderRadius: 1.5, px: 1.5, py: 0.4,
+                        borderColor: alpha('#ef4444', 0.4), color: '#ef4444',
+                        '&:hover': { borderColor: '#ef4444', bgcolor: alpha('#ef4444', 0.06) },
+                      }}
+                    >
+                      Ask CeruleAI to explain &amp; fix this
+                    </Button>
+                  </Box>
+                </Stack>
               </Box>
             )}
           </TerminalWindow>

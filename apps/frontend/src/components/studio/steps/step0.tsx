@@ -22,6 +22,8 @@ import DomainIcon from '@mui/icons-material/Domain';
 import DnsIcon from '@mui/icons-material/Dns';
 import BoltIcon from '@mui/icons-material/Bolt';
 import CheckIcon from '@mui/icons-material/Check';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
+import CloseIcon from '@mui/icons-material/Close';
 
 /* ---------- Types ---------- */
 type Workspace = { id: string; name: string; slug: string; createdAt: string };
@@ -184,6 +186,8 @@ export default function Step0({
   const [loadingTemplates, setLoadingTemplates] = React.useState(false);
   const [workspaces, setWorkspaces] = React.useState<Workspace[]>([]);
   const [selectedTemplate, setSelectedTemplate] = React.useState<string | null>(templateId ?? null);
+  const [compareMode, setCompareMode] = React.useState(false);
+  const [compareSet, setCompareSet] = React.useState<Set<string>>(new Set());
   const [search, setSearch] = React.useState('');
   const [categoryFilter, setCategoryFilter] = React.useState('All');
 
@@ -826,23 +830,50 @@ export default function Step0({
                     Choose a starting template
                   </Typography>
                 </Box>
-                <Box sx={{
-                  display: 'flex', alignItems: 'center', gap: 1,
-                  bgcolor: 'background.paper', border: '0.5px solid', borderColor: 'divider',
-                  borderRadius: 2, px: 1.5, py: 0.75,
-                }}>
-                  <SearchIcon sx={{ fontSize: 15, color: 'text.secondary' }} />
-                  <input
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Search..."
-                    style={{
-                      border: 'none', outline: 'none', background: 'transparent',
-                      fontSize: '0.75rem', width: 140,
-                      color: theme.palette.text.primary,
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Box
+                    onClick={() => { setCompareMode(m => !m); if (compareMode) setCompareSet(new Set()); }}
+                    sx={{
+                      display: 'flex', alignItems: 'center', gap: 0.75, cursor: 'pointer',
+                      px: 1.5, py: 0.75, borderRadius: 2,
+                      bgcolor: compareMode ? alpha(theme.palette.primary.main, 0.1) : 'background.paper',
+                      border: '0.5px solid',
+                      borderColor: compareMode ? 'primary.main' : 'divider',
+                      color: compareMode ? 'primary.main' : 'text.secondary',
+                      fontSize: '0.72rem', fontWeight: compareMode ? 700 : 500,
+                      userSelect: 'none', transition: 'all 0.15s',
                     }}
-                  />
-                </Box>
+                  >
+                    <CompareArrowsIcon sx={{ fontSize: 14 }} />
+                    Compare
+                    {compareSet.size > 0 && (
+                      <Box sx={{
+                        width: 16, height: 16, borderRadius: '50%', bgcolor: 'primary.main',
+                        color: '#fff', fontSize: '0.6rem', fontWeight: 700,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {compareSet.size}
+                      </Box>
+                    )}
+                  </Box>
+                  <Box sx={{
+                    display: 'flex', alignItems: 'center', gap: 1,
+                    bgcolor: 'background.paper', border: '0.5px solid', borderColor: 'divider',
+                    borderRadius: 2, px: 1.5, py: 0.75,
+                  }}>
+                    <SearchIcon sx={{ fontSize: 15, color: 'text.secondary' }} />
+                    <input
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      placeholder="Search..."
+                      style={{
+                        border: 'none', outline: 'none', background: 'transparent',
+                        fontSize: '0.75rem', width: 140,
+                        color: theme.palette.text.primary,
+                      }}
+                    />
+                  </Box>
+                </Stack>
               </Box>
 
               {/* Category tabs */}
@@ -867,43 +898,25 @@ export default function Step0({
                 ))}
               </Box>
 
-              {/* 2-column grid */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5, pb: 4 }}>
-                {/* Blank canvas */}
-                <GalleryCard
-                  selected={selectedTemplate === 'scratch'}
-                  elevation={0}
-                  onClick={() => selectTemplate({ id: 'scratch', title: 'Blank Canvas', description: 'Start from scratch.', category: 'Custom', tags: [], preinstalledModules: [] } as any)}
-                >
-                  {selectedTemplate === 'scratch' && (
-                    <Box sx={{
-                      position: 'absolute', top: 10, right: 10,
-                      width: 16, height: 16, borderRadius: '50%', bgcolor: 'primary.main',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <CheckIcon sx={{ fontSize: 9, color: '#fff' }} />
-                    </Box>
-                  )}
-                  <Box sx={{
-                    width: 34, height: 34, borderRadius: '8px',
-                    bgcolor: alpha(theme.palette.primary.main, 0.05),
-                    border: `1px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    mb: 1.25,
-                  }}>
-                    <AddIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                  </Box>
-                  <Typography variant="body2" fontWeight={500} sx={{ mb: 0.5 }}>Blank canvas</Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                    Zero pre-installed modules
+              {/* Compare mode hint */}
+              {compareMode && (
+                <Box sx={{ mb: 1.5, px: 1.5, py: 1, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.06), border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}` }}>
+                  <Typography variant="caption" color="primary.main" fontWeight={600}>
+                    Compare mode — select 2 or 3 templates to compare side-by-side
                   </Typography>
-                  <Chip label="0 modules" size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: alpha(theme.palette.primary.main, 0.05), color: 'text.secondary' }} />
-                </GalleryCard>
+                </Box>
+              )}
 
-                {/* Templates from API */}
-                {filteredTemplates.map(t => (
-                  <GalleryCard key={t.id} selected={selectedTemplate === t.id} elevation={0} onClick={() => selectTemplate(t)}>
-                    {selectedTemplate === t.id && (
+              {/* 2-column grid */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5, pb: compareMode && compareSet.size >= 2 ? 0 : 4 }}>
+                {/* Blank canvas — hidden in compare mode */}
+                {!compareMode && (
+                  <GalleryCard
+                    selected={selectedTemplate === 'scratch'}
+                    elevation={0}
+                    onClick={() => selectTemplate({ id: 'scratch', title: 'Blank Canvas', description: 'Start from scratch.', category: 'Custom', tags: [], preinstalledModules: [] } as any)}
+                  >
+                    {selectedTemplate === 'scratch' && (
                       <Box sx={{
                         position: 'absolute', top: 10, right: 10,
                         width: 16, height: 16, borderRadius: '50%', bgcolor: 'primary.main',
@@ -914,28 +927,79 @@ export default function Step0({
                     )}
                     <Box sx={{
                       width: 34, height: 34, borderRadius: '8px',
-                      bgcolor: alpha(theme.palette.primary.main, 0.07),
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1.25,
+                      bgcolor: alpha(theme.palette.primary.main, 0.05),
+                      border: `1px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      mb: 1.25,
                     }}>
-                      <BoltIcon sx={{ fontSize: 17, color: 'primary.main' }} />
+                      <AddIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                     </Box>
-                    <Stack direction="row" alignItems="center" spacing={0.75} mb={0.5} pr={2.5}>
-                      <Typography variant="body2" fontWeight={500}>{t.title}</Typography>
-                      <Chip label={t.category} size="small" sx={{
-                        height: 16, fontSize: '0.58rem', fontWeight: 500,
-                        bgcolor: alpha(theme.palette.primary.main, 0.08), color: 'primary.main',
-                      }} />
-                    </Stack>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, lineHeight: 1.5 }}>
-                      {t.description}
+                    <Typography variant="body2" fontWeight={500} sx={{ mb: 0.5 }}>Blank canvas</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                      Zero pre-installed modules
                     </Typography>
-                    <Chip
-                      label={`${t.preinstalledModules?.length ?? 0} modules`}
-                      size="small"
-                      sx={{ height: 18, fontSize: '0.6rem', bgcolor: alpha(theme.palette.primary.main, 0.05), color: 'text.secondary' }}
-                    />
+                    <Chip label="0 modules" size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: alpha(theme.palette.primary.main, 0.05), color: 'text.secondary' }} />
                   </GalleryCard>
-                ))}
+                )}
+
+                {/* Templates from API */}
+                {filteredTemplates.map(t => {
+                  const inCompare = compareSet.has(t.id);
+                  const compareDisabled = compareMode && compareSet.size >= 3 && !inCompare;
+                  return (
+                    <GalleryCard
+                      key={t.id}
+                      selected={compareMode ? inCompare : selectedTemplate === t.id}
+                      elevation={0}
+                      onClick={() => {
+                        if (!compareMode) {
+                          selectTemplate(t);
+                          return;
+                        }
+                        if (compareDisabled) return;
+                        setCompareSet(prev => {
+                          const next = new Set(prev);
+                          if (next.has(t.id)) next.delete(t.id);
+                          else next.add(t.id);
+                          return next;
+                        });
+                      }}
+                      sx={compareDisabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
+                    >
+                      {(compareMode ? inCompare : selectedTemplate === t.id) && (
+                        <Box sx={{
+                          position: 'absolute', top: 10, right: 10,
+                          width: 16, height: 16, borderRadius: '50%', bgcolor: 'primary.main',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <CheckIcon sx={{ fontSize: 9, color: '#fff' }} />
+                        </Box>
+                      )}
+                      <Box sx={{
+                        width: 34, height: 34, borderRadius: '8px',
+                        bgcolor: alpha(theme.palette.primary.main, 0.07),
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1.25,
+                      }}>
+                        <BoltIcon sx={{ fontSize: 17, color: 'primary.main' }} />
+                      </Box>
+                      <Stack direction="row" alignItems="center" spacing={0.75} mb={0.5} pr={2.5}>
+                        <Typography variant="body2" fontWeight={500}>{t.title}</Typography>
+                        <Chip label={t.category} size="small" sx={{
+                          height: 16, fontSize: '0.58rem', fontWeight: 500,
+                          bgcolor: alpha(theme.palette.primary.main, 0.08), color: 'primary.main',
+                        }} />
+                      </Stack>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, lineHeight: 1.5 }}>
+                        {t.description}
+                      </Typography>
+                      <Chip
+                        label={`${t.preinstalledModules?.length ?? 0} modules`}
+                        size="small"
+                        sx={{ height: 18, fontSize: '0.6rem', bgcolor: alpha(theme.palette.primary.main, 0.05), color: 'text.secondary' }}
+                      />
+                    </GalleryCard>
+                  );
+                })}
 
                 {loadingTemplates && (
                   <Box sx={{ gridColumn: '1/-1', py: 3, textAlign: 'center' }}>
@@ -943,6 +1007,102 @@ export default function Step0({
                   </Box>
                 )}
               </Box>
+
+              {/* Compare panel — shows when 2+ templates are selected for comparison */}
+              {compareMode && compareSet.size >= 2 && (() => {
+                const compareTemplates = Array.from(compareSet).map(id => templates.find(t => t.id === id)).filter(Boolean) as Template[];
+                // Find all unique module sets
+                const allModules = Array.from(new Set(compareTemplates.flatMap(t => t.preinstalledModules ?? [])));
+                return (
+                  <Box sx={{ mt: 2, mb: 4, borderRadius: 2, border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, overflow: 'hidden' }}>
+                    <Box sx={{ px: 2, py: 1.25, bgcolor: alpha(theme.palette.primary.main, 0.06), borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ letterSpacing: 0.5, textTransform: 'uppercase', fontSize: '0.63rem' }}>
+                        Comparing {compareTemplates.length} templates
+                      </Typography>
+                      <Box
+                        onClick={() => { setCompareSet(new Set()); setCompareMode(false); }}
+                        sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+                      >
+                        <CloseIcon sx={{ fontSize: 14 }} />
+                      </Box>
+                    </Box>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: `120px repeat(${compareTemplates.length}, 1fr)`, borderBottom: `1px solid ${theme.palette.divider}` }}>
+                      <Box sx={{ p: 1.5, bgcolor: 'background.default' }} />
+                      {compareTemplates.map(t => (
+                        <Box key={t.id} sx={{ p: 1.5, borderLeft: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
+                          <Typography variant="body2" fontWeight={700} sx={{ mb: 0.25 }}>{t.title}</Typography>
+                          <Chip label={t.category} size="small" sx={{ height: 15, fontSize: '0.57rem', bgcolor: alpha(theme.palette.primary.main, 0.08), color: 'primary.main' }} />
+                        </Box>
+                      ))}
+                    </Box>
+                    {/* Description row */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: `120px repeat(${compareTemplates.length}, 1fr)`, borderBottom: `1px solid ${theme.palette.divider}` }}>
+                      <Box sx={{ p: 1.25, bgcolor: 'background.default', display: 'flex', alignItems: 'flex-start' }}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>Description</Typography>
+                      </Box>
+                      {compareTemplates.map(t => (
+                        <Box key={t.id} sx={{ p: 1.25, borderLeft: `1px solid ${theme.palette.divider}` }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>{t.description}</Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                    {/* Modules row */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: `120px repeat(${compareTemplates.length}, 1fr)`, borderBottom: `1px solid ${theme.palette.divider}` }}>
+                      <Box sx={{ p: 1.25, bgcolor: 'background.default', display: 'flex', alignItems: 'flex-start' }}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>Modules</Typography>
+                      </Box>
+                      {compareTemplates.map(t => (
+                        <Box key={t.id} sx={{ p: 1.25, borderLeft: `1px solid ${theme.palette.divider}` }}>
+                          <Typography variant="caption" fontWeight={700} color="primary.main">{t.preinstalledModules?.length ?? 0}</Typography>
+                          <Typography variant="caption" color="text.secondary"> pre-installed</Typography>
+                          {(t.preinstalledModules ?? []).length > 0 && (
+                            <Stack direction="row" flexWrap="wrap" gap={0.5} mt={0.75}>
+                              {t.preinstalledModules.map(m => (
+                                <Chip key={m} label={m} size="small" sx={{ height: 16, fontSize: '0.57rem', bgcolor: 'background.default' }} />
+                              ))}
+                            </Stack>
+                          )}
+                        </Box>
+                      ))}
+                    </Box>
+                    {/* Unique modules across all */}
+                    {allModules.length > 0 && (
+                      allModules.map(mod => (
+                        <Box key={mod} sx={{ display: 'grid', gridTemplateColumns: `120px repeat(${compareTemplates.length}, 1fr)`, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.5)}` }}>
+                          <Box sx={{ p: 1, bgcolor: 'background.default', display: 'flex', alignItems: 'center', pl: 1.5 }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.62rem' }}>{mod}</Typography>
+                          </Box>
+                          {compareTemplates.map(t => (
+                            <Box key={t.id} sx={{ p: 1, borderLeft: `1px solid ${theme.palette.divider}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {t.preinstalledModules?.includes(mod)
+                                ? <CheckIcon sx={{ fontSize: 13, color: '#10b981' }} />
+                                : <Box sx={{ width: 12, height: 1.5, bgcolor: alpha(theme.palette.text.secondary, 0.2), borderRadius: 1 }} />
+                              }
+                            </Box>
+                          ))}
+                        </Box>
+                      ))
+                    )}
+                    {/* Action row */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: `120px repeat(${compareTemplates.length}, 1fr)`, bgcolor: alpha(theme.palette.primary.main, 0.03) }}>
+                      <Box sx={{ p: 1.5, bgcolor: 'background.default' }} />
+                      {compareTemplates.map(t => (
+                        <Box key={t.id} sx={{ p: 1.5, borderLeft: `1px solid ${theme.palette.divider}` }}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            fullWidth
+                            onClick={() => { selectTemplate(t); setCompareMode(false); setCompareSet(new Set()); }}
+                            sx={{ fontSize: '0.7rem', borderRadius: 1.5, py: 0.5 }}
+                          >
+                            Use this
+                          </Button>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                );
+              })()}
             </Box>
           </Fade>
         )}

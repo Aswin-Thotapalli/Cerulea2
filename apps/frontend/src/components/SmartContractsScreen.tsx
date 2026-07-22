@@ -11,6 +11,7 @@ import { alpha, useTheme, styled } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CodeIcon from '@mui/icons-material/Code';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -280,11 +281,34 @@ export default function SmartContractsScreen({ onClose, fullPage, onGoToBlueprin
                     }}
                   />
                 </Box>
-                {c.enabled ? (
-                  <CheckCircleIcon sx={{ fontSize: 14, color: 'success.main', flexShrink: 0 }} />
-                ) : (
-                  <WarningAmberIcon sx={{ fontSize: 14, color: 'warning.main', flexShrink: 0 }} />
-                )}
+                <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexShrink: 0 }}>
+                  {c.enabled ? (
+                    <CheckCircleIcon sx={{ fontSize: 14, color: 'success.main' }} />
+                  ) : (
+                    <WarningAmberIcon sx={{ fontSize: 14, color: 'warning.main' }} />
+                  )}
+                  <Tooltip title="Ask CeruleAI about this contract">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.dispatchEvent(new CustomEvent('cerulea:ask-ai', {
+                          detail: {
+                            message: `Explain the ${c.name} contract (${c.contractType} type). What does it do, why does it exist in my project, and what are the key security considerations I should know about?`,
+                          },
+                        }));
+                      }}
+                      sx={{
+                        p: 0.25, opacity: 0,
+                        color: 'primary.main',
+                        transition: 'opacity 0.15s',
+                        '.MuiBox-root:hover &': { opacity: 1 },
+                      }}
+                    >
+                      <AutoAwesomeIcon sx={{ fontSize: 13 }} />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
               </ContractItem>
             ))}
           </Box>
@@ -321,11 +345,30 @@ export default function SmartContractsScreen({ onClose, fullPage, onGoToBlueprin
                         {selectedContract.description}
                       </Typography>
                     </Box>
-                    <Switch
-                      checked={selectedContract.enabled}
-                      onChange={(e) => toggleContract(selectedContract.id, e.target.checked)}
-                      color="success"
-                    />
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Tooltip title="Ask CeruleAI about this contract">
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<AutoAwesomeIcon sx={{ fontSize: 14 }} />}
+                          onClick={() => {
+                            window.dispatchEvent(new CustomEvent('cerulea:ask-ai', {
+                              detail: {
+                                message: `Explain the ${selectedContract.name} contract (${selectedContract.contractType} type). What does it do, why does it exist in my project, and what are the key security considerations I should know about?`,
+                              },
+                            }));
+                          }}
+                          sx={{ fontSize: '0.72rem', borderRadius: 2, px: 1.5, py: 0.5 }}
+                        >
+                          Ask CeruleAI
+                        </Button>
+                      </Tooltip>
+                      <Switch
+                        checked={selectedContract.enabled}
+                        onChange={(e) => toggleContract(selectedContract.id, e.target.checked)}
+                        color="success"
+                      />
+                    </Stack>
                   </Stack>
 
                   {!selectedContract.enabled && (

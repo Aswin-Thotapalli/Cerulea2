@@ -13,6 +13,8 @@ import {
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import UndoIcon from '@mui/icons-material/Undo';
+import RedoIcon from '@mui/icons-material/Redo';
 import SearchIcon from '@mui/icons-material/Search';
 import LayersIcon from '@mui/icons-material/Layers';
 import AddIcon from '@mui/icons-material/Add';
@@ -423,7 +425,12 @@ function Step1Inner({ goPrev, goNext }: { goPrev?: () => void; goNext?: () => vo
   const [isSpotlightOpen, setIsSpotlightOpen] = React.useState(false);
   const [isHelpOpen, setIsHelpOpen] = React.useState(false);
   const [q, setQ] = React.useState('');
-  
+
+  // Undo/redo history
+  const historyRef = React.useRef<Array<{ nodes: Node[]; edges: Edge[] }>>([]);
+  const historyIndexRef = React.useRef(-1);
+  const isUndoingRef = React.useRef(false);
+
   const rf = useReactFlow();
 
   // Load Library
@@ -548,13 +555,21 @@ function Step1Inner({ goPrev, goNext }: { goPrev?: () => void; goNext?: () => vo
       },
     };
 
-    setNodes(nds => [...nds, newNode]);
+    setNodes(nds => {
+      const next = [...nds, newNode];
+      pushHistory(next, edges);
+      return next;
+    });
     setIsSpotlightOpen(false);
     setSelectedNodeId(id);
   }
 
   const onConnect = (c: Connection) => {
-    setEdges((eds) => addEdge({ ...c, type: 'relation', markerEnd: { type: MarkerType.ArrowClosed }, data: { rel: 'custom' } }, eds) as any);
+    setEdges((eds) => {
+      const next = addEdge({ ...c, type: 'relation', markerEnd: { type: MarkerType.ArrowClosed }, data: { rel: 'custom' } }, eds) as any;
+      pushHistory(nodes, next);
+      return next;
+    });
   };
   const onNodeClick = (_: any, n: Node) => { setSelectedEdgeId(null); setSelectedNodeId(n.id); };
   const onEdgeClick = (_: any, e: Edge) => { setSelectedNodeId(null); setSelectedEdgeId(e.id); };
@@ -581,6 +596,89 @@ function Step1Inner({ goPrev, goNext }: { goPrev?: () => void; goNext?: () => vo
   }
 
   const handleNext = async () => { await persistBlueprintNow(); if (goNext) goNext(); };
+
+  /* ------ Undo / Redo ------ */
+  function pushHistory(currentNodes: Node[], currentEdges: Edge[]) {
+    if (isUndoingRef.current) return;
+    historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
+    historyRef.current.push({ nodes: JSON.parse(JSON.stringify(currentNodes)), edges: JSON.parse(JSON.stringify(currentEdges)) });
+    if (historyRef.current.length > 50) historyRef.current = historyRef.current.slice(-50);
+    historyIndexRef.current = historyRef.current.length - 1;
+  }
+
+  const undoRef = React.useRef<() => void>(() => {});
+  const redoRef = React.useRef<() => void>(() => {});
+
+  undoRef.current = () => {
+    if (historyIndexRef.current <= 0) return;
+    historyIndexRef.current--;
+    const state = historyRef.current[historyIndexRef.current];
+    isUndoingRef.current = true;
+    setNodes(state.nodes);
+    setEdges(state.edges);
+    setTimeout(() => { isUndoingRef.current = false; }, 0);
+  };
+
+  redoRef.current = () => {
+    if (historyIndexRef.current >= historyRef.current.length - 1) return;
+    historyIndexRef.current++;
+    const state = historyRef.current[historyIndexRef.current];
+    isUndoingRef.current = true;
+    setNodes(state.nodes);
+    setEdges(state.edges);
+    setTimeout(() => { isUndoingRef.current = false; }, 0);
+  };
+
+  React.useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const inInput = (e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable;
+      if (inInput) return;
+      if (e.ctrlKey && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undoRef.current(); }
+      if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'z')) { e.preventDefault(); redoRef.current(); }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  /* ------ Agentic action listener ------ */
+  const addModuleRef = React.useRef<(moduleId: string) => void>(addModule);
+  addModuleRef.current = addModule;
+
+  React.useEffect(() => {
+    function onAgentAction(e: Event) {
+      const action = (e as CustomEvent).detail;
+      if (!action?.type) return;
+      if (action.type === 'add_module') {
+        addModuleRef.current(action.moduleId);
+      } else if (action.type === 'remove_module') {
+        const id = nodeIdFor(action.moduleId);
+        setNodes(nds => {
+          const next = nds.filter(n => n.id !== id);
+          pushHistory(next, edges);
+          return next;
+        });
+      } else if (action.type === 'connect_modules') {
+        const srcId = nodeIdFor(action.sourceId);
+        const tgtId = nodeIdFor(action.targetId);
+        const rel = action.rel ?? 'custom';
+        setEdges(eds => {
+          const next = [...eds, {
+            id: `e_${srcId}_${tgtId}_${Date.now()}`,
+            source: srcId,
+            target: tgtId,
+            type: 'relation',
+            markerEnd: { type: MarkerType.ArrowClosed },
+            data: { rel },
+          } as any];
+          pushHistory(nodes, next);
+          return next;
+        });
+      }
+    }
+    window.addEventListener('cerulea:action', onAgentAction);
+    return () => window.removeEventListener('cerulea:action', onAgentAction);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Filter Spotlight
   const filteredLib = React.useMemo(() => {
@@ -660,6 +758,24 @@ function Step1Inner({ goPrev, goNext }: { goPrev?: () => void; goNext?: () => vo
 
            <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
 
+           <Tooltip title="Undo (Ctrl+Z)">
+             <span>
+               <IconButton size="small" onClick={() => undoRef.current()} disabled={historyIndexRef.current <= 0}>
+                 <UndoIcon fontSize="small" />
+               </IconButton>
+             </span>
+           </Tooltip>
+
+           <Tooltip title="Redo (Ctrl+Y)">
+             <span>
+               <IconButton size="small" onClick={() => redoRef.current()} disabled={historyIndexRef.current >= historyRef.current.length - 1}>
+                 <RedoIcon fontSize="small" />
+               </IconButton>
+             </span>
+           </Tooltip>
+
+           <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
+
            <Button
              variant="contained"
              startIcon={<AddIcon />}
@@ -672,7 +788,7 @@ function Step1Inner({ goPrev, goNext }: { goPrev?: () => void; goNext?: () => vo
            <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
 
            <Tooltip title="Clear Canvas">
-             <IconButton size="small" onClick={() => {setNodes([]); setEdges([]);}} color="error">
+             <IconButton size="small" onClick={() => { const empty: Node[] = []; const emptyE: Edge[] = []; pushHistory(empty, emptyE); setNodes(empty); setEdges(emptyE); }} color="error">
                 <DeleteOutlineIcon />
              </IconButton>
            </Tooltip>
