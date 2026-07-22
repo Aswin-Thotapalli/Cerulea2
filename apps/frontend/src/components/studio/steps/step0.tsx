@@ -166,7 +166,7 @@ export default function Step0({
   onSubStepChange?: (subStep: number) => void;
 }) {
   const theme = useTheme();
-  const { projectType, templateId, appMetadata, workspaceId, setStudioState } = useStudio();
+  const { projectType, templateId, appMetadata, workspaceId, projectId: existingProjectId, setStudioState } = useStudio();
   const { data: session } = useSession();
 
   const userPlan = (session?.user as any)?.plan as string | undefined;
@@ -191,11 +191,12 @@ export default function Step0({
   const [search, setSearch] = React.useState('');
   const [categoryFilter, setCategoryFilter] = React.useState('All');
 
-  // Form state
-  const [name, setName] = React.useState(appMetadata?.appName ?? '');
-  const [slug, setSlug] = React.useState(slugify(appMetadata?.appName ?? ''));
+  // Form state — only pre-fill from context when editing an existing project.
+  // For new projects (no projectId), start empty so template selection always populates cleanly.
+  const [name, setName] = React.useState(existingProjectId ? (appMetadata?.appName ?? '') : '');
+  const [slug, setSlug] = React.useState(existingProjectId ? slugify(appMetadata?.appName ?? '') : '');
   const [slugDirty, setSlugDirty] = React.useState(false);
-  const [description, setDescription] = React.useState(appMetadata?.appDescription ?? '');
+  const [description, setDescription] = React.useState(existingProjectId ? (appMetadata?.appDescription ?? '') : '');
   const [wsId, setWsId] = React.useState(workspaceId ?? '');
 
   // Track the last values auto-populated from a template so we know whether
