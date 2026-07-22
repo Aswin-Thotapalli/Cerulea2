@@ -103,7 +103,7 @@ export default function StudioEntry({ projectId: initialProjectId }: Props) {
   };
 
   const handleNewProject = () => {
-    // Clear any stale project state
+    // Clear localStorage
     setResolvedId(null);
     setInitialStep(0);
     localStorage.removeItem('cerulea.projectId');
@@ -111,7 +111,19 @@ export default function StudioEntry({ projectId: initialProjectId }: Props) {
     localStorage.removeItem('cerulea.step1.graph');
     localStorage.removeItem('cerulea.templateModules');
     localStorage.removeItem('cerulea.economics');
+    localStorage.removeItem('cerulea.context.snapshot'); // clears the StudioContext snapshot so old project data isn't re-hydrated
     window.history.replaceState(null, '', '/');
+    // Also reset the React context — otherwise the AI still sees the previous
+    // project's name/id even though localStorage was cleared.
+    setStudioState({
+      projectId: undefined,
+      slug: undefined,
+      projectType: null,
+      templateId: null,
+      selectedModules: [],
+      appMetadata: { appName: '', appDescription: '' },
+      legacyMode: 'none',
+    } as any);
     setMode('studio');
   };
 
