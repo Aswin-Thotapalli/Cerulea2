@@ -111,6 +111,8 @@ export const authOptions: NextAuthOptions = {
         token.userId = (user as any).id;
         token.plan = (user as any).plan ?? "free";
         token.isTestAccount = (user as any).isTestAccount ?? false;
+        const adminEmails = (process.env.ADMIN_EMAIL ?? '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+        token.isAdmin = (user as any).isTestAccount === true || adminEmails.includes((user.email ?? '').toLowerCase());
       }
 
       // Re-fetch plan from DB when session is explicitly refreshed (after subscription checkout)
@@ -133,6 +135,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).id = token.userId as string;
         (session.user as any).plan = token.plan as string;
         (session.user as any).isTestAccount = token.isTestAccount as boolean;
+        (session.user as any).isAdmin = token.isAdmin as boolean;
       }
       return session;
     },

@@ -102,7 +102,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Admin guard: redirect non-admin users (only after session is fully loaded)
   const userEmail = session?.user?.email;
-  const isAdmin = userEmail === 'test@cerulea.app' || (session?.user as { isTestAccount?: boolean })?.isTestAccount;
+  const isAdmin = (session?.user as any)?.isAdmin === true || userEmail === 'test@cerulea.app' || (session?.user as { isTestAccount?: boolean })?.isTestAccount;
 
   if (status === 'loading') {
     return (
@@ -117,7 +117,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (status === 'unauthenticated') {
     if (typeof window !== 'undefined') {
       const isLocal = window.location.hostname.includes('localhost');
-      const mainHost = isLocal ? 'http://localhost:3000' : 'https://cerulea.app';
+      const mainHost = isLocal ? 'http://localhost:3000' : 'https://cerulea.io';
       window.location.href = `${mainHost}/auth/login?next=${encodeURIComponent(window.location.href)}`;
     }
     return null;
@@ -126,7 +126,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (status === 'authenticated' && !isAdmin) {
     if (typeof window !== 'undefined') {
       const isLocal = window.location.hostname.includes('localhost');
-      window.location.href = isLocal ? 'http://localhost:3000/dashboard' : 'https://cerulea.app/dashboard';
+      window.location.href = isLocal ? 'http://localhost:3000/dashboard' : 'https://cerulea.io/dashboard';
     }
     return null;
   }
@@ -311,7 +311,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Tooltip title="Sign out">
                   <IconButton size="small" onClick={async () => {
                     const isLocal = window.location.hostname.includes('localhost');
-                    const home = isLocal ? 'http://localhost:3000/' : 'https://cerulea.app/';
+                    const home = isLocal ? 'http://localhost:3000/' : 'https://cerulea.io/';
                     window.location.href = `/api/auth/force-signout?next=${encodeURIComponent(home)}`;
                   }} sx={{ color: 'rgba(255,255,255,0.3)', '&:hover': { color: '#f44336' } }}>
                     <LogoutIcon sx={{ fontSize: 14 }} />

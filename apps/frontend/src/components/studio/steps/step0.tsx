@@ -194,6 +194,10 @@ export default function Step0({
   const [description, setDescription] = React.useState(appMetadata?.appDescription ?? '');
   const [wsId, setWsId] = React.useState(workspaceId ?? '');
 
+  // Track the last values auto-populated from a template so we know whether
+  // to override them when the user selects a different template.
+  const lastTemplateAutoRef = React.useRef<{ name: string; slug: string; description: string } | null>(null);
+
   // Dialogs
   const [wsDialogOpen, setWsDialogOpen] = React.useState(false);
   const [wsNewName, setWsNewName] = React.useState('');
@@ -308,9 +312,13 @@ export default function Step0({
     const id = tpl?.id ?? null;
     setSelectedTemplate(id);
     if (tpl) {
-      setName(prev => prev || tpl.title);
-      setSlug(prev => prev || slugify(tpl.title));
-      setDescription(prev => prev || tpl.description);
+      const last = lastTemplateAutoRef.current;
+      // Replace auto-populated values when the user picks a different template,
+      // but preserve anything the user has manually typed.
+      setName(prev => (!prev || prev === last?.name) ? tpl.title : prev);
+      setSlug(prev => (!prev || prev === last?.slug) ? slugify(tpl.title) : prev);
+      setDescription(prev => (!prev || prev === last?.description) ? tpl.description : prev);
+      lastTemplateAutoRef.current = { name: tpl.title, slug: slugify(tpl.title), description: tpl.description };
     }
   };
 

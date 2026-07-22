@@ -112,6 +112,11 @@ export default function SettingsPage() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetDone, setResetDone] = useState(false);
 
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  const [sessions, setSessions] = useState<any[]>([]);
   const [projectCount, setProjectCount] = useState<number | null>(null);
 
   const isTestAccount = session?.user?.email === 'test@cerulea.app';
@@ -145,6 +150,14 @@ export default function SettingsPage() {
       .catch(() => {});
   }, []);
 
+  // Load recent login sessions from audit log
+  useEffect(() => {
+    fetch('/api/dashboard/audit-logs')
+      .then(r => r.json())
+      .then(d => setSessions((d.logs ?? []).filter((l: any) => l.action === 'auth.login').slice(0, 5)))
+      .catch(() => {});
+  }, []);
+
   const handleSave = async () => {
     setSaveError(null);
     try {
@@ -158,6 +171,30 @@ export default function SettingsPage() {
       setTimeout(() => setSaved(false), 2500);
     } catch {
       setSaveError('Failed to save. Please try again.');
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    setPasswordLoading(true);
+    setPasswordError(null);
+    setPasswordSuccess(false);
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update password');
+      setPasswordSuccess(true);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPasswordSuccess(false), 3000);
+    } catch (e: any) {
+      setPasswordError(e.message);
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -232,8 +269,12 @@ export default function SettingsPage() {
             <TextField label="Confirm Password" type="password" size="small" fullWidth value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
               error={confirmPassword.length > 0 && confirmPassword !== newPassword} helperText={confirmPassword.length > 0 && confirmPassword !== newPassword ? 'Passwords do not match' : undefined} />
           </Box>
-          <Button variant="outlined" size="small" sx={{ borderRadius: 1, fontWeight: 700, mb: 3 }} disabled={!newPassword || newPassword !== confirmPassword}>
-            Update Password
+          {passwordError && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{passwordError}</Alert>}
+          {passwordSuccess && <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>Password updated successfully.</Alert>}
+          <Button variant="outlined" size="small" sx={{ borderRadius: 1, fontWeight: 700, mb: 3 }}
+            onClick={handlePasswordChange}
+            disabled={!currentPassword || !newPassword || newPassword !== confirmPassword || passwordLoading}>
+            {passwordLoading ? 'Updating…' : 'Update Password'}
           </Button>
 
           <Divider sx={{ mb: 3 }} />
@@ -254,6 +295,25 @@ export default function SettingsPage() {
               </Typography>
             </Box>
             <Switch size="small" checked={twoFaEnabled} onChange={(e) => setTwoFaEnabled(e.target.checked)} sx={{ flexShrink: 0, mt: 0.25 }} />
+          </Stack>
+
+          <Divider sx={{ my: 3 }} />
+
+          {/* Recent Login Sessions */}
+          <Typography variant="subtitle2" fontWeight={700} mb={1.5}>Recent Login Sessions</Typography>
+          <Stack spacing={1.5}>
+            {sessions.length === 0 ? (
+              <Typography variant="caption" color="text.secondary">No recent sessions found.</Typography>
+            ) : sessions.map((s: any, i: number) => (
+              <Stack key={s.id} direction="row" alignItems="center" spacing={1.5} sx={{ p: 1.5, borderRadius: 2, bgcolor: alpha('#8b5cf6', 0.04), border: '1px solid', borderColor: alpha('#8b5cf6', 0.1) }}>
+                <LaptopIcon sx={{ fontSize: 18, color: '#8b5cf6', flexShrink: 0 }} />
+                <Box flex={1} minWidth={0}>
+                  <Typography variant="body2" fontWeight={600}>{s.ip ? `IP: ${s.ip}` : 'Unknown location'}</Typography>
+                  <Typography variant="caption" color="text.secondary">{new Date(s.createdAt).toLocaleString()}</Typography>
+                </Box>
+                {i === 0 && <Chip label="Latest" size="small" sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, bgcolor: alpha('#10b981', 0.1), color: '#10b981' }} />}
+              </Stack>
+            ))}
           </Stack>
         </Box>
       </Paper>
