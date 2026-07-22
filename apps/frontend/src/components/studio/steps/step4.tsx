@@ -791,17 +791,42 @@ export default function Step4({ goPrev, goNext, projectId }: { goPrev?: () => vo
   };
 
   const handleTest = async () => {
+    if (!activeDef) return;
     setTesting(true);
     setTestResult(null);
-    setTimeout(() => {
-      const isValid = activeDef?.fields.every(f => {
-        const envKey = `${activeConfig.environment || 'dev'}_${f.key}`;
-        const val = activeConfig.credentials?.[envKey];
-        return val && (!f.validate || !f.validate(val));
-      });
-      setTestResult(isValid ? 'success' : 'error');
+
+    const env = activeConfig.environment || 'dev';
+    const credentials: Record<string, string> = {};
+    activeDef.fields.forEach(f => {
+      const envKey = `${env}_${f.key}`;
+      const val = activeConfig.credentials?.[envKey];
+      if (val) credentials[f.key] = val;
+    });
+
+    // Client-side format validation before hitting the API
+    const validationError = activeDef.fields.some(f => {
+      const val = credentials[f.key];
+      return !val || (f.validate && f.validate(val) !== null);
+    });
+    if (validationError) {
+      setTestResult('error');
       setTesting(false);
-    }, 1200);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/integrations/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ integrationId: activeDef.id, category: activeDef.category, credentials }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setTestResult(res.ok && data.ok ? 'success' : 'error');
+    } catch {
+      setTestResult('error');
+    } finally {
+      setTesting(false);
+    }
   };
 
   const handleSave = async () => {

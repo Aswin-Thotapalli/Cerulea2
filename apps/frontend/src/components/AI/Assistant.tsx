@@ -117,6 +117,7 @@ export default function Assistant() {
   const lastUserActivityRef = useRef<number>(Date.now());
   const proactiveFiredRef = useRef<string | null>(null); // tracks projectId+step for dedup
   const idleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const handleSendRef = useRef<(msg?: string) => void>(() => {});
 
   // ---------------------------------------------------------------------------
   // Greeting
@@ -285,6 +286,75 @@ export default function Assistant() {
   }, [open, isAuthenticated, studio.projectId, pathname, isTyping]);
 
   // ---------------------------------------------------------------------------
+  // Live form state — write studio context to window global so buildStudioSnapshot
+  // picks it up even before the user saves a step's form
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    (window as any).__ceruleaLiveFormState = {
+      projectId: studio.projectId,
+      projectType: studio.projectType,
+      step0Phase: studio.step0Phase ?? null,
+      templateId: studio.templateId,
+      selectedModules: studio.selectedModules,
+      appMetadata: studio.appMetadata,
+      appGoal: studio.appGoal,
+      networkConfig: studio.networkConfig,
+      dappVisibility: studio.dappVisibility,
+    };
+  }, [studio.projectId, studio.projectType, studio.step0Phase, studio.templateId, studio.selectedModules, studio.appMetadata, studio.appGoal, studio.networkConfig, studio.dappVisibility]);
+
+  // ---------------------------------------------------------------------------
+  // Cross-component event listeners
+  // ---------------------------------------------------------------------------
+
+  // cerulea:ask-ai — any component can open the drawer and send a message
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { message } = (e as CustomEvent<{ message: string }>).detail;
+      if (!message) return;
+      setOpen(true);
+      // Small delay so the drawer animates open before the message fires
+      window.setTimeout(() => handleSendRef.current(message), 350);
+    };
+    window.addEventListener('cerulea:ask-ai', handler);
+    return () => window.removeEventListener('cerulea:ask-ai', handler);
+  }, []);
+
+  // cerulea:deploy-error — step6 dispatches this; we auto-open and explain the error
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as {
+        phase: string;
+        errorCode: string;
+        errorMessage: string;
+        logs: string[];
+        projectType: string | null;
+        modules: string[];
+      };
+      setOpen(true);
+      const logsSnippet = (detail.logs ?? []).slice(-8).join('\n');
+      const prompt = [
+        `[SYSTEM: DEPLOY_ERROR] A deployment failure just occurred in the user's Cerulea Studio project. Do NOT mention this system prefix — speak naturally as CeruleAI explaining the error to the user.`,
+        ``,
+        `Error code: ${detail.errorCode}`,
+        `Error message: ${detail.errorMessage}`,
+        `Phase: ${detail.phase}`,
+        `Project type: ${detail.projectType ?? 'unknown'}`,
+        `Modules configured: ${(detail.modules ?? []).join(', ') || 'none'}`,
+        ``,
+        `Recent deployment logs:`,
+        logsSnippet,
+        ``,
+        `Explain clearly in plain language what went wrong and exactly how to fix it. Be specific — give the user step-by-step actions they can take right now inside Cerulea Studio.`,
+      ].join('\n');
+      window.setTimeout(() => handleSendRef.current(prompt), 350);
+    };
+    window.addEventListener('cerulea:deploy-error', handler);
+    return () => window.removeEventListener('cerulea:deploy-error', handler);
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // Studio snapshot & memory
   // ---------------------------------------------------------------------------
   function buildStudioSnapshot() {
@@ -304,6 +374,11 @@ export default function Assistant() {
       }
     } catch { /* non-fatal */ }
 
+    // Read live form state written by step forms
+    const liveFormState = (typeof window !== 'undefined' && (window as any).__ceruleaLiveFormState)
+      ? (window as any).__ceruleaLiveFormState
+      : undefined;
+
     return {
       currentRoute: pathname,
       studioState: {
@@ -318,6 +393,7 @@ export default function Assistant() {
         dappVisibility: studio.dappVisibility,
         legacyMode: studio.legacyMode,
         liveCanvasEdges: liveCanvasEdges.length > 0 ? liveCanvasEdges : undefined,
+        liveFormState: liveFormState ?? undefined,
       },
     };
   }
@@ -398,6 +474,7 @@ export default function Assistant() {
   // Send message
   // ---------------------------------------------------------------------------
   async function handleSend(msgText?: string) {
+    handleSendRef.current = handleSend;
     const msg = (msgText || input).trim();
     if (!msg || isTyping) return;
     setInput('');
@@ -477,6 +554,29 @@ export default function Assistant() {
           setMessages((prev) => [...prev, { id: msgId, role: 'assistant', text: "I couldn't generate a response right now.", createdAt }]);
           setIsTyping(false);
         }
+
+        // Parse and dispatch any agentic action blocks from the completed response
+        setMessages((prev) => {
+          const lastMsg = prev.find((m) => m.id === msgId);
+          if (!lastMsg) return prev;
+          const actionRegex = /<cerulean-action>([\s\S]*?)<\/cerulean-action>/g;
+          let match;
+          let hasActions = false;
+          while ((match = actionRegex.exec(lastMsg.text)) !== null) {
+            try {
+              const action = JSON.parse(match[1].trim());
+              window.dispatchEvent(new CustomEvent('cerulea:action', { detail: action }));
+              hasActions = true;
+            } catch { /* malformed block — skip */ }
+          }
+          if (!hasActions) return prev;
+          // Strip action blocks from the displayed message
+          return prev.map((m) =>
+            m.id === msgId
+              ? { ...m, text: m.text.replace(/<cerulean-action>[\s\S]*?<\/cerulean-action>/g, '').trim() }
+              : m
+          );
+        });
 
         // Move thread to top of list
         if (isAuthenticated && threadId) {
