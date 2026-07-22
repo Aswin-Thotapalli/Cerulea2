@@ -420,7 +420,7 @@ Smart contracts emit events for every significant state change. Events are index
 The Cerulea Bridge enables cross-chain asset transfer between the Cerulea network and external chains (Ethereum, Polygon, BNB Chain).
 
 **Mechanism:**
-1. User calls \`lockAndMint(amount, targetChain)\` on Cerulea → tokens locked in Bridge contract
+1. User calls lockAndMint(amount, targetChain) on Cerulea → tokens locked in Bridge contract
 2. Relayer network detects the lock event
 3. Relayers validate the event with 2-of-3 signature threshold
 4. Equivalent tokens minted on target chain via bridge contract there
@@ -567,15 +567,15 @@ Cerulea supports on-chain ML model inference verification via the Proof of Infer
 
 When configuring governance in Step 4 (Economics → Governance tab), these parameters control how on-chain voting works:
 
-**Voting Delay** (\`votingDelay\`): Number of blocks between when a proposal is created and when voting opens. Default: 1 block (~3 seconds on DCF). Gives token holders time to acquire tokens before voting starts.
+**Voting Delay** (votingDelay): Number of blocks between when a proposal is created and when voting opens. Default: 1 block (~3 seconds on DCF). Gives token holders time to acquire tokens before voting starts.
 
-**Voting Period** (\`votingPeriod\`): Number of blocks the vote stays open. Default: 50,400 blocks (~7 days at 12s/block). Must be long enough for community participation. Minimum recommended: 7,200 blocks (~1 day).
+**Voting Period** (votingPeriod): Number of blocks the vote stays open. Default: 50,400 blocks (~7 days at 12s/block). Must be long enough for community participation. Minimum recommended: 7,200 blocks (~1 day).
 
-**Proposal Threshold** (\`proposalThreshold\`): Minimum token balance required to submit a proposal. Typical: 0.1–1% of total supply. Too low → spam proposals. Too high → only large holders can govern.
+**Proposal Threshold** (proposalThreshold): Minimum token balance required to submit a proposal. Typical: 0.1–1% of total supply. Too low → spam proposals. Too high → only large holders can govern.
 
-**Quorum Numerator** (\`quorumNumerator\`): Percentage of total supply that must participate for a vote to be valid. Typical: 4–10%. Too low → small groups can pass proposals. Too high → proposals rarely pass.
+**Quorum Numerator** (quorumNumerator): Percentage of total supply that must participate for a vote to be valid. Typical: 4–10%. Too low → small groups can pass proposals. Too high → proposals rarely pass.
 
-**TimeLock Delay** (\`minDelay\`): Seconds between a proposal passing and it becoming executable. Typical: 24–72 hours (86,400–259,200 seconds). Gives token holders time to exit before unwanted changes take effect.
+**TimeLock Delay** (minDelay): Seconds between a proposal passing and it becoming executable. Typical: 24–72 hours (86,400–259,200 seconds). Gives token holders time to exit before unwanted changes take effect.
 
 **Common governance setups:**
 - Conservative DAO: votingDelay=1, votingPeriod=100,800 (14 days), proposalThreshold=1% supply, quorumNumerator=10%, timelockDelay=72h
@@ -847,9 +847,9 @@ When reviewing the user's Blueprint (MODULE CONNECTIONS in PROJECT CONTEXT), run
 When the user explicitly asks you to perform a Blueprint action — "add X module", "connect X to Y", "remove X" — you may emit an action block at the END of your response (after your explanation). The Studio will execute these actions on the canvas automatically.
 
 **Supported action types:**
-- Add a module: \`<cerulean-action>{"type":"add_module","moduleId":"erc20"}</cerulean-action>\`
-- Connect two modules: \`<cerulean-action>{"type":"connect_modules","sourceId":"staking","targetId":"erc20","rel":"calls"}</cerulean-action>\`
-- Remove a module: \`<cerulean-action>{"type":"remove_module","moduleId":"oracle"}</cerulean-action>\`
+- Add a module: <cerulean-action>{"type":"add_module","moduleId":"erc20"}</cerulean-action>
+- Connect two modules: <cerulean-action>{"type":"connect_modules","sourceId":"staking","targetId":"erc20","rel":"calls"}</cerulean-action>
+- Remove a module: <cerulean-action>{"type":"remove_module","moduleId":"oracle"}</cerulean-action>
 
 **Rules:**
 - Only emit actions when the user **explicitly asks you to perform** an action (add, connect, remove)
