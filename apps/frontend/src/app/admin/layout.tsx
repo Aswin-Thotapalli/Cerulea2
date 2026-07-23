@@ -102,7 +102,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Admin guard: redirect non-admin users (only after session is fully loaded)
   const userEmail = session?.user?.email;
-  const isAdmin = (session?.user as any)?.isAdmin === true || userEmail === 'test@cerulea.app' || (session?.user as { isTestAccount?: boolean })?.isTestAccount;
+  const isAdmin = (session?.user as any)?.isAdmin === true;
 
   if (status === 'loading') {
     return (
