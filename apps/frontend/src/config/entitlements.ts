@@ -163,6 +163,26 @@ export function effectiveEntitlement(
   return { features: Array.from(features), limits };
 }
 
+// Every feature key — used to grant admins/test accounts everything.
+export const ALL_FEATURES: FeatureKey[] = [
+  'agentic_ai', 'contract_export', 'advanced_modules', 'block_explorer', 'custom_domain',
+  'dedicated_cloud', 'on_prem', 'rbac', 'sso', 'white_label',
+  'enterprise_modules', 'private_ai', 'premium_support', 'compliance_pack',
+  'chain_analytics', 'audit_credits', 'sla_9999', 'custom_integrations',
+  'managed_ops', 'staging_env', 'legal_grade_audit',
+  'sovereign_deploy', 'aadhaar_identity', 'transparency_portal',
+  'public_records_registry', 'rti_grievance', 'multi_dept_access',
+  'esign', 'regulatory_reporting', 'sovereign_backup', 'interdept_connector',
+];
+
+/** Full entitlement — every feature, unlimited limits. For admins / test accounts. */
+export function allFeaturesEntitlement(): Entitlement {
+  const limits: Partial<Record<LimitKey, number>> = {};
+  (['validators', 'seats', 'projects', 'storageGB', 'txPerMonth', 'auditRetentionDays', 'environments', 'departments', 'apiKeys'] as LimitKey[])
+    .forEach((k) => { limits[k] = UNLIMITED; });
+  return { features: [...ALL_FEATURES], limits };
+}
+
 // ─── Query helpers ────────────────────────────────────────────────────────────
 export function can(ent: Entitlement, feature: FeatureKey): boolean {
   return ent.features.includes(feature);
