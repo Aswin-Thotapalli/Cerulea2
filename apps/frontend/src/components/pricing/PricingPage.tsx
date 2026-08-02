@@ -81,6 +81,12 @@ const TIER_ACCENT: Record<SelfServeTierId, string> = {
   public_dapps: '#3b82f6',
   private_dapps: '#6366f1',
   private_dapps_pro: '#0ea5e9',
+  // Enterprise
+  ent_sme: '#8b5cf6',
+  ent_growth: '#7c3aed',
+  ent_enterprise: '#6d28d9',
+  // Govt
+  govt_standard: '#0891b2',
 };
 
 export default function PricingPage() {
