@@ -18,6 +18,7 @@ import { eq, and } from 'drizzle-orm';
 import { getStripe, buildPriceReverseMaps } from './stripe';
 import { addAddonToSubscription, removeAddonFromSubscription } from './addons';
 import { dispatchProvisioning } from './provisioning';
+import { divisionForTierId } from '@/config/billing-catalog';
 
 export interface ReconcileParams {
   stripeSubscriptionId: string;
@@ -88,11 +89,15 @@ export async function reconcileFromStripeSubscription(
 
   const cancelAtPeriodEnd = !!(sub as any).cancel_at_period_end;
 
+  // Division is authoritative from the purchased tier.
+  const division = divisionForTierId(tierId) ?? 'dapp';
+
   if (existing) {
     await db
       .update(subscriptions)
       .set({
         plan: tierId,
+        division,
         status: sub.status,
         stripeCustomerId: sub.customer as string,
         stripeSubscriptionId: sub.id,
@@ -107,6 +112,7 @@ export async function reconcileFromStripeSubscription(
     await db.insert(subscriptions).values({
       id: subscriptionId,
       userId: params.userId!,
+      division,
       plan: tierId,
       status: sub.status,
       stripeCustomerId: sub.customer as string,

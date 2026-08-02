@@ -19,8 +19,12 @@ import {
   getTierById,
   isAddonEligibleForTier,
   getAddonById,
+  isTierInDivision,
+  divisionForTierId,
   type TierId,
 } from '@/config/billing-catalog';
+import { divisionFromHost, type Division } from '@/config/divisions';
+import { and } from 'drizzle-orm';
 import { getStripe, getStripePriceId, isStripeConfigured } from '@/lib/billing/stripe';
 import { addAddonToSubscription } from '@/lib/billing/addons';
 import { dispatchProvisioning } from '@/lib/billing/provisioning';
@@ -54,6 +58,24 @@ export async function POST(req: Request) {
     const tier = getTierById(tierId);
     if (!tier) return NextResponse.json({ ok: false, error: 'Invalid tier' }, { status: 400 });
 
+    // ── Division guard ────────────────────────────────────────────────────────
+    // Resolve the division the request came from (Origin host is browser-set and
+    // tamper-resistant; the cerulea.division cookie is the fallback). Block any
+    // attempt to buy a tier outside the current division.
+    const originHost = (req.headers.get('origin') || '').replace(/^https?:\/\//, '');
+    const cookieDivision = (req.headers.get('cookie') || '')
+      .match(/(?:^|;\s*)cerulea\.division=([^;]+)/)?.[1] as Division | undefined;
+    const requestDivision: Division | null = divisionFromHost(originHost) ?? cookieDivision ?? null;
+
+    if (requestDivision && !isTierInDivision(tierId, requestDivision)) {
+      return NextResponse.json(
+        { ok: false, error: `Tier "${tierId}" is not available in the ${requestDivision} division` },
+        { status: 403 }
+      );
+    }
+    // The division the subscription belongs to (authoritative — from the tier).
+    const subDivision: Division = divisionForTierId(tierId) ?? requestDivision ?? 'dapp';
+
     // Record the plan selection regardless of checkout outcome.
     db.insert(userPlanSelections).values({ id: randomUUID(), userId: session.user.id, selectedPlan: tierId }).catch(() => {});
 
@@ -71,10 +93,11 @@ export async function POST(req: Request) {
 
     // ── Dev-mode fallback: no Stripe keys configured ────────────────────────
     if (!isStripeConfigured()) {
+      // Scope to THIS division — a user may hold one active sub per division.
       const [existing] = await db
         .select({ id: subscriptions.id })
         .from(subscriptions)
-        .where(eq(subscriptions.userId, session.user.id))
+        .where(and(eq(subscriptions.userId, session.user.id), eq(subscriptions.division, subDivision)))
         .limit(1);
 
       const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -84,11 +107,12 @@ export async function POST(req: Request) {
         await db
           .update(subscriptions)
           .set({ plan: tierId, status: 'active', currentPeriodEnd: periodEnd, updatedAt: new Date().toISOString() })
-          .where(eq(subscriptions.userId, session.user.id));
+          .where(eq(subscriptions.id, subscriptionId));
       } else {
         await db.insert(subscriptions).values({
           id: subscriptionId,
           userId: session.user.id,
+          division: subDivision,
           plan: tierId,
           status: 'active',
           currentPeriodEnd: periodEnd,
@@ -137,6 +161,7 @@ export async function POST(req: Request) {
       metadata: {
         userId: session.user.id,
         tierId,
+        division: subDivision,
         addons: JSON.stringify(addons),
         returnUrl: returnUrl || '',
       },
