@@ -249,8 +249,13 @@ export default function Step0({
   // downstream steps + the AI see it, without the user ever touching a chooser.
   React.useEffect(() => {
     if (!divisionLockedType || existingProjectId || projectType) return;
-    setStudioState({ projectType: divisionLockedType, dappVisibility: null } as any);
-    if (typeof window !== 'undefined') localStorage.setItem('cerulea.projectType', divisionLockedType);
+    // dApp division defaults to a public dApp; blockchain divisions have no visibility.
+    const visibility = divisionLockedType === 'dapp' ? 'public' : null;
+    setStudioState({ projectType: divisionLockedType, dappVisibility: visibility } as any);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('cerulea.projectType', divisionLockedType);
+      if (visibility) localStorage.setItem('cerulea.dappVisibility', visibility);
+    }
   }, []); // eslint-disable-line
 
   /* ---- Effects ---- */

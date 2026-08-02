@@ -66,10 +66,12 @@ export function studioFlavorForDivision(division: Division): StudioFlavor {
   return division; // 1:1 today; kept as a function so it can diverge later
 }
 
-// The project type a division's studio is locked to. `null` = user chooses.
+// The project type a division's studio is locked to. Every division locks its
+// type and skips the "dApp vs private blockchain" chooser: the dapp division is
+// always dApp; enterprise and govt are always private blockchain.
 export function lockedProjectType(division: Division): 'dapp' | 'blockchain' | null {
   switch (division) {
-    case 'dapp': return null;           // dapp division keeps the existing chooser
+    case 'dapp': return 'dapp';
     case 'enterprise': return 'blockchain';
     case 'govt': return 'blockchain';
   }
