@@ -23,7 +23,7 @@ import {
   divisionForTierId,
   type TierId,
 } from '@/config/billing-catalog';
-import { divisionFromHost, type Division } from '@/config/divisions';
+import { divisionFromPath, type Division } from '@/config/divisions';
 import { and } from 'drizzle-orm';
 import { getStripe, getStripePriceId, isStripeConfigured } from '@/lib/billing/stripe';
 import { addAddonToSubscription } from '@/lib/billing/addons';
@@ -59,13 +59,15 @@ export async function POST(req: Request) {
     if (!tier) return NextResponse.json({ ok: false, error: 'Invalid tier' }, { status: 400 });
 
     // ── Division guard ────────────────────────────────────────────────────────
-    // Resolve the division the request came from (Origin host is browser-set and
-    // tamper-resistant; the cerulea.division cookie is the fallback). Block any
-    // attempt to buy a tier outside the current division.
-    const originHost = (req.headers.get('origin') || '').replace(/^https?:\/\//, '');
+    // Resolve the division from the cerulea.division cookie (set by middleware
+    // from the /dapps|/enterprise|/govt path) with the Referer path as a
+    // cross-check. Block any attempt to buy a tier outside the current division.
     const cookieDivision = (req.headers.get('cookie') || '')
       .match(/(?:^|;\s*)cerulea\.division=([^;]+)/)?.[1] as Division | undefined;
-    const requestDivision: Division | null = divisionFromHost(originHost) ?? cookieDivision ?? null;
+    const refererPath = (() => {
+      try { return new URL(req.headers.get('referer') || '').pathname; } catch { return ''; }
+    })();
+    const requestDivision: Division | null = (cookieDivision ?? divisionFromPath(refererPath)) ?? null;
 
     if (requestDivision && !isTierInDivision(tierId, requestDivision)) {
       return NextResponse.json(
