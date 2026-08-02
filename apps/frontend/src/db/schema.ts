@@ -105,6 +105,10 @@ export const aiMessages = pgTable("aiMessages", {
 export const subscriptions = pgTable("subscriptions", {
   id: text("id").primaryKey(),
   userId: text("userId").notNull(),
+  // Which division this subscription belongs to. A user may hold up to one
+  // active subscription per division (dapp / enterprise / govt) — same login,
+  // paid separately. Defaults to 'dapp' for backfilled legacy rows.
+  division: text("division").notNull().default("dapp"),
   plan: text("plan").notNull().default("free"),
   stripeCustomerId: text("stripeCustomerId"),
   stripeSubscriptionId: text("stripeSubscriptionId"),
@@ -117,6 +121,7 @@ export const subscriptions = pgTable("subscriptions", {
   updatedAt: text("updatedAt").default(sql`to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).notNull(),
 }, (t) => [
   index("idx_subscriptions_userid").on(t.userId),
+  index("idx_subscriptions_user_division").on(t.userId, t.division),
 ]);
 
 export const subscriptionAddons = pgTable("subscriptionAddons", {
