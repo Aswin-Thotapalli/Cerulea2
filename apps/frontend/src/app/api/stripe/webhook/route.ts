@@ -16,7 +16,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getStripe } from '@/lib/billing/stripe';
-import { reconcileFromStripeSubscription, markSubscriptionCanceled } from '@/lib/billing/reconcile';
+import { reconcileFromStripeSubscription, markSubscriptionCanceled, activateOneTimeTierPurchase } from '@/lib/billing/reconcile';
 import { recordOneTimeCheckoutCompleted } from '@/lib/billing/oneTime';
 
 export const dynamic = 'force-dynamic';
@@ -57,7 +57,14 @@ export async function POST(req: Request) {
             });
           }
         } else if (session.mode === 'payment') {
-          await recordOneTimeCheckoutCompleted(session);
+          // A one-time TIER purchase (enterprise/govt license) carries a tierId
+          // in metadata and must create the division subscription row. Add-on
+          // one-time purchases (kind/addonId metadata) go the legacy path.
+          if (session.metadata?.tierId) {
+            await activateOneTimeTierPurchase(session);
+          } else {
+            await recordOneTimeCheckoutCompleted(session);
+          }
         }
         break;
       }
