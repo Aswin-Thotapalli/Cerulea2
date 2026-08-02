@@ -4,6 +4,8 @@ import * as React from 'react';
 import { useStudio } from '@/context/StudioContext';
 import { useSession } from 'next-auth/react';
 import AuthModal from '@/components/auth/AuthModal';
+import { getClientDivision } from '@/lib/division-client';
+import { lockedProjectType } from '@/config/divisions';
 import {
   Box, Typography, Stack, Paper, Button, Chip, TextField, Select, MenuItem,
   InputLabel, FormControl, Divider,
@@ -173,9 +175,21 @@ export default function Step0({
   const canUsePublicDapp = userPlan === 'public_dapps' || userPlan === 'pro';
   const canUsePrivateDapp = userPlan === 'private_dapps' || userPlan === 'private_dapps_pro' || userPlan === 'pro' || userPlan === 'enterprise';
 
+  /* ---- Division lock ----
+   * enterprise/govt divisions lock the studio to a project type and skip the
+   * type chooser entirely. dapp division keeps the normal chooser. Computed
+   * synchronously on the client (studio renders ssr:false) so there's no flash
+   * of the chooser before the lock applies. */
+  const divisionLockedType: ProjectType | null = React.useMemo(() => {
+    const d = getClientDivision();
+    return (d ? lockedProjectType(d) : null) as ProjectType | null;
+  }, []);
+
   /* ---- State ---- */
-  const [phase, setPhaseRaw] = React.useState<Step0Phase>(projectType ? 'gallery' : 'choose-type');
-  const [dType, setDType] = React.useState<ProjectType | null>(projectType);
+  const [phase, setPhaseRaw] = React.useState<Step0Phase>(
+    projectType ? 'gallery' : (divisionLockedType ? 'gallery' : 'choose-type')
+  );
+  const [dType, setDType] = React.useState<ProjectType | null>(projectType ?? divisionLockedType);
   const [dappVisibility, setDappVisibility] = React.useState<DappVisibility | null>(null);
   const [authModalOpen, setAuthModalOpen] = React.useState(false);
   const [pendingType, setPendingType] = React.useState<ProjectType | null>(null);
@@ -229,6 +243,14 @@ export default function Step0({
   React.useEffect(() => {
     onSubStepChange?.(PHASE_TO_SUBSTEP[phase] ?? 0);
     setStudioState({ step0Phase: phase } as any);
+  }, []); // eslint-disable-line
+
+  // Locked divisions (enterprise/govt): pin the project type in studio state so
+  // downstream steps + the AI see it, without the user ever touching a chooser.
+  React.useEffect(() => {
+    if (!divisionLockedType || existingProjectId || projectType) return;
+    setStudioState({ projectType: divisionLockedType, dappVisibility: null } as any);
+    if (typeof window !== 'undefined') localStorage.setItem('cerulea.projectType', divisionLockedType);
   }, []); // eslint-disable-line
 
   /* ---- Effects ---- */
@@ -408,6 +430,8 @@ export default function Step0({
 
   /* ---- Helpers for back navigation ---- */
   const goBackFromGallery = () => {
+    // Locked divisions have no type chooser to go back to — stay on the gallery.
+    if (divisionLockedType) return;
     if (dType === 'blockchain') setPhase('legacy-question');
     else setPhase('dapp-type');
   };
