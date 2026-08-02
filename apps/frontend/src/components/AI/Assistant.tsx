@@ -21,6 +21,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useStudio } from '@/context/StudioContext';
 import { api } from '@/lib/apiClient'; // used by history/thread routes
+import { useCan } from '@/lib/entitlements-client';
 
 const fabVariants = {
   hidden: { scale: 0, y: 50, opacity: 0 },
@@ -121,6 +122,12 @@ export default function Assistant() {
   const proactiveFiredRef = useRef<string | null>(null); // tracks projectId+step for dedup
   const idleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleSendRef = useRef<(msg?: string) => void>(() => {});
+
+  // Agentic actions are gated by the `agentic_ai` entitlement (Pro / advanced
+  // tiers). Without it, the AI can still chat but cannot drive the canvas.
+  const canAgentic = useCan('agentic_ai');
+  const canAgenticRef = useRef(canAgentic);
+  useEffect(() => { canAgenticRef.current = canAgentic; }, [canAgentic]);
 
   // Smooth streaming display — buffer received chars and animate them out
   const streamReceivedRef = useRef('');  // full text from the API
@@ -601,15 +608,19 @@ export default function Assistant() {
         const fullText = streamReceivedRef.current;
         const actionRegex = /<cerulean-action>([\s\S]*?)<\/cerulean-action>/g;
         let actionMatch;
-        let hasActions = false;
+        let foundActionBlocks = false;
         while ((actionMatch = actionRegex.exec(fullText)) !== null) {
+          foundActionBlocks = true;
+          // Entitlement gate: only tiers with agentic_ai may drive the canvas.
+          if (!canAgenticRef.current) continue;
           try {
             const action = JSON.parse(actionMatch[1].trim());
             window.dispatchEvent(new CustomEvent('cerulea:action', { detail: action }));
-            hasActions = true;
           } catch { /* malformed — skip */ }
         }
-        if (hasActions) {
+        // Always strip the raw action tags from the displayed message, whether or
+        // not they were dispatched, so ungated users never see markup.
+        if (foundActionBlocks) {
           streamReceivedRef.current = fullText.replace(/<cerulean-action>[\s\S]*?<\/cerulean-action>/g, '').trim();
         }
 
