@@ -19,6 +19,7 @@ import { getStripe, buildPriceReverseMaps } from './stripe';
 import { addAddonToSubscription, removeAddonFromSubscription } from './addons';
 import { dispatchProvisioning } from './provisioning';
 import { divisionForTierId } from '@/config/billing-catalog';
+import type { Division } from '@/config/divisions';
 
 export interface ReconcileParams {
   stripeSubscriptionId: string;
@@ -146,6 +147,53 @@ export async function reconcileFromStripeSubscription(
 
   await dispatchProvisioning(subscriptionId, { stripeEventId: params.stripeEventId });
 
+  return { subscriptionId };
+}
+
+/**
+ * Handles a completed one-time TIER purchase (payment-mode checkout) — e.g. an
+ * enterprise/govt license. Creates/activates the division's subscription row,
+ * attaches any add-ons from metadata, and dispatches provisioning. A user may
+ * hold one active subscription per division, so this upserts on (userId, division).
+ */
+export async function activateOneTimeTierPurchase(session: Stripe.Checkout.Session): Promise<{ subscriptionId: string } | null> {
+  const userId = session.metadata?.userId;
+  const tierId = session.metadata?.tierId;
+  if (!userId || !tierId) return null;
+  const division = ((session.metadata?.division as Division) || divisionForTierId(tierId) || 'dapp') as Division;
+
+  const [existing] = await db
+    .select({ id: subscriptions.id })
+    .from(subscriptions)
+    .where(and(eq(subscriptions.userId, userId), eq(subscriptions.division, division)))
+    .limit(1);
+
+  const subscriptionId = existing?.id ?? randomUUID();
+  const customerId = (session.customer as string) ?? null;
+
+  if (existing) {
+    await db.update(subscriptions).set({
+      plan: tierId, division, status: 'active',
+      stripeCustomerId: customerId,
+      lastWebhookEventId: session.id,
+      updatedAt: new Date().toISOString(),
+    }).where(eq(subscriptions.id as any, subscriptionId));
+  } else {
+    await db.insert(subscriptions).values({
+      id: subscriptionId, userId, division, plan: tierId, status: 'active',
+      stripeCustomerId: customerId, lastWebhookEventId: session.id,
+    });
+  }
+
+  // Attach any add-ons selected at checkout (from metadata).
+  try {
+    const addons = JSON.parse(session.metadata?.addons || '[]');
+    for (const a of addons) {
+      if (a?.addonId) await addAddonToSubscription(subscriptionId, a.addonId, a.quantity ?? 1);
+    }
+  } catch { /* malformed metadata — skip add-ons */ }
+
+  await dispatchProvisioning(subscriptionId, { stripeEventId: session.id });
   return { subscriptionId };
 }
 

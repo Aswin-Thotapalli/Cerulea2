@@ -137,40 +137,70 @@ export async function POST(req: Request) {
     // ── Live Stripe checkout ─────────────────────────────────────────────────
     const stripe = getStripe();
 
-    const lineItems: { price: string; quantity: number }[] = [
-      { price: getStripePriceId(tier.priceEnvVar), quantity: 1 },
-    ];
+    // Split into recurring vs one-time prices. Dapp tiers are recurring; the
+    // enterprise/govt tiers are one-time. Stripe Checkout subscription mode
+    // requires ≥1 recurring line item; a purely one-time purchase must use
+    // payment mode. So the checkout mode is driven by whether anything recurs.
+    const recurringItems: { price: string; quantity: number }[] = [];
+    const oneTimeItems: { price: string; quantity: number }[] = [];
+
+    (tier.billing === 'recurring' ? recurringItems : oneTimeItems).push({
+      price: getStripePriceId(tier.priceEnvVar), quantity: 1,
+    });
 
     for (const sel of addons) {
       const addon = getAddonById(sel.addonId);
       if (!addon) continue;
       const qty = Math.max(1, Math.min(sel.quantity, addon.maxQuantity));
       if (addon.recurringPriceCents != null && addon.recurringPriceEnvVar) {
-        lineItems.push({ price: getStripePriceId(addon.recurringPriceEnvVar), quantity: qty });
+        recurringItems.push({ price: getStripePriceId(addon.recurringPriceEnvVar), quantity: qty });
       }
       if (addon.oneTimePriceCents != null && addon.oneTimePriceEnvVar) {
-        lineItems.push({ price: getStripePriceId(addon.oneTimePriceEnvVar), quantity: qty });
+        oneTimeItems.push({ price: getStripePriceId(addon.oneTimePriceEnvVar), quantity: qty });
       }
     }
 
     const successBase = `${origin}/pricing/success?session_id={CHECKOUT_SESSION_ID}`;
     const successUrl = returnUrl ? `${successBase}&return=${encodeURIComponent(returnUrl)}` : successBase;
 
-    const checkoutSession = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: lineItems,
-      metadata: {
-        userId: session.user.id,
-        tierId,
-        division: subDivision,
-        addons: JSON.stringify(addons),
-        returnUrl: returnUrl || '',
-      },
-      customer_email: session.user.email,
-      success_url: successUrl,
-      cancel_url: `${origin}/pricing`,
-    });
+    const metadata = {
+      userId: session.user.id,
+      tierId,
+      division: subDivision,
+      addons: JSON.stringify(addons),
+      returnUrl: returnUrl || '',
+    };
+
+    let checkoutSession;
+    if (recurringItems.length > 0) {
+      // Subscription mode. Any one-time items ride on the first invoice.
+      checkoutSession = await stripe.checkout.sessions.create({
+        mode: 'subscription',
+        payment_method_types: ['card'],
+        line_items: recurringItems,
+        subscription_data: {
+          metadata,
+          ...(oneTimeItems.length ? { add_invoice_items: oneTimeItems } : {}),
+        },
+        metadata,
+        customer_email: session.user.email,
+        success_url: successUrl,
+        cancel_url: `${origin}/pricing`,
+      });
+    } else {
+      // Pure one-time purchase (e.g. an enterprise/govt tier license). The
+      // webhook's payment branch creates the division subscription row.
+      checkoutSession = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: oneTimeItems,
+        payment_intent_data: { metadata },
+        metadata,
+        customer_email: session.user.email,
+        success_url: successUrl,
+        cancel_url: `${origin}/pricing`,
+      });
+    }
 
     return NextResponse.json({ ok: true, url: checkoutSession.url });
   } catch (err: any) {
