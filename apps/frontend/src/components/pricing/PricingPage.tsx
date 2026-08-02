@@ -12,10 +12,12 @@ import { useTheme, alpha, type Theme } from '@mui/material/styles';
 import { useSession } from 'next-auth/react';
 import {
   TIERS,
+  getTiersForDivision,
   reconcileSelectionsForTier,
   type TierId,
   type AddonSelection,
 } from '@/config/billing-catalog';
+import { useDivision } from '@/lib/division-client';
 import AddonSelector from '@/components/billing/AddonSelector';
 import PriceSummary from '@/components/billing/PriceSummary';
 
@@ -93,6 +95,12 @@ export default function PricingPage() {
   const theme = useTheme();
   const { data: session } = useSession();
   const isDark = theme.palette.mode === 'dark';
+
+  // Show only the active division's tiers. On the main host (no division) fall
+  // back to the dapp ladder — the legacy default.
+  const division = useDivision();
+  const activeDivision = division ?? 'dapp';
+  const divisionTiers = React.useMemo(() => getTiersForDivision(activeDivision), [activeDivision]);
 
   const [selectedTierId, setSelectedTierId] = React.useState<SelfServeTierId | null>(null);
   const [selections, setSelections] = React.useState<AddonSelection[]>([]);
@@ -216,7 +224,7 @@ export default function PricingPage() {
         spacing={3}
         sx={{ width: '100%', maxWidth: 1400, alignItems: 'stretch' }}
       >
-        {TIERS.map((tier) => (
+        {divisionTiers.map((tier) => (
           <PlanCard
             key={tier.id}
             isDark={isDark}
@@ -226,8 +234,8 @@ export default function PricingPage() {
               id: tier.id,
               accentColor: TIER_ACCENT[tier.id],
               planName: tier.name,
-              price: `$${(tier.priceCents / 100).toFixed(0)}`,
-              period: 'per month',
+              price: `$${(tier.priceCents / 100).toLocaleString()}`,
+              period: tier.billing === 'one_time' ? 'one-time' : 'per month',
               tagline: tier.blurb,
               cta: selectedTierId === tier.id ? 'Selected' : 'Select plan',
               isFree: false,
@@ -237,7 +245,11 @@ export default function PricingPage() {
           />
         ))}
 
-        <PlanCard plan={ENTERPRISE} isDark={isDark} theme={theme} onSelect={() => handleStaticSelect(ENTERPRISE)} />
+        {/* Contact-sales upsell only makes sense for the dapp ladder now that
+            enterprise/govt have real self-serve tiers. */}
+        {activeDivision === 'dapp' && (
+          <PlanCard plan={ENTERPRISE} isDark={isDark} theme={theme} onSelect={() => handleStaticSelect(ENTERPRISE)} />
+        )}
       </Stack>
 
       {/* Add-on selector + price summary — directly below tier selection */}
