@@ -2,43 +2,56 @@
 //
 // Bedrock for Cerulea's multi-division architecture.
 //
-// ONE codebase, ONE Vercel deployment, FOUR marketing front doors. The division
-// is decided per-request from the Host header (see middleware) — nothing is
-// physically split. Every gate (studio flavor, templates, modules, pricing,
-// feature entitlements) reads the division resolved here.
+// ONE codebase, ONE studio host. The division is decided per-request from the
+// URL PATH under studio.cerulea.io:
 //
-// This file is intentionally free of catalog/price/feature specifics so it never
-// needs to change when tiers or add-ons are tweaked. Prices live in
-// billing-catalog.ts; feature gates live in entitlements.ts.
+//   studio.cerulea.io/           → 3-option chooser (Dapps / Enterprise / Govt)
+//   studio.cerulea.io/dapps      → dapp studio
+//   studio.cerulea.io/enterprise → enterprise studio (SME enters here too)
+//   studio.cerulea.io/govt       → government studio
+//
+// Every gate (studio flavor, templates, modules, pricing, feature entitlements)
+// reads the division resolved here. No catalog/price/feature specifics live in
+// this file so it never changes when tiers or add-ons are tweaked.
 
 // ─── Division (the studio + pricing axis) ────────────────────────────────────
-// SME is NOT its own division — it is the entry tier of `enterprise`. So there
-// are three divisions for studio/pricing purposes, but four marketing sites.
+// SME is NOT its own division — it is the entry tier of `enterprise`.
 export type Division = 'dapp' | 'enterprise' | 'govt';
 
 export const DIVISIONS: Division[] = ['dapp', 'enterprise', 'govt'];
 
-// ─── Marketing front doors (four) ────────────────────────────────────────────
-// `sme` is a marketing skin that drops the visitor into the enterprise division,
-// steered at its lowest tier.
-export type MarketingSite = 'dapps' | 'sme' | 'enterprise' | 'gov';
+// ─── Path segment ↔ division ─────────────────────────────────────────────────
+// The URL uses `dapps` (plural) and `govt`; the division ids are `dapp`/`govt`.
+export const DIVISION_PATH_SEGMENTS: Record<string, Division> = {
+  dapps: 'dapp',
+  enterprise: 'enterprise',
+  govt: 'govt',
+};
 
-export interface MarketingSiteConfig {
-  site: MarketingSite;
-  division: Division;
-  /** Subdomain label under cerulea.io, e.g. "dapps" → dapps.cerulea.io */
-  subdomain: string;
-  /** Human label for the site */
-  label: string;
-  /** If set, this front door steers signups toward a specific tier id. */
-  steerTierId?: string;
+const DIVISION_TO_SEGMENT: Record<Division, string> = {
+  dapp: 'dapps',
+  enterprise: 'enterprise',
+  govt: 'govt',
+};
+
+/** The URL path segment for a division, e.g. 'dapp' → 'dapps'. */
+export function pathSegmentForDivision(division: Division): string {
+  return DIVISION_TO_SEGMENT[division];
 }
 
-export const MARKETING_SITES: Record<MarketingSite, MarketingSiteConfig> = {
-  dapps: { site: 'dapps', division: 'dapp', subdomain: 'dapps', label: 'Cerulea for dApps' },
-  sme: { site: 'sme', division: 'enterprise', subdomain: 'sme', label: 'Cerulea for SMEs', steerTierId: 'ent_sme' },
-  enterprise: { site: 'enterprise', division: 'enterprise', subdomain: 'enterprise', label: 'Cerulea for Enterprise' },
-  gov: { site: 'gov', division: 'govt', subdomain: 'gov', label: 'Cerulea for Government' },
+/** Resolve the division from a URL pathname's first segment, or null. */
+export function divisionFromPath(pathname: string | null | undefined): Division | null {
+  if (!pathname) return null;
+  const seg = pathname.replace(/^\/+/, '').split('/')[0]?.toLowerCase();
+  if (!seg) return null;
+  return DIVISION_PATH_SEGMENTS[seg] ?? null;
+}
+
+// Human labels for the studio.cerulea.io chooser.
+export const DIVISION_LABELS: Record<Division, { title: string; blurb: string }> = {
+  dapp: { title: 'dApps', blurb: 'Build and deploy decentralized apps on Cerulea L1 or your own chain.' },
+  enterprise: { title: 'Enterprise', blurb: 'Sovereign chains with SSO, RBAC, audit-grade logging, and on-prem options.' },
+  govt: { title: 'Government', blurb: 'Sovereign, on-soil infrastructure with citizen identity and public transparency.' },
 };
 
 // ─── Currency (single USD for now; seam kept for the future) ─────────────────
@@ -48,36 +61,18 @@ export function currencyForDivision(_division: Division): Currency {
 }
 
 // ─── Studio flavor (how the studio behaves per division) ──────────────────────
-// dapp  → the existing dApp / private-chain studio (projectType chooser)
-// enterprise (incl. SME) and govt → the "chain" studio flavor, locked.
 export type StudioFlavor = 'dapp' | 'enterprise' | 'govt';
 export function studioFlavorForDivision(division: Division): StudioFlavor {
   return division; // 1:1 today; kept as a function so it can diverge later
 }
 
-// The project type a division's studio is locked to. `null` = user chooses
-// (dapp division only offers the dapp/blockchain chooser today).
+// The project type a division's studio is locked to. `null` = user chooses.
 export function lockedProjectType(division: Division): 'dapp' | 'blockchain' | null {
   switch (division) {
     case 'dapp': return null;           // dapp division keeps the existing chooser
     case 'enterprise': return 'blockchain';
     case 'govt': return 'blockchain';
   }
-}
-
-// ─── Host → marketing site / division resolution ─────────────────────────────
-// Handles prod (dapps.cerulea.io), preview, and local (dapps.localhost:3000).
-export function marketingSiteFromHost(host: string | null | undefined): MarketingSite | null {
-  if (!host) return null;
-  const h = host.toLowerCase().split(':')[0]; // strip port
-  const label = h.split('.')[0];              // leftmost label
-  if (label in MARKETING_SITES) return label as MarketingSite;
-  return null;
-}
-
-export function divisionFromHost(host: string | null | undefined): Division | null {
-  const site = marketingSiteFromHost(host);
-  return site ? MARKETING_SITES[site].division : null;
 }
 
 // ─── Active-subscription shape carried on the auth token/session ──────────────

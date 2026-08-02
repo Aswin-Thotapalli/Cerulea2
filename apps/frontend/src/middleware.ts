@@ -2,7 +2,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { divisionFromHost, hasDivisionAccess } from '@/config/divisions';
+import { divisionFromPath, hasDivisionAccess } from '@/config/divisions';
 import type { DivisionSubs } from '@/config/divisions';
 
 const PUBLIC_PATHS = [
@@ -27,10 +27,6 @@ export async function middleware(req: NextRequest) {
   const host = req.headers.get('host') || '';
   const { pathname } = req.nextUrl;
 
-  // Which division front door is this? (dapps./sme./enterprise./gov.)
-  const division = divisionFromHost(host);
-  const isDivisionHost = !!division;
-
   const isStudioHost =
     host.startsWith('studio.') ||
     host === 'studio.localhost:3000' ||
@@ -41,31 +37,28 @@ export async function middleware(req: NextRequest) {
     host === 'control.localhost:3000' ||
     host === 'control.localhost';
 
-  // Forward the division to server components as a request header, and persist
-  // it as a cookie for client components + guest-signup continuity.
+  // Division comes from the URL path — but only under the studio host:
+  //   studio.cerulea.io/dapps | /enterprise | /govt
+  const division = isStudioHost ? divisionFromPath(pathname) : null;
+
+  // Forward the division to server components (header) and persist it as a
+  // cookie for client components + guest-signup continuity.
   const requestHeaders = new Headers(req.headers);
   if (division) requestHeaders.set('x-cerulea-division', division);
 
   const applyCookie = (res: NextResponse): NextResponse => {
-    if (division) {
-      res.cookies.set('cerulea.division', division, { path: '/', sameSite: 'lax' });
-    }
+    if (division) res.cookies.set('cerulea.division', division, { path: '/', sameSite: 'lax' });
     return res;
   };
   const pass = () => applyCookie(NextResponse.next({ request: { headers: requestHeaders } }));
   const rewriteTo = (url: URL) => applyCookie(NextResponse.rewrite(url, { request: { headers: requestHeaders } }));
   const redirectTo = (url: URL) => applyCookie(NextResponse.redirect(url));
 
-  // On a division host, the root path is the public marketing landing page.
-  const isDivisionLanding = isDivisionHost && pathname === '/';
+  // The studio host root ("/") is the 3-option chooser — public.
+  const isStudioChooser = isStudioHost && pathname === '/';
 
-  // Always allow public paths (auth, pricing, api, _next) and the division landing.
-  if (isPublicPath(pathname) || isDivisionLanding) {
-    if (isStudioHost) {
-      const url = req.nextUrl.clone();
-      if (!url.searchParams.has('studio')) url.searchParams.set('studio', '1');
-      return rewriteTo(url);
-    }
+  // Always allow public paths (auth, pricing, api, _next) and the chooser.
+  if (isPublicPath(pathname) || isStudioChooser) {
     if (isAdminHost) {
       const url = req.nextUrl.clone();
       if (!url.searchParams.has('admin')) url.searchParams.set('admin', '1');
@@ -130,13 +123,13 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // ─── Division front door: gate protected paths by per-division access ───────
-  if (isDivisionHost) {
+  // ─── Division route: studio.cerulea.io/dapps|/enterprise|/govt ──────────────
+  if (division) {
     const subs = token.divisionSubs as DivisionSubs | undefined;
     const isTest = (token.isTestAccount as boolean) === true;
 
-    // No active subscription in THIS division → send to this division's pricing
-    // (the pricing page reads the division from host/cookie). Admin bypasses.
+    // No active subscription in THIS division → send to its pricing (the cookie
+    // set above tells the pricing page which division to show). Admin bypasses.
     if (!isTest && !hasDivisionAccess(subs, division)) {
       const pricingUrl = req.nextUrl.clone();
       pricingUrl.pathname = '/pricing';
@@ -144,22 +137,14 @@ export async function middleware(req: NextRequest) {
       return redirectTo(pricingUrl);
     }
 
-    // Option C: serve the studio at /studio while the URL stays on the division
-    // host. Internally this is the same ?studio=1 entry the studio host uses.
-    if (pathname === '/studio' || pathname.startsWith('/studio/')) {
-      const url = req.nextUrl.clone();
-      url.pathname = '/';
-      url.searchParams.set('studio', '1');
-      return rewriteTo(url);
-    }
-
-    return pass();
+    // Option C: serve the studio while the URL stays on /dapps (etc.).
+    const url = req.nextUrl.clone();
+    url.pathname = '/';
+    url.searchParams.set('studio', '1');
+    return rewriteTo(url);
   }
 
-  // ─── Legacy plan gate (non-division hosts: main site, studio.) ──────────────
-  // Require an active paid plan to access the app. New users (plan === 'free')
-  // and lapsed users are sent to /pricing. /pricing and /pricing/success are
-  // public; /dashboard/billing is exempt so users can land there after checkout.
+  // ─── Legacy plan gate (main host + studio-host non-division paths) ──────────
   if (!(token.isTestAccount as boolean)) {
     const plan = token.plan as string | undefined;
     const FREE_PATHS = ['/dashboard/billing'];
@@ -170,13 +155,6 @@ export async function middleware(req: NextRequest) {
       pricingUrl.search = '';
       return redirectTo(pricingUrl);
     }
-  }
-
-  // Apply studio subdomain rewrite AFTER auth/pricing checks pass
-  if (isStudioHost) {
-    const url = req.nextUrl.clone();
-    if (!url.searchParams.has('studio')) url.searchParams.set('studio', '1');
-    return rewriteTo(url);
   }
 
   return pass();

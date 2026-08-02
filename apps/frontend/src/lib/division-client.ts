@@ -1,10 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { divisionFromHost, lockedProjectType, type Division } from '@/config/divisions';
+import { divisionFromPath, lockedProjectType, type Division } from '@/config/divisions';
 
 // Reads the active division on the client. Priority: the cerulea.division cookie
-// (set by middleware on every division-host request) → the current hostname.
+// (set by middleware on every division-path request) → the current URL path.
 export function getClientDivision(): Division | null {
   if (typeof document !== 'undefined') {
     const m = document.cookie.match(/(?:^|;\s*)cerulea\.division=([^;]+)/);
@@ -13,7 +13,7 @@ export function getClientDivision(): Division | null {
       if (v === 'dapp' || v === 'enterprise' || v === 'govt') return v;
     }
   }
-  if (typeof window !== 'undefined') return divisionFromHost(window.location.host);
+  if (typeof window !== 'undefined') return divisionFromPath(window.location.pathname);
   return null;
 }
 
