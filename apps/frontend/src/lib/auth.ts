@@ -8,6 +8,47 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs"; // pure-JS — no native bindings, works on Vercel serverless
 import { rateLimit } from "@/lib/rateLimit";
 import { logAudit } from "@/lib/audit";
+import type { Division, DivisionSubs } from "@/config/divisions";
+
+// Build the per-division active-subscription map for a user. A user may hold up
+// to one active subscription per division (dapp / enterprise / govt).
+//
+// Resilient to the `division` column not existing yet (pre-cutover): if the
+// column is missing, it falls back to legacy single-plan behavior treating the
+// active sub as the dapp division. The admin/test account gets all divisions.
+async function fetchDivisionSubs(userId: string, isTest: boolean): Promise<DivisionSubs> {
+  if (isTest) return { dapp: "pro", enterprise: "pro", govt: "pro" };
+  try {
+    const rows = await db
+      .select({ plan: subscriptions.plan, status: subscriptions.status, division: subscriptions.division })
+      .from(subscriptions)
+      .where(eq(subscriptions.userId, userId));
+    const map: DivisionSubs = {};
+    for (const r of rows) {
+      if (r.status === "active") map[r.division as Division] = r.plan;
+    }
+    return map;
+  } catch {
+    // `division` column not present yet — fall back to single-plan legacy read.
+    try {
+      const [sub] = await db
+        .select({ plan: subscriptions.plan, status: subscriptions.status })
+        .from(subscriptions)
+        .where(eq(subscriptions.userId, userId))
+        .limit(1);
+      return sub?.status === "active" ? { dapp: sub.plan } : {};
+    } catch {
+      return {};
+    }
+  }
+}
+
+// Legacy single `plan` value derived from the division map, for backward compat
+// with code that still reads token.plan / session.user.plan.
+function derivePlan(subs: DivisionSubs, isTest: boolean): string {
+  if (isTest) return "pro";
+  return subs.dapp ?? subs.enterprise ?? subs.govt ?? "free";
+}
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
@@ -72,25 +113,22 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          // Fetch subscription plan to embed in token
-          const [sub] = await db
-            .select({ plan: subscriptions.plan, status: subscriptions.status })
-            .from(subscriptions)
-            .where(eq(subscriptions.userId, user.id))
-            .limit(1);
-
           const isTest = String(user.isTestAccount) === 'true';
-          const plan = isTest ? "pro" : (sub?.status === "active" ? sub.plan : "free");
 
-          console.log('[auth] authorize: success for', credentials.email, '| plan:', plan, '| isTest:', isTest);
+          // Fetch per-division subscription map to embed in the token.
+          const divisionSubs = await fetchDivisionSubs(user.id, isTest);
+          const plan = derivePlan(divisionSubs, isTest);
+
+          console.log('[auth] authorize: success for', credentials.email, '| divisions:', JSON.stringify(divisionSubs), '| isTest:', isTest);
           return {
             id: user.id,
             email: user.email,
             name: user.name ?? null,
             image: null,
             plan,
+            divisionSubs,
             isTestAccount: isTest,
-          };
+          } as any;
         } catch (err) {
           console.error('[auth] authorize threw:', err);
           throw err; // re-throw so NextAuth surfaces the real error string
@@ -110,22 +148,21 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.userId = (user as any).id;
         token.plan = (user as any).plan ?? "free";
+        token.divisionSubs = (user as any).divisionSubs ?? {};
         token.isTestAccount = (user as any).isTestAccount ?? false;
         const adminEmails = (process.env.ADMIN_EMAIL ?? '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
         token.isAdmin = (user as any).isTestAccount === true || adminEmails.includes((user.email ?? '').toLowerCase());
       }
 
-      // Re-fetch plan from DB when session is explicitly refreshed (after subscription checkout)
+      // Re-fetch the division map from DB when the session is explicitly
+      // refreshed (e.g. after a subscription checkout in any division).
       if (trigger === 'update' && token.userId) {
         try {
-          const [sub] = await db
-            .select({ plan: subscriptions.plan, status: subscriptions.status })
-            .from(subscriptions)
-            .where(eq(subscriptions.userId, token.userId as string))
-            .limit(1);
           const isTest = token.isTestAccount as boolean;
-          token.plan = isTest ? "pro" : (sub?.status === 'active' ? sub.plan : 'free');
-        } catch { /* non-fatal — keep existing plan */ }
+          const divisionSubs = await fetchDivisionSubs(token.userId as string, isTest);
+          token.divisionSubs = divisionSubs;
+          token.plan = derivePlan(divisionSubs, isTest);
+        } catch { /* non-fatal — keep existing token values */ }
       }
 
       return token;
@@ -134,6 +171,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         (session.user as any).id = token.userId as string;
         (session.user as any).plan = token.plan as string;
+        (session.user as any).divisionSubs = (token.divisionSubs as DivisionSubs) ?? {};
         (session.user as any).isTestAccount = token.isTestAccount as boolean;
         (session.user as any).isAdmin = token.isAdmin as boolean;
       }
