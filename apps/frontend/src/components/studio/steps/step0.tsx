@@ -277,7 +277,9 @@ export default function Step0({
   const loadTemplates = React.useCallback(async (ptype: ProjectType) => {
     setLoadingTemplates(true);
     try {
-      const r = await fetch(`/api/templates?projectType=${ptype}`);
+      const division = getClientDivision();
+      const url = `/api/templates?projectType=${ptype}${division ? `&division=${division}` : ''}`;
+      const r = await fetch(url);
       setTemplates(await r.json());
     } finally { setLoadingTemplates(false); }
   }, []);

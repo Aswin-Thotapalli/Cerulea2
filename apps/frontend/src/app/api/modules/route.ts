@@ -11,6 +11,7 @@ type Module = {
   moduleId: string;
   title: string;
   projectType: 'dapp' | 'blockchain';
+  division?: 'dapp' | 'enterprise' | 'govt';
   category: string;
   tags?: string[];
   blurb?: string;
@@ -34,6 +35,12 @@ export async function GET(req: Request) {
       | 'blockchain'
       | null;
 
+    const division = url.searchParams.get('division') as
+      | 'dapp'
+      | 'enterprise'
+      | 'govt'
+      | null;
+
     const q = (url.searchParams.get('q') || '').toLowerCase();
     const category = (url.searchParams.get('category') || '').toLowerCase();
 
@@ -45,6 +52,10 @@ export async function GET(req: Request) {
     let mods = CATALOG.modules.slice();
 
     if (projectType) mods = mods.filter((m) => m.projectType === projectType);
+
+    // Division scoping: a division sees its own modules PLUS shared (undivided)
+    // ones, but never another division's exclusive modules.
+    if (division) mods = mods.filter((m) => !m.division || m.division === division);
 
     if (category) mods = mods.filter((m) => m.category.toLowerCase() === category);
 
