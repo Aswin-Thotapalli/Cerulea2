@@ -17,6 +17,16 @@ export default function StudioEntry({ projectId: initialProjectId }: Props) {
   // 'landing' = show project picker; 'studio' = show StudioShell
   const [mode, setMode] = useState<'landing' | 'studio'>('landing');
 
+  // Capture the division path prefix (/dapps | /enterprise | /govt) ONCE at
+  // mount, before any replaceState below rewrites the URL. Every history rewrite
+  // preserves this prefix so the studio can always resolve its division from the
+  // path (see getClientDivision) — otherwise the type chooser reappears.
+  const [divisionPrefix] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    const seg = window.location.pathname.split('/')[1]?.toLowerCase() || '';
+    return ['dapps', 'enterprise', 'govt'].includes(seg) ? `/${seg}` : '';
+  });
+
   useEffect(() => {
     async function init() {
       // If a project param is already in the URL, go straight into studio
@@ -97,7 +107,7 @@ export default function StudioEntry({ projectId: initialProjectId }: Props) {
   }
 
   const handleOpenProject = async (pid: string) => {
-    window.history.replaceState(null, '', `/?project=${pid}`);
+    window.history.replaceState(null, '', `${divisionPrefix}/?project=${pid}`);
     await loadProject(pid);
     setMode('studio');
   };
@@ -112,7 +122,7 @@ export default function StudioEntry({ projectId: initialProjectId }: Props) {
     localStorage.removeItem('cerulea.templateModules');
     localStorage.removeItem('cerulea.economics');
     localStorage.removeItem('cerulea.context.snapshot'); // clears the StudioContext snapshot so old project data isn't re-hydrated
-    window.history.replaceState(null, '', '/');
+    window.history.replaceState(null, '', `${divisionPrefix}/`);
     // Also reset the React context — otherwise the AI still sees the previous
     // project's name/id even though localStorage was cleared.
     setStudioState({

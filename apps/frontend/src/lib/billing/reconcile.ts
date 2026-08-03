@@ -61,8 +61,16 @@ export async function reconcileFromStripeSubscription(
   }
 
   if (!tierId) {
-    console.error(`[billing] reconcile: could not determine tier from subscription ${sub.id} line items`);
-    return null;
+    // Mixed checkout (one-time tier + recurring add-on): the tier rides as a
+    // one-off invoice item, not a subscription item, so it isn't in sub.items.
+    // Fall back to the tierId stored in the subscription metadata at checkout.
+    const metaTier = sub.metadata?.tierId;
+    if (metaTier) {
+      tierId = metaTier;
+    } else {
+      console.error(`[billing] reconcile: could not determine tier from subscription ${sub.id} line items or metadata`);
+      return null;
+    }
   }
 
   // Find (or identify) the local subscription row.

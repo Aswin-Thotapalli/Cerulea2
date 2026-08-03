@@ -3,9 +3,14 @@
 import * as React from 'react';
 import { divisionFromPath, lockedProjectType, type Division } from '@/config/divisions';
 
-// Reads the active division on the client. Priority: the cerulea.division cookie
-// (set by middleware on every division-path request) → the current URL path.
+// Reads the active division on the client. The URL path is authoritative for the
+// currently-open division (it's preserved through the studio flow), so it wins;
+// the cerulea.division cookie set by middleware is the fallback.
 export function getClientDivision(): Division | null {
+  if (typeof window !== 'undefined') {
+    const fromPath = divisionFromPath(window.location.pathname);
+    if (fromPath) return fromPath;
+  }
   if (typeof document !== 'undefined') {
     const m = document.cookie.match(/(?:^|;\s*)cerulea\.division=([^;]+)/);
     if (m) {
@@ -13,7 +18,6 @@ export function getClientDivision(): Division | null {
       if (v === 'dapp' || v === 'enterprise' || v === 'govt') return v;
     }
   }
-  if (typeof window !== 'undefined') return divisionFromPath(window.location.pathname);
   return null;
 }
 
