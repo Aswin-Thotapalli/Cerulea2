@@ -186,8 +186,15 @@ export default function Step0({
   }, []);
 
   /* ---- State ---- */
+  // Locked divisions never show the "dApp vs private blockchain" chooser — they
+  // auto-select the type and land on the NEXT phase within that flow:
+  //   dapp       → dapp-type (visibility)
+  //   blockchain → legacy-question
   const [phase, setPhaseRaw] = React.useState<Step0Phase>(
-    projectType ? 'gallery' : (divisionLockedType ? 'gallery' : 'choose-type')
+    projectType ? 'gallery'
+      : divisionLockedType === 'dapp' ? 'dapp-type'
+      : divisionLockedType === 'blockchain' ? 'legacy-question'
+      : 'choose-type'
   );
   const [dType, setDType] = React.useState<ProjectType | null>(projectType ?? divisionLockedType);
   const [dappVisibility, setDappVisibility] = React.useState<DappVisibility | null>(null);
@@ -249,13 +256,10 @@ export default function Step0({
   // downstream steps + the AI see it, without the user ever touching a chooser.
   React.useEffect(() => {
     if (!divisionLockedType || existingProjectId || projectType) return;
-    // dApp division defaults to a public dApp; blockchain divisions have no visibility.
-    const visibility = divisionLockedType === 'dapp' ? 'public' : null;
-    setStudioState({ projectType: divisionLockedType, dappVisibility: visibility } as any);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('cerulea.projectType', divisionLockedType);
-      if (visibility) localStorage.setItem('cerulea.dappVisibility', visibility);
-    }
+    // Pin the auto-selected project type in studio state (the intermediate phase
+    // the user lands on will set visibility/legacy next).
+    setStudioState({ projectType: divisionLockedType } as any);
+    if (typeof window !== 'undefined') localStorage.setItem('cerulea.projectType', divisionLockedType);
   }, []); // eslint-disable-line
 
   /* ---- Effects ---- */
@@ -435,8 +439,9 @@ export default function Step0({
 
   /* ---- Helpers for back navigation ---- */
   const goBackFromGallery = () => {
-    // Locked divisions have no type chooser to go back to — stay on the gallery.
-    if (divisionLockedType) return;
+    // Back from the gallery returns to the intermediate phase within the flow
+    // (legacy check for blockchain, visibility for dApp) — never the removed
+    // type chooser.
     if (dType === 'blockchain') setPhase('legacy-question');
     else setPhase('dapp-type');
   };
@@ -743,8 +748,9 @@ export default function Step0({
                 <Button
                   size="small"
                   startIcon={<ArrowBackIcon />}
-                  onClick={() => setPhase('choose-type')}
-                  sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+                  onClick={() => { if (!divisionLockedType) setPhase('choose-type'); }}
+                  disabled={!!divisionLockedType}
+                  sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' }, display: divisionLockedType ? 'none' : undefined }}
                 >
                   Back
                 </Button>
@@ -1266,7 +1272,8 @@ export default function Step0({
               size="small"
               startIcon={<ArrowBackIcon sx={{ fontSize: 14 }} />}
               onClick={() => {
-                if (phase === 'legacy-question') setPhase('choose-type');
+                // Locked divisions have no chooser to return to from legacy-question.
+                if (phase === 'legacy-question') { if (!divisionLockedType) setPhase('choose-type'); }
                 else if (phase === 'gallery') goBackFromGallery();
                 else if (phase === 'details') setPhase('gallery');
               }}
