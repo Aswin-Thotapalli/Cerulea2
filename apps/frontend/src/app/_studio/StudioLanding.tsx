@@ -36,14 +36,19 @@ const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactElement | 
 export default function StudioLanding({
   onNewProject,
   onOpenProject,
+  filterProjectType,
 }: {
   onNewProject: () => void;
   onOpenProject: (projectId: string) => void;
+  filterProjectType?: 'dapp' | 'blockchain' | null;
 }) {
   const theme = useTheme();
   const { data: session } = useSession();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // In a division, only show that division's project type (dApp vs blockchain).
+  const shown = filterProjectType ? projects.filter((p) => p.projectType === filterProjectType) : projects;
 
   const firstName = (session?.user?.name || 'Builder')?.split(' ')[0];
   const isDark = theme.palette.mode === 'dark';
@@ -127,11 +132,11 @@ export default function StudioLanding({
               backgroundClip: 'text',
             }}
           >
-            {projects.length > 0 ? `Welcome back, ${firstName}` : `Let's build, ${firstName}`}
+            {shown.length > 0 ? `Welcome back, ${firstName}` : `Let's build, ${firstName}`}
           </Typography>
 
           <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 480, lineHeight: 1.7 }}>
-            {projects.length > 0
+            {shown.length > 0
               ? 'Continue working on a project or start something new.'
               : 'Build your first blockchain app or dApp. No code required.'}
           </Typography>
@@ -157,7 +162,7 @@ export default function StudioLanding({
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
             <CircularProgress sx={{ color: 'primary.main' }} />
           </Box>
-        ) : projects.length === 0 ? (
+        ) : shown.length === 0 ? (
           /* Empty state — two option cards */
           <Box sx={{ display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap' }}>
             {[
@@ -229,13 +234,13 @@ export default function StudioLanding({
                   bgcolor: alpha(theme.palette.primary.main, 0.1),
                   color: 'primary.main', fontSize: '0.7rem', fontWeight: 700,
                 }}>
-                  {projects.length}
+                  {shown.length}
                 </Box>
               </Stack>
             </Stack>
 
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 2.5 }}>
-              {projects.map((p) => {
+              {shown.map((p) => {
                 const isChain = p.projectType === 'blockchain';
                 const typeColor = isChain ? '#7C3AED' : '#4F46E5';
                 const statusCfg = STATUS_CONFIG[p.status] ?? { color: '#6366f1', icon: undefined, label: p.status };
