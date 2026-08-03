@@ -7,9 +7,9 @@ import StudioShell from '@/app/_studio/shell/StudioShell';
 import StudioLanding from '@/app/_studio/StudioLanding';
 import { useStudio } from '@/context/StudioContext';
 
-type Props = { projectId?: string | null };
+type Props = { projectId?: string | null; division?: string | null };
 
-export default function StudioEntry({ projectId: initialProjectId }: Props) {
+export default function StudioEntry({ projectId: initialProjectId, division }: Props) {
   const { setStudioState } = useStudio();
   const [resolvedId, setResolvedId] = useState<string | null>(null);
   const [initialStep, setInitialStep] = useState(0);
@@ -17,24 +17,32 @@ export default function StudioEntry({ projectId: initialProjectId }: Props) {
   // 'landing' = show project picker; 'studio' = show StudioShell
   const [mode, setMode] = useState<'landing' | 'studio'>('landing');
 
-  // Capture the division path prefix (/dapps | /enterprise | /govt) ONCE at
-  // mount, before any replaceState below rewrites the URL. Every history rewrite
-  // preserves this prefix so the studio can always resolve its division from the
-  // path (see getClientDivision) — otherwise the type chooser reappears.
-  const [divisionPrefix] = useState<string>(() => {
-    if (typeof window === 'undefined') return '';
-    const seg = window.location.pathname.split('/')[1]?.toLowerCase() || '';
-    return ['dapps', 'enterprise', 'govt'].includes(seg) ? `/${seg}` : '';
-  });
+  // The division is provided by the server (from the x-cerulea-division header
+  // the middleware sets off the /dapps|/enterprise|/govt path) — deterministic,
+  // no dependence on client-side URL/cookie timing.
+  const divisionProjectType: 'dapp' | 'blockchain' | null =
+    division === 'dapp' ? 'dapp'
+      : (division === 'enterprise' || division === 'govt') ? 'blockchain'
+      : null;
+  const divisionPrefix =
+    division === 'dapp' ? '/dapps'
+      : division === 'enterprise' ? '/enterprise'
+      : division === 'govt' ? '/govt'
+      : '';
 
   useEffect(() => {
     async function init() {
-      // If a project param is already in the URL, go straight into studio
       if (initialProjectId) {
+        // Opening a specific project.
         await loadProject(initialProjectId);
         setMode('studio');
+      } else if (divisionProjectType) {
+        // Division entry (studio.cerulea.io/dapps etc.) → open a NEW project
+        // directly with the project type locked by the division. Skips both the
+        // project picker AND the dApp/blockchain type chooser.
+        startNewDivisionProject(divisionProjectType);
       } else {
-        // No project in URL → show landing page; don't auto-load
+        // No division context → show the project picker.
         setMode('landing');
       }
       setReady(true);
@@ -43,6 +51,34 @@ export default function StudioEntry({ projectId: initialProjectId }: Props) {
     void init();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function startNewDivisionProject(ptype: 'dapp' | 'blockchain') {
+    setResolvedId(null);
+    setInitialStep(0);
+    localStorage.removeItem('cerulea.projectId');
+    localStorage.removeItem('cerulea.activeProjectId');
+    localStorage.removeItem('cerulea.step1.graph');
+    localStorage.removeItem('cerulea.templateModules');
+    localStorage.removeItem('cerulea.economics');
+    localStorage.removeItem('cerulea.context.snapshot');
+    localStorage.setItem('cerulea.projectType', ptype);
+    const visibility = ptype === 'dapp' ? 'public' : null;
+    if (visibility) localStorage.setItem('cerulea.dappVisibility', visibility);
+    // Pre-set the project type in context so step0 skips the chooser and opens
+    // straight on the template gallery.
+    setStudioState({
+      projectId: undefined,
+      slug: undefined,
+      projectType: ptype,
+      dappVisibility: visibility,
+      templateId: null,
+      selectedModules: [],
+      appMetadata: { appName: '', appDescription: '' },
+      legacyMode: 'none',
+    } as any);
+    window.history.replaceState(null, '', `${divisionPrefix}/`);
+    setMode('studio');
+  }
 
   async function loadProject(pid: string) {
     localStorage.setItem('cerulea.projectId', pid);
@@ -123,12 +159,15 @@ export default function StudioEntry({ projectId: initialProjectId }: Props) {
     localStorage.removeItem('cerulea.economics');
     localStorage.removeItem('cerulea.context.snapshot'); // clears the StudioContext snapshot so old project data isn't re-hydrated
     window.history.replaceState(null, '', `${divisionPrefix}/`);
-    // Also reset the React context — otherwise the AI still sees the previous
-    // project's name/id even though localStorage was cleared.
+    // Reset the React context. In a division, keep the project type locked (so
+    // the chooser never returns); otherwise clear it for the normal chooser.
+    const visibility = divisionProjectType === 'dapp' ? 'public' : null;
+    if (divisionProjectType) localStorage.setItem('cerulea.projectType', divisionProjectType);
     setStudioState({
       projectId: undefined,
       slug: undefined,
-      projectType: null,
+      projectType: divisionProjectType ?? null,
+      dappVisibility: visibility,
       templateId: null,
       selectedModules: [],
       appMetadata: { appName: '', appDescription: '' },
