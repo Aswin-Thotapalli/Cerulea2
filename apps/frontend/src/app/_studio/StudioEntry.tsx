@@ -189,9 +189,16 @@ export default function StudioEntry({ projectId: initialProjectId, division }: P
       <StudioLanding
         onNewProject={handleNewProject}
         onOpenProject={handleOpenProject}
+        filterProjectType={divisionProjectType}
       />
     );
   }
 
-  return <StudioShell initialStep={initialStep} initialProjectId={resolvedId} />;
+  return (
+    <StudioShell
+      initialStep={initialStep}
+      initialProjectId={resolvedId}
+      onShowProjects={() => { window.history.replaceState(null, '', `${divisionPrefix}/`); setMode('landing'); }}
+    />
+  );
 }

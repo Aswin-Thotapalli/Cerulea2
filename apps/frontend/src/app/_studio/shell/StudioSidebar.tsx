@@ -15,6 +15,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import LogoutIcon from '@mui/icons-material/Logout';
 import HexagonOutlinedIcon from '@mui/icons-material/HexagonOutlined';
+import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 import { useSession } from 'next-auth/react';
 
 /* ---- Step definitions ---- */
@@ -51,9 +52,10 @@ export interface StudioSidebarProps {
   onStepChange?: (index: number) => void;
   onSmartContractsOpen?: () => void;
   smartContractsActive?: boolean;
+  onShowProjects?: () => void;
 }
 
-export default function StudioSidebar({ stepIndex, subStepIndex, projectType, onStepChange, onSmartContractsOpen, smartContractsActive }: StudioSidebarProps) {
+export default function StudioSidebar({ stepIndex, subStepIndex, projectType, onStepChange, onSmartContractsOpen, smartContractsActive, onShowProjects }: StudioSidebarProps) {
   const theme = useTheme();
   const { data: session } = useSession();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -82,6 +84,33 @@ export default function StudioSidebar({ stepIndex, subStepIndex, projectType, on
       overflow: 'hidden',
     }}>
       <Box sx={{ flex: 1, overflowY: 'auto', p: '14px 10px 8px' }}>
+
+        {/* My Projects — return to the project picker to open an existing project */}
+        {onShowProjects && (
+          <Tooltip title="Open one of your existing projects" placement="right">
+            <Box
+              onClick={onShowProjects}
+              sx={{
+                display: 'flex', alignItems: 'center', gap: 1,
+                p: '9px 10px', mb: 1.5, borderRadius: '10px',
+                border: '0.5px solid', borderColor: 'divider',
+                cursor: 'pointer', transition: 'background 0.15s',
+                '&:hover': { bgcolor: alpha(PRIMARY, 0.05), borderColor: alpha(PRIMARY, 0.3) },
+              }}
+            >
+              <Box sx={{
+                width: 24, height: 24, borderRadius: '7px', flexShrink: 0,
+                bgcolor: alpha(PRIMARY, 0.1),
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <FolderOpenOutlinedIcon sx={{ fontSize: 14, color: PRIMARY }} />
+              </Box>
+              <Typography sx={{ fontSize: '0.74rem', fontWeight: 600, color: 'text.primary' }}>
+                My Projects
+              </Typography>
+            </Box>
+          </Tooltip>
+        )}
 
         {/* Section label */}
         <Typography sx={{

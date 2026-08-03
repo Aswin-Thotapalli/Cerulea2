@@ -107,9 +107,11 @@ function makeLazy(meta: StepMeta): React.LazyExoticComponent<React.ComponentType
 export default function StudioShell({
   initialStep = 0,
   initialProjectId = null,
+  onShowProjects,
 }: {
   initialStep?: number;
   initialProjectId?: string | null;
+  onShowProjects?: () => void;
 }) {
   const studio = useStudio();
   const { projectType } = studio;
@@ -214,6 +216,7 @@ export default function StudioShell({
           onStepChange={setStepIndex}
           onSmartContractsOpen={() => setContractsOpen((o) => !o)}
           smartContractsActive={contractsOpen}
+          onShowProjects={onShowProjects}
         />
 
         {/* Step content area */}
