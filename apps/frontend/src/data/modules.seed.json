@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-08-03T00:39:24.987Z",
   "modules": [
     {
       "moduleId": "wallet-auth",
@@ -10663,6 +10663,420 @@
           }
         },
         "additionalProperties": false
+      }
+    },
+    {
+      "moduleId": "govt-identity",
+      "title": "Citizen Identity (Aadhaar/DigiLocker)",
+      "projectType": "blockchain",
+      "division": "govt",
+      "category": "identity",
+      "tags": [
+        "identity",
+        "aadhaar",
+        "digilocker",
+        "kyc"
+      ],
+      "blurb": "Verify citizens against national ID (Aadhaar / DigiLocker) and bind records to real people.",
+      "longDescription": [
+        "Links on-chain actors to a verified national identity so records, benefits, and services map to real citizens.",
+        "Runs verification off-chain and anchors only proofs on-chain — raw identity data never leaves sovereign storage."
+      ],
+      "dependsOn": [
+        "genesis"
+      ],
+      "recommends": [
+        "govt-records-registry",
+        "govt-esign"
+      ],
+      "reasonByDepId": {},
+      "configSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "moduleId": "govt-records-registry",
+      "title": "Public Records Registry",
+      "projectType": "blockchain",
+      "division": "govt",
+      "category": "registry",
+      "tags": [
+        "records",
+        "land",
+        "certificates",
+        "licenses"
+      ],
+      "blurb": "Tamper-proof registry for land, certificates, and licences — independently verifiable.",
+      "longDescription": [
+        "Stores hashes and lifecycle events for public records so any entry can be verified without trusting a single authority.",
+        "Supports issuance, transfer, and revocation with a full immutable history per record."
+      ],
+      "dependsOn": [
+        "genesis"
+      ],
+      "recommends": [
+        "govt-legal-audit",
+        "govt-transparency-portal"
+      ],
+      "reasonByDepId": {},
+      "configSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "moduleId": "govt-transparency-portal",
+      "title": "Public Transparency Portal",
+      "projectType": "blockchain",
+      "division": "govt",
+      "category": "exploration-ui",
+      "tags": [
+        "transparency",
+        "citizen",
+        "portal",
+        "public"
+      ],
+      "blurb": "A citizen-facing explorer for public records and spending — trust through visibility.",
+      "longDescription": [
+        "A read-only public portal where citizens can search and verify public records and transactions.",
+        "Configurable disclosure controls decide what is public vs. restricted per department."
+      ],
+      "dependsOn": [
+        "rpc"
+      ],
+      "recommends": [
+        "govt-records-registry"
+      ],
+      "reasonByDepId": {},
+      "configSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "moduleId": "govt-grievance",
+      "title": "Grievance & RTI Workflow",
+      "projectType": "blockchain",
+      "division": "govt",
+      "category": "workflow",
+      "tags": [
+        "grievance",
+        "rti",
+        "citizen",
+        "workflow"
+      ],
+      "blurb": "Track citizen grievances and RTI requests end-to-end with accountability at each step.",
+      "longDescription": [
+        "Models the full lifecycle of a citizen request — filed, assigned, reviewed, resolved — on an auditable ledger.",
+        "SLA timers and escalation rules keep departments accountable and give citizens verifiable status."
+      ],
+      "dependsOn": [
+        "genesis"
+      ],
+      "recommends": [
+        "govt-identity"
+      ],
+      "reasonByDepId": {},
+      "configSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "moduleId": "govt-esign",
+      "title": "eSign / Digital Signature",
+      "projectType": "blockchain",
+      "division": "govt",
+      "category": "integration",
+      "tags": [
+        "esign",
+        "signature",
+        "legal"
+      ],
+      "blurb": "Legally-binding digital signatures on on-chain records and approvals.",
+      "longDescription": [
+        "Integrates an eSign provider so official approvals and documents are signed and notarised on chain.",
+        "Signature proofs are anchored immutably for legal admissibility."
+      ],
+      "dependsOn": [
+        "genesis"
+      ],
+      "recommends": [
+        "govt-records-registry"
+      ],
+      "reasonByDepId": {},
+      "configSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "moduleId": "govt-legal-audit",
+      "title": "Legal-Grade Audit Trail",
+      "projectType": "blockchain",
+      "division": "govt",
+      "category": "security",
+      "tags": [
+        "audit",
+        "legal",
+        "immutable",
+        "evidence"
+      ],
+      "blurb": "An immutable, evidence-admissible record of every action for oversight and courts.",
+      "longDescription": [
+        "Captures a cryptographically-verifiable trail of every state change with actor, time, and context.",
+        "Designed for regulatory oversight and legal proceedings — exportable and independently checkable."
+      ],
+      "dependsOn": [
+        "genesis"
+      ],
+      "recommends": [],
+      "reasonByDepId": {},
+      "configSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "moduleId": "govt-interdept",
+      "title": "Inter-Department Connector",
+      "projectType": "blockchain",
+      "division": "govt",
+      "category": "integration",
+      "tags": [
+        "interdepartment",
+        "data-sharing",
+        "permissioned"
+      ],
+      "blurb": "Permissioned data exchange between departments without exposing everything.",
+      "longDescription": [
+        "Lets departments share specific records under scoped, revocable permissions.",
+        "Every cross-department access is logged for accountability."
+      ],
+      "dependsOn": [
+        "genesis"
+      ],
+      "recommends": [
+        "govt-legal-audit"
+      ],
+      "reasonByDepId": {},
+      "configSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "moduleId": "ent-rbac",
+      "title": "RBAC & Approval Workflows",
+      "projectType": "blockchain",
+      "division": "enterprise",
+      "category": "security",
+      "tags": [
+        "rbac",
+        "roles",
+        "approvals",
+        "permissions"
+      ],
+      "blurb": "Granular roles, custom permissions, and multi-step approvals for sensitive actions.",
+      "longDescription": [
+        "Define roles and fine-grained permissions, and require multi-party approval for high-risk operations.",
+        "Every permission change and approval is recorded for audit."
+      ],
+      "dependsOn": [
+        "genesis"
+      ],
+      "recommends": [
+        "ent-audit"
+      ],
+      "reasonByDepId": {},
+      "configSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "moduleId": "ent-sso",
+      "title": "SSO / SCIM Gateway",
+      "projectType": "blockchain",
+      "division": "enterprise",
+      "category": "security",
+      "tags": [
+        "sso",
+        "saml",
+        "scim",
+        "provisioning"
+      ],
+      "blurb": "SAML single sign-on with automated user provisioning and de-provisioning.",
+      "longDescription": [
+        "Connects your identity provider (Okta, Azure AD, Google) for SSO across the studio and apps.",
+        "SCIM keeps users and groups in sync automatically as your directory changes."
+      ],
+      "dependsOn": [
+        "genesis"
+      ],
+      "recommends": [
+        "ent-rbac"
+      ],
+      "reasonByDepId": {},
+      "configSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "moduleId": "ent-kyc-aml",
+      "title": "KYC/AML Compliance",
+      "projectType": "blockchain",
+      "division": "enterprise",
+      "category": "compliance",
+      "tags": [
+        "kyc",
+        "aml",
+        "compliance",
+        "onboarding"
+      ],
+      "blurb": "Regulated onboarding with identity checks and sanctions screening.",
+      "longDescription": [
+        "Screens counterparties against KYC/AML providers and records compliant onboarding on chain.",
+        "Produces an auditable compliance trail for regulators."
+      ],
+      "dependsOn": [
+        "genesis"
+      ],
+      "recommends": [
+        "ent-audit"
+      ],
+      "reasonByDepId": {},
+      "configSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "moduleId": "ent-erp-connector",
+      "title": "ERP Connector",
+      "projectType": "blockchain",
+      "division": "enterprise",
+      "category": "integration",
+      "tags": [
+        "erp",
+        "sap",
+        "oracle",
+        "netsuite"
+      ],
+      "blurb": "Sync data with SAP, Oracle, or NetSuite so the chain fits your existing stack.",
+      "longDescription": [
+        "Bi-directional connectors map ERP objects (orders, invoices, assets) to on-chain records.",
+        "Configurable field mapping and scheduled reconciliation keep both systems consistent."
+      ],
+      "dependsOn": [
+        "genesis"
+      ],
+      "recommends": [
+        "ent-workflow"
+      ],
+      "reasonByDepId": {},
+      "configSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "moduleId": "ent-workflow",
+      "title": "Workflow Engine",
+      "projectType": "blockchain",
+      "division": "enterprise",
+      "category": "workflow",
+      "tags": [
+        "workflow",
+        "bpm",
+        "automation"
+      ],
+      "blurb": "Automate multi-step business processes with on-chain state and approvals.",
+      "longDescription": [
+        "Model business processes as auditable state machines with roles, conditions, and SLAs.",
+        "Integrates with RBAC for approvals and with ERP connectors for data."
+      ],
+      "dependsOn": [
+        "genesis"
+      ],
+      "recommends": [
+        "ent-rbac"
+      ],
+      "reasonByDepId": {},
+      "configSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "moduleId": "ent-document-registry",
+      "title": "Document & Asset Registry",
+      "projectType": "blockchain",
+      "division": "enterprise",
+      "category": "registry",
+      "tags": [
+        "documents",
+        "assets",
+        "registry"
+      ],
+      "blurb": "A tamper-proof registry for enterprise documents and assets.",
+      "longDescription": [
+        "Anchors document/asset hashes and lifecycle events for verifiable provenance.",
+        "Access is governed by RBAC; every access is logged."
+      ],
+      "dependsOn": [
+        "genesis"
+      ],
+      "recommends": [
+        "ent-rbac"
+      ],
+      "reasonByDepId": {},
+      "configSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "moduleId": "ent-audit",
+      "title": "Audit-Grade Logging",
+      "projectType": "blockchain",
+      "division": "enterprise",
+      "category": "security",
+      "tags": [
+        "audit",
+        "logging",
+        "compliance",
+        "soc2"
+      ],
+      "blurb": "Legal-grade, exportable, long-retention audit trails for every action.",
+      "longDescription": [
+        "Captures a verifiable record of all activity, retained per your compliance policy.",
+        "Exports evidence packs for SOC2 / ISO27001 audits."
+      ],
+      "dependsOn": [
+        "genesis"
+      ],
+      "recommends": [],
+      "reasonByDepId": {},
+      "configSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
       }
     }
   ]

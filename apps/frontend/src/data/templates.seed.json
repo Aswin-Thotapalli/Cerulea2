@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-06-11",
+  "updatedAt": "2026-08-03T00:39:24.988Z",
   "templates": [
     {
       "id": "dapp-crypto-wallet",
@@ -4575,6 +4575,418 @@
         "node-permissioning",
         "api-gateway"
       ]
+    },
+    {
+      "id": "govt-land-records",
+      "projectType": "blockchain",
+      "division": "govt",
+      "title": "Land Records Registry",
+      "description": "Tamper-proof land and property records with citizen identity and legal-grade audit.",
+      "tags": [
+        "land",
+        "records",
+        "registry",
+        "property"
+      ],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "genesis",
+        "rpc",
+        "explorer",
+        "govt-records-registry",
+        "govt-identity",
+        "govt-legal-audit",
+        "govt-transparency-portal"
+      ],
+      "modules": [
+        "consensus",
+        "evm-config",
+        "genesis",
+        "rpc",
+        "explorer",
+        "govt-records-registry",
+        "govt-identity",
+        "govt-legal-audit",
+        "govt-transparency-portal"
+      ],
+      "edges": [
+        {
+          "from": "consensus",
+          "to": "genesis",
+          "rel": "drives"
+        },
+        {
+          "from": "rpc",
+          "to": "explorer",
+          "rel": "feeds"
+        }
+      ],
+      "ui": {
+        "pages": [
+          "Records Registry",
+          "Transparency Portal",
+          "Explorer"
+        ]
+      }
+    },
+    {
+      "id": "govt-grievance-portal",
+      "projectType": "blockchain",
+      "division": "govt",
+      "title": "Citizen Grievance & RTI Portal",
+      "description": "End-to-end grievance and RTI request tracking with accountability and public transparency.",
+      "tags": [
+        "grievance",
+        "rti",
+        "citizen",
+        "portal"
+      ],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "genesis",
+        "rpc",
+        "explorer",
+        "govt-grievance",
+        "govt-identity",
+        "govt-transparency-portal",
+        "govt-legal-audit"
+      ],
+      "modules": [
+        "consensus",
+        "evm-config",
+        "genesis",
+        "rpc",
+        "explorer",
+        "govt-grievance",
+        "govt-identity",
+        "govt-transparency-portal",
+        "govt-legal-audit"
+      ],
+      "edges": [
+        {
+          "from": "consensus",
+          "to": "genesis",
+          "rel": "drives"
+        },
+        {
+          "from": "rpc",
+          "to": "explorer",
+          "rel": "feeds"
+        }
+      ],
+      "ui": {
+        "pages": [
+          "Grievance Board",
+          "Transparency Portal"
+        ]
+      }
+    },
+    {
+      "id": "govt-procurement",
+      "projectType": "blockchain",
+      "division": "govt",
+      "title": "Public Procurement Ledger",
+      "description": "Transparent, tamper-proof public procurement and tender records.",
+      "tags": [
+        "procurement",
+        "tender",
+        "transparency"
+      ],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "genesis",
+        "rpc",
+        "explorer",
+        "govt-records-registry",
+        "govt-legal-audit",
+        "govt-transparency-portal"
+      ],
+      "modules": [
+        "consensus",
+        "evm-config",
+        "genesis",
+        "rpc",
+        "explorer",
+        "govt-records-registry",
+        "govt-legal-audit",
+        "govt-transparency-portal"
+      ],
+      "edges": [
+        {
+          "from": "consensus",
+          "to": "genesis",
+          "rel": "drives"
+        },
+        {
+          "from": "rpc",
+          "to": "explorer",
+          "rel": "feeds"
+        }
+      ],
+      "ui": {
+        "pages": [
+          "Procurement Ledger",
+          "Transparency Portal"
+        ]
+      }
+    },
+    {
+      "id": "govt-certificates",
+      "projectType": "blockchain",
+      "division": "govt",
+      "title": "Digital Identity & Certificates",
+      "description": "Issue and verify citizen certificates and credentials, signed and anchored on chain.",
+      "tags": [
+        "identity",
+        "certificates",
+        "credentials",
+        "esign"
+      ],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "genesis",
+        "rpc",
+        "explorer",
+        "govt-identity",
+        "govt-esign",
+        "govt-records-registry"
+      ],
+      "modules": [
+        "consensus",
+        "evm-config",
+        "genesis",
+        "rpc",
+        "explorer",
+        "govt-identity",
+        "govt-esign",
+        "govt-records-registry"
+      ],
+      "edges": [
+        {
+          "from": "consensus",
+          "to": "genesis",
+          "rel": "drives"
+        },
+        {
+          "from": "rpc",
+          "to": "explorer",
+          "rel": "feeds"
+        }
+      ],
+      "ui": {
+        "pages": [
+          "Certificate Issuer",
+          "Records Registry"
+        ]
+      }
+    },
+    {
+      "id": "ent-supply-chain",
+      "projectType": "blockchain",
+      "division": "enterprise",
+      "title": "Supply Chain Provenance",
+      "description": "Track-and-trace across your supply chain with RBAC and audit-grade logging.",
+      "tags": [
+        "supply-chain",
+        "provenance",
+        "traceability"
+      ],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "genesis",
+        "rpc",
+        "explorer",
+        "ent-document-registry",
+        "ent-rbac",
+        "ent-audit"
+      ],
+      "modules": [
+        "consensus",
+        "evm-config",
+        "genesis",
+        "rpc",
+        "explorer",
+        "ent-document-registry",
+        "ent-rbac",
+        "ent-audit"
+      ],
+      "edges": [
+        {
+          "from": "consensus",
+          "to": "genesis",
+          "rel": "drives"
+        },
+        {
+          "from": "rpc",
+          "to": "explorer",
+          "rel": "feeds"
+        }
+      ],
+      "ui": {
+        "pages": [
+          "Provenance Explorer",
+          "Audit Log"
+        ]
+      }
+    },
+    {
+      "id": "ent-trade-finance",
+      "projectType": "blockchain",
+      "division": "enterprise",
+      "title": "Trade Finance & Invoice Ledger",
+      "description": "A permissioned invoice and trade-finance ledger integrated with your ERP.",
+      "tags": [
+        "trade-finance",
+        "invoice",
+        "erp"
+      ],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "genesis",
+        "rpc",
+        "explorer",
+        "ent-workflow",
+        "ent-rbac",
+        "ent-erp-connector",
+        "ent-audit"
+      ],
+      "modules": [
+        "consensus",
+        "evm-config",
+        "genesis",
+        "rpc",
+        "explorer",
+        "ent-workflow",
+        "ent-rbac",
+        "ent-erp-connector",
+        "ent-audit"
+      ],
+      "edges": [
+        {
+          "from": "consensus",
+          "to": "genesis",
+          "rel": "drives"
+        },
+        {
+          "from": "rpc",
+          "to": "explorer",
+          "rel": "feeds"
+        }
+      ],
+      "ui": {
+        "pages": [
+          "Invoice Ledger",
+          "Approvals"
+        ]
+      }
+    },
+    {
+      "id": "ent-kyc-chain",
+      "projectType": "blockchain",
+      "division": "enterprise",
+      "title": "KYC/AML Compliance Chain",
+      "description": "Regulated counterparty onboarding with KYC/AML screening and an auditable trail.",
+      "tags": [
+        "kyc",
+        "aml",
+        "compliance",
+        "onboarding"
+      ],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "genesis",
+        "rpc",
+        "explorer",
+        "ent-kyc-aml",
+        "ent-rbac",
+        "ent-audit"
+      ],
+      "modules": [
+        "consensus",
+        "evm-config",
+        "genesis",
+        "rpc",
+        "explorer",
+        "ent-kyc-aml",
+        "ent-rbac",
+        "ent-audit"
+      ],
+      "edges": [
+        {
+          "from": "consensus",
+          "to": "genesis",
+          "rel": "drives"
+        },
+        {
+          "from": "rpc",
+          "to": "explorer",
+          "rel": "feeds"
+        }
+      ],
+      "ui": {
+        "pages": [
+          "Onboarding",
+          "Compliance Audit"
+        ]
+      }
+    },
+    {
+      "id": "ent-document-vault",
+      "projectType": "blockchain",
+      "division": "enterprise",
+      "title": "Enterprise Document & Asset Registry",
+      "description": "A tamper-proof registry for enterprise documents and assets with SSO and RBAC.",
+      "tags": [
+        "documents",
+        "assets",
+        "registry",
+        "sso"
+      ],
+      "preinstalledModules": [
+        "consensus",
+        "evm-config",
+        "genesis",
+        "rpc",
+        "explorer",
+        "ent-document-registry",
+        "ent-rbac",
+        "ent-sso"
+      ],
+      "modules": [
+        "consensus",
+        "evm-config",
+        "genesis",
+        "rpc",
+        "explorer",
+        "ent-document-registry",
+        "ent-rbac",
+        "ent-sso"
+      ],
+      "edges": [
+        {
+          "from": "consensus",
+          "to": "genesis",
+          "rel": "drives"
+        },
+        {
+          "from": "rpc",
+          "to": "explorer",
+          "rel": "feeds"
+        }
+      ],
+      "ui": {
+        "pages": [
+          "Document Registry",
+          "Access Control"
+        ]
+      }
     }
   ]
 }

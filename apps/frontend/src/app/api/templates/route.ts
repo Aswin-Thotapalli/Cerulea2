@@ -10,6 +10,7 @@ type Edge = { from: string; to: string; rel: string };
 type Template = {
   id: string;
   projectType: 'dapp' | 'blockchain';
+  division?: 'dapp' | 'enterprise' | 'govt';
   title: string;
   description?: string;
   tags?: string[];
@@ -50,6 +51,11 @@ export async function GET(req: Request) {
       | 'dapp'
       | 'blockchain'
       | null;
+    const division = url.searchParams.get('division') as
+      | 'dapp'
+      | 'enterprise'
+      | 'govt'
+      | null;
     const q = (url.searchParams.get('q') || '').toLowerCase();
     const ids = (url.searchParams.get('ids') || '')
       .split(',')
@@ -60,6 +66,12 @@ export async function GET(req: Request) {
     let list = catalog.templates.slice();
 
     if (projectType) list = list.filter(t => t.projectType === projectType);
+    // Division scoping: a division sees its own templates PLUS shared (undivided)
+    // ones, but never another division's. Division-specific templates sort first.
+    if (division) {
+      list = list.filter(t => !t.division || t.division === division);
+      list.sort((a, b) => (a.division === division ? 0 : 1) - (b.division === division ? 0 : 1));
+    }
     if (ids.length) list = list.filter(t => ids.includes(t.id));
     if (q) {
       list = list.filter(t => {

@@ -35,6 +35,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 
 import { useStudio } from '@/context/StudioContext';
+import { getClientDivision } from '@/lib/division-client';
 
 /* ------------------ Types ------------------ */
 type ProjectType = 'dapp' | 'blockchain';
@@ -437,7 +438,9 @@ function Step1Inner({ goPrev, goNext }: { goPrev?: () => void; goNext?: () => vo
   React.useEffect(() => {
     (async () => {
       try {
-        const r = await fetch(`/api/modules?projectType=${projectType}`);
+        const division = getClientDivision();
+        const url = `/api/modules?projectType=${projectType}${division ? `&division=${division}` : ''}`;
+        const r = await fetch(url);
         const data = await safeJson<Module[]>(r);
         setLibrary(data);
       } catch (e) { console.warn(e); }
