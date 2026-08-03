@@ -24,7 +24,10 @@ export default async function Home({ searchParams }: { searchParams?: SearchPara
 
   if (forceStudio) {
     const projectId = searchParams?.project ? String(searchParams.project) : null;
-    return <StudioEntry projectId={projectId} />;
+    // Division comes from the x-cerulea-division header the middleware sets from
+    // the /dapps|/enterprise|/govt path — deterministic, no client timing.
+    const division = headers().get('x-cerulea-division');
+    return <StudioEntry projectId={projectId} division={division} />;
   }
 
   // Studio host root ("/") — the 3-option chooser (Dapps / Enterprise / Govt).
