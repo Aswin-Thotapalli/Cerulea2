@@ -22,6 +22,7 @@ import Link from 'next/link';
 import { useStudio } from '@/context/StudioContext';
 import { api } from '@/lib/apiClient'; // used by history/thread routes
 import { useCan } from '@/lib/entitlements-client';
+import { getClientDivision } from '@/lib/division-client';
 
 const fabVariants = {
   hidden: { scale: 0, y: 50, opacity: 0 },
@@ -406,6 +407,7 @@ export default function Assistant() {
     return {
       currentRoute: pathname,
       studioState: {
+        division: getClientDivision() ?? undefined, // dapp | enterprise | govt
         projectId: studio.projectId,
         projectType: studio.projectType,
         step0Phase: studio.step0Phase ?? null,
