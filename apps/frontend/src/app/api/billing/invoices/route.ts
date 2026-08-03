@@ -6,6 +6,7 @@
 
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
+import { getCurrentSubscription } from "@/lib/billing/current-subscription";
 import { db } from '@/db/client';
 import { subscriptions } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -23,11 +24,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: true, invoices: [], hasMore: false, devMode: true });
   }
 
-  const [sub] = await db
-    .select()
-    .from(subscriptions)
-    .where(eq(subscriptions.userId, session.user.id))
-    .limit(1);
+  const sub = await getCurrentSubscription(session.user.id);
 
   if (!sub?.stripeCustomerId) {
     return NextResponse.json({ ok: true, invoices: [], hasMore: false });

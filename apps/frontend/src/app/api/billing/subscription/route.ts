@@ -10,6 +10,7 @@ import { subscriptions, billingOneTimePurchases } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { getTierById } from '@/config/billing-catalog';
 import { getActiveAddonSelections } from '@/lib/billing/addons';
+import { getCurrentSubscription } from '@/lib/billing/current-subscription';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,11 +20,7 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
-  const [sub] = await db
-    .select()
-    .from(subscriptions)
-    .where(eq(subscriptions.userId, session.user.id))
-    .limit(1);
+  const sub = await getCurrentSubscription(session.user.id);
 
   if (!sub || sub.status !== 'active') {
     return NextResponse.json({ ok: true, subscription: null, tier: null, addons: [], oneTimePurchases: [] });
