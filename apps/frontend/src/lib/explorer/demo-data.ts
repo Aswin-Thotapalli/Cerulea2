@@ -30,7 +30,8 @@ function hashStr(str: string): number {
 }
 
 const BLOCKS_PER_CHAIN = 220;
-const BLOCK_TIME_MS = 6000;
+const BLOCK_TIME_MS = 1000;          // 1.0s blocks (high-throughput chain)
+const BASE_HEIGHT = 2_847_100;       // mature chain height, so #s look real
 const IDENTITIES = [
   'Cerulea Foundation', 'Aegis Node', 'Nimbus Labs', 'Helios Validator',
   'Meridian Stake', 'Orbital One', 'Quorum Collective', 'Sentinel Ops',
@@ -169,18 +170,19 @@ function buildChain(chain: ChainSlug): ChainData {
   for (let n = 1; n <= BLOCKS_PER_CHAIN; n++) {
     const ageBlocks = BLOCKS_PER_CHAIN - n;
     const ts = now - ageBlocks * BLOCK_TIME_MS;
+    const height = BASE_HEIGHT + n;
     const hash = hex(32);
     const txCount = int(0, 6);
     const b: BlockSummary = {
-      number: n, hash, parentHash: hex(32), stateRoot: hex(32), extrinsicsRoot: hex(32),
-      timestamp: ts, author: pick(valAddrs), txCount, blockTime: BLOCK_TIME_MS + int(-400, 400),
+      number: height, hash, parentHash: hex(32), stateRoot: hex(32), extrinsicsRoot: hex(32),
+      timestamp: ts, author: pick(valAddrs), txCount, blockTime: BLOCK_TIME_MS + int(-180, 180),
     };
-    blocks.push(b); blocksByNumber.set(n, b); blocksByHash.set(hash, b);
+    blocks.push(b); blocksByNumber.set(height, b); blocksByHash.set(hash, b);
     const blockTxs: ExtrinsicSummary[] = [];
     for (let i = 0; i < txCount; i++) {
       const sm = pick(SECTIONS);
       const tx: ExtrinsicSummary = {
-        index: i, hash: hex(32), blockNumber: n, blockHash: hash, timestamp: ts,
+        index: i, hash: hex(32), blockNumber: height, blockHash: hash, timestamp: ts,
         from: pick(addrPool), to: pick(addrPool),
         value: rng() > 0.3 ? plancks(int(0, 25_000), int(0, 999999)) : '0',
         fee: plancks(0, int(100, 90_000)),
@@ -189,7 +191,7 @@ function buildChain(chain: ChainSlug): ChainData {
       };
       txs.push(tx); txsByHash.set(tx.hash, tx); blockTxs.push(tx);
     }
-    txsByBlock.set(n, blockTxs);
+    txsByBlock.set(height, blockTxs);
   }
 
   // Contracts
@@ -198,7 +200,7 @@ function buildChain(chain: ChainSlug): ChainData {
   for (let i = 0; i < nContracts; i++) {
     const address = hex(20);
     const verified = rng() > 0.4;
-    const deployBlock = int(1, BLOCKS_PER_CHAIN - 1);
+    const deployBlock = int(BASE_HEIGHT + 1, BASE_HEIGHT + BLOCKS_PER_CHAIN - 1);
     contracts.set(address, {
       address, deployerAddress: pick(addrPool), deployTxHash: hex(32), deployBlock,
       bytecode: hex(int(200, 600)), abi: verified ? SAMPLE_ABI : null, isVerified: verified,
@@ -265,17 +267,12 @@ export function demoApi(path: string, params: Record<string, string | number | u
   // /network/stats
   if (p === '/network/stats') {
     const latest = d.blocks[d.blocks.length - 1];
-    // Stable TPS: avg tx/block over the last 20 blocks ÷ block time (seconds).
-    // (Wall-clock windows drift to 0 once the tab has been open a while.)
-    const recent = d.blocks.slice(-20);
-    const recentTx = recent.reduce((s, b) => s + b.txCount, 0);
-    const tps = parseFloat((recentTx / (recent.length * (BLOCK_TIME_MS / 1000))).toFixed(2));
     const stats: NetworkStats = {
-      latestBlock: latest.number,
-      avgBlockTime: BLOCK_TIME_MS,
-      totalTransactions: d.txs.length,
+      latestBlock: latest.number,               // ~2.85M (high-throughput chain)
+      avgBlockTime: BLOCK_TIME_MS,              // 1000ms → "1.0s"
+      totalTransactions: 20_000 + d.txs.length, // ~20,681
       activeValidators: d.validators.filter((v) => v.isElected).length,
-      tps: Math.max(tps, 0.1),
+      tps: 1200,
       chainStatus: 'healthy',
     };
     return stats;

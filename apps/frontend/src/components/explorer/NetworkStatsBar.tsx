@@ -111,7 +111,7 @@ export default function NetworkStatsBar({ stats, loading = false }: NetworkStats
       <StatItem
         icon={<SpeedIcon fontSize="small" />}
         label="TPS"
-        value={stats ? stats.tps.toFixed(1) : '—'}
+        value={stats ? (stats.tps >= 100 ? formatNumber(Math.round(stats.tps)) : stats.tps.toFixed(1)) : '—'}
         loading={loading}
       />
     </Box>
