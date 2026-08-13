@@ -88,7 +88,7 @@ export default function ChainHomePage() {
                   txs={txs}
                   loading={txsLoading}
                   newHashes={newHashes}
-                  showBlock
+                  compact
                 />
               </Box>
             </Paper>

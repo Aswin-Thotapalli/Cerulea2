@@ -22,6 +22,8 @@ interface TxsTableProps {
   loading?: boolean;
   newHashes?: Set<string>;
   showBlock?: boolean;
+  /** Compact overview variant: fewer columns, no wrapping. */
+  compact?: boolean;
 }
 
 export default function TxsTable({
@@ -30,27 +32,32 @@ export default function TxsTable({
   loading = false,
   newHashes,
   showBlock = true,
+  compact = false,
 }: TxsTableProps) {
   const theme = useTheme();
+  const showBlk = showBlock && !compact;
+  const showParties = !compact;
+  const nowrap = { whiteSpace: 'nowrap' as const };
+  const colCount = 3 + (showBlk ? 1 : 0) + (showParties ? 2 : 0); // hash, method, status, age (+block, +from/to)
 
   return (
-    <Table size="small" sx={{ tableLayout: 'fixed' }}>
+    <Table size="small" sx={{ tableLayout: compact ? 'auto' : 'fixed' }}>
       <TableHead>
         <TableRow>
-          <TableCell sx={{ width: '22%', fontWeight: 700 }}>Tx Hash</TableCell>
-          {showBlock && <TableCell sx={{ width: '10%', fontWeight: 700 }}>Block</TableCell>}
-          <TableCell sx={{ fontWeight: 700 }}>Method</TableCell>
-          <TableCell sx={{ fontWeight: 700 }}>From</TableCell>
-          <TableCell sx={{ fontWeight: 700 }}>To</TableCell>
-          <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-          <TableCell sx={{ fontWeight: 700 }}>Age</TableCell>
+          <TableCell sx={{ width: compact ? undefined : '22%', fontWeight: 700, ...nowrap }}>Tx Hash</TableCell>
+          {showBlk && <TableCell sx={{ width: '10%', fontWeight: 700, ...nowrap }}>Block</TableCell>}
+          <TableCell sx={{ fontWeight: 700, ...nowrap }}>Method</TableCell>
+          {showParties && <TableCell sx={{ fontWeight: 700, ...nowrap }}>From</TableCell>}
+          {showParties && <TableCell sx={{ fontWeight: 700, ...nowrap }}>To</TableCell>}
+          <TableCell sx={{ fontWeight: 700, ...nowrap }}>Status</TableCell>
+          <TableCell sx={{ fontWeight: 700, ...nowrap }}>Age</TableCell>
         </TableRow>
       </TableHead>
       <TableBody>
         {loading
           ? Array.from({ length: 10 }).map((_, i) => (
               <TableRow key={i}>
-                {Array.from({ length: showBlock ? 7 : 6 }).map((__, j) => (
+                {Array.from({ length: colCount }).map((__, j) => (
                   <TableCell key={j}><Skeleton /></TableCell>
                 ))}
               </TableRow>
@@ -68,7 +75,7 @@ export default function TxsTable({
                       : undefined,
                   }}
                 >
-                  <TableCell>
+                  <TableCell sx={nowrap}>
                     <Typography
                       component={Link}
                       href={`/explorer/${chain}/txs/${tx.hash}`}
@@ -78,8 +85,8 @@ export default function TxsTable({
                       <HashChip value={tx.hash} compact />
                     </Typography>
                   </TableCell>
-                  {showBlock && (
-                    <TableCell>
+                  {showBlk && (
+                    <TableCell sx={nowrap}>
                       <Typography
                         component={Link}
                         href={`/explorer/${chain}/blocks/${tx.blockNumber}`}
@@ -91,29 +98,33 @@ export default function TxsTable({
                       </Typography>
                     </TableCell>
                   )}
-                  <TableCell>
+                  <TableCell sx={nowrap}>
                     <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>
                       {tx.section}.{tx.method}
                     </Typography>
                   </TableCell>
-                  <TableCell>
-                    {tx.from ? (
-                      <HashChip value={tx.from} head={6} tail={4} />
-                    ) : (
-                      <Typography variant="body2" color="text.disabled">—</Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {tx.to ? (
-                      <HashChip value={tx.to} head={6} tail={4} />
-                    ) : (
-                      <Typography variant="body2" color="text.disabled">—</Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
+                  {showParties && (
+                    <TableCell sx={nowrap}>
+                      {tx.from ? (
+                        <HashChip value={tx.from} head={6} tail={4} />
+                      ) : (
+                        <Typography variant="body2" color="text.disabled">—</Typography>
+                      )}
+                    </TableCell>
+                  )}
+                  {showParties && (
+                    <TableCell sx={nowrap}>
+                      {tx.to ? (
+                        <HashChip value={tx.to} head={6} tail={4} />
+                      ) : (
+                        <Typography variant="body2" color="text.disabled">—</Typography>
+                      )}
+                    </TableCell>
+                  )}
+                  <TableCell sx={nowrap}>
                     <StatusBadge status={tx.status} />
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={nowrap}>
                     <TimestampCell tsMs={tx.timestamp} />
                   </TableCell>
                 </TableRow>

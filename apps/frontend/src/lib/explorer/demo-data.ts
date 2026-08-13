@@ -265,12 +265,17 @@ export function demoApi(path: string, params: Record<string, string | number | u
   // /network/stats
   if (p === '/network/stats') {
     const latest = d.blocks[d.blocks.length - 1];
+    // Stable TPS: avg tx/block over the last 20 blocks ÷ block time (seconds).
+    // (Wall-clock windows drift to 0 once the tab has been open a while.)
+    const recent = d.blocks.slice(-20);
+    const recentTx = recent.reduce((s, b) => s + b.txCount, 0);
+    const tps = parseFloat((recentTx / (recent.length * (BLOCK_TIME_MS / 1000))).toFixed(2));
     const stats: NetworkStats = {
       latestBlock: latest.number,
       avgBlockTime: BLOCK_TIME_MS,
       totalTransactions: d.txs.length,
       activeValidators: d.validators.filter((v) => v.isElected).length,
-      tps: parseFloat((d.txs.filter((t) => t.timestamp > Date.now() - 60_000).length / 60).toFixed(2)),
+      tps: Math.max(tps, 0.1),
       chainStatus: 'healthy',
     };
     return stats;
