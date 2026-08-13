@@ -12,7 +12,7 @@ import HashChip from '@/components/HashChip';
 import ErrorState from '@/components/ErrorState';
 import { useChainContext } from '@/context/ChainContext';
 import { fetchValidatorList } from '@/lib/api/validators';
-import { formatNumber } from '@/lib/format';
+import { formatNumber, formatToken } from '@/lib/format';
 import type { ValidatorInfo } from '@cerulea/types';
 
 export default function ValidatorsPage() {
@@ -100,10 +100,10 @@ export default function ValidatorsPage() {
                             <Typography variant="body2">{v.commission}%</Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2">{v.totalStake}</Typography>
+                            <Typography variant="body2">{formatToken(v.totalStake)}</Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2">{v.ownStake}</Typography>
+                            <Typography variant="body2">{formatToken(v.ownStake)}</Typography>
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2">{formatNumber(v.blocksProduced)}</Typography>
