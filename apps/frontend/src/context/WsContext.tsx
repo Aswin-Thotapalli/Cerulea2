@@ -26,6 +26,13 @@ export function WsProvider({
 
   useEffect(() => {
     const url = getRpcWsUrl(chain);
+    // No RPC WebSocket configured (demo mode) → don't attempt a connection that
+    // would only error. The nav shows a "Demo" badge instead.
+    if (!url) {
+      setStatus('disconnected');
+      setClient(null);
+      return;
+    }
     const rpc = new SubstrateRpcClient(url, setStatus);
     setClient(rpc);
     rpc.connect();

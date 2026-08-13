@@ -30,37 +30,38 @@ export default function ChainSwitcher({ currentChain }: ChainSwitcherProps) {
       onChange={handleChange}
       size="small"
       sx={{
+        p: '2px',
+        borderRadius: '999px',
+        bgcolor: 'action.hover',
+        '& .MuiToggleButtonGroup-grouped': {
+          m: 0,
+          border: '0 !important',
+          borderRadius: '999px !important',
+        },
         '& .MuiToggleButton-root': {
           px: 1.5,
-          py: 0.4,
+          py: 0.35,
           fontSize: '0.75rem',
-          fontWeight: 700,
+          fontWeight: 600,
           textTransform: 'none',
-          borderRadius: '999px !important',
-          border: '1px solid',
-          borderColor: 'divider',
+          letterSpacing: 0,
+          color: 'text.secondary',
           gap: 0.5,
+          '&:hover': { bgcolor: 'transparent', color: 'text.primary' },
           '&.Mui-selected': {
             bgcolor: 'primary.main',
             color: 'primary.contrastText',
-            borderColor: 'primary.main',
+            boxShadow: 1,
             '&:hover': { bgcolor: 'primary.dark' },
           },
-        },
-        gap: 0.5,
-        border: 'none',
-        '& .MuiToggleButtonGroup-grouped': {
-          border: '1px solid',
-          borderColor: 'divider',
-          '&:not(:first-of-type)': { borderLeft: '1px solid', borderColor: 'divider', ml: 0 },
         },
       }}
     >
       {Object.values(CHAINS).map((chain) => (
         <Tooltip key={chain.slug} title={chain.permissioned ? 'Private permissioned chain' : 'Public chain'}>
           <ToggleButton value={chain.slug} aria-label={chain.name}>
-            {chain.permissioned ? <LockIcon sx={{ fontSize: 14 }} /> : <PublicIcon sx={{ fontSize: 14 }} />}
-            {chain.name}
+            {chain.permissioned ? <LockIcon sx={{ fontSize: 13 }} /> : <PublicIcon sx={{ fontSize: 13 }} />}
+            {chain.permissioned ? 'Private' : 'Public'}
           </ToggleButton>
         </Tooltip>
       ))}

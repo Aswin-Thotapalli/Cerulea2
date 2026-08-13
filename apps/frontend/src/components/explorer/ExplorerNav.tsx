@@ -1,13 +1,15 @@
 'use client';
 
 import {
-  AppBar, Toolbar, Box, IconButton, Tooltip, Typography,
+  AppBar, Toolbar, Box, IconButton, Tooltip, Typography, Chip,
   Drawer, List, ListItem, ListItemButton, ListItemText, Divider,
   useMediaQuery,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
+import Brightness7Icon from '@mui/icons-material/Brightness7';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
@@ -24,6 +26,8 @@ import ChainSwitcher from './ChainSwitcher';
 import WsStatusBadge from './WsStatusBadge';
 import { useChainContext } from '@/context/ChainContext';
 import { useWs } from '@/context/WsContext';
+import { getRpcWsUrl } from '@/lib/explorer/chains';
+import { useThemeToggle } from '@/app/providers';
 
 const NAV_ITEMS = [
   { label: 'Overview', href: '', icon: <DashboardIcon fontSize="small" /> },
@@ -38,9 +42,11 @@ const NAV_ITEMS = [
 export default function ExplorerNav() {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
+  const { toggleTheme } = useThemeToggle();
   const pathname = usePathname();
   const { chain } = useChainContext();
   const { status } = useWs();
+  const hasWs = !!getRpcWsUrl(chain);
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -165,7 +171,27 @@ export default function ExplorerNav() {
 
           <ChainSwitcher currentChain={chain} />
 
-          <WsStatusBadge status={status} />
+          {hasWs ? (
+            <WsStatusBadge status={status} />
+          ) : (
+            <Tooltip title="Demo data — no live node connected">
+              <Chip
+                size="small"
+                label="Demo"
+                variant="outlined"
+                sx={{
+                  fontSize: '0.68rem', fontWeight: 700, height: 22,
+                  color: '#10b981', borderColor: alpha('#10b981', 0.4),
+                }}
+              />
+            </Tooltip>
+          )}
+
+          <Tooltip title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
+            <IconButton onClick={toggleTheme} size="small" sx={{ color: 'text.secondary' }}>
+              {isDark ? <Brightness7Icon fontSize="small" /> : <Brightness4Icon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
 
           {isMobile && (
             <IconButton onClick={() => setDrawerOpen(true)} size="small" edge="end">
