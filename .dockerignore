@@ -1,0 +1,26 @@
+# Force a clean install in the image and keep the build context small.
+**/node_modules
+**/.next
+**/dist
+**/build
+**/data
+**/*.tsbuildinfo
+**/*.log
+
+.git
+.github
+.history
+.claude
+.continue
+.vscode
+
+# Local env files — never bake secrets into the image (Railway injects env vars).
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Loose repo cruft not needed to run the API.
+*.docx
+"New Text Document.txt"
+"Super Dashboard.txt"
+index.html
