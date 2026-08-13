@@ -17,6 +17,7 @@ const PUBLIC_PATHS = [
   '/brand/',
   '/.well-known/',  // well-known files
   '/docs/',         // public documentation
+  '/explorer',      // public block explorer — no login or subscription required
 ];
 
 function isPublicPath(pathname: string): boolean {
