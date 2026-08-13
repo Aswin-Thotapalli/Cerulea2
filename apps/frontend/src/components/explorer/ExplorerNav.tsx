@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  AppBar, Toolbar, Box, IconButton, Tooltip, Typography, Chip,
+  AppBar, Toolbar, Box, IconButton, Tooltip, Typography,
   Drawer, List, ListItem, ListItemButton, ListItemText, Divider,
   useMediaQuery,
 } from '@mui/material';
@@ -171,21 +171,7 @@ export default function ExplorerNav() {
 
           <ChainSwitcher currentChain={chain} />
 
-          {hasWs ? (
-            <WsStatusBadge status={status} />
-          ) : (
-            <Tooltip title="Demo data — no live node connected">
-              <Chip
-                size="small"
-                label="Demo"
-                variant="outlined"
-                sx={{
-                  fontSize: '0.68rem', fontWeight: 700, height: 22,
-                  color: '#10b981', borderColor: alpha('#10b981', 0.4),
-                }}
-              />
-            </Tooltip>
-          )}
+          {hasWs && <WsStatusBadge status={status} />}
 
           <Tooltip title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
             <IconButton onClick={toggleTheme} size="small" sx={{ color: 'text.secondary' }}>
