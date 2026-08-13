@@ -12,7 +12,7 @@ import HashChip from '@/components/explorer/HashChip';
 import ErrorState from '@/components/explorer/ErrorState';
 import { useChainContext } from '@/context/ChainContext';
 import { fetchValidator } from '@/lib/explorer/api/validators';
-import { formatNumber } from '@/lib/explorer/format';
+import { formatNumber, formatToken } from '@/lib/explorer/format';
 import type { ValidatorInfo } from '@cerulea/types';
 
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -99,7 +99,7 @@ export default function ValidatorDetailPage() {
           <Grid size={{"xs":12,"sm":6,"md":3}}>
             <Paper variant="outlined" sx={{ borderRadius: 3, p: 2.5, textAlign: 'center' }}>
               <Typography variant="h5" fontWeight={800} noWrap>
-                {loading ? <Skeleton width={80} sx={{ mx: 'auto' }} /> : (validator?.totalStake ?? '—')}
+                {loading ? <Skeleton width={80} sx={{ mx: 'auto' }} /> : (validator ? formatToken(validator.totalStake) : '—')}
               </Typography>
               <Typography variant="caption" color="text.secondary" fontWeight={600}>Total Stake</Typography>
             </Paper>
@@ -122,10 +122,10 @@ export default function ValidatorDetailPage() {
                     </DetailRow>
                   )}
                   <DetailRow label="Own Stake">
-                    {loading ? <Skeleton width={120} /> : <Typography variant="body2">{validator!.ownStake}</Typography>}
+                    {loading ? <Skeleton width={120} /> : <Typography variant="body2">{formatToken(validator!.ownStake)}</Typography>}
                   </DetailRow>
                   <DetailRow label="Total Stake">
-                    {loading ? <Skeleton width={120} /> : <Typography variant="body2">{validator!.totalStake}</Typography>}
+                    {loading ? <Skeleton width={120} /> : <Typography variant="body2">{formatToken(validator!.totalStake)}</Typography>}
                   </DetailRow>
                   <DetailRow label="Commission">
                     {loading ? <Skeleton width={60} /> : <Typography variant="body2">{validator!.commission}%</Typography>}

@@ -34,6 +34,30 @@ export function formatNumber(n: number | string): string {
   return Number(n).toLocaleString('en-US');
 }
 
+/** Cerulea native token defaults. */
+export const NATIVE_TOKEN = { symbol: 'CRL', decimals: 18 } as const;
+
+/**
+ * Format a base-unit (planck) token amount with thousands separators + symbol.
+ * e.g. formatToken("954063000000000000000000") → "954,063 CRL"
+ */
+export function formatToken(
+  value: bigint | string | null | undefined,
+  decimals: number = NATIVE_TOKEN.decimals,
+  symbol: string = NATIVE_TOKEN.symbol,
+): string {
+  if (value === null || value === undefined || value === '') return `0 ${symbol}`;
+  let s: string;
+  try {
+    s = formatUnits(value, decimals);
+  } catch {
+    return `${value} ${symbol}`;
+  }
+  const [whole, frac] = s.split('.');
+  const wholeFmt = Number(whole).toLocaleString('en-US');
+  return `${frac ? `${wholeFmt}.${frac}` : wholeFmt} ${symbol}`;
+}
+
 export function hexToNumber(hex: string): number {
   return parseInt(hex.startsWith('0x') ? hex : `0x${hex}`, 16);
 }

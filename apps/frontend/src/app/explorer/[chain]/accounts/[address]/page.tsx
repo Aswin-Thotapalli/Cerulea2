@@ -14,6 +14,7 @@ import AddressQR from '@/components/explorer/AddressQR';
 import ErrorState from '@/components/explorer/ErrorState';
 import { useChainContext } from '@/context/ChainContext';
 import { fetchAccount, fetchAccountTxs } from '@/lib/explorer/api/accounts';
+import { formatToken } from '@/lib/explorer/format';
 import type { AccountInfo, ExtrinsicSummary } from '@cerulea/types';
 
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -98,10 +99,10 @@ export default function AccountDetailPage() {
                   <DetailRow label="Balance">
                     {loading ? <Skeleton width={140} /> : (
                       <Box>
-                        <Typography variant="body2" fontWeight={700}>{account!.balance.total}</Typography>
+                        <Typography variant="body2" fontWeight={700}>{formatToken(account!.balance.total)}</Typography>
                         {account!.balance.reserved !== '0' && (
                           <Typography variant="caption" color="text.secondary">
-                            Free: {account!.balance.free} · Reserved: {account!.balance.reserved}
+                            Free: {formatToken(account!.balance.free)} · Reserved: {formatToken(account!.balance.reserved)}
                           </Typography>
                         )}
                       </Box>
@@ -139,8 +140,8 @@ export default function AccountDetailPage() {
                       <Box>
                         <Chip label={account.stakingInfo.role} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700, mr: 1 }} />
                         <Typography variant="caption" color="text.secondary">
-                          Staked: {account.stakingInfo.staked}
-                          {account.stakingInfo.unbonding !== '0' && ` · Unbonding: ${account.stakingInfo.unbonding}`}
+                          Staked: {formatToken(account.stakingInfo.staked)}
+                          {account.stakingInfo.unbonding !== '0' && ` · Unbonding: ${formatToken(account.stakingInfo.unbonding)}`}
                         </Typography>
                       </Box>
                     </DetailRow>
@@ -160,7 +161,7 @@ export default function AccountDetailPage() {
                     {account.tokenBalances.map((tb, i) => (
                       <TableRow key={i}>
                         <TableCell sx={{ fontWeight: 600 }}>{tb.symbol}</TableCell>
-                        <TableCell>{tb.balance}</TableCell>
+                        <TableCell>{formatToken(tb.balance, tb.decimals, tb.symbol)}</TableCell>
                         <TableCell>
                           <HashChip value={tb.contractAddress} compact head={6} tail={4} />
                         </TableCell>
