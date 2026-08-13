@@ -15,7 +15,7 @@ import StatusBadge from '@/components/explorer/StatusBadge';
 import ErrorState from '@/components/explorer/ErrorState';
 import { useChainContext } from '@/context/ChainContext';
 import { fetchTxByHash } from '@/lib/explorer/api/txs';
-import { formatNumber } from '@/lib/explorer/format';
+import { formatNumber, formatToken } from '@/lib/explorer/format';
 import type { ExtrinsicDetail } from '@cerulea/types';
 
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -115,12 +115,12 @@ export default function TxDetailPage() {
                   </DetailRow>
                   {!loading && tx!.value && (
                     <DetailRow label="Value">
-                      <Typography variant="body2" fontWeight={600}>{tx!.value}</Typography>
+                      <Typography variant="body2" fontWeight={600}>{formatToken(tx!.value)}</Typography>
                     </DetailRow>
                   )}
                   {!loading && tx!.fee && (
                     <DetailRow label="Fee">
-                      <Typography variant="body2">{tx!.fee}</Typography>
+                      <Typography variant="body2">{formatToken(tx!.fee)}</Typography>
                     </DetailRow>
                   )}
                   {!loading && tx!.nonce != null && (

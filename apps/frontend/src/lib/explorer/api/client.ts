@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from '@/lib/explorer/chains';
+import { demoApi } from '@/lib/explorer/demo-data';
 
 export class ApiError extends Error {
   constructor(
@@ -15,8 +16,15 @@ export async function apiGet<T>(
   params?: Record<string, string | number | undefined>
 ): Promise<T> {
   const base = getApiBaseUrl();
+  // No external API configured → serve self-contained demo data so the explorer
+  // works with zero backend. Set NEXT_PUBLIC_API_BASE_URL to switch to a real API.
   if (!base) {
-    throw new ApiError(0, 'NEXT_PUBLIC_API_BASE_URL is not configured.');
+    try {
+      return demoApi(path, params) as T;
+    } catch (e) {
+      const err = e as { status?: number; message?: string };
+      throw new ApiError(err.status ?? 404, err.message ?? 'Not found');
+    }
   }
 
   const url = new URL(`${base}${path}`);
