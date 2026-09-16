@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
+import { divisionForProject } from '@/config/divisions';
 import { db } from '@/db/client';
 import { projects, drafts } from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -57,6 +58,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         description: (row as any).description,
         projectType: (row as any).projectType,
         status: (row as any).status ?? 'draft',
+        division: divisionForProject((row as any).projectType, (row as any).selectedTemplateIds),
+        selectedTemplateIds: (row as any).selectedTemplateIds ?? null,
         legacyMode: (row as any).legacyMode ?? 'none',
         createdAt: (row as any).createdAt,
         updatedAt: (row as any).updatedAt,

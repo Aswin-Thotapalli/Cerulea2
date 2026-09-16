@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { studioProjectUrl } from '@/config/divisions';
 import {
   Box, Typography, Paper, Button, Stack,
   TextField, MenuItem, Select, FormControl, InputLabel,
@@ -22,6 +23,7 @@ type Project = {
   slug: string;
   status: string;
   projectType: string;
+  division?: string;
   createdAt: string;
   updatedAt?: string;
 };
@@ -33,10 +35,16 @@ const STATUS_META: Record<string, { color: string; label: string }> = {
   failed: { color: '#ef4444', label: 'Failed' },
 };
 
-function getStudioUrl(projectId: string) {
+function studioBase() {
   const isLocal = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
-  const base = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
-  return `${base}/?project=${projectId}`;
+  return isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
+}
+// Opens a saved project inside its division (studio.cerulea.io/<division>?project=<id>).
+function getStudioUrl(p: { id: string; division?: string }) {
+  return studioProjectUrl(studioBase(), p.id, p.division);
+}
+function getNewProjectUrl() {
+  return studioBase();
 }
 
 export default function ProjectsPage() {
@@ -92,7 +100,7 @@ export default function ProjectsPage() {
             All your blockchain networks and dApps — manage, open, and delete from here.
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => { window.location.href = getStudioUrl('new'); }}
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => { window.location.href = getNewProjectUrl(); }}
           sx={{ borderRadius: 1, fontWeight: 700, background: 'linear-gradient(135deg, #4F46E5 0%, #6366f1 100%)' }}>
           New Project
         </Button>
@@ -139,7 +147,7 @@ export default function ProjectsPage() {
             {projects.length === 0 ? 'No projects yet' : 'No projects match your filters'}
           </Typography>
           {projects.length === 0 && (
-            <Button variant="contained" startIcon={<AddIcon />} sx={{ mt: 1.5, borderRadius: 1 }} onClick={() => { window.location.href = getStudioUrl('new'); }}>
+            <Button variant="contained" startIcon={<AddIcon />} sx={{ mt: 1.5, borderRadius: 1 }} onClick={() => { window.location.href = getNewProjectUrl(); }}>
               Create First Project
             </Button>
           )}
@@ -202,7 +210,7 @@ export default function ProjectsPage() {
 
                 {/* Open button */}
                 <Button size="small" variant="outlined" endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
-                  onClick={() => { window.location.href = getStudioUrl(p.id); }}
+                  onClick={() => { window.location.href = getStudioUrl(p); }}
                   sx={{ borderRadius: 1.5, fontWeight: 700, fontSize: '0.7rem', borderColor: alpha(typeColor, 0.3), color: typeColor, '&:hover': { borderColor: typeColor, bgcolor: alpha(typeColor, 0.05) }, whiteSpace: 'nowrap' }}>
                   Open
                 </Button>

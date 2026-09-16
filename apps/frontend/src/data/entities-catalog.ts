@@ -3,7 +3,8 @@
 
 export type FieldType =
   | 'uuid' | 'string' | 'text' | 'boolean' | 'int' | 'float'
-  | 'datetime' | 'json' | 'address' | 'uint256' | 'bytes32' | 'ipfs-hash';
+  | 'datetime' | 'date' | 'json' | 'enum' | 'file'
+  | 'address' | 'uint256' | 'bytes32' | 'ipfs-hash';
 
 export type StorageStrategy = 'database' | 'on-chain' | 'ipfs';
 

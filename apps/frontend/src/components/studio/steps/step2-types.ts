@@ -2,7 +2,7 @@ export type Phase = "data" | "governance" | "behavior" | "exposure";
 
 export type DataType =
   | "uuid" | "string" | "text" | "boolean" | "int" | "float"
-  | "datetime" | "json"
+  | "datetime" | "date" | "json" | "enum" | "file"
   | "address" | "uint256" | "bytes32" | "ipfs-hash";
 
 export type StorageStrategy = "database" | "on-chain" | "ipfs";
@@ -18,6 +18,12 @@ export type Field = {
   encrypted: boolean;
   description?: string;
   defaultValue?: string;
+  /** Human label shown on data-entry forms (defaults to the field name). */
+  label?: string;
+  /** Unit of measure for numeric fields, e.g. "kg", "%", "°C", "INR/quintal". */
+  unit?: string;
+  /** Allowed values for `enum` fields (pick-lists). */
+  options?: string[];
 };
 
 export type Entity = {

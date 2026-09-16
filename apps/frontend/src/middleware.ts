@@ -56,7 +56,8 @@ export async function middleware(req: NextRequest) {
   const redirectTo = (url: URL) => applyCookie(NextResponse.redirect(url));
 
   // The studio host root ("/") is the 3-option chooser — public.
-  const isStudioChooser = isStudioHost && pathname === '/';
+  const wantsProject = isStudioHost && pathname === '/' && req.nextUrl.searchParams.has('project');
+  const isStudioChooser = isStudioHost && pathname === '/' && !wantsProject;
 
   // Always allow public paths (auth, pricing, api, _next) and the chooser.
   if (isPublicPath(pathname) || isStudioChooser) {
@@ -156,6 +157,14 @@ export async function middleware(req: NextRequest) {
       pricingUrl.search = '';
       return redirectTo(pricingUrl);
     }
+  }
+
+  // ─── Saved project via the bare form: studio.cerulea.io/?project=<id> ──────
+  // Serve the studio (StudioEntry loads the project); the chooser is skipped.
+  if (wantsProject) {
+    const url = req.nextUrl.clone();
+    url.searchParams.set('studio', '1');
+    return rewriteTo(url);
   }
 
   return pass();
