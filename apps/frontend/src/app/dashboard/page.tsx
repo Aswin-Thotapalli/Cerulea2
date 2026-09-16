@@ -378,7 +378,7 @@ export default function DashboardPage() {
                         <Stack direction="row" spacing={0.25} alignItems="center">
                           <Tooltip title="Open in Studio">
                             <IconButton size="small"
-                              onClick={() => { window.location.href = getStudioUrl(p); }}
+                              onClick={() => { window.open(getStudioUrl(p), '_blank', 'noopener,noreferrer'); }}
                               sx={{ bgcolor: alpha(typeColor, 0.07), '&:hover': { bgcolor: alpha(typeColor, 0.18) } }}>
                               <OpenInNewIcon sx={{ fontSize: 14, color: typeColor }} />
                             </IconButton>

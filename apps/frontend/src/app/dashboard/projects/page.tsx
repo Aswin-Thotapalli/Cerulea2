@@ -210,7 +210,7 @@ export default function ProjectsPage() {
 
                 {/* Open button */}
                 <Button size="small" variant="outlined" endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
-                  onClick={() => { window.location.href = getStudioUrl(p); }}
+                  onClick={() => { window.open(getStudioUrl(p), '_blank', 'noopener,noreferrer'); }}
                   sx={{ borderRadius: 1.5, fontWeight: 700, fontSize: '0.7rem', borderColor: alpha(typeColor, 0.3), color: typeColor, '&:hover': { borderColor: typeColor, bgcolor: alpha(typeColor, 0.05) }, whiteSpace: 'nowrap' }}>
                   Open
                 </Button>
