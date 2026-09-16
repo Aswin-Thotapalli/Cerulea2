@@ -99,10 +99,10 @@ export default function GovernancePanel({ blueprintModules, moduleEntities, onUp
                         borderBottom: i < modEnts.length - 1 ? `1px solid ${theme.palette.divider}` : 'none',
                         '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.02) },
                       }}>
-                        <Box>
-                          <Typography variant="body2" fontWeight={700}>{ent.name}</Typography>
+                        <Box sx={{ minWidth: 0, overflow: 'hidden', pr: 2 }}>
+                          <Typography variant="body2" fontWeight={700} noWrap>{ent.name}</Typography>
                           {ent.description && (
-                            <Typography variant="caption" color="text.disabled" noWrap sx={{ fontSize: '0.68rem', display: 'block' }}>
+                            <Typography variant="caption" color="text.disabled" noWrap title={ent.description} sx={{ fontSize: '0.68rem', display: 'block' }}>
                               {ent.description}
                             </Typography>
                           )}
