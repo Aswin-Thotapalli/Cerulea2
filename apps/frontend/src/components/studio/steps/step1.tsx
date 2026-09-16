@@ -442,7 +442,25 @@ function Step1Inner({ goPrev, goNext }: { goPrev?: () => void; goNext?: () => vo
         const url = `/api/modules?projectType=${projectType}${division ? `&division=${division}` : ''}`;
         const r = await fetch(url);
         const data = await safeJson<Module[]>(r);
-        setLibrary(data);
+        // A saved project may use modules outside this division's palette
+        // (e.g. app-layer modules tagged for the dApp track). Fetch those by id
+        // so their config panel and schema still resolve on the canvas.
+        let extra: Module[] = [];
+        try {
+          const raw = localStorage.getItem('cerulea.step1.graph');
+          const saved = raw ? JSON.parse(raw) : null;
+          const have = new Set((data || []).map((m) => m.moduleId));
+          const missing: string[] = Array.from(new Set<string>(
+            (saved?.nodes || []).map((n: any) => n?.data?.moduleId).filter((id: any) => typeof id === 'string' && id && !have.has(id))
+          ));
+          if (missing.length) {
+            const r2 = await fetch(`/api/modules?ids=${encodeURIComponent(missing.join(','))}`);
+            const d2 = await safeJson<Module[]>(r2);
+            const seen = new Set<string>();
+            extra = (d2 || []).filter((m) => { if (seen.has(m.moduleId)) return false; seen.add(m.moduleId); return true; });
+          }
+        } catch { /* ignore */ }
+        setLibrary(extra.length ? [...(data || []), ...extra] : data);
       } catch (e) { console.warn(e); }
     })();
   }, [projectType]);
