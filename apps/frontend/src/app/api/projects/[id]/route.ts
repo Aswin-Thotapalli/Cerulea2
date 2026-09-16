@@ -72,6 +72,53 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
+// PATCH /api/projects/[id]  body: { economics?: object, name?, description? }
+// Merges the given economics object into the stored one (one level deep) so
+// seeded chain settings survive Step 3 edits.
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+
+    const [row] = await db
+      .select()
+      .from(projects)
+      .where(and(eq(projects.id as any, params.id), eq(projects.userId as any, session.user.id)))
+      .limit(1);
+    if (!row) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
+
+    const body = await req.json().catch(() => ({}));
+    const patch: Record<string, unknown> = {};
+
+    if (body && typeof body.economics === 'object' && body.economics !== null) {
+      let current: any = {};
+      const raw = (row as any).economics;
+      if (raw) { try { current = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { current = {}; } }
+      if (!current || typeof current !== 'object') current = {};
+      const incoming: any = body.economics;
+      const merged: any = { ...current };
+      for (const [k, v] of Object.entries(incoming)) {
+        const cur = merged[k];
+        merged[k] = (v && typeof v === 'object' && !Array.isArray(v) && cur && typeof cur === 'object' && !Array.isArray(cur))
+          ? { ...cur, ...(v as object) }
+          : v;
+      }
+      patch.economics = JSON.stringify(merged);
+    }
+
+    if (typeof body?.name === 'string' && body.name.trim()) patch.name = body.name.trim();
+    if (typeof body?.description === 'string') patch.description = body.description;
+
+    if (!Object.keys(patch).length) return NextResponse.json({ ok: false, error: 'Nothing to update' }, { status: 400 });
+    patch.updatedAt = new Date().toISOString().split('.')[0] + 'Z';
+
+    await db.update(projects).set(patch as any).where(eq(projects.id as any, params.id));
+    return NextResponse.json({ ok: true });
+  } catch (err: any) {
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+  }
+}
+
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
     const session = await getSession();

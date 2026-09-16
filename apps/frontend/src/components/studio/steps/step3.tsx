@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import StepGuidance from '@/components/studio/StepGuidance';
 import {
   Box, Button, Divider, IconButton, Paper, Typography, Tooltip, Fade,
@@ -210,6 +210,21 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
             vetoEnabled: (gov.vetoThresholdPercent ?? 0) > 0,
           }));
         }
+        if (econ.dapp && typeof econ.dapp === 'object') {
+          const d = econ.dapp;
+          if (d.revenue) setDappRevenue((prev) => ({ ...prev, ...d.revenue }));
+          if (d.assets) setDappAssets((prev) => ({ ...prev, ...d.assets }));
+          if (d.fees) setDappFees((prev) => ({ ...prev, ...d.fees }));
+          if (d.payments) setDappPayments((prev) => ({ ...prev, ...d.payments }));
+          if (d.compliance) setDappCompliance((prev) => ({ ...prev, ...d.compliance }));
+        }
+        if (econ.chainExtras && typeof econ.chainExtras === 'object') {
+          const x = econ.chainExtras;
+          if (x.token) setChainToken((prev) => ({ ...prev, ...x.token }));
+          if (x.fees) setChainFees((prev) => ({ ...prev, ...x.fees }));
+          if (x.staking) setChainStaking((prev) => ({ ...prev, ...x.staking }));
+          if (x.gov) setChainGov((prev) => ({ ...prev, ...x.gov }));
+        }
       } catch { /* ignore */ }
     }
 
@@ -222,6 +237,83 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
       setHasNft(true);
     }
   }, []);
+
+  /* ---------- persist economics (localStorage + the project record) ---------- */
+  // Serialised in the same shape the hydration above reads, merged over whatever
+  // the project already stores (seeded chain settings survive), so edits made
+  // here are still there when the project is reopened.
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    const t = setTimeout(() => { hydratedRef.current = true; }, 0);
+    return () => clearTimeout(t);
+  }, []);
+  const buildEconomics = useCallback(() => {
+    let existing: any = {};
+    try { const raw = localStorage.getItem('cerulea.economics'); if (raw) existing = JSON.parse(raw) || {}; } catch { existing = {}; }
+    const isChain = projectType === 'blockchain';
+    const nativeToken = chainToken.nativeToken !== false;
+    const gasless = chainFees.gasless === true;
+    const community = Math.max(0, 100 - chainToken.dist.validators - chainToken.dist.treasury);
+    const econ: any = { ...existing, track: isChain ? 'blockchain' : 'dapp' };
+    if (isChain) {
+      econ.nativeToken = nativeToken;
+      econ.tokenomics = {
+        ...(existing.tokenomics || {}),
+        enabled: nativeToken,
+        name: chainToken.name, symbol: chainToken.symbol, totalSupply: chainToken.supply,
+        inflationRate: chainToken.inflation, model: chainToken.model,
+        distribution: { validators: { percent: chainToken.dist.validators }, platformTreasury: { percent: chainToken.dist.treasury }, community: { percent: community } },
+        vestingCliffMonths: chainToken.vestingCliff, vestingDurationMonths: chainToken.vestingDuration,
+      };
+      econ.gasPolicy = {
+        ...(existing.gasPolicy || {}),
+        gasless, baseFee: chainFees.baseFee, burnPercent: chainFees.burnPct, blockGasLimit: chainFees.blockGasLimit,
+        elasticityMultiplier: chainFees.elasticity, dynamic: chainFees.dynamic, priorityTip: chainFees.priorityTip,
+        targetBlockFullness: chainFees.targetBlockFullness, feeRecipient: chainFees.feeRecipient,
+      };
+      econ.staking = {
+        ...(existing.staking || {}),
+        minValidatorStake: chainStaking.minStake, unbondingPeriodDays: chainStaking.unbondTime, maxValidatorCount: chainStaking.maxValidators,
+        delegationEnabled: chainStaking.delegationEnabled, minDelegationAmount: chainStaking.minDelegation,
+        rewardsCycleHours: chainStaking.rewardsCycle, jailTimeHours: chainStaking.jailTime, slashingEnabled: chainStaking.slashing,
+        slashingConditions: { doubleSigning: { slashPercent: chainStaking.doubleSignSlash }, downtime: { slashPercent: chainStaking.downtimeSlash } },
+      };
+      econ.governance = {
+        ...(existing.governance || {}),
+        model: chainGov.model === 'token' ? 'token-weighted-voting' : chainGov.model,
+        quorumPercent: chainGov.quorum, passThresholdPercent: chainGov.passThreshold, votingPeriodDays: chainGov.votingPeriod,
+        timelockDelayHours: chainGov.timelockDelay,
+        vetoThresholdPercent: chainGov.vetoEnabled ? (existing.governance?.vetoThresholdPercent || 33) : 0,
+        proposalThreshold: chainGov.proposalThreshold, cancelThreshold: chainGov.cancelThreshold, emergencyDao: chainGov.emergencyDao,
+      };
+      // Full panel state, so every field round-trips exactly.
+      econ.chainExtras = { token: chainToken, fees: chainFees, staking: chainStaking, gov: chainGov };
+    } else {
+      econ.dapp = { revenue: dappRevenue, assets: dappAssets, fees: dappFees, payments: dappPayments, compliance: dappCompliance };
+    }
+    return econ;
+  }, [projectType, chainToken, chainFees, chainStaking, chainGov, dappRevenue, dappAssets, dappFees, dappPayments, dappCompliance]);
+
+  const persistEconomics = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+    const econ = buildEconomics();
+    localStorage.setItem('cerulea.economics', JSON.stringify(econ));
+    const pid = resolvedId || localStorage.getItem('cerulea.projectId');
+    if (!pid) return;
+    try {
+      await fetch(`/api/projects/${pid}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ economics: econ }),
+      });
+    } catch (err) { console.warn('economics persist failed', err); }
+  }, [buildEconomics, resolvedId]);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    const t = setTimeout(() => { void persistEconomics(); }, 1200);
+    return () => clearTimeout(t);
+  }, [persistEconomics]);
 
   const tabs = useMemo(() => {
     if (projectType === 'dapp') {
@@ -382,7 +474,7 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
               </IconButton>
             </Tooltip>
             <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
-            <Button variant="contained" onClick={() => goNext && goNext()} endIcon={<ArrowForwardIcon />} sx={{ borderRadius: 1, px: 3, fontWeight: 700 }}>
+            <Button variant="contained" onClick={() => { void persistEconomics(); if (goNext) goNext(); }} endIcon={<ArrowForwardIcon />} sx={{ borderRadius: 1, px: 3, fontWeight: 700 }}>
               Save & Continue
             </Button>
           </FloatingIsland>
