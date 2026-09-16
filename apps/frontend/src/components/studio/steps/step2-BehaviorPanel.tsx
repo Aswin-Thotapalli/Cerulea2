@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Box, Stack, Paper, Typography, Button, Chip, Tooltip, IconButton,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
@@ -11,6 +11,8 @@ import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import CodeIcon from "@mui/icons-material/Code";
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from '@mui/icons-material/Close';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import HexagonOutlinedIcon from "@mui/icons-material/HexagonOutlined";
 import LogicCanvas from "../logic/LogicCanvas";
@@ -257,16 +259,135 @@ interface BehaviorPanelProps {
   blueprintModules: ModuleInfo[];
 }
 
+/** A logic flow as stored on the project (logicJson.flows). moduleId is set for
+ *  triggers added under a specific module; project-level flows have none. */
+type Flow = { id: string; name: string; trigger: string; description: string; steps: string[]; moduleId?: string; color?: string };
+
+const FLOW_COLOR = '#8b5cf6';
+const uid = () => `flow_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
+function readStoredFlows(): Flow[] {
+  try {
+    const raw = localStorage.getItem('cerulea.logic');
+    const parsed = raw ? JSON.parse(raw) : null;
+    const flows = Array.isArray(parsed?.flows) ? parsed.flows : [];
+    return flows.map((f: any) => ({
+      id: String(f.id || uid()),
+      name: String(f.name || ''),
+      trigger: String(f.trigger || ''),
+      description: String(f.description || ''),
+      steps: Array.isArray(f.steps) ? f.steps.map(String) : [],
+      moduleId: f.moduleId || undefined,
+      color: f.color || undefined,
+    }));
+  } catch { return []; }
+}
+
+function FlowCard({ flow, color, onEdit, onDelete }: { flow: Flow; color: string; onEdit: () => void; onDelete: () => void }) {
+  const theme = useTheme();
+  return (
+    <Paper variant="outlined" sx={{ p: 1.75, borderRadius: 1, borderColor: alpha(color, 0.25), bgcolor: alpha(color, 0.025) }}>
+      <Stack direction="row" alignItems="flex-start" spacing={2}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>WHEN</Typography>
+          <Box sx={{ mt: 0.5, px: 1.25, py: 0.6, borderRadius: 0.75, display: 'inline-flex', alignItems: 'center', gap: 0.75, bgcolor: alpha(color, 0.08), border: `1px solid ${alpha(color, 0.35)}`, maxWidth: '100%' }}>
+            <BoltIcon sx={{ fontSize: 12, color }} />
+            <Typography variant="body2" fontWeight={700} sx={{ color, fontFamily: 'monospace', fontSize: '0.75rem', wordBreak: 'break-word' }}>{flow.trigger}</Typography>
+          </Box>
+        </Box>
+        <Box sx={{ mt: 2.5, color: 'text.disabled', fontWeight: 900, fontSize: '1rem', flexShrink: 0 }}>&rarr;</Box>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>THEN</Typography>
+          <Box sx={{ mt: 0.5, px: 1.25, py: 0.6, borderRadius: 0.75, display: 'inline-flex', alignItems: 'center', gap: 0.75, bgcolor: alpha(theme.palette.success.main, 0.07), border: `1px solid ${alpha(theme.palette.success.main, 0.25)}`, maxWidth: '100%' }}>
+            <AutoFixHighIcon sx={{ fontSize: 12, color: 'success.main' }} />
+            <Typography variant="body2" fontWeight={700} sx={{ color: 'success.main', fontFamily: 'monospace', fontSize: '0.75rem', wordBreak: 'break-word' }}>{flow.name}</Typography>
+          </Box>
+        </Box>
+        <Box sx={{ flex: 1.5, minWidth: 0 }}>
+          <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>WHY</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.4 }}>{flow.description}</Typography>
+          {flow.steps.length > 0 && (
+            <Box component="ol" sx={{ m: 0, mt: 0.75, pl: 2.25, color: 'text.secondary' }}>
+              {flow.steps.map((st, i) => (
+                <Typography key={i} component="li" variant="caption" sx={{ display: 'list-item', lineHeight: 1.45 }}>{st}</Typography>
+              ))}
+            </Box>
+          )}
+        </Box>
+        <Stack direction="row" spacing={0.25} sx={{ flexShrink: 0 }}>
+          <Tooltip title="Edit"><IconButton size="small" onClick={onEdit}><EditOutlinedIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
+          <Tooltip title="Delete"><IconButton size="small" color="error" onClick={onDelete}><DeleteOutlineIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
+        </Stack>
+      </Stack>
+    </Paper>
+  );
+}
+
 export default function BehaviorPanel({ blueprintModules }: BehaviorPanelProps) {
   const theme = useTheme();
 
-  const [customTriggers, setCustomTriggers] = useState<Record<string, Array<{ event: string; action: string; description: string; color: string }>>>({});
-  const [customTriggerModuleId, setCustomTriggerModuleId] = useState<string | null>(null);
+  /* ---------- flows: loaded from the project, persisted back to it ---------- */
+  const [flows, setFlows] = useState<Flow[]>([]);
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    setFlows(readStoredFlows());
+    const t = setTimeout(() => { hydratedRef.current = true; }, 0);
+    return () => clearTimeout(t);
+  }, []);
+
+  const persistFlows = useCallback(async (next: Flow[]) => {
+    if (typeof window === 'undefined') return;
+    const track = localStorage.getItem('cerulea.projectType') === 'blockchain' ? 'blockchain' : 'dapp';
+    localStorage.setItem('cerulea.logic', JSON.stringify({ flows: next, track }));
+    const projectId = localStorage.getItem('cerulea.projectId');
+    if (!projectId) return;
+    try {
+      await fetch(`/api/projects/${projectId}/logic`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flows: next, track }),
+      });
+    } catch (err) { console.warn('logic persist failed', err); }
+  }, []);
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    const t = setTimeout(() => { void persistFlows(flows); }, 1000);
+    return () => clearTimeout(t);
+  }, [flows, persistFlows]);
+
+  const projectFlows = flows.filter((f) => !f.moduleId);
+  const flowsFor = (modId: string) => flows.filter((f) => f.moduleId === modId);
+
+  /* ---------- editor dialog (add / edit) ---------- */
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [dialogModuleId, setDialogModuleId] = useState<string | undefined>(undefined);
   const [newTriggerEvent, setNewTriggerEvent] = useState('');
   const [newTriggerAction, setNewTriggerAction] = useState('');
   const [newTriggerDesc, setNewTriggerDesc] = useState('');
-  const [triggerModeMap, setTriggerModeMap] = useState<Record<string, 'cards' | 'visual' | 'code'>>({});
+  const [newTriggerSteps, setNewTriggerSteps] = useState('');
 
+  const openAdd = (moduleId?: string) => {
+    setEditingId(null); setDialogModuleId(moduleId);
+    setNewTriggerEvent(''); setNewTriggerAction(''); setNewTriggerDesc(''); setNewTriggerSteps('');
+    setDialogOpen(true);
+  };
+  const openEdit = (f: Flow) => {
+    setEditingId(f.id); setDialogModuleId(f.moduleId);
+    setNewTriggerEvent(f.trigger); setNewTriggerAction(f.name); setNewTriggerDesc(f.description); setNewTriggerSteps(f.steps.join('\n'));
+    setDialogOpen(true);
+  };
+  const commitDialog = () => {
+    const steps = newTriggerSteps.split('\n').map((x) => x.trim()).filter(Boolean);
+    const patch = { trigger: newTriggerEvent.trim(), name: newTriggerAction.trim(), description: newTriggerDesc.trim() || 'Custom trigger', steps };
+    setFlows((prev) => editingId
+      ? prev.map((f) => (f.id === editingId ? { ...f, ...patch } : f))
+      : [...prev, { id: uid(), moduleId: dialogModuleId, color: FLOW_COLOR, ...patch }]);
+    setDialogOpen(false);
+  };
+  const deleteFlow = (id: string) => setFlows((prev) => prev.filter((f) => f.id !== id));
+
+  const [triggerModeMap, setTriggerModeMap] = useState<Record<string, 'cards' | 'visual' | 'code'>>({});
   const getTriggerMode = (modId: string) => triggerModeMap[modId] || 'cards';
   const setTriggerMode = (modId: string, mode: 'cards' | 'visual' | 'code') =>
     setTriggerModeMap((prev) => ({ ...prev, [modId]: mode }));
@@ -290,7 +411,7 @@ export default function BehaviorPanel({ blueprintModules }: BehaviorPanelProps) 
                 <Typography variant="h6" fontWeight={800}>Logic &amp; Triggers</Typography>
               </Stack>
               <Typography variant="body2" color="text.secondary">
-                Define what happens automatically when events occur in your app. Each trigger connects an event (e.g., "User created") to one or more actions (e.g., "Send email"). Pre-filled triggers are recommended best-practices for your modules.
+                Define what happens automatically when events occur in your app. Each trigger connects an event (e.g., &quot;User created&quot;) to one or more actions (e.g., &quot;Send email&quot;). Pre-filled triggers are recommended best-practices for your modules; your own flows are saved to the project.
               </Typography>
             </Box>
             <Tooltip
@@ -308,205 +429,246 @@ export default function BehaviorPanel({ blueprintModules }: BehaviorPanelProps) 
           </Stack>
         </Box>
 
-        {/* Per-module trigger cards */}
         <Box sx={{ flex: 1, p: 3, overflowY: 'auto' }}>
-          {blueprintModules.length === 0 ? (
-            <Box sx={{ textAlign: 'center', py: 12, opacity: 0.5 }}>
-              <BoltIcon sx={{ fontSize: 48, mb: 1 }} />
-              <Typography>No modules yet. Add modules in the Blueprint Builder first.</Typography>
-            </Box>
-          ) : (
-            <Stack spacing={2.5}>
-              {blueprintModules.map((mod) => {
-                const mode = getTriggerMode(mod.id);
-                const seeds = [...(TRIGGER_SEEDS[mod.id] || TRIGGER_SEEDS['_default'] || []), ...(customTriggers[mod.id] || [])];
-                return (
-                  <Paper
-                    key={mod.id}
-                    variant="outlined"
-                    sx={{
-                      borderRadius: 1.5, overflow: 'hidden',
-                      borderColor: alpha(theme.palette.primary.main, 0.15),
-                      '&:hover': { borderColor: alpha(theme.palette.primary.main, 0.28) },
-                      transition: 'border-color 0.15s ease',
-                    }}
-                  >
-                    {/* Module header */}
-                    <Box sx={{
-                      px: 3, py: 2, borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-                      background: theme.palette.mode === 'dark'
-                        ? `linear-gradient(135deg, ${alpha('#4F46E5', 0.1)} 0%, ${alpha(theme.palette.background.paper, 0.8)} 100%)`
-                        : alpha(theme.palette.primary.main, 0.04),
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    }}>
-                      <Stack direction="row" alignItems="center" spacing={1.5}>
-                        <HexagonOutlinedIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-                        <Typography variant="subtitle2" fontWeight={800}>{mod.label}</Typography>
-                        {mod.category && (
-                          <Chip label={mod.category} size="small" variant="outlined" sx={{ fontSize: '0.6rem', height: 16 }} />
-                        )}
-                      </Stack>
-                      <Stack direction="row" spacing={0.75}>
-                        {(['cards', 'visual', 'code'] as const).map((m) => (
-                          <Paper
-                            key={m}
-                            variant="outlined"
-                            onClick={() => setTriggerMode(mod.id, m)}
-                            sx={{
-                              px: 1.5, py: 0.5, borderRadius: 1, cursor: 'pointer',
-                              fontWeight: 700, fontSize: '0.7rem',
-                              bgcolor: mode === m ? 'primary.main' : 'background.paper',
-                              color: mode === m ? 'white' : 'text.secondary',
-                              borderColor: mode === m ? 'primary.main' : 'divider',
-                              display: 'flex', alignItems: 'center', gap: 0.5,
-                            }}
-                            elevation={0}
-                          >
-                            {m === 'cards' && <BoltIcon sx={{ fontSize: 12 }} />}
-                            {m === 'visual' && <AccountTreeIcon sx={{ fontSize: 12 }} />}
-                            {m === 'code' && <CodeIcon sx={{ fontSize: 12 }} />}
-                            {m === 'cards' ? 'Rules' : m === 'visual' ? 'Visual' : 'Script'}
-                          </Paper>
-                        ))}
-                      </Stack>
-                    </Box>
+          <Stack spacing={2.5}>
+            {/* Project-level flows (stored on the project) */}
+            <Paper variant="outlined" sx={{ borderRadius: 1.5, overflow: 'hidden', borderColor: alpha(FLOW_COLOR, 0.3) }}>
+              <Box sx={{
+                px: 3, py: 2, borderBottom: `1px solid ${alpha(FLOW_COLOR, 0.15)}`,
+                background: theme.palette.mode === 'dark' ? `linear-gradient(135deg, ${alpha(FLOW_COLOR, 0.12)} 0%, ${alpha(theme.palette.background.paper, 0.8)} 100%)` : alpha(FLOW_COLOR, 0.05),
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}>
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <BoltIcon sx={{ fontSize: 16, color: FLOW_COLOR }} />
+                  <Typography variant="subtitle2" fontWeight={800}>Project logic flows</Typography>
+                  <Chip label={`${projectFlows.length} flow${projectFlows.length === 1 ? '' : 's'}`} size="small" variant="outlined" sx={{ fontSize: '0.6rem', height: 16 }} />
+                </Stack>
+                <Button startIcon={<AddIcon />} variant="contained" size="small" onClick={() => openAdd(undefined)} sx={{ borderRadius: 2, fontWeight: 700 }}>
+                  Add Flow
+                </Button>
+              </Box>
+              <Box sx={{ p: 2.5 }}>
+                {projectFlows.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">No project flows yet. Add one, or use the module triggers below.</Typography>
+                ) : (
+                  <Stack spacing={1}>
+                    {projectFlows.map((f) => (
+                      <FlowCard key={f.id} flow={f} color={f.color || FLOW_COLOR} onEdit={() => openEdit(f)} onDelete={() => deleteFlow(f.id)} />
+                    ))}
+                  </Stack>
+                )}
+              </Box>
+            </Paper>
 
-                    {/* Content area */}
-                    <Box sx={{ p: mode === 'cards' ? 2.5 : 0 }}>
-                      {mode === 'cards' && (
-                        <Stack spacing={1.5}>
-                          <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ letterSpacing: 0.5 }}>
-                            RECOMMENDED TRIGGERS FOR {mod.label.toUpperCase()}
-                          </Typography>
-                          <Stack spacing={1}>
-                            {seeds.map((t, i) => (
-                              <Paper
-                                key={i}
-                                variant="outlined"
-                                sx={{
-                                  p: 1.75, borderRadius: 1,
-                                  borderColor: alpha(t.color, 0.25),
-                                  bgcolor: alpha(t.color, 0.025),
-                                }}
-                              >
-                                <Stack direction="row" alignItems="flex-start" spacing={2}>
-                                  <Box sx={{ flex: 1 }}>
-                                    <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>WHEN</Typography>
-                                    <Box sx={{
-                                      mt: 0.5, px: 1.25, py: 0.6, borderRadius: 0.75,
-                                      display: 'inline-flex', alignItems: 'center', gap: 0.75,
-                                      bgcolor: alpha(t.color, 0.08), border: `1px solid ${alpha(t.color, 0.35)}`,
-                                    }}>
-                                      <BoltIcon sx={{ fontSize: 12, color: t.color }} />
-                                      <Typography variant="body2" fontWeight={700} sx={{ color: t.color, fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                                        {t.event}
-                                      </Typography>
-                                    </Box>
-                                  </Box>
-                                  <Box sx={{ mt: 2.5, color: 'text.disabled', fontWeight: 900, fontSize: '1rem', flexShrink: 0 }}>→</Box>
-                                  <Box sx={{ flex: 1 }}>
-                                    <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>THEN</Typography>
-                                    <Box sx={{
-                                      mt: 0.5, px: 1.25, py: 0.6, borderRadius: 0.75,
-                                      display: 'inline-flex', alignItems: 'center', gap: 0.75,
-                                      bgcolor: alpha(theme.palette.success.main, 0.07), border: `1px solid ${alpha(theme.palette.success.main, 0.25)}`,
-                                    }}>
-                                      <AutoFixHighIcon sx={{ fontSize: 12, color: 'success.main' }} />
-                                      <Typography variant="body2" fontWeight={700} sx={{ color: 'success.main', fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                                        {t.action}
-                                      </Typography>
-                                    </Box>
-                                  </Box>
-                                  <Box sx={{ flex: 1.5 }}>
-                                    <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>WHY</Typography>
-                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.4 }}>{t.description}</Typography>
-                                  </Box>
-                                </Stack>
-                              </Paper>
-                            ))}
-                          </Stack>
-                          <Button
-                            startIcon={<AddIcon />}
-                            variant="outlined"
-                            size="small"
-                            onClick={() => { setCustomTriggerModuleId(mod.id); setNewTriggerEvent(''); setNewTriggerAction(''); setNewTriggerDesc(''); }}
-                            sx={{ borderRadius: 2, alignSelf: 'flex-start', mt: 0.5, fontWeight: 700 }}
-                          >
-                            Add Custom Trigger
-                          </Button>
-                        </Stack>
+            {/* Per-module trigger cards */}
+            {blueprintModules.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 12, opacity: 0.5 }}>
+                <BoltIcon sx={{ fontSize: 48, mb: 1 }} />
+                <Typography>No modules yet. Add modules in the Blueprint Builder first.</Typography>
+              </Box>
+            ) : blueprintModules.map((mod) => {
+              const mode = getTriggerMode(mod.id);
+              const seeds = TRIGGER_SEEDS[mod.id] || TRIGGER_SEEDS['_default'] || [];
+              const own = flowsFor(mod.id);
+              return (
+                <Paper
+                  key={mod.id}
+                  variant="outlined"
+                  sx={{
+                    borderRadius: 1.5, overflow: 'hidden',
+                    borderColor: alpha(theme.palette.primary.main, 0.15),
+                    '&:hover': { borderColor: alpha(theme.palette.primary.main, 0.28) },
+                    transition: 'border-color 0.15s ease',
+                  }}
+                >
+                  {/* Module header */}
+                  <Box sx={{
+                    px: 3, py: 2, borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+                    background: theme.palette.mode === 'dark'
+                      ? `linear-gradient(135deg, ${alpha('#4F46E5', 0.1)} 0%, ${alpha(theme.palette.background.paper, 0.8)} 100%)`
+                      : alpha(theme.palette.primary.main, 0.04),
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  }}>
+                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                      <HexagonOutlinedIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                      <Typography variant="subtitle2" fontWeight={800}>{mod.label}</Typography>
+                      {mod.category && (
+                        <Chip label={mod.category} size="small" variant="outlined" sx={{ fontSize: '0.6rem', height: 16 }} />
                       )}
-                      {mode === 'visual' && (
-                        <Box sx={{ position: 'relative', height: 400 }}>
-                          <Box sx={{
-                            position: 'absolute', inset: 0, zIndex: 0,
-                            bgcolor: theme.palette.mode === 'dark' ? alpha('#080E24', 0.9) : alpha('#f8f9ff', 0.95),
-                            backgroundImage: 'radial-gradient(rgba(79,70,229,0.15) 1px, transparent 1px)',
-                            backgroundSize: '24px 24px',
-                          }} />
-                          <Box sx={{
-                            position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2,
-                            display: 'flex', alignItems: 'center', gap: 1, px: 2, py: 1,
-                            bgcolor: alpha(theme.palette.background.paper, 0.85),
-                            borderBottom: `1px solid ${theme.palette.divider}`,
-                            backdropFilter: 'blur(8px)',
-                          }}>
-                            <Chip label="DAPP" size="small" sx={{ height: 20, fontSize: '0.6rem', fontWeight: 800, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', border: 'none' }} />
-                            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ fontSize: '0.68rem' }}>Visual Flow Editor</Typography>
-                            <Box sx={{ flex: 1 }} />
-                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>Click + drag to connect trigger nodes</Typography>
-                          </Box>
-                          <Box sx={{ position: 'absolute', top: 40, left: 0, right: 0, bottom: 0, zIndex: 1 }}>
-                            <LogicCanvas />
-                          </Box>
-                        </Box>
-                      )}
-                      {mode === 'code' && (
-                        <Box sx={{ position: 'relative' }}>
-                          <Box sx={{
-                            display: 'flex', alignItems: 'center', gap: 1, px: 2.5, py: 1.25,
-                            bgcolor: '#1a1f3a',
-                            borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
-                          }}>
-                            <Box sx={{ display: 'flex', gap: 0.5 }}>
-                              {['#ef4444', '#f59e0b', '#10b981'].map(c => <Box key={c} sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c }} />)}
-                            </Box>
-                            <Typography variant="caption" sx={{ color: '#6b7db3', fontFamily: 'monospace', fontSize: '0.7rem' }}>
-                              trigger.{mod.id.replace(/-/g, '_')}.ts
+                    </Stack>
+                    <Stack direction="row" spacing={0.75}>
+                      {(['cards', 'visual', 'code'] as const).map((m) => (
+                        <Paper
+                          key={m}
+                          variant="outlined"
+                          onClick={() => setTriggerMode(mod.id, m)}
+                          sx={{
+                            px: 1.5, py: 0.5, borderRadius: 1, cursor: 'pointer',
+                            fontWeight: 700, fontSize: '0.7rem',
+                            bgcolor: mode === m ? 'primary.main' : 'background.paper',
+                            color: mode === m ? 'white' : 'text.secondary',
+                            borderColor: mode === m ? 'primary.main' : 'divider',
+                            display: 'flex', alignItems: 'center', gap: 0.5,
+                          }}
+                          elevation={0}
+                        >
+                          {m === 'cards' && <BoltIcon sx={{ fontSize: 12 }} />}
+                          {m === 'visual' && <AccountTreeIcon sx={{ fontSize: 12 }} />}
+                          {m === 'code' && <CodeIcon sx={{ fontSize: 12 }} />}
+                          {m === 'cards' ? 'Rules' : m === 'visual' ? 'Visual' : 'Script'}
+                        </Paper>
+                      ))}
+                    </Stack>
+                  </Box>
+
+                  {/* Content area */}
+                  <Box sx={{ p: mode === 'cards' ? 2.5 : 0 }}>
+                    {mode === 'cards' && (
+                      <Stack spacing={1.5}>
+                        {own.length > 0 && (
+                          <>
+                            <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ letterSpacing: 0.5 }}>
+                              YOUR TRIGGERS FOR {mod.label.toUpperCase()}
                             </Typography>
-                            <Box sx={{ flex: 1 }} />
-                            <Chip label="TypeScript" size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: alpha('#3b82f6', 0.15), color: '#60a5fa', border: 'none' }} />
-                          </Box>
-                          <Box sx={{ height: 480, bgcolor: theme.palette.mode === 'dark' ? '#0d1117' : '#1e1e2e' }}>
-                            <CustomScriptPanel projectId="" />
-                          </Box>
+                            <Stack spacing={1}>
+                              {own.map((f) => (
+                                <FlowCard key={f.id} flow={f} color={f.color || FLOW_COLOR} onEdit={() => openEdit(f)} onDelete={() => deleteFlow(f.id)} />
+                              ))}
+                            </Stack>
+                          </>
+                        )}
+                        <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ letterSpacing: 0.5 }}>
+                          RECOMMENDED TRIGGERS FOR {mod.label.toUpperCase()}
+                        </Typography>
+                        <Stack spacing={1}>
+                          {seeds.map((t, i) => (
+                            <Paper
+                              key={i}
+                              variant="outlined"
+                              sx={{ p: 1.75, borderRadius: 1, borderColor: alpha(t.color, 0.25), bgcolor: alpha(t.color, 0.025) }}
+                            >
+                              <Stack direction="row" alignItems="flex-start" spacing={2}>
+                                <Box sx={{ flex: 1 }}>
+                                  <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>WHEN</Typography>
+                                  <Box sx={{
+                                    mt: 0.5, px: 1.25, py: 0.6, borderRadius: 0.75,
+                                    display: 'inline-flex', alignItems: 'center', gap: 0.75,
+                                    bgcolor: alpha(t.color, 0.08), border: `1px solid ${alpha(t.color, 0.35)}`,
+                                  }}>
+                                    <BoltIcon sx={{ fontSize: 12, color: t.color }} />
+                                    <Typography variant="body2" fontWeight={700} sx={{ color: t.color, fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                                      {t.event}
+                                    </Typography>
+                                  </Box>
+                                </Box>
+                                <Box sx={{ mt: 2.5, color: 'text.disabled', fontWeight: 900, fontSize: '1rem', flexShrink: 0 }}>&rarr;</Box>
+                                <Box sx={{ flex: 1 }}>
+                                  <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>THEN</Typography>
+                                  <Box sx={{
+                                    mt: 0.5, px: 1.25, py: 0.6, borderRadius: 0.75,
+                                    display: 'inline-flex', alignItems: 'center', gap: 0.75,
+                                    bgcolor: alpha(theme.palette.success.main, 0.07), border: `1px solid ${alpha(theme.palette.success.main, 0.25)}`,
+                                  }}>
+                                    <AutoFixHighIcon sx={{ fontSize: 12, color: 'success.main' }} />
+                                    <Typography variant="body2" fontWeight={700} sx={{ color: 'success.main', fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                                      {t.action}
+                                    </Typography>
+                                  </Box>
+                                </Box>
+                                <Box sx={{ flex: 1.5 }}>
+                                  <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>WHY</Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.4 }}>{t.description}</Typography>
+                                </Box>
+                                <Tooltip title="Add to your triggers (editable copy)">
+                                  <IconButton size="small" onClick={() => setFlows((prev) => [...prev, { id: uid(), moduleId: mod.id, color: t.color, name: t.action, trigger: t.event, description: t.description, steps: [] }])}>
+                                    <AddIcon sx={{ fontSize: 16 }} />
+                                  </IconButton>
+                                </Tooltip>
+                              </Stack>
+                            </Paper>
+                          ))}
+                        </Stack>
+                        <Button
+                          startIcon={<AddIcon />}
+                          variant="outlined"
+                          size="small"
+                          onClick={() => openAdd(mod.id)}
+                          sx={{ borderRadius: 2, alignSelf: 'flex-start', mt: 0.5, fontWeight: 700 }}
+                        >
+                          Add Custom Trigger
+                        </Button>
+                      </Stack>
+                    )}
+                    {mode === 'visual' && (
+                      <Box sx={{ position: 'relative', height: 400 }}>
+                        <Box sx={{
+                          position: 'absolute', inset: 0, zIndex: 0,
+                          bgcolor: theme.palette.mode === 'dark' ? alpha('#080E24', 0.9) : alpha('#f8f9ff', 0.95),
+                          backgroundImage: 'radial-gradient(rgba(79,70,229,0.15) 1px, transparent 1px)',
+                          backgroundSize: '24px 24px',
+                        }} />
+                        <Box sx={{
+                          position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2,
+                          display: 'flex', alignItems: 'center', gap: 1, px: 2, py: 1,
+                          bgcolor: alpha(theme.palette.background.paper, 0.85),
+                          borderBottom: `1px solid ${theme.palette.divider}`,
+                          backdropFilter: 'blur(8px)',
+                        }}>
+                          <Chip label="DAPP" size="small" sx={{ height: 20, fontSize: '0.6rem', fontWeight: 800, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', border: 'none' }} />
+                          <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ fontSize: '0.68rem' }}>Visual Flow Editor</Typography>
+                          <Box sx={{ flex: 1 }} />
+                          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>Click + drag to connect trigger nodes</Typography>
                         </Box>
-                      )}
-                    </Box>
-                  </Paper>
-                );
-              })}
-            </Stack>
-          )}
+                        <Box sx={{ position: 'absolute', top: 40, left: 0, right: 0, bottom: 0, zIndex: 1 }}>
+                          <LogicCanvas />
+                        </Box>
+                      </Box>
+                    )}
+                    {mode === 'code' && (
+                      <Box sx={{ position: 'relative' }}>
+                        <Box sx={{
+                          display: 'flex', alignItems: 'center', gap: 1, px: 2.5, py: 1.25,
+                          bgcolor: '#1a1f3a',
+                          borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+                        }}>
+                          <Box sx={{ display: 'flex', gap: 0.5 }}>
+                            {['#ef4444', '#f59e0b', '#10b981'].map(c => <Box key={c} sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c }} />)}
+                          </Box>
+                          <Typography variant="caption" sx={{ color: '#6b7db3', fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                            trigger.{mod.id.replace(/-/g, '_')}.ts
+                          </Typography>
+                          <Box sx={{ flex: 1 }} />
+                          <Chip label="TypeScript" size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: alpha('#3b82f6', 0.15), color: '#60a5fa', border: 'none' }} />
+                        </Box>
+                        <Box sx={{ height: 480, bgcolor: theme.palette.mode === 'dark' ? '#0d1117' : '#1e1e2e' }}>
+                          <CustomScriptPanel projectId="" />
+                        </Box>
+                      </Box>
+                    )}
+                  </Box>
+                </Paper>
+              );
+            })}
+          </Stack>
         </Box>
       </Box>
 
-      {/* Custom trigger dialog */}
-      <Dialog open={!!customTriggerModuleId} onClose={() => setCustomTriggerModuleId(null)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+      {/* Flow / trigger dialog (add or edit) */}
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
         <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>Add Custom Trigger</span>
-          <IconButton size="small" onClick={() => setCustomTriggerModuleId(null)}><CloseIcon /></IconButton>
+          <span>{editingId ? 'Edit Flow' : dialogModuleId ? 'Add Custom Trigger' : 'Add Flow'}</span>
+          <IconButton size="small" onClick={() => setDialogOpen(false)}><CloseIcon /></IconButton>
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2.5} pt={1}>
             <TextField
-              label="When (Event)" size="small" fullWidth
+              label="When (Event / trigger)" size="small" fullWidth
               placeholder="e.g. User.SignedUp, Payment.Completed"
               value={newTriggerEvent} onChange={(e) => setNewTriggerEvent(e.target.value)}
               helperText="The event that triggers this rule"
             />
             <TextField
-              label="Then (Action)" size="small" fullWidth
+              label="Then (Action / flow name)" size="small" fullWidth
               placeholder="e.g. Send Welcome Email, Mint NFT"
               value={newTriggerAction} onChange={(e) => setNewTriggerAction(e.target.value)}
               helperText="What happens when the event fires"
@@ -516,29 +678,22 @@ export default function BehaviorPanel({ blueprintModules }: BehaviorPanelProps) 
               placeholder="Explain the business purpose of this trigger..."
               value={newTriggerDesc} onChange={(e) => setNewTriggerDesc(e.target.value)}
             />
+            <TextField
+              label="Steps (one per line)" size="small" fullWidth multiline minRows={3}
+              placeholder={'Validate input\nWrite the record\nNotify the next role'}
+              value={newTriggerSteps} onChange={(e) => setNewTriggerSteps(e.target.value)}
+            />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setCustomTriggerModuleId(null)} sx={{ borderRadius: 1 }}>Cancel</Button>
+          <Button onClick={() => setDialogOpen(false)} sx={{ borderRadius: 1 }}>Cancel</Button>
           <Button
             variant="contained"
             disabled={!newTriggerEvent.trim() || !newTriggerAction.trim()}
-            onClick={() => {
-              if (!customTriggerModuleId) return;
-              setCustomTriggers(prev => ({
-                ...prev,
-                [customTriggerModuleId]: [...(prev[customTriggerModuleId] || []), {
-                  event: newTriggerEvent.trim(),
-                  action: newTriggerAction.trim(),
-                  description: newTriggerDesc.trim() || 'Custom trigger',
-                  color: '#8b5cf6',
-                }],
-              }));
-              setCustomTriggerModuleId(null);
-            }}
+            onClick={commitDialog}
             sx={{ borderRadius: 1, fontWeight: 700 }}
           >
-            Add Trigger
+            {editingId ? 'Save Changes' : 'Add'}
           </Button>
         </DialogActions>
       </Dialog>

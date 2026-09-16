@@ -123,22 +123,29 @@ async function main() {
   }
 
   const existing = await sql`SELECT id FROM projects WHERE slug = ${PROJECT_SLUG} AND "userId" = ${userId}`;
-  for (const row of existing) {
-    await sql`DELETE FROM drafts WHERE "projectId" = ${row.id}`;
-    await sql`DELETE FROM projects WHERE id = ${row.id}`;
-    console.log(`Replaced previous project ${row.id}`);
+  let projectId = existing[0]?.id;
+  if (projectId) {
+    // Update in place so the project id (and every link to it) stays stable.
+    await sql`UPDATE projects SET
+        name = ${PROJECT_NAME}, description = ${DESCRIPTION}, "projectType" = 'blockchain', "workspaceId" = ${workspaceId},
+        "selectedTemplateIds" = ${JSON.stringify(TEMPLATE_IDS)}, blueprint = ${JSON.stringify(BLUEPRINT)},
+        "schemaJson" = ${JSON.stringify(SCHEMA)}, "logicJson" = ${JSON.stringify(LOGIC)}, economics = ${JSON.stringify(ECONOMICS)},
+        "legacyMode" = 'none', status = 'active', "updatedAt" = ${now}
+      WHERE id = ${projectId}`;
+    await sql`DELETE FROM drafts WHERE "projectId" = ${projectId} AND id LIKE '%::step4::integrations'`;
+    console.log(`Updated existing project ${projectId} in place`);
+  } else {
+    projectId = crypto.randomUUID();
+    await sql`INSERT INTO projects (
+        id, name, slug, description, "projectType", "workspaceId", "userId",
+        "selectedTemplateIds", blueprint, "schemaJson", "logicJson", economics,
+        "legacyMode", status, "createdAt", "updatedAt"
+      ) VALUES (
+        ${projectId}, ${PROJECT_NAME}, ${PROJECT_SLUG}, ${DESCRIPTION}, 'blockchain', ${workspaceId}, ${userId},
+        ${JSON.stringify(TEMPLATE_IDS)}, ${JSON.stringify(BLUEPRINT)}, ${JSON.stringify(SCHEMA)}, ${JSON.stringify(LOGIC)}, ${JSON.stringify(ECONOMICS)},
+        'none', 'active', ${now}, ${now}
+      )`;
   }
-
-  const projectId = crypto.randomUUID();
-  await sql`INSERT INTO projects (
-      id, name, slug, description, "projectType", "workspaceId", "userId",
-      "selectedTemplateIds", blueprint, "schemaJson", "logicJson", economics,
-      "legacyMode", status, "createdAt", "updatedAt"
-    ) VALUES (
-      ${projectId}, ${PROJECT_NAME}, ${PROJECT_SLUG}, ${DESCRIPTION}, 'blockchain', ${workspaceId}, ${userId},
-      ${JSON.stringify(TEMPLATE_IDS)}, ${JSON.stringify(BLUEPRINT)}, ${JSON.stringify(SCHEMA)}, ${JSON.stringify(LOGIC)}, ${JSON.stringify(ECONOMICS)},
-      'none', 'active', ${now}, ${now}
-    )`;
   await sql`INSERT INTO drafts (id, "projectId", data, "createdAt", "updatedAt")
     VALUES (${projectId + '::step4::integrations'}, ${projectId}, ${JSON.stringify({ step: 4, payload: INTEGRATIONS })}, ${now}, ${now})`;
 

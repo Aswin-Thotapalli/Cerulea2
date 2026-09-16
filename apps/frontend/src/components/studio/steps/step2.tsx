@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import StepGuidance from '@/components/studio/StepGuidance';
 import {
   Box, Stack, Paper, Typography, TextField, Button, IconButton,
@@ -343,10 +343,40 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /* ---------- persist (localStorage + the project record) ---------- */
+  // Entities, fields, relationships and access rules are written back to the
+  // project so they survive reopening it (loadProject re-hydrates from the DB).
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    const t = setTimeout(() => { hydratedRef.current = true; }, 0);
+    return () => clearTimeout(t);
+  }, []);
+  const persistSchema = useCallback(async (mods: Record<string, Entity[]>, rels: Relationship[]) => {
+    if (typeof window === 'undefined') return;
+    const snapshot = { moduleEntities: mods, relationships: rels };
+    localStorage.setItem('draft:local:3', JSON.stringify({ data: snapshot, t: Date.now() }));
+    const projectId = localStorage.getItem('cerulea.projectId');
+    if (!projectId) return;
+    const track = localStorage.getItem('cerulea.projectType') === 'blockchain' ? 'blockchain' : 'dapp';
+    const entities = Object.entries(mods).flatMap(([moduleId, ents]) => (ents || []).map((e) => ({ ...e, moduleId })));
+    try {
+      await fetch(`/api/projects/${projectId}/schema`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entities, relationships: rels, track }),
+      });
+    } catch (err) { console.warn('schema persist failed', err); }
+  }, []);
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    const t = setTimeout(() => { void persistSchema(moduleEntities, relationships); }, 1200);
+    return () => clearTimeout(t);
+  }, [moduleEntities, relationships, persistSchema]);
+
   /* ---------- save ---------- */
   const handleSave = () => {
     const snapshot = { moduleEntities, relationships };
-    localStorage.setItem('draft:local:3', JSON.stringify({ data: snapshot, t: Date.now() }));
+    void persistSchema(moduleEntities, relationships);
     setStudioState({ schemaJson: snapshot } as any);
     if (goNext) goNext();
   };

@@ -60,6 +60,7 @@ export default function StudioEntry({ projectId: initialProjectId, division }: P
     localStorage.removeItem('cerulea.step1.graph');
     localStorage.removeItem('cerulea.templateModules');
     localStorage.removeItem('cerulea.economics');
+    localStorage.removeItem('cerulea.logic');
     localStorage.removeItem('cerulea.context.snapshot');
     localStorage.setItem('cerulea.projectType', ptype);
     const visibility = ptype === 'dapp' ? 'public' : null;
@@ -138,6 +139,17 @@ export default function StudioEntry({ projectId: initialProjectId, division }: P
       }
     } catch {}
 
+    try {
+      const logicRes = await fetch(`/api/projects/${pid}/logic`);
+      if (logicRes.ok) {
+        const logicData = await logicRes.json();
+        localStorage.setItem('cerulea.logic', JSON.stringify({
+          flows: Array.isArray(logicData?.flows) ? logicData.flows : [],
+          track: logicData?.track,
+        }));
+      }
+    } catch {}
+
     if (hasModules) setInitialStep(1);
     setResolvedId(pid);
   }
@@ -157,6 +169,7 @@ export default function StudioEntry({ projectId: initialProjectId, division }: P
     localStorage.removeItem('cerulea.step1.graph');
     localStorage.removeItem('cerulea.templateModules');
     localStorage.removeItem('cerulea.economics');
+    localStorage.removeItem('cerulea.logic');
     localStorage.removeItem('cerulea.context.snapshot'); // clears the StudioContext snapshot so old project data isn't re-hydrated
     window.history.replaceState(null, '', `${divisionPrefix}/`);
     // Reset the React context. In a division, keep the project type locked (so

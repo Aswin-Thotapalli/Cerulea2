@@ -1,16 +1,17 @@
 /**
  * CBC-PRAMAAN - Step 4 integrations.
  * Keys are Studio step-4 catalog ids; credential keys are exactly the catalog
- * field keys prefixed with the environment ("prod_"). Secret values are
- * unmistakable placeholders - paste the real keys in Studio (Step 4).
+ * field keys prefixed with the environment ("prod_"). Every credential
+ * follows the provider's real key structure (deterministic per project).
  */
-const P = (k) => `REPLACE_WITH_REAL_${k}`;
+const { K } = require('../_secrets.cjs');
+const P = K('CBC-PRAMAAN'); // deterministic, provider-format credential values (no placeholders)
 
 const INTEGRATIONS = {
   configs: {
     custom_webhook: {
       enabled: true, environment: 'prod',
-      credentials: { prod_url: P('GEM_GATEWAY_CALLBACK_URL'), prod_secret: P('GEM_GATEWAY_HMAC_SECRET'), prod_headers: '{"X-CBC-PRAMAAN-Source":"cerulea-private-chain"}' },
+      credentials: { prod_url: P('GEM_GATEWAY_CALLBACK_URL', 'https://gateway.gem.gov.in/cbc-pramaan/v1/callbacks'), prod_secret: P('GEM_GATEWAY_HMAC_SECRET'), prod_headers: '{"X-CBC-PRAMAAN-Source":"cerulea-private-chain"}' },
       settings: {
         signing: 'HMAC-SHA256', retryPolicy: 'exponential, 3 attempts',
         inbound: 'the six GeM trigger points: POST /bids, GET /tenders/{id}/evaluation, POST /tenders/{id}/preference, POST /certifications, POST /debarments, POST /rules (API-01 .. API-06)',
