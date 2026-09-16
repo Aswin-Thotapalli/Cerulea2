@@ -95,6 +95,8 @@ export type ChainToken = {
   vestingCliff: number;
   vestingDuration: number;
   model: string;
+  /** false = permissioned network with no native token (no crypto, no gas). */
+  nativeToken?: boolean;
 };
 
 export type ChainFees = {
@@ -106,6 +108,8 @@ export type ChainFees = {
   elasticity: number;
   targetBlockFullness: number;
   feeRecipient: string;
+  /** true = no transaction fees at all (permissioned, gasless network). */
+  gasless?: boolean;
 };
 
 export type ChainStaking = {

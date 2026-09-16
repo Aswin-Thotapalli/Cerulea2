@@ -5,6 +5,7 @@ import { eq, and, like, desc } from 'drizzle-orm';
 import slugifyLib from 'slugify';
 import { getSession } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+import { divisionForProject } from '@/config/divisions';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +56,7 @@ export async function GET(req: Request) {
       projectType: r.projectType,
       workspaceId: r.workspaceId,
       status: r.status ?? 'draft',
+      division: divisionForProject(r.projectType, r.selectedTemplateIds),
       legacyMode: r.legacyMode ?? 'none',
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,

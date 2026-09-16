@@ -50,3 +50,4 @@ apps/frontend/.data/
 *.sqlite
 *.sqlite3
 *.db
+.vercel

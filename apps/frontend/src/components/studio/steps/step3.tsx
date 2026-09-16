@@ -150,6 +150,14 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
     if (econRaw) {
       try {
         const econ = JSON.parse(econRaw);
+        // Permissioned / no-native-token networks (e.g. an internal audit ledger):
+        // no cryptocurrency, no gas. Honoured by the tokenomics + fees panels.
+        if (econ.nativeToken === false || econ.tokenomics?.enabled === false) {
+          setChainToken((prev) => ({ ...prev, nativeToken: false }));
+        }
+        if (econ.gasPolicy?.gasless === true) {
+          setChainFees((prev) => ({ ...prev, gasless: true, baseFee: 0, dynamic: false, burnPct: 0 }));
+        }
         if (econ.tokenomics) {
           const t = econ.tokenomics;
           const dist = t.distribution ?? {};
@@ -325,8 +333,40 @@ export default function Step3({ goPrev, goNext, projectId }: { goPrev?: () => vo
               {activeTab === 'fees' && projectType === 'dapp' && <DappFeesPanel dappFees={dappFees} setDappFees={setDappFees} />}
               {activeTab === 'pay' && <DappPaymentsPanel dappPayments={dappPayments} setDappPayments={setDappPayments} />}
               {activeTab === 'comp' && <DappCompliancePanel dappCompliance={dappCompliance} setDappCompliance={setDappCompliance} dappVisibility={dappVisibility} />}
-              {activeTab === 'tok' && <ChainTokenomicsPanel chainToken={chainToken} setChainToken={setChainToken} legacyMode={legacyMode} />}
-              {activeTab === 'fees' && projectType === 'blockchain' && <ChainFeesPanel chainFees={chainFees} setChainFees={setChainFees} />}
+              {activeTab === 'tok' && (chainToken.nativeToken === false ? (
+                <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, borderColor: alpha('#10b981', 0.4), bgcolor: alpha('#10b981', 0.05) }}>
+                  <Typography variant="subtitle1" fontWeight={800}>Permissioned network — no native token</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    This chain runs without a cryptocurrency: no token, no gas, no external wallets. Participants receive
+                    deterministic wallet addresses used only to sign their actions, and validator consensus replaces token economics.
+                  </Typography>
+                  <Button size="small" sx={{ mt: 2, textTransform: 'none' }} onClick={() => setChainToken((p) => ({ ...p, nativeToken: true }))}>
+                    Enable a native token instead
+                  </Button>
+                </Paper>
+              ) : (
+                <Box>
+                  {projectType === 'blockchain' && (
+                    <Button size="small" sx={{ mb: 1.5, textTransform: 'none' }} onClick={() => setChainToken((p) => ({ ...p, nativeToken: false }))}>
+                      Switch to a permissioned network (no native token)
+                    </Button>
+                  )}
+                  <ChainTokenomicsPanel chainToken={chainToken} setChainToken={setChainToken} legacyMode={legacyMode} />
+                </Box>
+              ))}
+              {activeTab === 'fees' && projectType === 'blockchain' && (
+                <Box>
+                  {chainFees.gasless && (
+                    <Paper variant="outlined" sx={{ p: 2, mb: 1.5, borderRadius: 2, borderColor: alpha('#10b981', 0.4), bgcolor: alpha('#10b981', 0.05) }}>
+                      <Typography variant="body2" fontWeight={700}>Gasless network</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Transactions carry no fee and users never pay gas. The values below are inert for a permissioned chain.
+                      </Typography>
+                    </Paper>
+                  )}
+                  <ChainFeesPanel chainFees={chainFees} setChainFees={setChainFees} />
+                </Box>
+              )}
               {activeTab === 'stk' && <ChainStakingPanel chainStaking={chainStaking} setChainStaking={setChainStaking} />}
               {activeTab === 'gov' && <ChainGovPanel chainGov={chainGov} setChainGov={setChainGov} />}
             </Box>

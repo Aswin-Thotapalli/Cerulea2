@@ -28,6 +28,7 @@ import SpeedIcon from '@mui/icons-material/Speed';
 import StorageIcon from '@mui/icons-material/Storage';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import Link from 'next/link';
+import { studioProjectUrl } from '@/config/divisions';
 
 type Project = {
   id: string;
@@ -35,14 +36,16 @@ type Project = {
   slug: string;
   status: string;
   projectType: string;
+  division?: string;
   createdAt: string;
   updatedAt?: string;
 };
 
-function getStudioUrl(projectId: string) {
+// Opens a saved project inside its division (studio.cerulea.io/<division>?project=<id>).
+function getStudioUrl(p: { id: string; division?: string }) {
   const isLocal = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
   const base = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
-  return `${base}/?project=${projectId}`;
+  return studioProjectUrl(base, p.id, p.division);
 }
 
 function getNewProjectUrl() {
@@ -375,7 +378,7 @@ export default function DashboardPage() {
                         <Stack direction="row" spacing={0.25} alignItems="center">
                           <Tooltip title="Open in Studio">
                             <IconButton size="small"
-                              onClick={() => { window.location.href = getStudioUrl(p.id); }}
+                              onClick={() => { window.location.href = getStudioUrl(p); }}
                               sx={{ bgcolor: alpha(typeColor, 0.07), '&:hover': { bgcolor: alpha(typeColor, 0.18) } }}>
                               <OpenInNewIcon sx={{ fontSize: 14, color: typeColor }} />
                             </IconButton>

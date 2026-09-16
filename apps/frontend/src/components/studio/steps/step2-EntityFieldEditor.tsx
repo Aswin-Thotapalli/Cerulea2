@@ -145,6 +145,7 @@ export default function EntityFieldEditor({
               uuid: '#f97316', address: '#06b6d4', uint256: '#06b6d4',
               'bytes32': '#06b6d4', 'ipfs-hash': '#10b981', datetime: '#f59e0b',
               boolean: '#10b981', json: '#8b5cf6',
+              enum: '#ec4899', date: '#f59e0b', file: '#10b981',
             };
             const tC = TYPE_COLORS[f.type] || theme.palette.primary.main;
             return (
@@ -182,6 +183,9 @@ export default function EntityFieldEditor({
                     <MenuItem value="boolean">Boolean</MenuItem>
                     <MenuItem value="datetime">DateTime</MenuItem>
                     <MenuItem value="json">JSON</MenuItem>
+                    <MenuItem value="enum">Enum (pick-list)</MenuItem>
+                    <MenuItem value="date">Date</MenuItem>
+                    <MenuItem value="file">File</MenuItem>
                     <Divider />
                     <MenuItem value="address">Address</MenuItem>
                     <MenuItem value="uint256">Uint256</MenuItem>
@@ -232,6 +236,27 @@ export default function EntityFieldEditor({
                     <DeleteOutlineIcon sx={{ fontSize: 15 }} />
                   </IconButton>
                 </Box>
+
+                {/* Form details: label / unit, and options for enum (pick-list) fields */}
+                {(f.type === 'enum' || f.label || f.unit) && (
+                  <Box sx={{
+                    gridColumn: '1 / -1', px: 2, pb: 1, pt: 0.25,
+                    display: 'grid', gridTemplateColumns: f.type === 'enum' ? '1fr 110px 2fr' : '1fr 110px',
+                    gap: 1, alignItems: 'center',
+                  }}>
+                    <TextField size="small" placeholder="Form label" value={f.label || ''}
+                      onChange={(e) => onUpdateField(f.id, { label: e.target.value })}
+                      sx={{ '& .MuiInputBase-root': { fontSize: '0.75rem', borderRadius: 1.5 } }} />
+                    <TextField size="small" placeholder="Unit" value={f.unit || ''}
+                      onChange={(e) => onUpdateField(f.id, { unit: e.target.value })}
+                      sx={{ '& .MuiInputBase-root': { fontSize: '0.75rem', borderRadius: 1.5 } }} />
+                    {f.type === 'enum' && (
+                      <TextField size="small" placeholder="Options, comma-separated" value={(f.options || []).join(', ')}
+                        onChange={(e) => onUpdateField(f.id, { options: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
+                        sx={{ '& .MuiInputBase-root': { fontSize: '0.75rem', borderRadius: 1.5, fontFamily: 'monospace' } }} />
+                    )}
+                  </Box>
+                )}
               </Box>
             );
           })}

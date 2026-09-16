@@ -47,6 +47,24 @@ export function divisionFromPath(pathname: string | null | undefined): Division 
   return DIVISION_PATH_SEGMENTS[seg] ?? null;
 }
 
+/** Division a saved project belongs to, derived from its type and template ids. */
+export function divisionForProject(projectType: string | null | undefined, templateIds: unknown): Division {
+  if (projectType === 'dapp') return 'dapp';
+  let ids: string[] = [];
+  if (Array.isArray(templateIds)) ids = templateIds as string[];
+  else if (typeof templateIds === 'string') {
+    try { const p = JSON.parse(templateIds); if (Array.isArray(p)) ids = p; } catch {}
+  }
+  if (ids.some((t) => String(t).startsWith('govt-'))) return 'govt';
+  return 'enterprise';
+}
+
+/** Studio URL that opens a saved project inside its division. */
+export function studioProjectUrl(base: string, projectId: string, division: string | null | undefined): string {
+  const d: Division = division === 'dapp' || division === 'govt' || division === 'enterprise' ? division : 'enterprise';
+  return `${base}/${pathSegmentForDivision(d)}?project=${encodeURIComponent(projectId)}`;
+}
+
 // Human labels for the studio.cerulea.io chooser.
 export const DIVISION_LABELS: Record<Division, { title: string; blurb: string }> = {
   dapp: { title: 'dApps', blurb: 'Build and deploy decentralized apps on Cerulea L1 or your own chain.' },
