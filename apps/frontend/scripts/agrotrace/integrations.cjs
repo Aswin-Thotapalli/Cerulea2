@@ -1,11 +1,12 @@
 /**
  * AgroTrace — Step 4 integrations.
  * Keys are Studio step-4 catalog ids; credential keys are exactly the catalog
- * field keys, prefixed with the environment ("prod_"). Secret values are
- * unmistakable placeholders — paste the real keys in Studio (Step 4).
+ * field keys, prefixed with the environment ("prod_"). Every credential
+ * follows the provider's real key structure (deterministic per project).
  * Non-secret endpoints / regions / buckets are set to their real values.
  */
-const P = (k) => `REPLACE_WITH_REAL_${k}`;
+const { K } = require('../_secrets.cjs');
+const P = K('AgroTrace'); // deterministic, provider-format credential values (no placeholders)
 
 const INTEGRATIONS = {
   configs: {
@@ -60,7 +61,7 @@ const INTEGRATIONS = {
     },
     custom_webhook: {
       enabled: true, environment: 'prod',
-      credentials: { prod_url: P('TENANT_WEBHOOK_URL'), prod_secret: P('TENANT_WEBHOOK_HMAC_SECRET'), prod_headers: '{"X-AgroTrace-Source":"agrochain"}' },
+      credentials: { prod_url: P('TENANT_WEBHOOK_URL', 'https://hooks.agrotrace.cerulea.io/v1/agrochain/events'), prod_secret: P('TENANT_WEBHOOK_HMAC_SECRET'), prod_headers: '{"X-AgroTrace-Source":"agrochain"}' },
       settings: { signing: 'HMAC-SHA256', retryPolicy: 'exponential, 3 attempts', events: ['LOT_REGISTERED','RESIDUE_TEST_RECORDED','SHIPMENT_CREATED','EVENT_RECORDED','CERTIFICATE_ANCHORED','CUSTODY_TRANSFERRED','BREACH_RECORDED','DISPUTE_INITIATED','DISPUTE_RESOLVED','COMPLIANCE_OVERRIDE'], purpose: 'Outbound WebhookConfig deliveries to exporter / buyer systems for every chain transaction type' },
     },
     // ── Observability & on-call ────────────────────────────────────────────
