@@ -69,7 +69,7 @@ describe('the start fresh door', () => {
   it('changes the foundation when the network changes', async () => {
     render(<StartFreshDoor catalogue={catalogue} />);
     const first = screen.getAllByTestId('foundation-part').map((node) => node.textContent);
-    await userEvent.click(screen.getByLabelText('Private Blockchain network'));
+    await userEvent.click(screen.getByRole('radio', { name: /Private Blockchain network/ }));
     await waitFor(() => {
       const second = screen.getAllByTestId('foundation-part').map((node) => node.textContent);
       expect(second).not.toEqual(first);

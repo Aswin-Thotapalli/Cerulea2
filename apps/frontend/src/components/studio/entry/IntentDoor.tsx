@@ -15,10 +15,7 @@ import {
   Chip,
   CircularProgress,
   Divider,
-  FormControlLabel,
   Paper,
-  Radio,
-  RadioGroup,
   Stack,
   TextField,
   Typography,
@@ -29,7 +26,9 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
 import { loadCatalogue } from '@/lib/catalogue/load';
 import type { Catalogue, ProjectTrack } from '@/lib/catalogue/types';
-import { TRACK_LABEL, proposeFromDescription, type IntentProposal } from '@/lib/intent';
+import { proposeFromDescription, type IntentProposal } from '@/lib/intent';
+import { deriveTrack, resolveApplication, type Application, type TrackDerivation } from '@/lib/track/derive';
+import TrackChoice from './TrackChoice';
 
 const SurfaceCard = styled(Paper)(({ theme }) => ({
   padding: 24,
@@ -54,6 +53,7 @@ export type IntentChoice = {
   track: ProjectTrack;
   templateId: string;
   outcomeIds: string[];
+  publishSelectedRecords: boolean;
 };
 
 export type IntentDoorProps = {
@@ -61,6 +61,8 @@ export type IntentDoorProps = {
   onAccept?: (choice: IntentChoice) => void;
   /** Supplies the catalogue instead of reading it from the catalogue routes. Tests use this. */
   catalogue?: Catalogue;
+  /** Names the application this Studio serves. Tests and the three builds use this. */
+  application?: Application;
 };
 
 /** Takes the first descriptions of the catalogue, so the field never starts blank. */
@@ -71,12 +73,14 @@ function starterDescriptions(catalogue: Catalogue): string[] {
     .slice(0, 3);
 }
 
-export default function IntentDoor({ onAccept, catalogue: supplied }: IntentDoorProps) {
+export default function IntentDoor({ onAccept, catalogue: supplied, application }: IntentDoorProps) {
+  const [forApplication] = React.useState<Application>(() => application ?? resolveApplication());
   const [catalogue, setCatalogue] = React.useState<Catalogue | null>(supplied ?? null);
   const [loadProblem, setLoadProblem] = React.useState<string | null>(null);
   const [description, setDescription] = React.useState('');
   const [proposal, setProposal] = React.useState<IntentProposal | null>(null);
-  const [track, setTrack] = React.useState<ProjectTrack | null>(null);
+  const [derivation, setDerivation] = React.useState<TrackDerivation | null>(null);
+  const [publishSelected, setPublishSelected] = React.useState(false);
   const [templateId, setTemplateId] = React.useState<string | null>(null);
   const [chosenOutcomes, setChosenOutcomes] = React.useState<string[]>([]);
 
@@ -99,10 +103,10 @@ export default function IntentDoor({ onAccept, catalogue: supplied }: IntentDoor
     if (!catalogue) return;
     const next = proposeFromDescription(description, catalogue);
     setProposal(next);
-    setTrack(next.track.track);
+    setDerivation(deriveTrack(forApplication, { proposedTrack: next.track.track }));
     setTemplateId(next.templates[0]?.template.id ?? null);
     setChosenOutcomes(next.outcomes.map((item) => item.outcome.outcomeId));
-  }, [catalogue, description]);
+  }, [catalogue, description, forApplication]);
 
   const toggleOutcome = React.useCallback((outcomeId: string) => {
     setChosenOutcomes((held) =>
@@ -111,9 +115,15 @@ export default function IntentDoor({ onAccept, catalogue: supplied }: IntentDoor
   }, []);
 
   const accept = React.useCallback(() => {
-    if (!proposal || !track || !templateId) return;
-    onAccept?.({ description, track, templateId, outcomeIds: chosenOutcomes });
-  }, [chosenOutcomes, description, onAccept, proposal, templateId, track]);
+    if (!proposal || !derivation || !templateId) return;
+    onAccept?.({
+      description,
+      track: derivation.track,
+      templateId,
+      outcomeIds: chosenOutcomes,
+      publishSelectedRecords: publishSelected,
+    });
+  }, [chosenOutcomes, derivation, description, onAccept, proposal, publishSelected, templateId]);
 
   if (loadProblem) {
     return (
@@ -204,21 +214,20 @@ export default function IntentDoor({ onAccept, catalogue: supplied }: IntentDoor
       {proposal && !proposal.empty && (
         <>
           <SurfaceCard>
-            <Typography variant="overline" fontWeight={800} color="text.secondary">
+            <Typography variant="overline" fontWeight={800} color="text.secondary" sx={{ display: 'block', mb: 1 }}>
               The network Cerulea proposes
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
-              {proposal.track.reason} A private Blockchain network keeps every record inside our
-              organisation. The public-access chain lets anyone verify a record. We change this at
-              any time.
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {proposal.track.reason}
             </Typography>
-            <RadioGroup
-              value={track ?? proposal.track.track}
-              onChange={(event) => setTrack(event.target.value as ProjectTrack)}
-            >
-              <FormControlLabel value="blockchain" control={<Radio />} label={TRACK_LABEL.blockchain} />
-              <FormControlLabel value="dapp" control={<Radio />} label={TRACK_LABEL.dapp} />
-            </RadioGroup>
+            {derivation && (
+              <TrackChoice
+                derivation={derivation}
+                onChange={setDerivation}
+                publishSelected={publishSelected}
+                onPublishSelectedChange={setPublishSelected}
+              />
+            )}
           </SurfaceCard>
 
           <SurfaceCard>

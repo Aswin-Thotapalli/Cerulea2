@@ -11,6 +11,7 @@ import { Box, Paper, Stack, Tab, Tabs, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
 import type { Catalogue, ProjectTrack } from '@/lib/catalogue/types';
+import { resolveApplication, type Application } from '@/lib/track/derive';
 import IntentDoor, { type IntentChoice } from './IntentDoor';
 import TemplateGalleryDoor from './TemplateGalleryDoor';
 import StartFreshDoor, { type StartFreshChoice } from './StartFreshDoor';
@@ -30,18 +31,22 @@ export type EntryAnswer = {
   templateId: string;
   outcomeIds?: string[];
   moduleIds?: string[];
+  publishSelectedRecords: boolean;
 };
 
 export type EntryDoorsProps = {
   onAnswer?: (answer: EntryAnswer) => void;
   /** Supplies the catalogue instead of reading it from the catalogue routes. Tests use this. */
   catalogue?: Catalogue;
+  /** Names the application this Studio serves. Tests and the three builds use this. */
+  application?: Application;
 };
 
 const DOORS = ['describe', 'browse', 'fresh'] as const;
 
-export default function EntryDoors({ onAnswer, catalogue }: EntryDoorsProps) {
+export default function EntryDoors({ onAnswer, catalogue, application }: EntryDoorsProps) {
   const [door, setDoor] = React.useState<(typeof DOORS)[number]>('describe');
+  const [forApplication] = React.useState<Application>(() => application ?? resolveApplication());
 
   const fromIntent = React.useCallback(
     (choice: IntentChoice) => {
@@ -51,6 +56,7 @@ export default function EntryDoors({ onAnswer, catalogue }: EntryDoorsProps) {
         track: choice.track,
         templateId: choice.templateId,
         outcomeIds: choice.outcomeIds,
+        publishSelectedRecords: choice.publishSelectedRecords,
       });
     },
     [onAnswer],
@@ -58,7 +64,12 @@ export default function EntryDoors({ onAnswer, catalogue }: EntryDoorsProps) {
 
   const fromGallery = React.useCallback(
     (choice: { templateId: string; track: ProjectTrack }) => {
-      onAnswer?.({ door: 'browse', track: choice.track, templateId: choice.templateId });
+      onAnswer?.({
+        door: 'browse',
+        track: choice.track,
+        templateId: choice.templateId,
+        publishSelectedRecords: false,
+      });
     },
     [onAnswer],
   );
@@ -71,6 +82,7 @@ export default function EntryDoors({ onAnswer, catalogue }: EntryDoorsProps) {
         track: choice.track,
         templateId: choice.templateId,
         moduleIds: choice.moduleIds,
+        publishSelectedRecords: choice.publishSelectedRecords,
       });
     },
     [onAnswer],
@@ -95,9 +107,13 @@ export default function EntryDoors({ onAnswer, catalogue }: EntryDoorsProps) {
       </Shell>
 
       <Box role="tabpanel">
-        {door === 'describe' && <IntentDoor catalogue={catalogue} onAccept={fromIntent} />}
+        {door === 'describe' && (
+          <IntentDoor catalogue={catalogue} application={forApplication} onAccept={fromIntent} />
+        )}
         {door === 'browse' && <TemplateGalleryDoor catalogue={catalogue} onChoose={fromGallery} />}
-        {door === 'fresh' && <StartFreshDoor catalogue={catalogue} onStart={fromFresh} />}
+        {door === 'fresh' && (
+          <StartFreshDoor catalogue={catalogue} application={forApplication} onStart={fromFresh} />
+        )}
       </Box>
     </Stack>
   );

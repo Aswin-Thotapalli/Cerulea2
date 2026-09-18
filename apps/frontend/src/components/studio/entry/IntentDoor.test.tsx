@@ -47,9 +47,9 @@ describe('the intent door', () => {
     await userEvent.click(screen.getByRole('button', { name: /Show what Cerulea proposes/i }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText('A private Blockchain network')).toBeInTheDocument();
+      expect(screen.getByRole('radio', { name: /Private Blockchain network/ })).toBeInTheDocument();
     });
-    await userEvent.click(screen.getByLabelText('A private Blockchain network'));
+    await userEvent.click(screen.getByRole('radio', { name: /Private Blockchain network/ }));
     await userEvent.click(screen.getByRole('button', { name: /Start from this proposal/i }));
 
     expect(accepted).toHaveLength(1);

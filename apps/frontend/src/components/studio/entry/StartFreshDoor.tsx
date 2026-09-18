@@ -13,10 +13,7 @@ import {
   Button,
   Chip,
   CircularProgress,
-  FormControlLabel,
   Paper,
-  Radio,
-  RadioGroup,
   Stack,
   TextField,
   Typography,
@@ -27,7 +24,8 @@ import DesignServicesIcon from '@mui/icons-material/DesignServices';
 import { loadCatalogue } from '@/lib/catalogue/load';
 import type { Catalogue, ProjectTrack } from '@/lib/catalogue/types';
 import { buildFoundation, type Foundation } from '@/lib/entry/foundation';
-import { TRACK_LABEL } from '@/lib/templates/gallery';
+import { deriveTrack, resolveApplication, type Application, type TrackDerivation } from '@/lib/track/derive';
+import TrackChoice from './TrackChoice';
 
 const SurfaceCard = styled(Paper)(({ theme }) => ({
   padding: 24,
@@ -48,19 +46,26 @@ export type StartFreshChoice = {
   track: ProjectTrack;
   templateId: string;
   moduleIds: string[];
+  publishSelectedRecords: boolean;
 };
 
 export type StartFreshDoorProps = {
   onStart?: (choice: StartFreshChoice) => void;
   /** Supplies the catalogue instead of reading it from the catalogue routes. Tests use this. */
   catalogue?: Catalogue;
+  /** Names the application this Studio serves. Tests and the three builds use this. */
+  application?: Application;
 };
 
-export default function StartFreshDoor({ onStart, catalogue: supplied }: StartFreshDoorProps) {
+export default function StartFreshDoor({ onStart, catalogue: supplied, application }: StartFreshDoorProps) {
   const [catalogue, setCatalogue] = React.useState<Catalogue | null>(supplied ?? null);
   const [loadProblem, setLoadProblem] = React.useState<string | null>(null);
   const [name, setName] = React.useState('');
-  const [track, setTrack] = React.useState<ProjectTrack>('dapp');
+  const [derivation, setDerivation] = React.useState<TrackDerivation>(() =>
+    deriveTrack(application ?? resolveApplication()),
+  );
+  const [publishSelected, setPublishSelected] = React.useState(false);
+  const track = derivation.track;
 
   React.useEffect(() => {
     if (supplied) return;
@@ -89,8 +94,9 @@ export default function StartFreshDoor({ onStart, catalogue: supplied }: StartFr
       track,
       templateId: foundation.sourceTemplate.id,
       moduleIds: foundation.parts.map((part) => part.moduleId),
+      publishSelectedRecords: publishSelected,
     });
-  }, [foundation, name, onStart, track]);
+  }, [foundation, name, onStart, publishSelected, track]);
 
   if (loadProblem) {
     return (
@@ -140,17 +146,14 @@ export default function StartFreshDoor({ onStart, catalogue: supplied }: StartFr
           helperText="The name appears on the project, on the manifest and on the deployment record."
         />
 
-        <Typography variant="overline" fontWeight={800} color="text.secondary" sx={{ display: 'block', mt: 3 }}>
-          The network
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          A private Blockchain network keeps every record inside our organisation. The public-access
-          chain lets anyone verify a record. We change this at any time.
-        </Typography>
-        <RadioGroup value={track} onChange={(event) => setTrack(event.target.value as ProjectTrack)}>
-          <FormControlLabel value="blockchain" control={<Radio />} label={TRACK_LABEL.blockchain} />
-          <FormControlLabel value="dapp" control={<Radio />} label={TRACK_LABEL.dapp} />
-        </RadioGroup>
+        <Box sx={{ mt: 3 }}>
+          <TrackChoice
+            derivation={derivation}
+            onChange={setDerivation}
+            publishSelected={publishSelected}
+            onPublishSelectedChange={setPublishSelected}
+          />
+        </Box>
       </SurfaceCard>
 
       {foundation && (
