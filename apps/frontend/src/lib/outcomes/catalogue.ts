@@ -8,6 +8,7 @@
 //    the first semicolon, full stop or comma that follows at least four words.
 // 2. The statement starts with a capital letter and carries no trailing stop.
 // 3. The anchor module of the outcome is the module the statement came from.
+//    The module bundle is the anchor plus its full dependency closure.
 // 4. The supporting sentence is the first paragraph of the long description.
 // 5. The group is the module category, written in plain words.
 // 6. The removal statement lists the modules that stop working after removal,
@@ -38,7 +39,7 @@ export type Outcome = {
 
 const CLAUSE_STOPS = [';', '.', ','];
 
-/** Cuts the first clause out of a blurb. */
+/** Cuts the first clause out of a module blurb. */
 export function firstClause(blurb: string): string {
   const text = blurb.trim();
   if (!text) return '';
@@ -79,15 +80,15 @@ function capitalise(text: string): string {
  * Every dependant records a reason for depending on this module. Those reasons
  * are the sentence. A module with no dependant states its own contribution.
  */
-export function removalConsequence(module: CatalogueModule, modules: CatalogueModule[]): string {
-  const dependants = modules.filter((candidate) => (candidate.dependsOn ?? []).includes(module.moduleId));
+export function removalConsequence(part: CatalogueModule, modules: CatalogueModule[]): string {
+  const dependants = modules.filter((candidate) => (candidate.dependsOn ?? []).includes(part.moduleId));
   if (dependants.length === 0) {
-    return `Removing this stops the work it does: ${lowerFirst(firstClause(module.blurb ?? module.title))}.`;
+    return `Removing this stops the work it does: ${lowerFirst(firstClause(part.blurb ?? part.title))}.`;
   }
   const named = dependants.slice(0, 3);
   const reasons = named
     .map((dependant) => {
-      const reason = dependant.reasonByDepId?.[module.moduleId];
+      const reason = dependant.reasonByDepId?.[part.moduleId];
       return reason ? `${dependant.title} stops working. ${reason}` : `${dependant.title} stops working.`;
     })
     .join(' ');
@@ -101,23 +102,23 @@ function lowerFirst(text: string): string {
 }
 
 /** Derives one outcome from one module. */
-export function outcomeFromModule(module: CatalogueModule, modules: CatalogueModule[]): Outcome {
-  const clause = firstClause(module.blurb ?? '') || module.title;
+export function outcomeFromModule(part: CatalogueModule, modules: CatalogueModule[]): Outcome {
+  const clause = firstClause(part.blurb ?? '') || part.title;
   return {
-    outcomeId: `outcome:${module.moduleId}`,
+    outcomeId: `outcome:${part.moduleId}`,
     statement: capitalise(clause.replace(/[.\s]+$/, '')),
-    anchorModuleId: module.moduleId,
-    group: groupLabel(module.category),
-    projectType: module.projectType,
-    contribution: module.longDescription?.[0] ?? module.blurb ?? module.title,
-    tags: module.tags ?? [],
-    removalConsequence: removalConsequence(module, modules),
+    anchorModuleId: part.moduleId,
+    group: groupLabel(part.category),
+    projectType: part.projectType,
+    contribution: part.longDescription?.[0] ?? part.blurb ?? part.title,
+    tags: part.tags ?? [],
+    removalConsequence: removalConsequence(part, modules),
   };
 }
 
 /** Derives the whole outcome catalogue from the module catalogue. */
 export function deriveOutcomes(modules: CatalogueModule[]): Outcome[] {
-  return modules.map((module) => outcomeFromModule(module, modules));
+  return modules.map((part) => outcomeFromModule(part, modules));
 }
 
 /** Groups outcomes by their plain-words area, ordered by name. */

@@ -1,73 +1,40 @@
-//apps\frontend\src\app\api\templates\route.ts
+// apps/frontend/src/app/api/templates/route.ts
+// Serves the 100 template catalogue.
+// The seed is imported, so the route works from a built output as well as from
+// the source tree. A disk read fails once the build ships without src.
+
 import { NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import { join } from 'path';
+import catalogueJson from '@/data/templates.seed.json';
+import type { CatalogueTemplate, ProjectTrack } from '@/lib/catalogue/types';
 
-export const dynamic = 'force-dynamic'; // read fresh from disk in dev
+export const dynamic = 'force-dynamic';
 
-type Edge = { from: string; to: string; rel: string };
+type Catalogue = { version: number; updatedAt: string; templates: CatalogueTemplate[] };
 
-type Template = {
-  id: string;
-  projectType: 'dapp' | 'blockchain';
-  title: string;
-  description?: string;
-  tags?: string[];
-  preinstalledModules?: string[];
-  modules?: string[];
-  edges?: Edge[];
-  ui?: { pages?: string[] };
-};
-
-type Catalog = {
-  version: number;
-  updatedAt: string;
-  templates: Template[];
-};
-
-async function readCatalog(): Promise<Catalog> {
-  const candidates = [
-    join(process.cwd(), 'src', 'data', 'templates.seed.json'),
-    join(process.cwd(), 'apps', 'frontend', 'src', 'data', 'templates.seed.json'),
-  ];
-  let lastErr: unknown = null;
-  for (const p of candidates) {
-    try {
-      const raw = await fs.readFile(p, 'utf8');
-      return JSON.parse(raw) as Catalog;
-    } catch (err) {
-      lastErr = err;
-    }
-  }
-  throw lastErr ?? new Error('templates.seed.json not found');
-}
+const CATALOGUE = catalogueJson as unknown as Catalogue;
 
 // GET /api/templates?projectType=&q=&ids=a,b,c
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-    const projectType = url.searchParams.get('projectType') as
-      | 'dapp'
-      | 'blockchain'
-      | null;
+    const projectType = url.searchParams.get('projectType') as ProjectTrack | null;
     const q = (url.searchParams.get('q') || '').toLowerCase();
     const ids = (url.searchParams.get('ids') || '')
       .split(',')
-      .map(s => s.trim())
+      .map((value) => value.trim())
       .filter(Boolean);
 
-    const catalog = await readCatalog();
-    let list = catalog.templates.slice();
+    let list = CATALOGUE.templates.slice();
 
-    if (projectType) list = list.filter(t => t.projectType === projectType);
-    if (ids.length) list = list.filter(t => ids.includes(t.id));
+    if (projectType) list = list.filter((template) => template.projectType === projectType);
+    if (ids.length) list = list.filter((template) => ids.includes(template.id));
     if (q) {
-      list = list.filter(t => {
+      list = list.filter((template) => {
         const hay = [
-          t.title,
-          t.description || '',
-          ...(t.tags || []),
-          ...(t.ui?.pages || []),
+          template.title,
+          template.description || '',
+          ...(template.tags || []),
+          ...(template.ui?.pages || []),
         ]
           .join(' ')
           .toLowerCase();
@@ -76,9 +43,14 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json(list, { status: 200 });
-  } catch (err: any) {
+  } catch (error) {
     return NextResponse.json(
-      { ok: false, error: err?.message ?? 'Unknown error' },
+      {
+        ok: false,
+        error:
+          'Cerulea could not read the template catalogue. ' +
+          'Check that src/data/templates.seed.json is present, then restart Studio.',
+      },
       { status: 500 },
     );
   }
