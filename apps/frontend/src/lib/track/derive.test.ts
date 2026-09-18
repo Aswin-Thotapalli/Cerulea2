@@ -93,6 +93,17 @@ describe('applyTrackOverride', () => {
     expect(overridden.reason).toContain('by hand');
   });
 
+  it('names the network Cerulea proposed', () => {
+    const overridden = applyTrackOverride(deriveTrack('dapps'), 'blockchain');
+    expect(overridden.reason).toContain('public-access chain');
+  });
+
+  it('keeps Blockchain capitalised inside the sentence', () => {
+    const overridden = applyTrackOverride(deriveTrack('enterprise'), 'dapp');
+    expect(overridden.reason).toContain('private Blockchain network');
+    expect(overridden.reason).not.toContain('blockchain network');
+  });
+
   it('changes nothing when the network already matches', () => {
     const derivation = deriveTrack('dapps');
     expect(applyTrackOverride(derivation, 'dapp')).toBe(derivation);

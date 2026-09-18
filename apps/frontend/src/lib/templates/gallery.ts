@@ -18,6 +18,7 @@ import type { CatalogueModule, CatalogueTemplate, ProjectTrack } from '@/lib/cat
 import { groupLabel } from '@/lib/outcomes/catalogue';
 import { indexModules, resolveDependencyClosure, type ModuleIndex } from '@/lib/modules/resolve';
 import { termSet, tokenise } from '@/lib/intent/tokenise';
+import { TRACK_LABEL } from '@/lib/track/derive';
 
 export type TemplateDifficulty = 'Starter' | 'Standard' | 'Advanced';
 
@@ -43,10 +44,7 @@ export type TemplateCard = {
   searchTerms: Set<string>;
 };
 
-export const TRACK_LABEL: Record<ProjectTrack, string> = {
-  blockchain: 'Private Blockchain network',
-  dapp: 'Public-access chain',
-};
+export { TRACK_LABEL } from '@/lib/track/derive';
 
 /** Reads the difficulty band from the decision count. */
 export function difficultyFor(decisionCount: number): TemplateDifficulty {

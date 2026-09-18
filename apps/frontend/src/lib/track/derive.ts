@@ -29,6 +29,12 @@ export const TRACK_LABEL: Record<ProjectTrack, string> = {
   dapp: 'Public-access chain',
 };
 
+/** The form each network name takes inside a sentence. Blockchain stays capitalised. */
+export const TRACK_PHRASE: Record<ProjectTrack, string> = {
+  blockchain: 'private Blockchain network',
+  dapp: 'public-access chain',
+};
+
 export const TRACK_MEANING: Record<ProjectTrack, string> = {
   blockchain:
     'Every record stays inside the organisations we name. Nobody outside reads a record ' +
@@ -114,7 +120,7 @@ export function deriveTrack(application: Application, hints: DeriveHints = {}): 
       label: TRACK_LABEL[track],
       meaning: TRACK_MEANING[track],
       reason: hinted
-        ? `The starting point we picked runs on the ${TRACK_LABEL[hinted].toLowerCase()}.`
+        ? `The starting point we picked runs on the ${TRACK_PHRASE[hinted]}.`
         : 'Cerulea for Enterprise keeps records private by default.',
       overridable: true,
       questionShown: true,
@@ -134,7 +140,7 @@ export function deriveTrack(application: Application, hints: DeriveHints = {}): 
     label: TRACK_LABEL[track],
     meaning: TRACK_MEANING[track],
     reason: hinted
-      ? `The starting point we picked runs on the ${TRACK_LABEL[hinted].toLowerCase()}.`
+      ? `The starting point we picked runs on the ${TRACK_PHRASE[hinted]}.`
       : 'Cerulea for Dapps starts on the public-access chain, so anyone can verify a record.',
     overridable: true,
     questionShown: true,
@@ -156,7 +162,7 @@ export function applyTrackOverride(derivation: TrackDerivation, track: ProjectTr
     track,
     label: TRACK_LABEL[track],
     meaning: TRACK_MEANING[track],
-    reason: `We set this network by hand. Cerulea proposed the ${derivation.label.toLowerCase()}.`,
+    reason: `We set this network by hand. Cerulea proposed the ${TRACK_PHRASE[derivation.track]}.`,
     overridden: true,
   };
 }

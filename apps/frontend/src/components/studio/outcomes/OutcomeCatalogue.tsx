@@ -30,7 +30,7 @@ import SearchIcon from '@mui/icons-material/Search';
 
 import { loadModules } from '@/lib/catalogue/load';
 import type { CatalogueModule, ProjectTrack } from '@/lib/catalogue/types';
-import { TRACK_LABEL } from '@/lib/track/derive';
+import { TRACK_PHRASE } from '@/lib/track/derive';
 import {
   describeOutcomes,
   filterOutcomes,
@@ -133,7 +133,7 @@ export default function OutcomeCatalogue({
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
           Each line is one thing the system will do. Cerulea installs the parts each line needs and
           links them. Remove a line and the work it names stops.
-          {track !== 'any' && ` These lines run on the ${TRACK_LABEL[track].toLowerCase()}.`}
+          {track !== 'any' && ` These lines run on the ${TRACK_PHRASE[track]}.`}
         </Typography>
 
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
