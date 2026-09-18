@@ -2,16 +2,15 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import modulesSeed from '@/data/modules.seed.json';
-import templatesSeed from '@/data/templates.seed.json';
-import type { CatalogueModule, CatalogueTemplate } from '@/lib/catalogue/types';
+import { SEED_MODULES, SEED_TEMPLATES } from '@/lib/catalogue/seed';
+import type { CatalogueTemplate } from '@/lib/catalogue/types';
 import { buildFoundation, smallestTemplateFor } from '@/lib/entry/foundation';
 import { indexModules, resolveDependencyClosure } from '@/lib/modules/resolve';
 import EntryDoors, { type EntryAnswer } from './EntryDoors';
 import StartFreshDoor, { type StartFreshChoice } from './StartFreshDoor';
 
-const modules = (modulesSeed as { modules: CatalogueModule[] }).modules;
-const templates = (templatesSeed as { templates: CatalogueTemplate[] }).templates;
+const modules = SEED_MODULES;
+const templates = SEED_TEMPLATES;
 const catalogue = { modules, templates };
 
 describe('the foundation a fresh project opens on', () => {

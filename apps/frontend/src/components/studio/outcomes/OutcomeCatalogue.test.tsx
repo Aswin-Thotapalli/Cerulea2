@@ -2,11 +2,11 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import modulesSeed from '@/data/modules.seed.json';
-import type { CatalogueModule } from '@/lib/catalogue/types';
+import { SEED_MODULES } from '@/lib/catalogue/seed';
+
 import OutcomeCatalogue from './OutcomeCatalogue';
 
-const modules = (modulesSeed as { modules: CatalogueModule[] }).modules;
+const modules = SEED_MODULES;
 
 describe('the outcome catalogue surface', () => {
   it('opens populated and grouped by area', () => {

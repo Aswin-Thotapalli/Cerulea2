@@ -2,14 +2,13 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import modulesSeed from '@/data/modules.seed.json';
-import templatesSeed from '@/data/templates.seed.json';
-import type { CatalogueModule, CatalogueTemplate } from '@/lib/catalogue/types';
+import { SEED_MODULES, SEED_TEMPLATES } from '@/lib/catalogue/seed';
+
 import IntentDoor, { type IntentChoice } from './IntentDoor';
 
 const catalogue = {
-  modules: (modulesSeed as { modules: CatalogueModule[] }).modules,
-  templates: (templatesSeed as { templates: CatalogueTemplate[] }).templates,
+  modules: SEED_MODULES,
+  templates: SEED_TEMPLATES,
 };
 
 const DESCRIPTION = 'We track every handling step of a shipment and let a buyer verify the goods.';

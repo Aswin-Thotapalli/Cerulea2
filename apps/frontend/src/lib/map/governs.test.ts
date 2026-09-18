@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import modulesSeed from '@/data/modules.seed.json';
-import templatesSeed from '@/data/templates.seed.json';
-import type { CatalogueModule, CatalogueTemplate } from '@/lib/catalogue/types';
+import { SEED_MODULES, SEED_TEMPLATES } from '@/lib/catalogue/seed';
+import type { CatalogueModule } from '@/lib/catalogue/types';
 import { buildRelationCatalogue } from './relations';
 import { LINK_STYLE, LinkNotEditable, createUserLink, deleteUserLink, userMayCreate } from './links';
 import {
@@ -11,8 +10,8 @@ import {
   grantsOfRole,
 } from './governs';
 
-const modules = (modulesSeed as { modules: CatalogueModule[] }).modules;
-const templates = (templatesSeed as { templates: CatalogueTemplate[] }).templates;
+const modules = SEED_MODULES;
+const templates = SEED_TEMPLATES;
 const catalogue = buildRelationCatalogue(templates);
 const index = new Map(modules.map((part) => [part.moduleId, part]));
 const everything = modules.map((part) => part.moduleId);

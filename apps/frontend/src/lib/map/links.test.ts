@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import modulesSeed from '@/data/modules.seed.json';
-import type { CatalogueModule } from '@/lib/catalogue/types';
+import { SEED_MODULES } from '@/lib/catalogue/seed';
+
 import { deriveOutcomes } from '@/lib/outcomes/catalogue';
 import { resolveOutcomeSelection } from '@/lib/outcomes/resolve';
 import {
@@ -13,7 +13,7 @@ import {
   userMayDelete,
 } from './links';
 
-const modules = (modulesSeed as { modules: CatalogueModule[] }).modules;
+const modules = SEED_MODULES;
 const outcomes = deriveOutcomes(modules);
 const outcomeFor = (moduleId: string) =>
   outcomes.find((outcome) => outcome.anchorModuleId === moduleId)?.outcomeId as string;

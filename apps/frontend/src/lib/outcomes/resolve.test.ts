@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import modulesSeed from '@/data/modules.seed.json';
+import { SEED_MODULES } from '@/lib/catalogue/seed';
 import type { CatalogueModule } from '@/lib/catalogue/types';
 import { indexModules } from '@/lib/modules/resolve';
 import { deriveOutcomes } from './catalogue';
 import { dependantsInSet, removalImpact, resolveFromModules, resolveOutcomeSelection } from './resolve';
 
-const modules = (modulesSeed as { modules: CatalogueModule[] }).modules;
+const modules = SEED_MODULES;
 const index = indexModules(modules);
 const outcomes = deriveOutcomes(modules);
 const outcomeFor = (moduleId: string) =>

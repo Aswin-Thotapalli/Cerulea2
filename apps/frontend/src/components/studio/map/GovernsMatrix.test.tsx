@@ -1,16 +1,15 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import modulesSeed from '@/data/modules.seed.json';
-import templatesSeed from '@/data/templates.seed.json';
-import type { CatalogueModule, CatalogueTemplate } from '@/lib/catalogue/types';
+import { SEED_MODULES, SEED_TEMPLATES } from '@/lib/catalogue/seed';
+
 import { buildRelationCatalogue } from '@/lib/map/relations';
 import { derivePermissionMatrix, deriveGovernsLinks } from '@/lib/map/governs';
 import GovernsMatrix from './GovernsMatrix';
 import LinkList from './LinkList';
 
-const modules = (modulesSeed as { modules: CatalogueModule[] }).modules;
-const templates = (templatesSeed as { templates: CatalogueTemplate[] }).templates;
+const modules = SEED_MODULES;
+const templates = SEED_TEMPLATES;
 const catalogue = buildRelationCatalogue(templates);
 const matrix = derivePermissionMatrix(['wallet-auth', 'rbac', 'kyc'], modules, catalogue);
 const titleById = Object.fromEntries(modules.map((part) => [part.moduleId, part.title]));

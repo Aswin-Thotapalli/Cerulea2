@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import modulesSeed from '@/data/modules.seed.json';
-import templatesSeed from '@/data/templates.seed.json';
-import type { CatalogueModule, CatalogueTemplate } from '@/lib/catalogue/types';
+import { SEED_MODULES, SEED_TEMPLATES } from '@/lib/catalogue/seed';
+import type { CatalogueTemplate } from '@/lib/catalogue/types';
 import { indexModules, resolveDependencyClosure } from '@/lib/modules/resolve';
 import {
   STANDARD_LIMIT,
@@ -13,8 +12,8 @@ import {
   galleryAreas,
 } from './gallery';
 
-const modules = (modulesSeed as { modules: CatalogueModule[] }).modules;
-const templates = (templatesSeed as { templates: CatalogueTemplate[] }).templates;
+const modules = SEED_MODULES;
+const templates = SEED_TEMPLATES;
 const index = indexModules(modules);
 const cards = describeTemplates(templates, modules);
 

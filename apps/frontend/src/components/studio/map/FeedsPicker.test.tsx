@@ -2,17 +2,16 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import modulesSeed from '@/data/modules.seed.json';
-import templatesSeed from '@/data/templates.seed.json';
-import type { CatalogueModule, CatalogueTemplate } from '@/lib/catalogue/types';
+import { SEED_MODULES, SEED_TEMPLATES } from '@/lib/catalogue/seed';
+
 import { buildRelationCatalogue } from '@/lib/map/relations';
 import { resolveFeedsLinks } from '@/lib/map/feeds';
 import { LINK_STYLE } from '@/lib/map/links';
 import FeedsPicker from './FeedsPicker';
 import LinkList from './LinkList';
 
-const modules = (modulesSeed as { modules: CatalogueModule[] }).modules;
-const templates = (templatesSeed as { templates: CatalogueTemplate[] }).templates;
+const modules = SEED_MODULES;
+const templates = SEED_TEMPLATES;
 const catalogue = buildRelationCatalogue(templates);
 const everything = modules.map((part) => part.moduleId);
 const result = resolveFeedsLinks(everything, modules, catalogue);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import modulesSeed from '@/data/modules.seed.json';
+import { SEED_MODULES } from '@/lib/catalogue/seed';
 import type { CatalogueModule } from '@/lib/catalogue/types';
 import { deriveOutcomes } from './catalogue';
 import { resolveOutcomeSelection } from './resolve';
@@ -10,7 +10,7 @@ import {
   hasBlockingConflict,
 } from './conflicts';
 
-const modules = (modulesSeed as { modules: CatalogueModule[] }).modules;
+const modules = SEED_MODULES;
 const outcomes = deriveOutcomes(modules);
 const outcomeFor = (moduleId: string) =>
   outcomes.find((outcome) => outcome.anchorModuleId === moduleId)?.outcomeId as string;

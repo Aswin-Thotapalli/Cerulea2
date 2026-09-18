@@ -2,14 +2,14 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import modulesSeed from '@/data/modules.seed.json';
-import type { CatalogueModule } from '@/lib/catalogue/types';
+import { SEED_MODULES } from '@/lib/catalogue/seed';
+
 import { deriveOutcomes } from '@/lib/outcomes/catalogue';
 import { resolveOutcomeSelection } from '@/lib/outcomes/resolve';
 import { detectConflicts, type Conflict, type ConflictFix } from '@/lib/outcomes/conflicts';
 import ConflictReport from './ConflictReport';
 
-const modules = (modulesSeed as { modules: CatalogueModule[] }).modules;
+const modules = SEED_MODULES;
 const outcomes = deriveOutcomes(modules);
 const outcomeFor = (moduleId: string) =>
   outcomes.find((outcome) => outcome.anchorModuleId === moduleId)?.outcomeId as string;

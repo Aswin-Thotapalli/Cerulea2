@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     }
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2026-03-25.dahlia',
+      apiVersion: '2026-08-26.dahlia',
     });
 
     const PRICE_IDS: Record<string, string> = {
