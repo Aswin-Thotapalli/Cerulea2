@@ -1,3 +1,6 @@
+// apps/frontend/src/lib/apiClient.ts
+// One fetch helper for every Cerulea route this app calls.
+// The helper reads the error message the route returns, so a failure names the fix.
 export async function api<T = any>(url: string, init: RequestInit = {}) {
   const res = await fetch(url, {
     credentials: "include",
@@ -20,12 +23,25 @@ export async function api<T = any>(url: string, init: RequestInit = {}) {
   return payload as T;
 }
 
-export const getApps = () => api("/api/apps");
-export const createApp = (name: string) =>
-  api("/api/apps", { method: "POST", body: JSON.stringify({ name }) });
+export type DraftRecord<T = unknown> = {
+  ok: boolean;
+  data: T;
+  updatedAt: number;
+};
 
-export const getDrafts = () => api("/api/drafts");
-export const upsertDraft = (input: { id?: string; appId?: string | null; step: string; payload?: any }) =>
-  api("/api/drafts/upsert", { method: "POST", body: JSON.stringify(input) });
+/**
+ * Reads one saved draft bucket for a project.
+ * The drafts route keys every bucket by project, so both values travel with the request.
+ */
+export const getDraft = <T = unknown>(projectId: string, bucket: string) =>
+  api<DraftRecord<T>>(`/api/drafts?projectId=${encodeURIComponent(projectId)}&bucket=${encodeURIComponent(bucket)}`);
 
-export const getDeployments = () => api("/api/deployments");
+/**
+ * Writes one draft bucket for a project.
+ * Work in progress stays on the machine until this call succeeds.
+ */
+export const upsertDraft = <T = unknown>(input: { projectId: string; bucket: string; data: T }) =>
+  api<{ ok: boolean; updatedAt: number }>('/api/drafts', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
