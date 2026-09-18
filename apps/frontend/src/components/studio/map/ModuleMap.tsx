@@ -28,6 +28,8 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import type { CatalogueModule } from '@/lib/catalogue/types';
 import { removalImpact, type OutcomeResolution, type RemovalImpact } from '@/lib/outcomes/resolve';
 import { buildModuleMap, nodesByDepth, type MapNode } from '@/lib/map/graph';
+import { deriveRequiresLinks, type MapLink } from '@/lib/map/links';
+import LinkList from './LinkList';
 
 const Layer = styled(Paper)(({ theme }) => ({
   padding: 16,
@@ -54,12 +56,31 @@ export type ModuleMapProps = {
   modules: CatalogueModule[];
   /** Receives the module a user removed, once the question is answered. */
   onRemoveModule?: (moduleId: string) => void;
+  /** The links a user drew. Cerulea adds the derived links to these. */
+  userLinks?: MapLink[];
+  onDeleteLink?: (link: MapLink) => void;
 };
 
-export default function ModuleMap({ resolution, modules, onRemoveModule }: ModuleMapProps) {
+export default function ModuleMap({
+  resolution,
+  modules,
+  onRemoveModule,
+  userLinks = [],
+  onDeleteLink,
+}: ModuleMapProps) {
   const map = React.useMemo(() => buildModuleMap(resolution, modules), [modules, resolution]);
   const layers = React.useMemo(() => nodesByDepth(map), [map]);
   const [pending, setPending] = React.useState<RemovalImpact | null>(null);
+
+  const links = React.useMemo(
+    () => [...deriveRequiresLinks(resolution.installOrder, modules), ...userLinks],
+    [modules, resolution.installOrder, userLinks],
+  );
+
+  const titleById = React.useMemo(
+    () => Object.fromEntries(map.nodes.map((node) => [node.moduleId, node.title])),
+    [map.nodes],
+  );
 
   const ask = React.useCallback(
     (node: MapNode) => setPending(removalImpact(node.moduleId, resolution, modules)),
@@ -143,6 +164,16 @@ export default function ModuleMap({ resolution, modules, onRemoveModule }: Modul
           </Box>
         </Layer>
       ))}
+
+      <Paper sx={{ p: 3, borderRadius: 4 }} variant="outlined">
+        <Typography variant="h6" fontWeight={800} sx={{ mb: 1 }}>
+          How the parts connect
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Cerulea draws each kind of link in its own shape, so one glance tells them apart.
+        </Typography>
+        <LinkList links={links} titleById={titleById} onDelete={onDeleteLink} />
+      </Paper>
 
       <Dialog open={pending !== null} onClose={() => setPending(null)}>
         <DialogTitle>Remove {pending?.title}</DialogTitle>
