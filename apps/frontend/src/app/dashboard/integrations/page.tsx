@@ -233,7 +233,7 @@ export default function IntegrationsPage() {
           <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, height: '100%' }}>
             <Typography variant="h6" fontWeight={800} mb={0.5}>REST API Endpoint</Typography>
             <Typography variant="body2" color="text.secondary" mb={2}>
-              Use this URL to connect external services to your deployed network's RPC interface.
+              Use this URL to connect external services to your deployed network&apos;s RPC interface.
             </Typography>
             <Stack
               direction="row"

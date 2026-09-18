@@ -957,7 +957,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
       <Box sx={{ width: '100%', maxWidth: 1000 }}>
         <Typography variant="h5" fontWeight={800}>Access Control Rules</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3, mt: 0.5 }}>
-          Define who can perform each action on your data. "Public" means anyone. "Owner" means only the record's creator. "Admin" means only privileged users.
+          Define who can perform each action on your data. &quot;Public&quot; means anyone. &quot;Owner&quot; means only the record&apos;s creator. &quot;Admin&quot; means only privileged users.
         </Typography>
 
         {blueprintModules.length === 0 ? (
@@ -1302,7 +1302,7 @@ export default function Step2({ goPrev, goNext }: { goPrev?: () => void; goNext?
               <Typography variant="h6" fontWeight={800}>Logic &amp; Triggers</Typography>
             </Stack>
             <Typography variant="body2" color="text.secondary">
-              Define what happens automatically when events occur in your app. Each trigger connects an event (e.g., "User created") to one or more actions (e.g., "Send email"). Pre-filled triggers are recommended best-practices for your modules.
+              Define what happens automatically when events occur in your app. Each trigger connects an event (e.g., &quot;User created&quot;) to one or more actions (e.g., &quot;Send email&quot;). Pre-filled triggers are recommended best-practices for your modules.
             </Typography>
           </Box>
           <Tooltip

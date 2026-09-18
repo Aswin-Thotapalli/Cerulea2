@@ -646,7 +646,7 @@ function Step1Inner({ goPrev, goNext }: { goPrev?: () => void; goNext?: () => vo
           }}>
             <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>Build your application blueprint</Typography>
             <Typography variant="body2" sx={{ opacity: 0.7, lineHeight: 1.6 }}>
-              Click <strong>"Add Extra Modules"</strong> below to choose the features
+              Click <strong>&quot;Add Extra Modules&quot;</strong> below to choose the features
               your app needs: like wallets, tokens, governance, or payments.
               Each module becomes a building block on this canvas.
             </Typography>
@@ -768,7 +768,7 @@ function Step1Inner({ goPrev, goNext }: { goPrev?: () => void; goNext?: () => vo
             <Stack spacing={2} sx={{ color: 'text.secondary' }}>
                <Box>
                   <Typography variant="subtitle2" fontWeight={700} color="text.primary">1. Module Library</Typography>
-                  <Typography variant="body2">Click <b>"Add Extra Modules"</b> to search the catalog. A module can be a smart contract, a backend service, or a UI feature.</Typography>
+                  <Typography variant="body2">Click <b>&quot;Add Extra Modules&quot;</b> to search the catalog. A module can be a smart contract, a backend service, or a UI feature.</Typography>
                </Box>
                <Divider />
                <Box>

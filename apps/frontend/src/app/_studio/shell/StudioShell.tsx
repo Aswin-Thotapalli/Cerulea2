@@ -34,7 +34,7 @@ class StepErrorBoundary extends Component<
       return (
         <Box sx={{ p: 4, textAlign: 'center' }}>
           <Typography variant="h6" color="error" gutterBottom>
-            Something went wrong loading "{this.props.stepLabel}"
+            Something went wrong loading &quot;{this.props.stepLabel}&quot;
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
             {this.state.error?.message}

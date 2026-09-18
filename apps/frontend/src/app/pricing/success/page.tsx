@@ -43,7 +43,7 @@ export default function PricingSuccessPage() {
       >
         <CheckCircleOutlineIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
         <Typography variant="h4" sx={{ fontWeight: 800, mb: 1.5 }}>
-          You're all set!
+          You&apos;re all set!
         </Typography>
         <Typography variant="body1" sx={{ opacity: 0.75, mb: 4 }}>
           Your subscription is now active. You have full access to Cerulea Studio

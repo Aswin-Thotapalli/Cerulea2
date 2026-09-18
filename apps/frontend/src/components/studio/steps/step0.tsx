@@ -539,7 +539,7 @@ export default function Step0({ goNext }: { goNext: () => void }) {
                       </Typography>
                       <Typography variant="h4" fontWeight={900}>Choose a Starting Template</Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        Templates pre-install relevant modules so you don't start from zero. You can add or remove modules in the next step.
+                        Templates pre-install relevant modules so you don&apos;t start from zero. You can add or remove modules in the next step.
                       </Typography>
                    </Box>
                    <Stack direction="row" alignItems="center" spacing={3}>

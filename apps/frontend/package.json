@@ -11,7 +11,10 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "fix:step-dupes": "node scripts/fix-step-dupes.cjs",
-    "seed:test-account": "node scripts/seed-test-account.cjs"
+    "seed:test-account": "node scripts/seed-test-account.cjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -48,6 +51,9 @@
     "zod": "^4.1.11"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
     "@types/bcrypt": "^6.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.13",
@@ -56,8 +62,13 @@
     "@types/react-dom": "^18.3.0",
     "@types/react-grid-layout": "^1.3.5",
     "@types/react-resizable": "^3.0.8",
+    "@vitejs/plugin-react": "^4.3.4",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.4",
-    "typescript": "^5.9.3"
+    "eslint": "^8.57.1",
+    "eslint-config-next": "14.2.5",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
   }
 }

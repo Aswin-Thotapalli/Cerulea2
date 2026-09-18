@@ -86,7 +86,6 @@ export default function FlowCanvasCompat({
   }
 
   // Import CSS only once we know "reactflow" resolved (prevents bad export paths).
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   try { require("reactflow/dist/style.css"); } catch {}
 
   const children: React.ReactNode[] = [];
@@ -94,14 +93,17 @@ export default function FlowCanvasCompat({
   if (isRenderable(MiniMap)) children.push(React.createElement(MiniMap, { key: "mm" }));
   if (isRenderable(Controls)) children.push(React.createElement(Controls, { key: "ctl" }));
 
-  return React.createElement(ReactFlow, {
-    nodes,
-    edges,
-    onConnect,
-    onNodeDragStop,
-    onNodeDoubleClick,
-    fitView,
+  return React.createElement(
+    ReactFlow,
+    {
+      nodes,
+      edges,
+      onConnect,
+      onNodeDragStop,
+      onNodeDoubleClick,
+      fitView,
+      style,
+    },
     children,
-    style,
-  });
+  );
 }

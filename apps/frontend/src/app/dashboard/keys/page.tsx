@@ -201,7 +201,7 @@ export default function KeysPage() {
             <Chip label={STUB_VALIDATOR_KEYS.length} size="small" sx={{ fontWeight: 700, ml: 0.5 }} />
           </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 640 }}>
-            Validator keys are cryptographic signing keys assigned to nodes that participate in your network's consensus process. These keys sign blocks and attestations to prove the node's identity and vote weight. BLS-12381 keys are standard for PoS validators; Ed25519 keys are used in faster finality chains. Never share private validator keys; compromise leads to slashing penalties or network forks.
+            Validator keys are cryptographic signing keys assigned to nodes that participate in your network&apos;s consensus process. These keys sign blocks and attestations to prove the node&apos;s identity and vote weight. BLS-12381 keys are standard for PoS validators; Ed25519 keys are used in faster finality chains. Never share private validator keys; compromise leads to slashing penalties or network forks.
           </Typography>
         </Box>
         <TableContainer>

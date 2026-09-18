@@ -75,12 +75,12 @@ export function checkDependencies(selectedModules: Module[]): { missing: { forMo
   const selectedIds = new Set(selectedModules.map(m => m.id));
   const missing = [];
 
-  for (const module of selectedModules) {
-    if (module.dependencies) {
-      for (const depId of module.dependencies) {
+  for (const entry of selectedModules) {
+    if (entry.dependencies) {
+      for (const depId of entry.dependencies) {
         if (!selectedIds.has(depId)) {
           missing.push({
-            forModule: module,
+            forModule: entry,
             needs: MODULE_LIBRARY.find(m => m.id === depId)!,
           });
         }

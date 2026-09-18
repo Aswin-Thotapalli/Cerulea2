@@ -292,7 +292,7 @@ export default function PricingPage() {
           Choose your plan
         </Typography>
         <Typography variant="body1" sx={{ opacity: 0.7, fontSize: '1.05rem' }}>
-          Start free in the Studio. Upgrade when you're ready to deploy to production.
+          Start free in the Studio. Upgrade when you&apos;re ready to deploy to production.
           All plans include access to Cerulea AI and the full module library.
         </Typography>
 
