@@ -17,6 +17,7 @@ import ManifestAtomic from './ManifestAtomic';
 import ManifestComparisonView from './ManifestComparison';
 import IntentReconciliation from './IntentReconciliation';
 import RecommendationGaps from './RecommendationGaps';
+import ManifestExport from './ManifestExport';
 import type { ManifestView } from '@/lib/manifest/types';
 
 /** The three views, each with the sentence stating what it serves. */
@@ -77,6 +78,7 @@ export default function DeploymentManifestPanel({
         />
       )}
       <RecommendationGaps moduleIds={moduleIds} onOpenScreen={onOpenScreen} />
+      <ManifestExport projectId={projectId} statement={statement} />
       <Box>
         {view === 'summary' && (
           <ManifestSummary projectId={projectId} onOpenScreen={onOpenScreen} />
