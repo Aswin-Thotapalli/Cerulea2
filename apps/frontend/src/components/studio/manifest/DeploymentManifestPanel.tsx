@@ -15,6 +15,7 @@ import { Box, Paper, Stack, Tab, Tabs, Typography } from '@mui/material';
 import ManifestSummary from './ManifestSummary';
 import ManifestAtomic from './ManifestAtomic';
 import ManifestComparisonView from './ManifestComparison';
+import IntentReconciliation from './IntentReconciliation';
 import type { ManifestView } from '@/lib/manifest/types';
 
 /** The three views, each with the sentence stating what it serves. */
@@ -38,9 +39,14 @@ export const MANIFEST_VIEWS: { id: ManifestView; label: string; serves: string }
 
 export default function DeploymentManifestPanel({
   projectId,
+  statement = '',
+  outcomeNames = [],
   onOpenScreen,
 }: {
   projectId: string;
+  /** The plain-language goal the person stated at the entry door. */
+  statement?: string;
+  outcomeNames?: string[];
   onOpenScreen?: (screen: string) => void;
 }) {
   const [view, setView] = useState<ManifestView>('summary');
@@ -58,6 +64,14 @@ export default function DeploymentManifestPanel({
           {held?.serves}
         </Typography>
       </Paper>
+      {statement.trim().length > 0 && (
+        <IntentReconciliation
+          projectId={projectId}
+          statement={statement}
+          outcomeNames={outcomeNames}
+          onOpenScreen={onOpenScreen}
+        />
+      )}
       <Box>
         {view === 'summary' && (
           <ManifestSummary projectId={projectId} onOpenScreen={onOpenScreen} />

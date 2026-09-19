@@ -298,7 +298,12 @@ export default function StudioProject({ projectId }: { projectId: string }) {
           <Stack spacing={3}>
             <ReadinessChecklist projectId={projectId} buildState={buildState} />
             <ValidationGuidance projectId={projectId} onChanged={() => void advance()} />
-            <DeploymentManifestPanel projectId={projectId} onOpenScreen={openScreen} />
+            <DeploymentManifestPanel
+              projectId={projectId}
+              statement={buildState.foundation.summary}
+              outcomeNames={buildState.compose.outcomeIds}
+              onOpenScreen={openScreen}
+            />
           </Stack>
         </Box>
         {area === ('substrate' as ProjectArea) ? (
