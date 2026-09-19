@@ -26,6 +26,7 @@ import OutcomeCatalogue from '@/components/studio/outcomes/OutcomeCatalogue';
 import ConflictReport from '@/components/studio/outcomes/ConflictReport';
 import ModuleMap from '@/components/studio/map/ModuleMap';
 import { SEED_MODULES } from '@/lib/catalogue/seed';
+import { partsFor } from '@/lib/variants/application';
 import { detectConflicts } from '@/lib/outcomes/conflicts';
 import { deriveOutcomes } from '@/lib/outcomes/catalogue';
 import {
@@ -58,10 +59,18 @@ export default function Step2Compose({
   }, [handle.state]);
 
   const track = handle.state?.buildState.foundation.track ?? 'dapp';
+  const application = handle.state?.buildState.foundation.application ?? 'dapps';
+
+  /**
+   * The parts this application offers.
+   * Each application carries its own subset, so nobody meets a part their
+   * audience holds no remit for.
+   */
+  const offered = useMemo(() => partsFor(application, SEED_MODULES), [application]);
 
   const resolution = useMemo(
-    () => resolveFromModulesWithBridges(selected, SEED_MODULES),
-    [selected],
+    () => resolveFromModulesWithBridges(selected, offered),
+    [offered, selected],
   );
 
   const installed = useMemo(
@@ -73,10 +82,10 @@ export default function Step2Compose({
     () =>
       detectConflicts(resolution, {
         track,
-        outcomes: outcomesWithBridges(deriveOutcomes(SEED_MODULES)),
-        modules: modulesWithBridgeRuntime(SEED_MODULES),
+        outcomes: outcomesWithBridges(deriveOutcomes(offered)),
+        modules: modulesWithBridgeRuntime(offered),
       }),
-    [resolution, track],
+    [offered, resolution, track],
   );
 
   const composed = useMemo(
@@ -173,13 +182,18 @@ export default function Step2Compose({
       )}
 
       <Stack spacing={4}>
-        <OutcomeCatalogue selected={selected} onSelectedChange={setSelected} track={track} modules={SEED_MODULES} />
+        <OutcomeCatalogue
+          selected={selected}
+          onSelectedChange={setSelected}
+          track={track}
+          modules={offered}
+        />
 
         <ConflictReport conflicts={conflicts} />
 
         <ModuleMap
           resolution={resolution}
-          modules={SEED_MODULES}
+          modules={offered}
           onRemoveModule={removeModule}
           userLinks={userLinks}
         />

@@ -24,6 +24,7 @@ import {
   Typography,
 } from '@mui/material';
 
+import WorkspaceApplication from '@/components/studio/variants/WorkspaceApplication';
 import { api } from '@/lib/apiClient';
 import { SEED_MODULES, SEED_TEMPLATES } from '@/lib/catalogue/seed';
 import { describeTemplates } from '@/lib/templates/gallery';
@@ -212,6 +213,8 @@ export default function Step1Foundation({
             />
           </Stack>
         </Paper>
+
+        <WorkspaceApplication application={application} />
 
         <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>

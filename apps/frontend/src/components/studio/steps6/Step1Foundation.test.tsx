@@ -103,7 +103,7 @@ describe('Step 1 Foundation', () => {
     stubFetch();
     render(<Step1Foundation projectId="p-1" />);
     await waitFor(() =>
-      expect(screen.getByText(/Cerulea for Enterprise/)).toBeInTheDocument(),
+      expect(screen.getAllByText(/Cerulea for Enterprise/).length).toBeGreaterThan(0),
     );
     expect(screen.getByText(/keeps records private by default/)).toBeInTheDocument();
   });
