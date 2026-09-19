@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 // apps/frontend/src/app/dashboard/projects/page.tsx
 // The Projects panel.
@@ -7,8 +7,8 @@
 // readable afterwards.
 // Without this panel a person cannot find the work they started.
 
-import { useMemo, useState } from 'react';
-import Link from 'next/link';
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Alert,
   AlertTitle,
@@ -30,7 +30,7 @@ import {
   TableRow,
   TextField,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 
 import {
   PanelBody,
@@ -38,8 +38,9 @@ import {
   describeFailure,
   usePanelData,
   type PanelFailure,
-} from '@/components/dashboard/PanelState';
-import { api } from '@/lib/apiClient';
+} from "@/components/dashboard/PanelState";
+import { api } from "@/lib/apiClient";
+import ProjectReadiness from "@/components/studio/steps6/ProjectReadiness";
 
 type ProjectsView = {
   projects: {
@@ -58,18 +59,22 @@ type ProjectsView = {
   workspaces: { workspaceId: string; name: string }[];
 };
 
-const STATE_COLOUR: Record<string, 'success' | 'warning' | 'default' | 'info'> = {
-  deployed: 'success',
-  building: 'warning',
-  draft: 'default',
-  closed: 'info',
-};
+const STATE_COLOUR: Record<string, "success" | "warning" | "default" | "info"> =
+  {
+    deployed: "success",
+    building: "warning",
+    draft: "default",
+    closed: "info",
+  };
 
 export default function ProjectsPanel() {
-  const reading = usePanelData<ProjectsView>('/api/projects');
-  const [search, setSearch] = useState('');
-  const [state, setState] = useState('all');
-  const [closing, setClosing] = useState<{ projectId: string; name: string } | null>(null);
+  const reading = usePanelData<ProjectsView>("/api/projects");
+  const [search, setSearch] = useState("");
+  const [state, setState] = useState("all");
+  const [closing, setClosing] = useState<{
+    projectId: string;
+    name: string;
+  } | null>(null);
   const [failure, setFailure] = useState<PanelFailure | null>(null);
   const [working, setWorking] = useState(false);
 
@@ -78,7 +83,7 @@ export default function ProjectsPanel() {
     const term = search.trim().toLowerCase();
     return held.filter(
       (project) =>
-        (state === 'all' || project.state === state) &&
+        (state === "all" || project.state === state) &&
         (term.length === 0 || project.name.toLowerCase().includes(term)),
     );
   }, [reading.data, search, state]);
@@ -88,7 +93,9 @@ export default function ProjectsPanel() {
     setWorking(true);
     setFailure(null);
     try {
-      await api(`/api/projects/${encodeURIComponent(closing.projectId)}`, { method: 'DELETE' });
+      await api(`/api/projects/${encodeURIComponent(closing.projectId)}`, {
+        method: "DELETE",
+      });
       setClosing(null);
       reading.readAgain();
     } catch (cause) {
@@ -100,7 +107,12 @@ export default function ProjectsPanel() {
 
   return (
     <Box sx={{ p: 4 }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ mb: 1 }}
+      >
         <Typography variant="h4" sx={{ fontWeight: 900 }}>
           Projects
         </Typography>
@@ -109,8 +121,8 @@ export default function ProjectsPanel() {
         </Button>
       </Stack>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Each project holds one Blueprint and its whole version history. Closing a project keeps
-        every version readable.
+        Each project holds one Blueprint and its whole version history. Closing
+        a project keeps every version readable.
       </Typography>
 
       {failure && (
@@ -124,7 +136,7 @@ export default function ProjectsPanel() {
         {(view) => (
           <Stack spacing={3}>
             <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
                 <TextField
                   size="small"
                   label="Search"
@@ -174,6 +186,7 @@ export default function ProjectsPanel() {
                       <TableCell>Project</TableCell>
                       <TableCell>Workspace</TableCell>
                       <TableCell align="right">Version</TableCell>
+                      <TableCell>Before deployment</TableCell>
                       <TableCell>State</TableCell>
                       <TableCell>Last changed</TableCell>
                       <TableCell align="right">Open</TableCell>
@@ -183,23 +196,36 @@ export default function ProjectsPanel() {
                     {visible.map((project) => (
                       <TableRow key={project.projectId}>
                         <TableCell>
-                          <Typography sx={{ fontWeight: 700 }}>{project.name}</Typography>
+                          <Typography sx={{ fontWeight: 700 }}>
+                            {project.name}
+                          </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {project.summary || 'No summary written yet.'}
+                            {project.summary || "No summary written yet."}
                           </Typography>
                         </TableCell>
                         <TableCell>{project.workspaceName}</TableCell>
-                        <TableCell align="right">{project.headVersion}</TableCell>
+                        <TableCell align="right">
+                          {project.headVersion}
+                        </TableCell>
+                        <TableCell>
+                          <ProjectReadiness projectId={project.projectId} />
+                        </TableCell>
                         <TableCell>
                           <Chip
                             size="small"
-                            color={STATE_COLOUR[project.state] ?? 'default'}
+                            color={STATE_COLOUR[project.state] ?? "default"}
                             label={project.state}
                           />
                         </TableCell>
-                        <TableCell>{new Date(project.updatedAt).toLocaleString()}</TableCell>
+                        <TableCell>
+                          {new Date(project.updatedAt).toLocaleString()}
+                        </TableCell>
                         <TableCell align="right">
-                          <Stack direction="row" spacing={1} justifyContent="flex-end">
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            justifyContent="flex-end"
+                          >
                             <Button
                               size="small"
                               component={Link}
@@ -207,7 +233,7 @@ export default function ProjectsPanel() {
                             >
                               Open
                             </Button>
-                            {project.state !== 'closed' && (
+                            {project.state !== "closed" && (
                               <Button
                                 size="small"
                                 color="error"
@@ -237,8 +263,8 @@ export default function ProjectsPanel() {
         <DialogTitle>Close {closing?.name}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Closing sets the project state to closed. Every Blueprint version and every checkpoint
-            stays readable and exportable afterwards.
+            Closing sets the project state to closed. Every Blueprint version
+            and every checkpoint stays readable and exportable afterwards.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
