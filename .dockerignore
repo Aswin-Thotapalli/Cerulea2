@@ -1,0 +1,23 @@
+# Paths the image build never needs.
+#
+# The build installs its own dependency tree from the lock file and builds its
+# own output, so a copy of either one would slow the build and reach the image
+# with the wrong architecture.
+node_modules
+**/node_modules
+.next
+**/.next
+dist
+**/dist
+build
+**/build
+coverage
+**/coverage
+local
+test-results
+e2e-results
+.turbo
+.git
+.env
+.env.*
+*.log
