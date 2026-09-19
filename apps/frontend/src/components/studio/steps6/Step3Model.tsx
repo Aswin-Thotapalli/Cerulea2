@@ -22,12 +22,14 @@ import {
 
 import EntityEditor from './model/EntityEditor';
 import PermissionMatrix from './model/PermissionMatrix';
+import LogicEditor from './model/LogicEditor';
 import { useProjectState, type BuildState } from '@/lib/studio/project-state';
 import type { Blueprint } from '@/lib/blueprint/types';
 
 export const MODEL_SURFACES = [
   { id: 'entities', label: 'Records', note: 'What the system keeps.' },
   { id: 'permissions', label: 'Permissions', note: 'Who reaches what.' },
+  { id: 'logic', label: 'Rules and actions', note: 'What the system does, and what it refuses.' },
 ] as const;
 
 export type ModelSurface = (typeof MODEL_SURFACES)[number]['id'];
@@ -44,10 +46,17 @@ export default function Step3Model({
   const handle = useProjectState(projectId);
   const [tab, setTab] = useState<ModelSurface>(surface);
   const [draft, setDraft] = useState<Blueprint | null>(null);
+  const [chosenTriggers, setChosenTriggers] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (handle.state) setDraft(handle.state.blueprint);
+    if (!handle.state) return;
+    setDraft(handle.state.blueprint);
+    setChosenTriggers(
+      handle.state.buildState.compose.chosenLinks
+        .filter((link) => link.kind === 'triggers')
+        .map((link) => `${link.from}->${link.to}`),
+    );
   }, [handle.state]);
 
   const save = async () => {
@@ -58,6 +67,16 @@ export default function Step3Model({
     if (!wrote) return;
     const next: BuildState = {
       ...state.buildState,
+      compose: {
+        ...state.buildState.compose,
+        chosenLinks: [
+          ...state.buildState.compose.chosenLinks.filter((link) => link.kind !== 'triggers'),
+          ...chosenTriggers.map((entry) => {
+            const [from, to] = entry.split('->');
+            return { kind: 'triggers' as const, from: from ?? '', to: to ?? '' };
+          }),
+        ],
+      },
       steps: {
         ...state.buildState.steps,
         model: draft.collections.length > 0 && draft.permissions.length > 0,
@@ -116,6 +135,15 @@ export default function Step3Model({
 
       {tab === 'entities' && <EntityEditor blueprint={draft} onChange={setDraft} />}
       {tab === 'permissions' && <PermissionMatrix blueprint={draft} onChange={setDraft} />}
+      {tab === 'logic' && (
+        <LogicEditor
+          blueprint={draft}
+          onChange={setDraft}
+          moduleIds={handle.state?.buildState.compose.moduleIds ?? []}
+          chosenTriggers={chosenTriggers}
+          onChosenTriggersChange={setChosenTriggers}
+        />
+      )}
 
       <Box sx={{ mt: 4 }}>
         <Button
