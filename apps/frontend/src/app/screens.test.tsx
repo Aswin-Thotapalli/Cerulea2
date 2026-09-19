@@ -127,8 +127,11 @@ const pieces = import.meta.glob([
   '../app/auth/reset-password/ResetPasswordClient.tsx',
 ]);
 
-async function renderModule(load: () => Promise<unknown>, name: string): Promise<void> {
-  const loaded = (await load()) as { default?: unknown };
+async function renderModule(
+  load: () => Promise<Record<string, unknown>>,
+  name: string,
+): Promise<void> {
+  const loaded = await load();
   const Screen = loaded.default;
   expect(typeof Screen, `${name} exports no component`).toBe('function');
   const props = { params: { slug: 'suite', id: 'prj_suite' }, searchParams: { token: 'suite' } };
@@ -169,7 +172,7 @@ describe('every Studio screen renders', () => {
 describe('every piece a screen leans on renders', () => {
   for (const [path, load] of Object.entries(pieces)) {
     it(`renders ${path}`, async () => {
-      const loaded = (await load()) as Record<string, unknown>;
+      const loaded = await load();
       const exported = Object.entries(loaded).filter(
         ([, value]) => typeof value === 'function' && /^[A-Z]/.test(String(value.name ?? '')),
       );
