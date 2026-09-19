@@ -7,6 +7,7 @@ import type { CompilerReport } from '@/lib/cerulea-api';
 function buildState(overrides: Partial<BuildState['steps']> = {}): BuildState {
   return {
     version: 1,
+    disclosureLevel: 2,
     foundation: {
       projectName: 'Berth register',
       summary: '',

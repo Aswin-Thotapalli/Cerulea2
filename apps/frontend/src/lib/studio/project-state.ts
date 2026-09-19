@@ -17,6 +17,12 @@ export type ExecutionSubstrateName = 'Native' | 'WebAssembly' | 'EthereumVirtual
 
 export type BuildState = {
   version: 1;
+  /**
+   * The disclosure level the project opens at.
+   * One is the plain questions, two the outcomes, three the designer and four
+   * the Blueprint itself. Every level writes the same Blueprint.
+   */
+  disclosureLevel: 1 | 2 | 3 | 4;
   foundation: {
     projectName: string;
     summary: string;

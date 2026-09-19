@@ -959,6 +959,8 @@ export type ExecutionSubstrate = 'Native' | 'WebAssembly' | 'EthereumVirtualMach
 
 export type BuildState = {
   version: 1;
+  /** The disclosure level the project opens at. One through four. */
+  disclosureLevel: 1 | 2 | 3 | 4;
   foundation: {
     projectName: string;
     summary: string;

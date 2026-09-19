@@ -13,6 +13,7 @@ import { Alert, Box, Button, CircularProgress, Stack, Typography } from '@mui/ma
 import EntryDoors, { type EntryAnswer } from '@/components/studio/entry/EntryDoors';
 import StudioProject from '@/components/studio/steps6/StudioProject';
 import { StudioRouteError, api } from '@/lib/apiClient';
+import { defaultLevel } from '@/lib/studio/disclosure';
 import type { BuildState } from '@/lib/studio/project-state';
 
 type Props = { projectId?: string | null };
@@ -81,6 +82,10 @@ export default function StudioEntry({ projectId: initialProjectId }: Props) {
         body: JSON.stringify({
           buildState: {
             ...held.buildState,
+            disclosureLevel: defaultLevel({
+              application: held.buildState.foundation.application,
+              templateId: answer.templateId ?? '',
+            }),
             foundation: {
               ...held.buildState.foundation,
               projectName: answer.description?.slice(0, 80) || 'New system',

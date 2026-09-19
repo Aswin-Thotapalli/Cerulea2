@@ -7,12 +7,14 @@ import StudioProject, {
   finishedCount,
   nextArea,
   sequenceFinished,
+  areasForLevel,
 } from './StudioProject';
 import type { BuildState } from '@/lib/studio/project-state';
 
 function buildState(overrides: Partial<BuildState['steps']> = {}, complete = false): BuildState {
   return {
     version: 1,
+    disclosureLevel: 2,
     foundation: {
       projectName: 'Berth register',
       summary: '',
@@ -146,9 +148,10 @@ describe('the wizard', () => {
         ),
       ).toBeInTheDocument(),
     );
-    for (const area of PROJECT_AREAS) {
+    for (const area of areasForLevel(2)) {
       expect(screen.getAllByText(area.label).length).toBeGreaterThan(0);
     }
+    expect(screen.queryByText('Model')).toBeNull();
     await waitFor(() => expect(screen.getByText('Step 1 of 6')).toBeInTheDocument(), {
       timeout: 15000,
     });
@@ -185,5 +188,44 @@ describe('the workspace', () => {
     await waitFor(() => expect(screen.getByText('Step 4 of 6')).toBeInTheDocument(), {
       timeout: 15000,
     });
+  });
+});
+
+describe('the disclosure level', () => {
+  it('opens the areas the level names and holds back the rest', () => {
+    expect(areasForLevel(1).map((entry) => entry.id)).toEqual(['verify']);
+    expect(areasForLevel(2).map((entry) => entry.id)).toEqual([
+      'foundation',
+      'compose',
+      'policies',
+      'verify',
+    ]);
+    expect(areasForLevel(3).map((entry) => entry.id)).toEqual([
+      'foundation',
+      'compose',
+      'model',
+      'policies',
+      'verify',
+    ]);
+    expect(areasForLevel(4).map((entry) => entry.id)).toEqual(
+      PROJECT_AREAS.map((entry) => entry.id),
+    );
+  });
+
+  it('shows the designer areas once the project opens at level three', { timeout: 40000 }, async () => {
+    stubFetch({ ...buildState(), disclosureLevel: 3 });
+    render(<StudioProject projectId="p-1" />);
+    await waitFor(() => expect(screen.getAllByText('Model').length).toBeGreaterThan(0), {
+      timeout: 15000,
+    });
+  });
+
+  it('asks the plain questions at level one', { timeout: 40000 }, async () => {
+    stubFetch({ ...buildState(), disclosureLevel: 1 });
+    render(<StudioProject projectId="p-1" />);
+    await waitFor(() => expect(screen.getByText('A few plain questions')).toBeInTheDocument(), {
+      timeout: 15000,
+    });
+    expect(screen.queryByText('Foundation')).toBeNull();
   });
 });

@@ -27,6 +27,8 @@ import {
   Typography,
 } from '@mui/material';
 
+import LevelOneTemplate from '@/components/studio/levels/LevelOneTemplate';
+import LevelSwitch from '@/components/studio/levels/LevelSwitch';
 import Step1Foundation from './Step1Foundation';
 import Step2Compose from './Step2Compose';
 import Step3Model from './Step3Model';
@@ -35,6 +37,12 @@ import Step6Verify from './Step6Verify';
 import ReadinessChecklist from './ReadinessChecklist';
 import ExecutionSubstrate from '@/components/studio/ExecutionSubstrate';
 import { api } from '@/lib/apiClient';
+import {
+  levelOpens,
+  readLevel,
+  type DisclosureArea,
+  type DisclosureLevel,
+} from '@/lib/studio/disclosure';
 import type { BuildState } from '@/lib/studio/project-state';
 
 /** The areas a project opens with, in the order a person meets them. */
@@ -45,6 +53,11 @@ export const PROJECT_AREAS = [
   { id: 'policies', label: 'Policies', step: 4, stateKey: 'policies' as const },
   { id: 'verify', label: 'Verify', step: 6, stateKey: 'verify' as const },
 ] as const;
+
+/** The areas one disclosure level opens, in the order a person meets them. */
+export function areasForLevel(level: DisclosureLevel) {
+  return PROJECT_AREAS.filter((area) => levelOpens(level, area.id as DisclosureArea));
+}
 
 export type ProjectArea = (typeof PROJECT_AREAS)[number]['id'];
 
@@ -70,6 +83,7 @@ export default function StudioProject({ projectId }: { projectId: string }) {
   const [buildState, setBuildState] = useState<BuildState | null>(null);
   const [loading, setLoading] = useState(true);
   const [area, setArea] = useState<ProjectArea>('foundation');
+  const [level, setLevel] = useState<DisclosureLevel>(2);
   const [failure, setFailure] = useState<string | null>(null);
 
   const read = useCallback(async () => {
@@ -78,7 +92,17 @@ export default function StudioProject({ projectId }: { projectId: string }) {
         `/api/projects/${encodeURIComponent(projectId)}/build-state`,
       );
       setBuildState(held.buildState);
-      setArea(sequenceFinished(held.buildState) ? 'foundation' : nextArea(held.buildState.steps));
+      const held_level = readLevel(held.buildState.disclosureLevel);
+      setLevel(held_level);
+      const opened = sequenceFinished(held.buildState)
+        ? 'foundation'
+        : nextArea(held.buildState.steps);
+      const reachable = areasForLevel(held_level);
+      setArea(
+        reachable.some((entry) => entry.id === opened)
+          ? opened
+          : (reachable[0]?.id ?? 'verify'),
+      );
       setFailure(null);
     } catch (cause) {
       setFailure(cause instanceof Error ? cause.message : String(cause));
@@ -114,6 +138,28 @@ export default function StudioProject({ projectId }: { projectId: string }) {
     await read();
   }, [read]);
 
+  /**
+   * Moves between the four disclosure levels.
+   * The Blueprint stays exactly as it is. Only the depth Cerulea shows changes.
+   */
+  const changeLevel = useCallback(
+    (next: DisclosureLevel) => {
+      setLevel(next);
+      const reachable = areasForLevel(next);
+      setArea((held) =>
+        reachable.some((entry) => entry.id === held) ? held : (reachable[0]?.id ?? 'verify'),
+      );
+      if (!buildState) return;
+      const updated: BuildState = { ...buildState, disclosureLevel: next };
+      setBuildState(updated);
+      void api(`/api/projects/${encodeURIComponent(projectId)}/build-state`, {
+        method: 'PUT',
+        body: JSON.stringify({ buildState: updated }),
+      }).catch(() => undefined);
+    },
+    [buildState, projectId],
+  );
+
   if (loading) {
     return (
       <Box sx={{ display: 'grid', placeItems: 'center', py: 10 }}>
@@ -136,6 +182,39 @@ export default function StudioProject({ projectId }: { projectId: string }) {
     );
   }
 
+  const open = areasForLevel(level);
+
+  const header = (
+    <Paper
+      variant="outlined"
+      square
+      sx={{ px: 4, py: 2, borderTop: 0, borderLeft: 0, borderRight: 0 }}
+    >
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+        <Typography variant="h6" sx={{ fontWeight: 800 }}>
+          {buildState.foundation.projectName || 'This project'}
+        </Typography>
+        {finished && <Chip size="small" label="Open any area directly" />}
+      </Stack>
+      <LevelSwitch level={level} onLevelChange={changeLevel} />
+    </Paper>
+  );
+
+  if (level === 1) {
+    return (
+      <Box>
+        {header}
+        {buildState.steps.compose && (
+          <Box sx={{ px: 4, pt: 3 }}>
+            <ReadinessChecklist projectId={projectId} buildState={buildState} />
+          </Box>
+        )}
+        <LevelOneTemplate projectId={projectId} onBuilt={() => void advance()} />
+        {buildState.steps.compose && <Step6Verify projectId={projectId} />}
+      </Box>
+    );
+  }
+
   const surface =
     area === 'foundation' ? (
       <Step1Foundation projectId={projectId} onContinue={advance} />
@@ -152,19 +231,26 @@ export default function StudioProject({ projectId }: { projectId: string }) {
   if (finished) {
     return (
       <Box>
-        <Paper variant="outlined" square sx={{ px: 4, pt: 2, borderTop: 0, borderLeft: 0, borderRight: 0 }}>
+        <Paper
+          variant="outlined"
+          square
+          sx={{ px: 4, pt: 2, borderTop: 0, borderLeft: 0, borderRight: 0 }}
+        >
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Typography variant="h6" sx={{ fontWeight: 800 }}>
               {buildState.foundation.projectName || 'This project'}
             </Typography>
             <Chip size="small" label="Open any area directly" />
           </Stack>
+          <Box sx={{ py: 1.5 }}>
+            <LevelSwitch level={level} onLevelChange={changeLevel} />
+          </Box>
           <Tabs
             value={area}
             onChange={(_event, next) => setArea(next as ProjectArea)}
             variant="scrollable"
           >
-            {PROJECT_AREAS.map((entry) => (
+            {open.map((entry) => (
               <Tab key={entry.id} value={entry.id} label={entry.label} />
             ))}
             <Tab value="substrate" label="Where it runs" />
@@ -182,7 +268,7 @@ export default function StudioProject({ projectId }: { projectId: string }) {
     );
   }
 
-  const activeIndex = PROJECT_AREAS.findIndex((entry) => entry.id === area);
+  const activeIndex = open.findIndex((entry) => entry.id === area);
 
   return (
     <Box>
@@ -194,8 +280,11 @@ export default function StudioProject({ projectId }: { projectId: string }) {
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
           We run these steps once. The project then opens as a workspace with direct navigation.
         </Typography>
+        <Box sx={{ mb: 2 }}>
+          <LevelSwitch level={level} onLevelChange={changeLevel} />
+        </Box>
         <Stepper nonLinear activeStep={activeIndex} alternativeLabel>
-          {PROJECT_AREAS.map((entry) => (
+          {open.map((entry) => (
             <Step key={entry.id} completed={buildState.steps[entry.stateKey]}>
               <StepButton onClick={() => setArea(entry.id)}>{entry.label}</StepButton>
             </Step>
