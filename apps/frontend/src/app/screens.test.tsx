@@ -128,8 +128,8 @@ const pieces = import.meta.glob([
 ]);
 
 async function renderModule(load: () => Promise<unknown>, name: string): Promise<void> {
-  const module = (await load()) as { default?: unknown };
-  const Screen = module.default;
+  const loaded = (await load()) as { default?: unknown };
+  const Screen = loaded.default;
   expect(typeof Screen, `${name} exports no component`).toBe('function');
   const props = { params: { slug: 'suite', id: 'prj_suite' }, searchParams: { token: 'suite' } };
   // A screen the server renders is an async function. Cerulea awaits it and
@@ -169,8 +169,8 @@ describe('every Studio screen renders', () => {
 describe('every piece a screen leans on renders', () => {
   for (const [path, load] of Object.entries(pieces)) {
     it(`renders ${path}`, async () => {
-      const module = (await load()) as Record<string, unknown>;
-      const exported = Object.entries(module).filter(
+      const loaded = (await load()) as Record<string, unknown>;
+      const exported = Object.entries(loaded).filter(
         ([, value]) => typeof value === 'function' && /^[A-Z]/.test(String(value.name ?? '')),
       );
       expect(exported.length, `${path} exports no component`).toBeGreaterThan(0);

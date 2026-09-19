@@ -80,11 +80,7 @@ function ceruleaAnswer(): Record<string, unknown> {
   return {
     account: { accountId: actor.accountId, state: 'open', multiFactorActive: true },
     enrolment: { secret: 'JBSWY3DPEHPK3PXP', uri: 'otpauth://totp/cerulea', recoveryCodes: [] },
-    session: {
-      accessToken: actor.accessToken,
-      refreshToken: 'ref',
-      expiresAt: new Date().toISOString(),
-    },
+    session: { accessToken: actor.accessToken, refreshToken: 'ref', expiresAt: new Date().toISOString() },
     workspace: { workspaceId: 'wsp_suite', name: 'Suite', application: 'government' },
     workspaces: empty,
     project: { projectId: 'prj_suite', name: 'Suite project' },
@@ -167,18 +163,16 @@ beforeEach(() => {
   signedIn = true;
   vi.stubGlobal(
     'fetch',
-    vi.fn(
-      async () =>
-        new Response(JSON.stringify(ceruleaAnswer()), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        }),
+    vi.fn(async () =>
+      new Response(JSON.stringify(ceruleaAnswer()), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
     ),
   );
   process.env.NEXTAUTH_SECRET = 'cerulea-route-handler-suite';
   process.env.CERULEA_API_URL = process.env.CERULEA_API_URL ?? 'http://127.0.0.1:8080';
-  process.env.NEXT_PUBLIC_CERULEA_APIS =
-    process.env.NEXT_PUBLIC_CERULEA_APIS ?? 'http://127.0.0.1:8080';
+  process.env.NEXT_PUBLIC_CERULEA_APIS = process.env.NEXT_PUBLIC_CERULEA_APIS ?? 'http://127.0.0.1:8080';
 });
 
 afterEach(() => {
@@ -193,9 +187,7 @@ const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
 /** A request the handler reads, with a body every schema accepts a shape from. */
 function requestFor(method: string, path: string): NextRequest {
-  const address = `http://127.0.0.1:3000/api/${path
-    .replace('./', '')
-    .replace('/route.ts', '')}?limit=10&cursor=0`;
+  const address = `http://127.0.0.1:3000/api/${path.replace('./', '').replace('/route.ts', '')}?limit=10&cursor=0`;
   if (method === 'GET' || method === 'DELETE') {
     return new NextRequest(address, { method });
   }
@@ -235,7 +227,7 @@ function paramsFor(path: string): { params: Record<string, string> } {
   for (const piece of path.split('/')) {
     const dynamic = /^\[(\.\.\.)?([^\]]+)\]$/.exec(piece);
     if (dynamic !== null) {
-      params[dynamic[2] ?? 'value'] = 'suite';
+      params[dynamic[2] ?? 'value'] = dynamic[1] === undefined ? 'suite' : 'suite';
     }
   }
   return { params };
@@ -248,12 +240,12 @@ describe('every Studio route handler answers', () => {
 
   for (const [path, load] of Object.entries(handlers)) {
     it(`answers every method of ${path}`, async () => {
-      const module = (await load()) as Record<string, unknown>;
-      const exported = methods.filter((method) => typeof module[method] === 'function');
+      const loaded = (await load()) as Record<string, unknown>;
+      const exported = methods.filter((method) => typeof loaded[method] === 'function');
       expect(exported.length, `${path} exports no method`).toBeGreaterThan(0);
 
       for (const method of exported) {
-        const handler = module[method] as (
+        const handler = loaded[method] as (
           request: NextRequest,
           context: { params: Record<string, string> },
         ) => Promise<Response>;
@@ -262,9 +254,10 @@ describe('every Studio route handler answers', () => {
         signedIn = true;
         const answered = await handler(requestFor(method, path), paramsFor(path));
         expect(answered, `${method} ${path} returned nothing`).toBeInstanceOf(Response);
-        expect(answered.status, `${method} ${path} ended with ${answered.status}`).toBeLessThan(
-          500,
-        );
+        expect(
+          answered.status,
+          `${method} ${path} ended with ${answered.status}`,
+        ).toBeLessThan(500);
 
         // The signed out pass.
         signedIn = false;
@@ -286,29 +279,28 @@ describe('a route handler meeting a refusal from Cerulea APIs', () => {
   it('passes the refusal on rather than raising an internal error', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(
-        async () =>
-          new Response(
-            JSON.stringify({
-              error: {
-                code: 'request.rejected',
-                message: 'Cerulea rejected the request.',
-                fix: 'Correct the request and send it again.',
-                details: {},
-              },
-            }),
-            { status: 400, headers: { 'content-type': 'application/json' } },
-          ),
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              code: 'request.rejected',
+              message: 'Cerulea rejected the request.',
+              fix: 'Correct the request and send it again.',
+              details: {},
+            },
+          }),
+          { status: 400, headers: { 'content-type': 'application/json' } },
+        ),
       ),
     );
     let checked = 0;
     for (const [path, load] of Object.entries(handlers)) {
-      const module = (await load()) as Record<string, unknown>;
+      const loaded = (await load()) as Record<string, unknown>;
       for (const method of methods) {
-        if (typeof module[method] !== 'function') {
+        if (typeof loaded[method] !== 'function') {
           continue;
         }
-        const handler = module[method] as (
+        const handler = loaded[method] as (
           request: NextRequest,
           context: { params: Record<string, string> },
         ) => Promise<Response>;
@@ -331,12 +323,12 @@ describe('a route handler meeting a refusal from Cerulea APIs', () => {
     );
     let checked = 0;
     for (const [path, load] of Object.entries(handlers)) {
-      const module = (await load()) as Record<string, unknown>;
+      const loaded = (await load()) as Record<string, unknown>;
       for (const method of methods) {
-        if (typeof module[method] !== 'function') {
+        if (typeof loaded[method] !== 'function') {
           continue;
         }
-        const handler = module[method] as (
+        const handler = loaded[method] as (
           request: NextRequest,
           context: { params: Record<string, string> },
         ) => Promise<Response>;
