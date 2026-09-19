@@ -21,11 +21,13 @@ import {
 } from '@mui/material';
 
 import EntityEditor from './model/EntityEditor';
+import PermissionMatrix from './model/PermissionMatrix';
 import { useProjectState, type BuildState } from '@/lib/studio/project-state';
 import type { Blueprint } from '@/lib/blueprint/types';
 
 export const MODEL_SURFACES = [
   { id: 'entities', label: 'Records', note: 'What the system keeps.' },
+  { id: 'permissions', label: 'Permissions', note: 'Who reaches what.' },
 ] as const;
 
 export type ModelSurface = (typeof MODEL_SURFACES)[number]['id'];
@@ -58,7 +60,7 @@ export default function Step3Model({
       ...state.buildState,
       steps: {
         ...state.buildState.steps,
-        model: draft.collections.length > 0,
+        model: draft.collections.length > 0 && draft.permissions.length > 0,
       },
     };
     await handle.saveBuildState(next);
@@ -113,6 +115,7 @@ export default function Step3Model({
       </Tabs>
 
       {tab === 'entities' && <EntityEditor blueprint={draft} onChange={setDraft} />}
+      {tab === 'permissions' && <PermissionMatrix blueprint={draft} onChange={setDraft} />}
 
       <Box sx={{ mt: 4 }}>
         <Button

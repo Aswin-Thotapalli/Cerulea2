@@ -66,12 +66,20 @@ export function readIntegrations(document: unknown): Integrations {
   };
 }
 
-/** The identities section, with every list present. */
+/** The role every deployment starts with, so no permission screen opens empty. */
+export const OWNER_ROLE = { id: 'owner', name: 'Owner', credentials: [] };
+
+/**
+ * The identities section, with every list present.
+ * A Blueprint carrying no role gets the owner role, since a deployment with no
+ * role reaches nothing at all.
+ */
 export function readIdentities(document: unknown): Identities {
   const held = record(record(document).identities);
+  const roles = list<Identities['roles'][number]>(held.roles);
   return {
     units: list(held.units),
-    roles: list(held.roles),
+    roles: roles.length > 0 ? roles : [{ ...OWNER_ROLE }],
     credentials: list(held.credentials),
     delegations: list(held.delegations),
   };

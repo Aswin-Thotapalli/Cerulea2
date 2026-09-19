@@ -67,6 +67,12 @@ describe('reading a Blueprint', () => {
     expect(counts.actions).toBe(0);
   });
 
+  it('gives a Blueprint with no role the owner role', () => {
+    expect(readBlueprintDocument({}).identities.roles).toEqual([
+      { id: 'owner', name: 'Owner', credentials: [] },
+    ]);
+  });
+
   it('reads a whole Blueprint with every section present', () => {
     const whole = readBlueprintDocument({});
     expect(whole.schema_version).toBe(BLUEPRINT_SCHEMA_VERSION);
