@@ -10,7 +10,7 @@
 // picker draws the link between one part and another, offering valid pairs.
 // Without a rule a system accepts every value it is given.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   AlertTitle,
@@ -25,6 +25,7 @@ import {
   Typography,
 } from '@mui/material';
 
+import FormulaBar from './FormulaBar';
 import TriggersPicker from '@/components/studio/map/TriggersPicker';
 import { SEED_MODULES, SEED_TEMPLATES } from '@/lib/catalogue/seed';
 import { buildRelationCatalogue } from '@/lib/map/relations';
@@ -37,6 +38,7 @@ import {
   removeAction,
   removeRule,
 } from '@/lib/blueprint/edit';
+import { readAndCheck, scopeForCollection, writeFormula } from '@/lib/blueprint/formula';
 import { TRANSACTION_CLASSES, type Blueprint, type Effect, type TransactionClass } from '@/lib/blueprint/types';
 
 
@@ -205,7 +207,8 @@ export default function LogicEditor({
         </Typography>
         <Stack spacing={2}>
           {blueprint.rules.map((rule) => (
-            <Stack key={rule.id} direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            <Stack key={rule.id} spacing={2}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
               <TextField
                 size="small"
                 label="What this rule holds"
@@ -247,6 +250,8 @@ export default function LogicEditor({
                   Remove
                 </Button>
               </Box>
+            </Stack>
+            <RuleFormula blueprint={blueprint} rule={rule} onChange={onChange} />
             </Stack>
           ))}
           {blueprint.rules.length === 0 && (
@@ -478,5 +483,49 @@ export default function LogicEditor({
         </Paper>
       )}
     </Stack>
+  );
+}
+
+/**
+ * The formula bar beside one rule.
+ * The bar reads the expression the rule already holds, checks every type as a
+ * person types and writes the expression back when the reading is clean.
+ */
+export function RuleFormula({
+  blueprint,
+  rule,
+  onChange,
+}: {
+  blueprint: Blueprint;
+  rule: Blueprint['rules'][number];
+  onChange: (next: Blueprint) => void;
+}) {
+  const collectionId = rule.collections[0] ?? blueprint.collections[0]?.id ?? '';
+  const scope = useMemo(
+    () => scopeForCollection(blueprint, collectionId),
+    [blueprint, collectionId],
+  );
+  const [text, setText] = useState(() => writeFormula(rule.expression));
+
+  useEffect(() => {
+    setText(writeFormula(rule.expression));
+  }, [rule.expression]);
+
+  const change = (next: string) => {
+    setText(next);
+    const reading = readAndCheck(next, scope);
+    if (reading.expression && reading.fault === undefined) {
+      onChange(putRule(blueprint, { ...rule, expression: reading.expression }));
+    }
+  };
+
+  return (
+    <FormulaBar
+      label={`The formula behind ${rule.id}`}
+      plain="Cerulea checks this formula against the record while you type. A rule with a broken formula stops the whole Blueprint from compiling."
+      scope={scope}
+      value={text}
+      onChange={change}
+    />
   );
 }
