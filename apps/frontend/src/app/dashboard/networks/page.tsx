@@ -1,243 +1,269 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+// apps/frontend/src/app/dashboard/networks/page.tsx
+// The Networks panel.
+// Every value here comes from the node through Cerulea APIs. The height, the
+// peer count, the finality distance and the measured throughput are read from
+// the Blockchain itself.
+// Without this panel an operator cannot tell whether the network is serving.
+
 import {
-  Box, Typography, Paper, Stack, Chip, Button,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  CircularProgress,
+  Box,
+  Chip,
+  Divider,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Typography,
 } from '@mui/material';
-import Grid from '@mui/material/GridLegacy';
-import { alpha, useTheme } from '@mui/material/styles';
-import { useSession } from 'next-auth/react';
-import AddIcon from '@mui/icons-material/Add';
-import MemoryIcon from '@mui/icons-material/Memory';
-import StorageIcon from '@mui/icons-material/Storage';
-import SpeedIcon from '@mui/icons-material/Speed';
-import HubIcon from '@mui/icons-material/Hub';
-import NetworkCheckIcon from '@mui/icons-material/NetworkCheck';
 
-type Network = {
-  id: string;
-  name: string;
-  type: 'L1' | 'dApp';
-  status: 'live' | 'deploying' | 'paused';
-  blockHeight: number;
-  tps: number;
-  lastBlock: string;
-  region: string;
-  consensusHealth: number;
+import {
+  PanelBody,
+  PanelEmpty,
+  usePanelData,
+} from '@/components/dashboard/PanelState';
+
+type NetworkView = {
+  network: {
+    node: {
+      systemName: string;
+      systemVersion: string;
+      chainName: string;
+      kind: 'local' | 'live';
+      peers: number;
+      isSyncing: boolean;
+      shouldHavePeers: boolean;
+      observedAt: string;
+    };
+    head: { number: number; hash: string; author?: string; producedAt: string };
+    finalizedBlock: number;
+    finalityLag: number;
+    epoch: number;
+    round: number;
+    validatorSetId: number;
+    activeValidators: number;
+    totalValidators: number;
+    consensusHealth: 'Healthy' | 'Degraded' | 'Critical';
+    healthy: boolean;
+    issues: string[];
+  };
+  measurement: {
+    sampledBlocks: number;
+    meanBlockSeconds: number;
+    transactions: number;
+    transactionsPerSecond: number;
+    firstBlock: number;
+    lastBlock: number;
+    measuredAt: string;
+  };
+  deployments: {
+    deploymentId: string;
+    status: string;
+    projectId: string;
+    projectName: string;
+    workspaceName: string;
+  }[];
 };
 
-const TEST_NETWORKS: Network[] = [
-  { id: 'net-001', name: 'CeruleaChain Mainnet', type: 'L1', status: 'live', blockHeight: 4_182_034, tps: 142, lastBlock: '2 sec ago', region: 'us-east-1', consensusHealth: 99.8 },
-  { id: 'net-002', name: 'VoteApp Devnet', type: 'dApp', status: 'live', blockHeight: 98_201, tps: 8, lastBlock: '11 sec ago', region: 'eu-west-1', consensusHealth: 100 },
-  { id: 'net-003', name: 'SupplyChain Staging', type: 'dApp', status: 'deploying', blockHeight: 0, tps: 0, lastBlock: 'N/A', region: 'ap-southeast-1', consensusHealth: 0 },
-  { id: 'net-004', name: 'TradeFi Private L1', type: 'L1', status: 'live', blockHeight: 1_045_892, tps: 67, lastBlock: '5 sec ago', region: 'eu-central-1', consensusHealth: 98.4 },
-  { id: 'net-005', name: 'NFT Marketplace Chain', type: 'dApp', status: 'live', blockHeight: 312_801, tps: 23, lastBlock: '8 sec ago', region: 'us-west-2', consensusHealth: 99.1 },
-  { id: 'net-006', name: 'CBDC Pilot Network', type: 'L1', status: 'paused', blockHeight: 78_100, tps: 0, lastBlock: '3 days ago', region: 'ap-northeast-1', consensusHealth: 0 },
-];
-
-const STATUS_COLOR: Record<string, 'success' | 'warning' | 'default'> = {
-  live: 'success',
-  deploying: 'warning',
-  paused: 'default',
-};
-
-function MetricCard({ label, value, unit, icon, color }: {
-  label: string; value: string | number; unit?: string; icon: React.ReactNode; color: string;
+function Figure({
+  label,
+  value,
+  explanation,
+}: {
+  label: string;
+  value: string;
+  explanation: string;
 }) {
-  const theme = useTheme();
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, background: alpha(color, 0.05), borderColor: alpha(color, 0.2) }}>
-      <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
-        <Box>
-          <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ letterSpacing: 0.5 }}>
-            {label.toUpperCase()}
-          </Typography>
-          <Stack direction="row" alignItems="baseline" spacing={0.5} mt={0.5}>
-            <Typography variant="h4" fontWeight={900} sx={{ color }}>{value}</Typography>
-            {unit && <Typography variant="caption" color="text.secondary" fontWeight={600}>{unit}</Typography>}
-          </Stack>
-        </Box>
-        <Box sx={{ color, opacity: 0.6 }}>{icon}</Box>
-      </Stack>
+    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, flex: 1, minWidth: 220 }}>
+      <Typography variant="overline" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography variant="h5" sx={{ fontWeight: 800 }}>
+        {value}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        {explanation}
+      </Typography>
     </Paper>
   );
 }
 
-type Project = { id: string; name: string; projectType: string; status: string };
-
-export default function NetworksPage() {
-  const theme = useTheme();
-  const { data: session } = useSession();
-  const [networks, setNetworks] = useState<Network[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const isTestAccount = session?.user?.email === 'test@cerulea.app';
-
-  useEffect(() => {
-    if (!session) return;
-    if (isTestAccount) {
-      setNetworks(TEST_NETWORKS);
-      setLoading(false);
-      return;
-    }
-    // For regular users: derive networks from their deployed projects
-    (async () => {
-      try {
-        const res = await fetch('/api/projects');
-        if (!res.ok) { setLoading(false); return; }
-        const j = await res.json();
-        const userProjects: Project[] = j.projects || [];
-        const derived: Network[] = userProjects
-          .filter((p) => p.status === 'active' || p.status === 'deploying')
-          .map((p, i) => ({
-            id: `net-${p.id}`,
-            name: p.name,
-            type: p.projectType === 'blockchain' ? 'L1' : 'dApp',
-            status: p.status === 'active' ? 'live' : 'deploying',
-            blockHeight: p.status === 'active' ? Math.floor(Math.random() * 100_000) + 1000 : 0,
-            tps: p.status === 'active' ? Math.floor(Math.random() * 30) + 1 : 0,
-            lastBlock: p.status === 'active' ? `${i * 3 + 2} sec ago` : 'N/A',
-            region: ['us-east-1', 'eu-west-1', 'ap-southeast-1'][i % 3],
-            consensusHealth: p.status === 'active' ? 99.0 + Math.random() * 0.9 : 0,
-          }));
-        setNetworks(derived);
-      } catch {
-        // silent
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [session, isTestAccount]);
-
-  const liveNets = networks.filter((n) => n.status === 'live');
-  const totalTPS = liveNets.reduce((s, n) => s + n.tps, 0);
-  const avgConsensus = liveNets.length > 0
-    ? (liveNets.reduce((s, n) => s + n.consensusHealth, 0) / liveNets.length).toFixed(1)
-    : 'N/A';
+export default function NetworksPanel() {
+  const reading = usePanelData<NetworkView>('/api/dashboard/networks', 10000);
 
   return (
-    <Box sx={{ p: 4, maxWidth: 1200 }}>
-      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={4}>
-        <Box>
-          <Typography variant="h4" fontWeight={900} gutterBottom>Networks / Fleet</Typography>
-          <Typography variant="body1" color="text.secondary">
-            Monitor deployed blockchain networks and their real-time telemetry.
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          sx={{ borderRadius: 999, fontWeight: 700 }}
-          onClick={() => {
-            const isLocal = window.location.hostname.includes('localhost');
-            window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
-          }}
-        >
-          Deploy New Network
-        </Button>
-      </Stack>
+    <Box sx={{ p: 4 }}>
+      <Typography variant="h4" sx={{ fontWeight: 900, mb: 1 }}>
+        Networks
+      </Typography>
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+        We read the running Blockchain here. Every figure below comes from the node.
+      </Typography>
 
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress />
-        </Box>
-      ) : networks.length === 0 ? (
-        <Paper variant="outlined" sx={{ borderRadius: 3, py: 10, textAlign: 'center', borderStyle: 'dashed' }}>
-          <NetworkCheckIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-          <Typography variant="body1" color="text.secondary" gutterBottom>No deployed networks yet.</Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            sx={{ mt: 1, borderRadius: 999 }}
-            onClick={() => {
-              const isLocal = window.location.hostname.includes('localhost');
-              window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
-            }}
-          >
-            Deploy Your First Network
-          </Button>
-        </Paper>
-      ) : (
-        <>
-          <Grid container spacing={2.5} mb={4}>
-            <Grid xs={12} sm={6} md={3}>
-              <MetricCard label="Live Networks" value={liveNets.length} icon={<NetworkCheckIcon sx={{ fontSize: 32 }} />} color={theme.palette.success.main} />
-            </Grid>
-            <Grid xs={12} sm={6} md={3}>
-              <MetricCard label="Total Networks" value={networks.length} icon={<HubIcon sx={{ fontSize: 32 }} />} color={theme.palette.primary.main} />
-            </Grid>
-            <Grid xs={12} sm={6} md={3}>
-              <MetricCard label="Combined TPS" value={totalTPS} unit="tx/s" icon={<SpeedIcon sx={{ fontSize: 32 }} />} color={theme.palette.warning.main} />
-            </Grid>
-            <Grid xs={12} sm={6} md={3}>
-              <MetricCard label="Consensus Health" value={avgConsensus} unit="%" icon={<MemoryIcon sx={{ fontSize: 32 }} />} color={theme.palette.secondary.main} />
-            </Grid>
-          </Grid>
+      <PanelBody reading={reading} subject="the running Blockchain">
+        {(view) => (
+          <Stack spacing={4}>
+            <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+              <Figure
+                label="Newest block"
+                value={String(view.network.head.number)}
+                explanation="The height the node has reached. A rising height means the network is producing blocks."
+              />
+              <Figure
+                label="Irreversible height"
+                value={String(view.network.finalizedBlock)}
+                explanation={`Blocks to this height cannot be undone. The newest block sits ${view.network.finalityLag} above it.`}
+              />
+              <Figure
+                label="Validators serving"
+                value={`${view.network.activeValidators} of ${view.network.totalValidators}`}
+                explanation="Validators taking part in agreement now. Agreement stops when too few remain."
+              />
+              <Figure
+                label="Peers"
+                value={String(view.network.node.peers)}
+                explanation={
+                  view.network.node.shouldHavePeers
+                    ? 'Other nodes this node is joined to. A count of zero isolates the node.'
+                    : 'This node runs alone by design, so a count of zero is expected.'
+                }
+              />
+            </Stack>
 
-          <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden' }}>
-            <Box sx={{ px: 3, py: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
-              <Typography variant="h6" fontWeight={800}>Deployed Networks</Typography>
-            </Box>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    {['Network', 'Type', 'Status', 'Block Height', 'TPS', 'Consensus', 'Last Block', 'Region', ''].map((h) => (
-                      <TableCell key={h} sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', letterSpacing: 0.5 }}>
-                        {h.toUpperCase()}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {networks.map((net) => (
-                    <TableRow key={net.id} sx={{ '&:hover': { bgcolor: alpha(theme.palette.action.hover, 0.5) } }}>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={700}>{net.name}</Typography>
-                        <Typography variant="caption" color="text.secondary">{net.id}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip label={net.type} size="small" variant="outlined" sx={{ fontWeight: 700, fontSize: '0.7rem', borderColor: alpha(theme.palette.primary.main, 0.4), color: 'primary.main' }} />
-                      </TableCell>
-                      <TableCell>
-                        <Chip label={net.status} size="small" color={STATUS_COLOR[net.status]} variant="filled" sx={{ fontWeight: 700, fontSize: '0.7rem', textTransform: 'capitalize' }} />
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={600}>
-                          {net.blockHeight > 0 ? net.blockHeight.toLocaleString() : 'N/A'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={600}>
-                          {net.tps > 0 ? `${net.tps} tx/s` : 'N/A'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color={net.consensusHealth >= 99 ? 'success.main' : net.consensusHealth >= 90 ? 'warning.main' : 'error.main'} fontWeight={600}>
-                          {net.consensusHealth > 0 ? `${net.consensusHealth.toFixed(1)}%` : 'N/A'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">{net.lastBlock}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">{net.region}</Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Button size="small" variant="outlined" sx={{ borderRadius: 999, fontSize: '0.7rem' }} disabled={net.status !== 'live'}>
-                          View
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{ mb: 2 }}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                  {view.network.node.chainName}
+                </Typography>
+                <Stack direction="row" spacing={1}>
+                  <Chip
+                    size="small"
+                    label={view.network.healthy ? 'Serving' : 'Needs attention'}
+                    color={view.network.healthy ? 'success' : 'warning'}
+                  />
+                  <Chip size="small" label={`Agreement ${view.network.consensusHealth}`} />
+                  <Chip
+                    size="small"
+                    label={view.network.node.isSyncing ? 'Catching up' : 'In step'}
+                  />
+                </Stack>
+              </Stack>
+              <Divider sx={{ mb: 2 }} />
+              <Stack direction="row" spacing={4} flexWrap="wrap" useFlexGap>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Node software
+                  </Typography>
+                  <Typography variant="body2">
+                    {view.network.node.systemName} {view.network.node.systemVersion}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Epoch and round
+                  </Typography>
+                  <Typography variant="body2">
+                    Epoch {view.network.epoch}, round {view.network.round}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Validator set
+                  </Typography>
+                  <Typography variant="body2">Set {view.network.validatorSetId}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Read at
+                  </Typography>
+                  <Typography variant="body2">
+                    {new Date(view.network.node.observedAt).toLocaleTimeString()}
+                  </Typography>
+                </Box>
+              </Stack>
+              {view.network.issues.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle2">Open items</Typography>
+                  {view.network.issues.map((issue) => (
+                    <Typography key={issue} variant="body2" color="text.secondary">
+                      {issue}
+                    </Typography>
                   ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        </>
-      )}
+                </Box>
+              )}
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+                Measured behaviour
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                We measured blocks {view.measurement.firstBlock} to {view.measurement.lastBlock}.
+                Every figure below comes from those blocks.
+              </Typography>
+              <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                <Figure
+                  label="Transactions each second"
+                  value={view.measurement.transactionsPerSecond.toFixed(2)}
+                  explanation={`Across ${view.measurement.sampledBlocks} blocks carrying ${view.measurement.transactions} transactions.`}
+                />
+                <Figure
+                  label="Seconds between blocks"
+                  value={view.measurement.meanBlockSeconds.toFixed(2)}
+                  explanation="The mean gap across the sample. A widening gap slows every confirmation."
+                />
+              </Stack>
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>
+                Deployments on this network
+              </Typography>
+              {view.deployments.length === 0 ? (
+                <PanelEmpty
+                  heading="No system is deployed yet"
+                  explanation="Finish a project in Studio and deploy it. The deployment appears here with its stages."
+                />
+              ) : (
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Project</TableCell>
+                      <TableCell>Workspace</TableCell>
+                      <TableCell>State</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {view.deployments.map((entry) => (
+                      <TableRow key={entry.deploymentId}>
+                        <TableCell>{entry.projectName}</TableCell>
+                        <TableCell>{entry.workspaceName}</TableCell>
+                        <TableCell>
+                          <Chip
+                            size="small"
+                            label={entry.status.replace('_', ' ')}
+                            color={entry.status === 'succeeded' ? 'success' : 'default'}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </Paper>
+          </Stack>
+        )}
+      </PanelBody>
     </Box>
   );
 }

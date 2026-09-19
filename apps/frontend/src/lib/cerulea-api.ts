@@ -635,6 +635,57 @@ export function readChainRecord(
   );
 }
 
+export type ChainNetwork = {
+  node: {
+    systemName: string;
+    systemVersion: string;
+    chainName: string;
+    kind: 'local' | 'live';
+    peers: number;
+    isSyncing: boolean;
+    shouldHavePeers: boolean;
+    observedAt: string;
+  };
+  head: ChainHeader;
+  finalizedBlock: number;
+  finalityLag: number;
+  epoch: number;
+  round: number;
+  validatorSetId: number;
+  activeValidators: number;
+  totalValidators: number;
+  consensusHealth: 'Healthy' | 'Degraded' | 'Critical';
+  healthy: boolean;
+  issues: string[];
+};
+
+export type ChainMeasurement = {
+  sampledBlocks: number;
+  meanBlockSeconds: number;
+  transactions: number;
+  transactionsPerSecond: number;
+  firstBlock: number;
+  lastBlock: number;
+  measuredAt: string;
+};
+
+/** Reads the node, the head and the agreement state in one call. */
+export function readChainNetwork(options: CeruleaApiOptions = {}): Promise<ChainNetwork> {
+  return ceruleaRequest('/studio/chain/network', { method: 'GET' }, options);
+}
+
+/** Measures the recent behaviour of the Blockchain from the blocks themselves. */
+export function readChainMeasurement(
+  blocks?: number,
+  options: CeruleaApiOptions = {},
+): Promise<ChainMeasurement> {
+  return ceruleaRequest(
+    `/studio/chain/measurement${query({ blocks })}`,
+    { method: 'GET' },
+    options,
+  );
+}
+
 /* The compiler ------------------------------------------------------ */
 
 export type CompilerEntry = {
