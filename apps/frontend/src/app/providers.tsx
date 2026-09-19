@@ -5,6 +5,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { createContext, useState, useMemo, ReactNode, useContext } from 'react';
 import { SessionProvider } from 'next-auth/react';
 import { finalLightTheme, finalDarkTheme } from '@/theme/theme';
+import { MessagesProvider } from '@/lib/messages/MessagesProvider';
 
 export const ThemeContext = createContext({
   toggleTheme: () => {},
@@ -31,7 +32,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <ThemeContext.Provider value={themeToggle}>
         <ThemeProvider theme={theme}>
           <CssBaseline />
-          {children}
+          <MessagesProvider>{children}</MessagesProvider>
         </ThemeProvider>
       </ThemeContext.Provider>
     </SessionProvider>

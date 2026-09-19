@@ -31,6 +31,7 @@ import DeploymentManifestPanel from '@/components/studio/manifest/DeploymentMani
 import LevelFourBlueprint from '@/components/studio/levels/LevelFourBlueprint';
 import LevelOneTemplate from '@/components/studio/levels/LevelOneTemplate';
 import LevelTwoOutcomes from '@/components/studio/levels/LevelTwoOutcomes';
+import LanguageSwitch from '@/components/studio/common/LanguageSwitch';
 import LevelSwitch from '@/components/studio/levels/LevelSwitch';
 import Step1Foundation from './Step1Foundation';
 import Step3Model from './Step3Model';
@@ -232,7 +233,10 @@ export default function StudioProject({ projectId }: { projectId: string }) {
         </Typography>
         {finished && <Chip size="small" label="Open any area directly" />}
       </Stack>
-      <LevelSwitch level={level} onLevelChange={changeLevel} />
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems="flex-start">
+        <LevelSwitch level={level} onLevelChange={changeLevel} />
+        <LanguageSwitch dense />
+      </Stack>
     </Paper>
   );
 
