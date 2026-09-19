@@ -28,9 +28,9 @@ import {
 } from '@mui/material';
 
 import LevelOneTemplate from '@/components/studio/levels/LevelOneTemplate';
+import LevelTwoOutcomes from '@/components/studio/levels/LevelTwoOutcomes';
 import LevelSwitch from '@/components/studio/levels/LevelSwitch';
 import Step1Foundation from './Step1Foundation';
-import Step2Compose from './Step2Compose';
 import Step3Model from './Step3Model';
 import Step4Policies from './Step4Policies';
 import Step6Verify from './Step6Verify';
@@ -219,7 +219,7 @@ export default function StudioProject({ projectId }: { projectId: string }) {
     area === 'foundation' ? (
       <Step1Foundation projectId={projectId} onContinue={advance} />
     ) : area === 'compose' ? (
-      <Step2Compose projectId={projectId} onContinue={advance} />
+      <LevelTwoOutcomes projectId={projectId} buildState={buildState} onContinue={advance} />
     ) : area === 'model' ? (
       <Step3Model projectId={projectId} onContinue={advance} />
     ) : area === 'policies' ? (

@@ -29,6 +29,7 @@ import { SEED_MODULES } from '@/lib/catalogue/seed';
 import { detectConflicts } from '@/lib/outcomes/conflicts';
 import { deriveOutcomes } from '@/lib/outcomes/catalogue';
 import { resolveFromModules } from '@/lib/outcomes/resolve';
+import { openingSelection } from '@/lib/outcomes/reflect';
 import { applyComposition, composeSections } from '@/lib/blueprint/compose';
 import { useProjectState, type BuildState } from '@/lib/studio/project-state';
 import type { MapLink } from '@/lib/map/links';
@@ -48,7 +49,7 @@ export default function Step2Compose({
   useEffect(() => {
     const state = handle.state;
     if (!state) return;
-    setSelected(state.buildState.compose.outcomeIds);
+    setSelected(openingSelection(state.buildState.compose, SEED_MODULES));
     setRemoved(state.buildState.compose.removedModuleIds);
   }, [handle.state]);
 
