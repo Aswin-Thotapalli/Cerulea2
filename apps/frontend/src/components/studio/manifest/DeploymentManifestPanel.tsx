@@ -16,6 +16,7 @@ import ManifestSummary from './ManifestSummary';
 import ManifestAtomic from './ManifestAtomic';
 import ManifestComparisonView from './ManifestComparison';
 import IntentReconciliation from './IntentReconciliation';
+import RecommendationGaps from './RecommendationGaps';
 import type { ManifestView } from '@/lib/manifest/types';
 
 /** The three views, each with the sentence stating what it serves. */
@@ -41,12 +42,15 @@ export default function DeploymentManifestPanel({
   projectId,
   statement = '',
   outcomeNames = [],
+  moduleIds = [],
   onOpenScreen,
 }: {
   projectId: string;
   /** The plain-language goal the person stated at the entry door. */
   statement?: string;
   outcomeNames?: string[];
+  /** The parts this deployment installs. */
+  moduleIds?: string[];
   onOpenScreen?: (screen: string) => void;
 }) {
   const [view, setView] = useState<ManifestView>('summary');
@@ -72,6 +76,7 @@ export default function DeploymentManifestPanel({
           onOpenScreen={onOpenScreen}
         />
       )}
+      <RecommendationGaps moduleIds={moduleIds} onOpenScreen={onOpenScreen} />
       <Box>
         {view === 'summary' && (
           <ManifestSummary projectId={projectId} onOpenScreen={onOpenScreen} />

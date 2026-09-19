@@ -302,6 +302,7 @@ export default function StudioProject({ projectId }: { projectId: string }) {
               projectId={projectId}
               statement={buildState.foundation.summary}
               outcomeNames={buildState.compose.outcomeIds}
+              moduleIds={buildState.compose.moduleIds}
               onOpenScreen={openScreen}
             />
           </Stack>
