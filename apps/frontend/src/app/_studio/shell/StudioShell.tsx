@@ -9,7 +9,7 @@ import { useStudio } from '@/context/StudioContext';
 import { useAutoSave } from '@/lib/useAutoSave';
 import dynamic from 'next/dynamic';
 
-const SmartContractsScreen = dynamic(() => import('@/components/SmartContractsScreen'), { ssr: false });
+const ExecutionSubstrate = dynamic(() => import('@/components/studio/ExecutionSubstrate'), { ssr: false });
 const ProjectTrackBar = dynamic(() => import('@/components/studio/ProjectTrackBar'), { ssr: false });
 
 const STEP_SECTION_KEYS = ['type', 'blueprint', 'data', 'economics', 'integrations', 'ui', 'deploy'];
@@ -140,7 +140,7 @@ export default function StudioShell({
     Math.max(0, Math.min(initialStep, currentWorkflow.length - 1))
   );
   const [projectId] = useState<string | null>(initialProjectId);
-  const [contractsOpen, setContractsOpen] = useState(false);
+  const [substrateOpen, setSubstrateOpen] = useState(false);
 
   // Clamp index if workflow changes
   useEffect(() => {
@@ -203,8 +203,8 @@ export default function StudioShell({
 
   return (
     <Box sx={{ minHeight: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
-      {/* Smart Contracts Overlay */}
-      {contractsOpen && (
+      {/* Where this system runs */}
+      {substrateOpen && (
         <Box
           sx={{
             position: 'fixed',
@@ -215,32 +215,31 @@ export default function StudioShell({
             overflow: 'auto',
           }}
         >
-          <SmartContractsScreen
-            onClose={() => setContractsOpen(false)}
-            onGoToBlueprint={() => { setContractsOpen(false); setStepIndex(1); }}
-          />
+          {projectId && (
+            <ExecutionSubstrate projectId={projectId} onClose={() => setSubstrateOpen(false)} />
+          )}
         </Box>
       )}
 
       {/* Project Progress TrackBar — floats in the NavBar strip (above all step overlays) */}
-      {!contractsOpen && (
+      {!substrateOpen && (
         <Box sx={{ position: 'fixed', top: 14, left: '50%', transform: 'translateX(-50%)', zIndex: 1400, pointerEvents: 'none' }}>
           <ProjectTrackBar currentStepKey={STEP_SECTION_KEYS[stepIndex] || 'type'} />
         </Box>
       )}
 
-      {/* Floating Smart Contracts Button — left side to avoid AI chatbot overlap */}
+      {/* The substrate button sits on the left, clear of the assistant */}
       <Fab
         variant="extended"
         size="small"
-        onClick={() => setContractsOpen((o) => !o)}
+        onClick={() => setSubstrateOpen((o) => !o)}
         sx={{
           position: 'fixed',
           bottom: 32,
           left: 24,
           zIndex: 1302,
-          bgcolor: contractsOpen ? 'primary.main' : 'background.paper',
-          color: contractsOpen ? 'white' : 'primary.main',
+          bgcolor: substrateOpen ? 'primary.main' : 'background.paper',
+          color: substrateOpen ? 'white' : 'primary.main',
           border: (t) => `1px solid ${alpha(t.palette.primary.main, 0.5)}`,
           boxShadow: (t) => `0 4px 24px ${alpha(t.palette.primary.main, 0.3)}`,
           fontWeight: 700,
@@ -252,7 +251,7 @@ export default function StudioShell({
         }}
       >
         <HexagonOutlinedIcon sx={{ fontSize: 16 }} />
-        Smart Contracts
+        Where it runs
       </Fab>
       <Container maxWidth="xl" sx={{ flex: 1, py: 3, display: 'flex', flexDirection: 'column' }}>
         {/* Keep a lightweight step header; pages own Back/Next inside themselves */}

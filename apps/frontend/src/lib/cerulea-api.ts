@@ -944,6 +944,102 @@ export function revokeAccessKey(
   );
 }
 
+/* The Studio build state --------------------------------------------- */
+
+export type ExecutionSubstrate = 'Native' | 'WebAssembly' | 'EthereumVirtualMachine';
+
+export type BuildState = {
+  version: 1;
+  foundation: {
+    projectName: string;
+    summary: string;
+    application: CeruleaApplication;
+    track: 'dapp' | 'blockchain';
+    trackOverridden: boolean;
+    templateId: string;
+    publishSelectedRecords: boolean;
+    blockSeconds: number;
+    historyRetentionDays: number;
+  };
+  compose: {
+    outcomeIds: string[];
+    moduleIds: string[];
+    removedModuleIds: string[];
+    chosenLinks: { kind: 'feeds' | 'triggers'; from: string; to: string }[];
+  };
+  policies: {
+    answers: {
+      confirmationPreference?: 'instant' | 'balanced' | 'certain';
+      organisationCount?: number;
+      wrongRecordCost?: 'low' | 'moderate' | 'high' | 'severe';
+      serveDuringSplit?: boolean;
+      provableYears?: number;
+    };
+    chosenProfileId: string;
+  };
+  execution: { substrate: ExecutionSubstrate; reason: string };
+  steps: {
+    foundation: boolean;
+    compose: boolean;
+    model: boolean;
+    policies: boolean;
+    interfaceAuthoring: boolean;
+    verify: boolean;
+  };
+  wizardComplete: boolean;
+  wizardCompletedAt: string;
+};
+
+export type SubstrateDescription = {
+  substrate: ExecutionSubstrate;
+  name: string;
+  summary: string;
+  suits: string;
+  cost: string;
+};
+
+/** Reads the build state of one project. Every field arrives filled. */
+export function readBuildState(
+  projectId: string,
+  options: CeruleaApiOptions = {},
+): Promise<{ projectId: string; buildState: BuildState; rowVersion: number }> {
+  return ceruleaRequest(
+    `/studio/projects/${encodeURIComponent(projectId)}/build-state`,
+    { method: 'GET' },
+    options,
+  );
+}
+
+/** Saves the build state of one project. */
+export function saveBuildState(
+  projectId: string,
+  buildState: BuildState,
+  options: CeruleaApiOptions = {},
+): Promise<{ projectId: string; buildState: BuildState; rowVersion: number }> {
+  return ceruleaRequest(
+    `/studio/projects/${encodeURIComponent(projectId)}/build-state`,
+    { method: 'PUT', body: JSON.stringify({ buildState }) },
+    options,
+  );
+}
+
+/** Reads the three execution substrates with the trade each one carries. */
+export function readExecutionSubstrates(
+  options: CeruleaApiOptions = {},
+): Promise<{ substrates: SubstrateDescription[] }> {
+  return ceruleaRequest('/studio/execution-substrates', { method: 'GET' }, options);
+}
+
+/* The Cerulea operator reads ----------------------------------------- */
+
+/** Reads one administration surface. The operator role reads no customer record. */
+export function readAdministration<T>(
+  surface: 'summary' | 'accounts' | 'workspaces' | 'projects' | 'security',
+  options: CeruleaApiOptions = {},
+): Promise<T> {
+  return ceruleaRequest(`/studio/administration/${surface}`, { method: 'GET' }, options);
+}
+
 /* Deployments ------------------------------------------------------- */
 
 export type DeploymentStageStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'skipped';

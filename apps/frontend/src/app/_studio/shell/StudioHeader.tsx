@@ -6,7 +6,7 @@ import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 import HexagonOutlinedIcon from '@mui/icons-material/HexagonOutlined';
 import { getStepLabel, TOTAL_STEPS } from './StepRegistry';
-import SmartContractsScreen from '@/components/SmartContractsScreen';
+import ExecutionSubstrate from '@/components/studio/ExecutionSubstrate';
 
 type Props = {
   step: number;
@@ -26,7 +26,7 @@ export default function StudioHeader({
   busy = false,
 }: Props) {
   const pct = (Math.min(Math.max(step, 1), TOTAL_STEPS) / TOTAL_STEPS) * 100;
-  const [contractsOpen, setContractsOpen] = useState(false);
+  const [substrateOpen, setSubstrateOpen] = useState(false);
 
   return (
     <>
@@ -60,12 +60,12 @@ export default function StudioHeader({
             />
           </Box>
 
-          <Tooltip title="Smart Contracts: view and manage contracts derived from your blueprint">
+          <Tooltip title="Where this system runs. Cerulea reads the Blueprint directly by default.">
             <Button
               variant="outlined"
               size="small"
               startIcon={<HexagonOutlinedIcon />}
-              onClick={() => setContractsOpen(true)}
+              onClick={() => setSubstrateOpen(true)}
               sx={{ borderRadius: 999, fontSize: '0.7rem', fontWeight: 700, px: 1.5, py: 0.5 }}
             >
               Contracts
@@ -81,11 +81,11 @@ export default function StudioHeader({
 
       <Drawer
         anchor="right"
-        open={contractsOpen}
-        onClose={() => setContractsOpen(false)}
+        open={substrateOpen}
+        onClose={() => setSubstrateOpen(false)}
         PaperProps={{ sx: { width: { xs: '100%', md: 800 }, maxWidth: '100vw' } }}
       >
-        <SmartContractsScreen onClose={() => setContractsOpen(false)} />
+        {projectId && <ExecutionSubstrate projectId={projectId} onClose={() => setSubstrateOpen(false)} />}
       </Drawer>
     </>
   );
