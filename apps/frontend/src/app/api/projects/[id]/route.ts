@@ -1,91 +1,65 @@
+// apps/frontend/src/app/api/projects/[id]/route.ts
+// Reads and changes one project through Cerulea APIs.
+// Closing a project sets its state. Cerulea keeps every Blueprint version, so
+// the work stays readable afterwards.
+// Without this route a project cannot be opened or renamed.
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+
+import { readProject, updateProject } from '@/lib/cerulea-api';
+import { callOptions, ceruleaActor, failureReply, signInRequired } from '@/lib/cerulea-server';
+
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-import { NextResponse } from 'next/server';
-import { db } from '@/db/client';
-import { projects, drafts } from '@/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
-import { getSession } from '@/lib/auth';
+const patchBody = z.object({
+  name: z.string().min(2).max(160).optional(),
+  summary: z.string().max(800).optional(),
+  state: z.enum(['draft', 'building', 'deployed', 'closed']).optional(),
+});
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, { params }: { params: { id: string } }) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
   try {
-    const session = await getSession();
-    if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-
-    const [row] = await db
-      .select()
-      .from(projects)
-      .where(and(eq(projects.id as any, params.id), eq(projects.userId as any, session.user.id)))
-      .limit(1);
-
-    if (!row) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
-
-    // Parse economics from projects table
-    let economics: any = null;
-    const econRaw = (row as any).economics;
-    if (econRaw) {
-      try { economics = typeof econRaw === 'string' ? JSON.parse(econRaw) : econRaw; } catch {}
-    }
-
-    // Find integrations from the step-4 draft
-    let integrations: any = null;
-    const allDrafts = await db
-      .select()
-      .from(drafts)
-      .where(eq(drafts.projectId as any, params.id))
-      .orderBy(desc(drafts.updatedAt));
-    for (const d of allDrafts) {
-      try {
-        const parsed = typeof d.data === 'string' ? JSON.parse(d.data) : (d.data as any);
-        if (parsed?.step === 4 && parsed?.payload?.configs) {
-          integrations = parsed.payload;
-          break;
-        } else if (parsed?.configs) {
-          integrations = parsed;
-          break;
-        }
-      } catch {}
-    }
-
-    return NextResponse.json({
-      ok: true,
-      project: {
-        id: (row as any).id,
-        name: (row as any).name,
-        slug: (row as any).slug,
-        description: (row as any).description,
-        projectType: (row as any).projectType,
-        status: (row as any).status ?? 'draft',
-        legacyMode: (row as any).legacyMode ?? 'none',
-        createdAt: (row as any).createdAt,
-        updatedAt: (row as any).updatedAt,
-        economics,
-        integrations,
-      },
-    });
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json(await readProject(params.id, callOptions(actor)));
+  } catch (cause) {
+    return failureReply(cause);
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const parsed = patchBody.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'project.change_unclear',
+          message: 'Cerulea reads a name, a summary or a state on this change.',
+          fix: 'Send one of the three values, then save again.',
+          details: {},
+        },
+      },
+      { status: 400 },
+    );
+  }
   try {
-    const session = await getSession();
-    if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json(await updateProject(params.id, parsed.data, callOptions(actor)));
+  } catch (cause) {
+    return failureReply(cause);
+  }
+}
 
-    const [existing] = await db
-      .select({ id: projects.id })
-      .from(projects)
-      .where(and(eq(projects.id as any, params.id), eq(projects.userId as any, session.user.id)))
-      .limit(1);
-
-    if (!existing) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
-
-    await db.delete(drafts).where(eq(drafts.projectId as any, params.id));
-    await db.delete(projects).where(eq(projects.id as any, params.id));
-
-    return NextResponse.json({ ok: true });
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  try {
+    return NextResponse.json(
+      await updateProject(params.id, { state: 'closed' }, callOptions(actor)),
+    );
+  } catch (cause) {
+    return failureReply(cause);
   }
 }

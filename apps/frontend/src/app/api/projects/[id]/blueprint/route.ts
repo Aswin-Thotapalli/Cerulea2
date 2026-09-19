@@ -1,53 +1,64 @@
+// apps/frontend/src/app/api/projects/[id]/blueprint/route.ts
+// Reads and saves the Blueprint of one project through Cerulea APIs.
+// The Blueprint is the single typed artefact carrying everything a person
+// builds. Saving moves the head version forward when the content changes.
+// Without this route Studio edits nothing that lasts.
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+
+import { readBlueprint, saveBlueprint } from '@/lib/cerulea-api';
+import { callOptions, ceruleaActor, failureReply, signInRequired } from '@/lib/cerulea-server';
+
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-import { NextResponse } from 'next/server';
-import { db } from '@/db/client';
-import { projects } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
-import { getSession } from '@/lib/auth';
+const saveBody = z.object({
+  document: z.unknown(),
+  note: z.string().max(400).optional(),
+  expectedVersion: z.number().int().min(0).optional(),
+});
 
-async function getOwnedProject(projectId: string, userId: string) {
-  const [row] = await db
-    .select()
-    .from(projects)
-    .where(and(eq(projects.id as any, projectId), eq(projects.userId as any, userId)))
-    .limit(1);
-  return row ?? null;
-}
-
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: { id: string } }) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const search = new URL(request.url).searchParams;
+  const version = search.get('version');
   try {
-    const session = await getSession();
-    if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-
-    const row = await getOwnedProject(params.id, session.user.id);
-    if (!row) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
-
-    let blueprint: any = (row as any).blueprint ?? null;
-    if (typeof blueprint === 'string') {
-      try { blueprint = JSON.parse(blueprint); } catch { /* keep raw */ }
-    }
-
-    return NextResponse.json({ ok: true, blueprint });
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json(
+      await readBlueprint(
+        params.id,
+        {
+          version: version ? Number(version) : undefined,
+          blueprintHash: search.get('blueprintHash') ?? undefined,
+        },
+        callOptions(actor),
+      ),
+    );
+  } catch (cause) {
+    return failureReply(cause);
   }
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, { params }: { params: { id: string } }) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const parsed = saveBody.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'blueprint.body_absent',
+          message: 'Cerulea reads the Blueprint document on this save.',
+          fix: 'Send the document, then save again.',
+          details: {},
+        },
+      },
+      { status: 400 },
+    );
+  }
   try {
-    const session = await getSession();
-    if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-
-    const row = await getOwnedProject(params.id, session.user.id);
-    if (!row) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
-
-    const body = await req.json();
-    await db.update(projects).set({ blueprint: JSON.stringify(body) as any }).where(eq(projects.id as any, params.id));
-
-    return NextResponse.json({ ok: true });
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json(await saveBlueprint(params.id, parsed.data, callOptions(actor)));
+  } catch (cause) {
+    return failureReply(cause);
   }
 }

@@ -26,8 +26,12 @@ const fabVariants = {
 type ChatRole = 'user' | 'assistant';
 type ChatMessage = { id: string; role: ChatRole; text: string; createdAt: Date };
 
+let messageCounter = 0;
+
+/** Names one message in this conversation. The value never leaves the browser. */
 function makeId(prefix = 'msg') {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
+  messageCounter += 1;
+  return `${prefix}_${messageCounter}_${Date.now().toString(36)}`;
 }
 
 function normalize(s: string) {
@@ -40,11 +44,12 @@ function formatTime(d: Date) {
   return `${hh}:${mm}`;
 }
 
+/** The four questions a person asks most often on a first visit. */
 const QUICK_PROMPTS = [
-  'What modules should I add?',
-  'Explain smart contracts',
-  'How does tokenomics work?',
-  'What is an entity?',
+  'Which parts does this system need?',
+  'What does the Blueprint hold?',
+  'How does a unit of account work?',
+  'What is a collection?',
 ];
 
 export default function Assistant() {
@@ -58,14 +63,13 @@ export default function Assistant() {
     {
       id: makeId('assistant'),
       role: 'assistant',
-      text: "Hi! I'm Cerulea AI. I can help you design your app, choose modules, configure your tokenomics, or answer any question about the Studio.\n\nWhat would you like to build?",
+      text:
+        'We are Cerulea Intelligence. We help shape the model, choose the parts a system needs and explain any screen in Studio.\n\nWhat shall we build?',
       createdAt: new Date(),
     },
   ]);
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const typingTimerRef = useRef<number | null>(null);
-  const streamTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -73,28 +77,12 @@ export default function Assistant() {
     }
   }, [messages, isTyping]);
 
-  useEffect(() => {
-    return () => {
-      if (typingTimerRef.current) window.clearTimeout(typingTimerRef.current);
-      if (streamTimerRef.current) window.clearInterval(streamTimerRef.current);
-    };
-  }, []);
-
-  function streamAssistantMessage(fullText: string) {
-    const msgId = makeId('assistant');
-    const createdAt = new Date();
-    setMessages((prev) => [...prev, { id: msgId, role: 'assistant', text: '', createdAt }]);
-    let i = 0;
-    streamTimerRef.current = window.setInterval(() => {
-      const chunk = fullText.slice(i, i + (Math.random() < 0.85 ? 1 : 2));
-      i += chunk.length;
-      setMessages((prev) => prev.map((m) => m.id === msgId ? { ...m, text: m.text + chunk } : m));
-      if (i >= fullText.length) {
-        window.clearInterval(streamTimerRef.current!);
-        streamTimerRef.current = null;
-        setIsTyping(false);
-      }
-    }, 16 + Math.floor(Math.random() * 12));
+  function addAssistantMessage(fullText: string) {
+    setMessages((previous) => [
+      ...previous,
+      { id: makeId('assistant'), role: 'assistant', text: fullText, createdAt: new Date() },
+    ]);
+    setIsTyping(false);
   }
 
   function buildStudioSnapshot() {
@@ -106,7 +94,6 @@ export default function Assistant() {
         templateId: studio.templateId,
         selectedModules: studio.selectedModules,
         appMetadata: studio.appMetadata,
-        appGoal: studio.appGoal,
       },
     };
   }
@@ -139,29 +126,35 @@ export default function Assistant() {
   }
 
   async function handleSend(text?: string) {
-    const msg = (text || input).trim();
-    if (!msg) return;
+    const asked = (text || input).trim();
+    if (!asked) return;
     setInput('');
-    const userMsg: ChatMessage = { id: makeId('user'), role: 'user', text: msg, createdAt: new Date() };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((previous) => [
+      ...previous,
+      { id: makeId('user'), role: 'user', text: asked, createdAt: new Date() },
+    ]);
     setIsTyping(true);
-    typingTimerRef.current = window.setTimeout(async () => {
-      try {
-        const res = await api<{ reply: string }>(`/api/ceruleai`, {
-          method: 'POST',
-          body: JSON.stringify({
-            message: msg,
-            history: toHistoryPayload(messages),
-            studioSnapshot: buildStudioSnapshot(),
-            projectMemory: buildProjectMemory(),
-          }),
-        });
-        streamAssistantMessage(res.reply || "I couldn't generate a response right now.");
-      } catch (e: any) {
-        setIsTyping(false);
-        streamAssistantMessage(typeof e?.message === 'string' ? `Something went wrong: ${e.message}` : 'Something went wrong generating the response.');
-      }
-    }, 400 + Math.floor(Math.random() * 300));
+    try {
+      const answer = await api<{ reply: string }>('/api/ceruleai', {
+        method: 'POST',
+        body: JSON.stringify({
+          message: asked,
+          history: toHistoryPayload(messages),
+          studioSnapshot: buildStudioSnapshot(),
+          projectMemory: buildProjectMemory(),
+        }),
+      });
+      addAssistantMessage(
+        answer.reply ||
+          'Cerulea Intelligence answered with no text. Ask the question again in a moment.',
+      );
+    } catch (cause) {
+      addAssistantMessage(
+        cause instanceof Error
+          ? cause.message
+          : 'Cerulea Intelligence did not answer. Ask the question again in a moment.',
+      );
+    }
   }
 
   const isLight = theme.palette.mode === 'light';

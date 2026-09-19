@@ -62,48 +62,11 @@ export default function SettingsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
 
-  const [resetLoading, setResetLoading] = useState(false);
-  const [resetDone, setResetDone] = useState(false);
-
-  const isTestAccount = session?.user?.email === 'test@cerulea.app';
   const currentPlan = 'Developer';
 
   const handleSave = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-  };
-
-  const handleResetTestAccount = async () => {
-    setResetLoading(true);
-    try {
-      await fetch('/api/test-account/reset', { method: 'POST' });
-
-      // Clear ALL studio localStorage keys — full factory reset
-      const STUDIO_KEYS = [
-        'cerulea.projectType', 'cerulea.templateId', 'cerulea.templateModules',
-        'cerulea.step1.graph', 'cerulea.step3.economics', 'cerulea.step4.integrations',
-        'cerulea.step5.ui', 'cerulea.deployed',
-        'draft:local:1', 'draft:local:2', 'draft:local:3', 'draft:local:4',
-        'draft:local:5', 'draft:local:6', 'draft:local:7',
-      ];
-      STUDIO_KEYS.forEach((k) => localStorage.removeItem(k));
-
-      // Clear guidance dismissal flags so all step guidance shows again
-      Object.keys(localStorage)
-        .filter((k) => k.startsWith('guidance:dismissed:'))
-        .forEach((k) => localStorage.removeItem(k));
-
-      setResetDone(true);
-      // Give 1.5s for confirmation to show, then redirect to studio
-      setTimeout(() => {
-        const isLocal = window.location.hostname.includes('localhost');
-        window.location.href = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
-      }, 1500);
-    } catch {
-      // silent
-    } finally {
-      setResetLoading(false);
-    }
   };
 
   return (
@@ -243,37 +206,6 @@ export default function SettingsPage() {
         </Stack>
 
         <Stack spacing={2}>
-          {/* Test account reset */}
-          {isTestAccount && (
-            <Stack
-              direction="row"
-              alignItems="center"
-              justifyContent="space-between"
-              sx={{
-                p: 2, borderRadius: 2,
-                border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
-                bgcolor: alpha(theme.palette.warning.main, 0.04),
-              }}
-            >
-              <Box>
-                <Typography variant="body2" fontWeight={700}>Factory Reset Test Account</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Deletes ALL projects, drafts, AI threads, and clears all studio selections. Returns to a completely blank state as if new. You will be redirected to Studio.
-                </Typography>
-              </Box>
-              <Button
-                variant="outlined"
-                color="warning"
-                startIcon={<RefreshIcon />}
-                onClick={handleResetTestAccount}
-                disabled={resetLoading}
-                sx={{ borderRadius: 999, fontWeight: 700, whiteSpace: 'nowrap', ml: 2 }}
-              >
-                {resetDone ? 'Reset!' : resetLoading ? 'Resetting…' : 'Reset Account'}
-              </Button>
-            </Stack>
-          )}
-
           {/* Delete account */}
           <Stack
             direction="row"
@@ -302,11 +234,6 @@ export default function SettingsPage() {
           </Stack>
         </Stack>
 
-        {resetDone && (
-          <Alert severity="success" sx={{ mt: 2, borderRadius: 2 }}>
-            Account factory reset complete. Redirecting to Studio...
-          </Alert>
-        )}
       </Paper>
 
       {/* Delete Confirm Dialog */}

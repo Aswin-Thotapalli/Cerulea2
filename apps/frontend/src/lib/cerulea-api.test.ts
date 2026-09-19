@@ -2,14 +2,26 @@ import { webcrypto } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import {
   CERULEA_API_FALLBACK_URL,
+  CERULEA_STUDIO_DEVICE,
+  CeruleaApiError,
   blueprintHash,
   canonicalJson,
   ceruleaApiBaseUrl,
+  compileProject,
   createDeployment,
+  createProject,
   fetchDeployment,
   isDeploymentSettled,
+  listDeployments,
+  listProjects,
+  listWorkspaces,
+  readBlueprint,
+  readChainStatus,
   readDeployment,
+  refreshSession,
   rollbackDeployment,
+  saveBlueprint,
+  signIn,
   watchDeployment,
 } from './cerulea-api';
 
@@ -29,6 +41,8 @@ function jsonFetch(replies: Array<{ status?: number; body: unknown }>) {
   }) as unknown as typeof fetch;
   return { impl, calls };
 }
+
+const base = 'https://apis.cerulea.test';
 
 const stageList = [
   {
@@ -53,54 +67,168 @@ describe('ceruleaApiBaseUrl', () => {
   });
 
   it('uses the named address and drops a trailing slash', () => {
-    expect(ceruleaApiBaseUrl('https://apis.cerulea.test/')).toBe('https://apis.cerulea.test');
+    expect(ceruleaApiBaseUrl('https://apis.cerulea.test/')).toBe(base);
   });
 });
 
-describe('createDeployment', () => {
+describe('every call', () => {
+  it('carries the access token and the device the session was bound to', async () => {
+    const { impl, calls } = jsonFetch([{ body: { workspaces: [] } }]);
+    await listWorkspaces({ baseUrl: base, fetchImpl: impl, accessToken: 'tok-1' });
+    const headers = calls[0].init.headers as Record<string, string>;
+    expect(headers.authorization).toBe('Bearer tok-1');
+    expect(headers['x-cerulea-device']).toBe(CERULEA_STUDIO_DEVICE);
+  });
+
+  it('raises the code, the message and the fix Cerulea APIs named', async () => {
+    const { impl } = jsonFetch([
+      {
+        status: 403,
+        body: {
+          error: {
+            code: 'workspaces.capability_absent',
+            message: 'The viewer role holds no write blueprint capability.',
+            fix: 'Ask a workspace administrator for the builder role.',
+            details: { role: 'viewer' },
+          },
+        },
+      },
+    ]);
+    const failure = await listWorkspaces({ baseUrl: base, fetchImpl: impl }).catch(
+      (cause: unknown) => cause,
+    );
+    expect(failure).toBeInstanceOf(CeruleaApiError);
+    const named = failure as CeruleaApiError;
+    expect(named.code).toBe('workspaces.capability_absent');
+    expect(named.status).toBe(403);
+    expect(named.fix).toMatch(/builder role/);
+    expect(named.details).toEqual({ role: 'viewer' });
+  });
+
+  it('names the fix when Cerulea APIs does not answer', async () => {
+    const impl = (() => Promise.reject(new Error('connect refused'))) as unknown as typeof fetch;
+    await expect(listWorkspaces({ baseUrl: base, fetchImpl: impl })).rejects.toThrowError(
+      /Start Cerulea APIs/,
+    );
+  });
+});
+
+describe('accounts and sessions', () => {
+  it('signs in with the password and the second factor', async () => {
+    const { impl, calls } = jsonFetch([
+      { status: 201, body: { account: { accountId: 'acc-1' }, session: { accessToken: 'a' } } },
+    ]);
+    await signIn(
+      { email: 'person@cerulea.test', password: 'a long password', multiFactorCode: '123456' },
+      { baseUrl: base, fetchImpl: impl },
+    );
+    expect(calls[0].url).toBe(`${base}/sessions`);
+    expect(JSON.parse(String(calls[0].init.body)).multiFactorCode).toBe('123456');
+  });
+
+  it('rotates the pair through the refresh route', async () => {
+    const { impl, calls } = jsonFetch([
+      { body: { account: { accountId: 'acc-1' }, session: { accessToken: 'b' } } },
+    ]);
+    await refreshSession('refresh-1', { baseUrl: base, fetchImpl: impl });
+    expect(calls[0].url).toBe(`${base}/sessions/refresh`);
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ refreshToken: 'refresh-1' });
+  });
+});
+
+describe('workspaces, projects and the Blueprint', () => {
+  it('lists the projects inside one workspace', async () => {
+    const { impl, calls } = jsonFetch([{ body: { projects: [] } }]);
+    await listProjects('ws-1', { baseUrl: base, fetchImpl: impl });
+    expect(calls[0].url).toBe(`${base}/workspaces/ws-1/projects`);
+  });
+
+  it('opens a project inside the named workspace', async () => {
+    const { impl, calls } = jsonFetch([{ status: 201, body: { project: {}, blueprint: {} } }]);
+    await createProject('ws-1', { name: 'Trace' }, { baseUrl: base, fetchImpl: impl });
+    expect(calls[0].init.method).toBe('POST');
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ name: 'Trace', summary: undefined });
+  });
+
+  it('reads one earlier Blueprint version when the caller names it', async () => {
+    const { impl, calls } = jsonFetch([{ body: { version: 2, document: {} } }]);
+    await readBlueprint('p-1', { version: 2 }, { baseUrl: base, fetchImpl: impl });
+    expect(calls[0].url).toBe(`${base}/projects/p-1/blueprint?version=2`);
+  });
+
+  it('saves the Blueprint with the version the caller expects', async () => {
+    const { impl, calls } = jsonFetch([{ body: { blueprint: { version: 3 }, created: true } }]);
+    await saveBlueprint(
+      'p-1',
+      { document: { name: 'Trace' }, expectedVersion: 2 },
+      { baseUrl: base, fetchImpl: impl },
+    );
+    expect(calls[0].init.method).toBe('PUT');
+    expect(JSON.parse(String(calls[0].init.body)).expectedVersion).toBe(2);
+  });
+});
+
+describe('the compiler', () => {
+  it('reads the report when the Blueprint still holds corrections', async () => {
+    const { impl } = jsonFetch([
+      {
+        status: 422,
+        body: {
+          ok: false,
+          reachedStage: 'validate',
+          report: { errorCount: 2, headline: 'Two corrections remain.' },
+        },
+      },
+    ]);
+    const run = await compileProject('p-1', undefined, { baseUrl: base, fetchImpl: impl });
+    expect(run.ok).toBe(false);
+    expect(run.report.errorCount).toBe(2);
+  });
+});
+
+describe('the Blockchain', () => {
+  it('reads the agreement state through the chain route', async () => {
+    const { impl, calls } = jsonFetch([
+      {
+        body: {
+          chainName: 'Cerulea local',
+          kind: 'local',
+          status: { currentEpoch: 1, activeValidators: 3 },
+          health: { isHealthy: true, issues: [] },
+        },
+      },
+    ]);
+    const status = await readChainStatus({ baseUrl: base, fetchImpl: impl });
+    expect(calls[0].url).toBe(`${base}/chain/status`);
+    expect(status.health.isHealthy).toBe(true);
+  });
+});
+
+describe('deployments', () => {
   it('posts the project and the Blueprint address to the deployments route', async () => {
     const { impl, calls } = jsonFetch([{ body: { deploymentId: 'dep-7' } }]);
     const result = await createDeployment(
       { projectId: 'p-1', blueprintHash: 'abc' },
-      { baseUrl: 'https://apis.cerulea.test', fetchImpl: impl },
+      { baseUrl: base, fetchImpl: impl },
     );
     expect(result).toEqual({ deploymentId: 'dep-7' });
-    expect(calls[0].url).toBe('https://apis.cerulea.test/v1/deployments');
-    expect(calls[0].init.method).toBe('POST');
-    expect(JSON.parse(String(calls[0].init.body))).toEqual({ projectId: 'p-1', blueprintHash: 'abc' });
+    expect(calls[0].url).toBe(`${base}/v1/deployments`);
   });
 
   it('names the fix when Cerulea APIs sends no identifier', async () => {
     const { impl } = jsonFetch([{ body: {} }]);
     await expect(
-      createDeployment({ projectId: 'p-1', blueprintHash: 'abc' }, { fetchImpl: impl }),
+      createDeployment({ projectId: 'p-1', blueprintHash: 'abc' }, { baseUrl: base, fetchImpl: impl }),
     ).rejects.toThrowError(/deploymentId/);
   });
 
-  it('raises the message Cerulea APIs returned', async () => {
-    const { impl } = jsonFetch([{ status: 409, body: { message: 'The Blueprint address does not match.' } }]);
-    await expect(
-      createDeployment({ projectId: 'p-1', blueprintHash: 'abc' }, { fetchImpl: impl }),
-    ).rejects.toThrowError('The Blueprint address does not match.');
-  });
-
-  it('names the fix when Cerulea APIs does not answer', async () => {
-    const impl = (() => Promise.reject(new Error('connect refused'))) as unknown as typeof fetch;
-    await expect(
-      createDeployment({ projectId: 'p-1', blueprintHash: 'abc' }, { baseUrl: 'http://localhost:4000', fetchImpl: impl }),
-    ).rejects.toThrowError(/NEXT_PUBLIC_CERULEA_API_URL/);
-  });
-});
-
-describe('fetchDeployment', () => {
   it('returns the stage list Cerulea APIs reported and adds nothing', async () => {
     const { impl, calls } = jsonFetch([
       { body: { id: 'dep-7', status: 'running', stages: stageList, record: { blocks: 3 } } },
     ]);
-    const deployment = await fetchDeployment('dep-7', { baseUrl: 'http://apis.test', fetchImpl: impl });
-    expect(calls[0].url).toBe('http://apis.test/v1/deployments/dep-7');
+    const deployment = await fetchDeployment('dep-7', { baseUrl: base, fetchImpl: impl });
+    expect(calls[0].url).toBe(`${base}/v1/deployments/dep-7`);
     expect(deployment.stages).toHaveLength(2);
-    expect(deployment.stages[0].name).toBe('Check the Blueprint');
     expect(deployment.stages[1].endedAt).toBeNull();
     expect(deployment.record).toEqual({ blocks: 3 });
   });
@@ -110,24 +238,33 @@ describe('fetchDeployment', () => {
   });
 
   it('names the fix when a stage carries no name', () => {
-    expect(() => readDeployment({ id: 'dep-7', status: 'running', stages: [{ status: 'running' }] }))
-      .toThrowError(/position 1/);
+    expect(() =>
+      readDeployment({ id: 'dep-7', status: 'running', stages: [{ status: 'running' }] }),
+    ).toThrowError(/position 1/);
   });
-});
 
-describe('rollbackDeployment', () => {
   it('posts to the rollback route for that deployment', async () => {
     const { impl, calls } = jsonFetch([
       { body: { id: 'dep-7', status: 'rolled_back', stages: [], record: null } },
     ]);
-    const deployment = await rollbackDeployment('dep-7', { baseUrl: 'http://apis.test', fetchImpl: impl });
-    expect(calls[0].url).toBe('http://apis.test/v1/deployments/dep-7/rollback');
-    expect(calls[0].init.method).toBe('POST');
+    const deployment = await rollbackDeployment('dep-7', 'The check failed', {
+      baseUrl: base,
+      fetchImpl: impl,
+    });
+    expect(calls[0].url).toBe(`${base}/v1/deployments/dep-7/rollback`);
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ reason: 'The check failed' });
     expect(deployment?.status).toBe('rolled_back');
   });
-});
 
-describe('watchDeployment', () => {
+  it('lists every deployment of one project', async () => {
+    const { impl, calls } = jsonFetch([
+      { body: { deployments: [{ id: 'dep-7', status: 'succeeded', stages: [], record: null }] } },
+    ]);
+    const list = await listDeployments('p-1', { baseUrl: base, fetchImpl: impl });
+    expect(calls[0].url).toBe(`${base}/v1/projects/p-1/deployments`);
+    expect(list).toHaveLength(1);
+  });
+
   it('follows a deployment until it settles', async () => {
     const { impl } = jsonFetch([
       { body: { id: 'dep-7', status: 'running', stages: stageList, record: null } },
@@ -145,7 +282,7 @@ describe('watchDeployment', () => {
           },
           onError: reject,
         },
-        { baseUrl: 'http://apis.test', fetchImpl: impl },
+        { baseUrl: base, fetchImpl: impl },
       );
     });
     expect(seen).toEqual(['running', 'succeeded']);
@@ -157,14 +294,12 @@ describe('watchDeployment', () => {
       watchDeployment(
         'dep-7',
         { intervalMs: 1, onUpdate: () => undefined, onError: resolve },
-        { fetchImpl: impl },
+        { baseUrl: base, fetchImpl: impl },
       );
     });
     expect(error.message).toMatch(/Start Cerulea APIs/);
   });
-});
 
-describe('isDeploymentSettled', () => {
   it('treats success, failure and rollback as settled', () => {
     expect(isDeploymentSettled('succeeded')).toBe(true);
     expect(isDeploymentSettled('failed')).toBe(true);

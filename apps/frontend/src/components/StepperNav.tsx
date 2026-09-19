@@ -2,8 +2,6 @@
 
 import { Box, Button } from '@mui/material';
 import { useRouter } from 'next/navigation';
-import { useStudio } from '@/context/StudioContext';
-import { saveToBackend } from '@/lib/saveToBackend';
 
 export default function StepperNav({
   next,
@@ -17,7 +15,6 @@ export default function StepperNav({
   onBack?: () => void;
 }) {
   const router = useRouter();
-  const studio = useStudio();
 
   const handleBack = async () => {
     if (onBack) await onBack();
@@ -25,7 +22,6 @@ export default function StepperNav({
   };
 
   const handleNext = async () => {
-    await saveToBackend(studio, { step: 'nav' });
     if (onNext) await onNext();
     if (next) router.push(next);
   };

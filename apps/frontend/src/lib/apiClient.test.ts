@@ -25,32 +25,65 @@ describe('the Studio route client', () => {
     expect(names).not.toContain('getApps');
     expect(names).not.toContain('createApp');
     expect(names).not.toContain('getDeployments');
+    expect(names).not.toContain('getDraft');
+    expect(names).not.toContain('upsertDraft');
   });
 
   it('names every route it does call', () => {
-    expect(Object.keys(apiClient).sort()).toEqual(['api', 'getDraft', 'upsertDraft']);
+    expect(Object.keys(apiClient).sort()).toEqual([
+      'StudioRouteError',
+      'api',
+      'readProjectBlueprint',
+      'writeProjectBlueprint',
+    ]);
   });
 
-  it('sends the project and the bucket when it reads a draft', async () => {
-    const calls = stubFetch(200, { ok: true, data: { entities: [] }, updatedAt: 7 });
-    const record = await apiClient.getDraft('p-1', 'schema');
-    expect(calls[0].url).toBe('/api/drafts?projectId=p-1&bucket=schema');
-    expect(record.updatedAt).toBe(7);
+  it('reads the Blueprint of one project', async () => {
+    const calls = stubFetch(200, { version: 3, document: { name: 'Trace' } });
+    const record = await apiClient.readProjectBlueprint('p-1');
+    expect(calls[0].url).toBe('/api/projects/p-1/blueprint');
+    expect(record.version).toBe(3);
   });
 
-  it('sends the project and the bucket when it writes a draft', async () => {
-    const calls = stubFetch(200, { ok: true, updatedAt: 9 });
-    await apiClient.upsertDraft({ projectId: 'p-1', bucket: 'schema', data: { entities: [] } });
-    expect(calls[0].url).toBe('/api/drafts');
-    expect(JSON.parse(String(calls[0].init?.body))).toEqual({
+  it('reads one earlier Blueprint version when the caller names it', async () => {
+    const calls = stubFetch(200, { version: 2, document: {} });
+    await apiClient.readProjectBlueprint('p-1', 2);
+    expect(calls[0].url).toBe('/api/projects/p-1/blueprint?version=2');
+  });
+
+  it('saves the Blueprint with the version the caller expects', async () => {
+    const calls = stubFetch(200, { blueprint: { version: 4 }, created: true });
+    await apiClient.writeProjectBlueprint({
       projectId: 'p-1',
-      bucket: 'schema',
-      data: { entities: [] },
+      document: { name: 'Trace' },
+      note: 'Added the shipment collection',
+      expectedVersion: 3,
+    });
+    expect(calls[0].url).toBe('/api/projects/p-1/blueprint');
+    expect(calls[0].init?.method).toBe('PUT');
+    expect(JSON.parse(String(calls[0].init?.body))).toEqual({
+      document: { name: 'Trace' },
+      note: 'Added the shipment collection',
+      expectedVersion: 3,
     });
   });
 
-  it('raises the message the route returned, so the caller can name the fix', async () => {
-    stubFetch(400, { error: 'projectId and bucket are required' });
-    await expect(apiClient.getDraft('', '')).rejects.toThrowError('projectId and bucket are required');
+  it('raises the message and the fix the route returned', async () => {
+    stubFetch(409, {
+      error: {
+        code: 'blueprint.version_moved',
+        message: 'Another person saved this Blueprint first.',
+        fix: 'Read the newest version, apply the change again and save.',
+        details: {},
+      },
+    });
+    await expect(apiClient.readProjectBlueprint('p-1')).rejects.toThrowError(
+      /Read the newest version/,
+    );
+  });
+
+  it('names a fix even when the answer carries no failure shape', async () => {
+    stubFetch(500, { unexpected: true });
+    await expect(apiClient.readProjectBlueprint('p-1')).rejects.toThrowError(/Cerulea operator/);
   });
 });

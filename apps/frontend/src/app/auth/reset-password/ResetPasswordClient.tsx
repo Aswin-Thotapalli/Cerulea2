@@ -17,7 +17,7 @@ export default function ResetPasswordPage(){
     setErr(null); setOk(false); setLoading(true);
     const res=await fetch('/api/auth/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,password})});
     setLoading(false);
-    if(!res.ok){ setErr('Reset failed or token expired.'); return; }
+    if(!res.ok){ setErr('Cerulea refused the link or the password. Ask for a new recovery link, then set a password of twelve characters.'); return; }
     setOk(true);
     setTimeout(()=>router.push('/auth/login'), 1000);
   };
@@ -27,18 +27,18 @@ export default function ResetPasswordPage(){
       background:'radial-gradient(1200px 600px at 10% 10%, rgba(99,102,241,.18), transparent), radial-gradient(1000px 500px at 90% 10%, rgba(16,185,129,.12), transparent)'}}>
       <Paper elevation={0} sx={{width: 420, p:3, borderRadius:3, backdropFilter:'blur(16px)', backgroundColor:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.16)'}}>
         <Typography variant="h5" sx={{mb:1.5, fontWeight:700}}>Reset password</Typography>
-        <Typography variant="body2" sx={{mb:3, opacity:.8}}>Choose a new password for your account.</Typography>
-        {ok && <Alert severity="success" sx={{mb:2}}>Password updated. Redirecting…</Alert>}
+        <Typography variant="body2" sx={{mb:3, opacity:.8}}>We set a new password on the account. Twelve characters or more.</Typography>
+        {ok && <Alert severity="success" sx={{mb:2}}>The password is set. Every session on the account is closed. Sign in again.</Alert>}
         {err && <Alert severity="error" sx={{mb:2}}>{err}</Alert>}
         <Box component="form" onSubmit={submit}>
           <Stack spacing={1.5}>
             <TextField label="New password" type="password" value={password} onChange={e=>setPassword(e.target.value)} required size="small"/>
-            <Button type="submit" variant="contained" disabled={loading || !token}>{loading?'Updating…':'Update password'}</Button>
+            <Button type="submit" variant="contained" disabled={loading || !token}>{loading?'Setting':'Set the password'}</Button>
           </Stack>
         </Box>
         <Stack direction="row" justifyContent="space-between" sx={{mt:2}}>
           <Link href="/auth/login" underline="hover">Back to sign in</Link>
-          <Typography variant="caption" sx={{opacity:.7}}>Token: {token ? 'OK' : 'missing'}</Typography>
+          <Typography variant="caption" sx={{opacity:.7}}>{token ? 'The link carries its recovery value.' : 'Open the link from the email.'}</Typography>
         </Stack>
       </Paper>
     </Box>

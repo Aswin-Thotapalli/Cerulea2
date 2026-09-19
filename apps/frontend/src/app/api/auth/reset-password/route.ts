@@ -1,31 +1,40 @@
 // apps/frontend/src/app/api/auth/reset-password/route.ts
-import { NextResponse } from "next/server";
-import { db } from "@/db/client";
-import { users, verificationTokens } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
-import { hashPassword } from "@/lib/passwords";
+// Completes password recovery through Cerulea APIs.
+// Setting the password closes every open session on the account.
+// Without this route the recovery link leads nowhere.
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
-export async function POST(req: Request) {
-  const { token, password } = await req.json();
-  if (!token || !password) return NextResponse.json({ error: "Invalid" }, { status: 400 });
+import { completeRecovery } from '@/lib/cerulea-api';
+import { failureReply } from '@/lib/cerulea-server';
 
-  const now = new Date();
-  const [row] = await db.select().from(verificationTokens)
-    .where(eq(verificationTokens.token, token));
-  if (!row || new Date(row.expiresAt) < now || !row.identifier.startsWith("pwd:")) {
-    return NextResponse.json({ error: "Token invalid or expired" }, { status: 400 });
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+const body = z.object({
+  token: z.string().min(8).max(200),
+  password: z.string().min(12).max(256),
+});
+
+export async function POST(request: Request) {
+  const parsed = body.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'recovery.details_incomplete',
+          message: 'Cerulea needs the link from the email and a password of twelve characters.',
+          fix: 'Open the link from the email again, then type the new password.',
+          details: {},
+        },
+      },
+      { status: 400 },
+    );
   }
-  const userId = row.identifier.replace("pwd:", "");
-
-  await db.update(users)
-    .set({ hashedPassword: await hashPassword(password) })
-    .where(eq(users.id, userId));
-
-  // burn token
-  await db.delete(verificationTokens).where(and(
-    eq(verificationTokens.identifier, row.identifier),
-    eq(verificationTokens.token, token),
-  ));
-
-  return NextResponse.json({ ok: true });
+  try {
+    const outcome = await completeRecovery(parsed.data);
+    return NextResponse.json(outcome, { status: 200 });
+  } catch (cause) {
+    return failureReply(cause);
+  }
 }

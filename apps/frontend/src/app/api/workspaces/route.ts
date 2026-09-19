@@ -1,32 +1,53 @@
-// src/app/api/workspaces/route.ts
+// apps/frontend/src/app/api/workspaces/route.ts
+// Reads and opens workspaces through Cerulea APIs.
+// A workspace holds the projects a team builds together.
+// Without this route Studio cannot place a project anywhere.
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
-let WS: { id: string; name: string; slug: string; createdAt: string }[] = [
-  { id: 'ws_personal', name: 'Personal Workspace', slug: 'personal', createdAt: new Date().toISOString() },
-];
+import { createWorkspace, listWorkspaces } from '@/lib/cerulea-api';
+import { callOptions, ceruleaActor, failureReply, signInRequired } from '@/lib/cerulea-server';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+const createBody = z.object({
+  name: z.string().min(2).max(120),
+  application: z.enum(['dapps', 'enterprise', 'government']).optional(),
+});
 
 export async function GET() {
-  return NextResponse.json(WS, { status: 200 });
-}
-
-export async function POST(req: Request) {
-  const { name } = await req.json();
-  if (!name || String(name).trim().length < 2) {
-    return NextResponse.json({ error: 'Name too short' }, { status: 400 });
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  try {
+    const outcome = await listWorkspaces(callOptions(actor));
+    return NextResponse.json(outcome);
+  } catch (cause) {
+    return failureReply(cause);
   }
-  const id = `ws_${Math.random().toString(36).slice(2, 9)}`;
-  const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 40);
-  const item = { id, name, slug, createdAt: new Date().toISOString() };
-  WS = [item, ...WS];
-  return NextResponse.json(item, { status: 201 });
 }
 
-export async function DELETE(req: Request) {
-  const url = new URL(req.url);
-  const id = url.searchParams.get('id');
-  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
-  const before = WS.length;
-  WS = WS.filter(w => w.id !== id);
-  if (WS.length === before) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  return NextResponse.json({ ok: true }, { status: 200 });
+export async function POST(request: Request) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const parsed = createBody.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'workspace.name_short',
+          message: 'A workspace carries a name of at least two characters.',
+          fix: 'Type a longer name, then open the workspace again.',
+          details: {},
+        },
+      },
+      { status: 400 },
+    );
+  }
+  try {
+    const outcome = await createWorkspace(parsed.data, callOptions(actor));
+    return NextResponse.json(outcome, { status: 201 });
+  } catch (cause) {
+    return failureReply(cause);
+  }
 }
