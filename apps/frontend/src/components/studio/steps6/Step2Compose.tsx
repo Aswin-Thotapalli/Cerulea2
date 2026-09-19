@@ -28,7 +28,11 @@ import ModuleMap from '@/components/studio/map/ModuleMap';
 import { SEED_MODULES } from '@/lib/catalogue/seed';
 import { detectConflicts } from '@/lib/outcomes/conflicts';
 import { deriveOutcomes } from '@/lib/outcomes/catalogue';
-import { resolveFromModules } from '@/lib/outcomes/resolve';
+import {
+  modulesWithBridgeRuntime,
+  outcomesWithBridges,
+  resolveFromModulesWithBridges,
+} from '@/lib/outcomes/bridges';
 import { openingSelection } from '@/lib/outcomes/reflect';
 import { applyComposition, composeSections } from '@/lib/blueprint/compose';
 import { useProjectState, type BuildState } from '@/lib/studio/project-state';
@@ -55,7 +59,10 @@ export default function Step2Compose({
 
   const track = handle.state?.buildState.foundation.track ?? 'dapp';
 
-  const resolution = useMemo(() => resolveFromModules(selected, SEED_MODULES), [selected]);
+  const resolution = useMemo(
+    () => resolveFromModulesWithBridges(selected, SEED_MODULES),
+    [selected],
+  );
 
   const installed = useMemo(
     () => resolution.installOrder.filter((moduleId) => removed.includes(moduleId) === false),
@@ -66,8 +73,8 @@ export default function Step2Compose({
     () =>
       detectConflicts(resolution, {
         track,
-        outcomes: deriveOutcomes(SEED_MODULES),
-        modules: SEED_MODULES,
+        outcomes: outcomesWithBridges(deriveOutcomes(SEED_MODULES)),
+        modules: modulesWithBridgeRuntime(SEED_MODULES),
       }),
     [resolution, track],
   );

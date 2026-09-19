@@ -109,6 +109,8 @@ export const LAWFUL_BASIS_NAMES = [
 export const EXPIRY_NAMES = ['Delete', 'Anonymise', 'Archive'];
 
 export type SchemaFault = {
+  /** The name of this check, so a fix can be keyed on it. */
+  code: string;
   /** Where the fault sits inside the document. */
   path: string;
   /** The Blueprint section the fault belongs to. */
@@ -129,6 +131,7 @@ function checkName(
 ): void {
   if (typeof value !== 'string' || value.length === 0) {
     faults.push({
+      code: 'schema.identifier_absent',
       path,
       section,
       message: 'This name is absent.',
@@ -138,6 +141,7 @@ function checkName(
   }
   if (IDENTIFIER_PATTERN.test(value) === false) {
     faults.push({
+      code: 'schema.identifier_refused',
       path,
       section,
       message: `The name ${value} carries a character the Blueprint refuses.`,
@@ -146,6 +150,7 @@ function checkName(
   }
   if (value.length > IDENTIFIER_LIMIT) {
     faults.push({
+      code: 'schema.identifier_long',
       path,
       section,
       message: `The name ${value} runs past ${IDENTIFIER_LIMIT} characters.`,
@@ -162,6 +167,7 @@ function checkTypeExpression(
 ): void {
   if (isRecord(type) === false || typeof type.kind !== 'string') {
     faults.push({
+      code: 'schema.type_absent',
       path,
       section,
       message: 'This type is absent.',
@@ -176,6 +182,7 @@ function checkTypeExpression(
       const scale = type.scale;
       if (typeof scale !== 'number' || scale < 0 || scale > DECIMAL_SCALE_LIMIT) {
         faults.push({
+          code: 'schema.decimal_scale',
           path: `${path}.scale`,
           section,
           message: `A decimal carries between 0 and ${DECIMAL_SCALE_LIMIT} places.`,
@@ -202,6 +209,7 @@ function checkTypeExpression(
       return;
     default:
       faults.push({
+        code: 'schema.type_unknown',
         path,
         section,
         message: `The Blueprint holds no type named ${String(type.kind)}.`,
@@ -219,6 +227,7 @@ function checkMember(
 ): void {
   if (typeof value !== 'string' || admitted.includes(value) === false) {
     faults.push({
+      code: 'schema.value_refused',
       path,
       section,
       message: `The Blueprint refuses the value ${String(value)} here.`,
@@ -236,6 +245,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
   if (isRecord(document) === false) {
     return [
       {
+        code: 'schema.document_shape',
         path: '',
         section: 'document',
         message: 'This Blueprint is not an object.',
@@ -246,6 +256,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
 
   if (typeof document.schema_version !== 'string') {
     faults.push({
+      code: 'schema.schema_version_absent',
       path: 'schema_version',
       section: 'document',
       message: 'The Blueprint names no schema version.',
@@ -254,6 +265,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
   }
   if (typeof document.name !== 'string' || document.name.trim().length === 0) {
     faults.push({
+      code: 'schema.name_absent',
       path: 'name',
       section: 'document',
       message: 'The Blueprint carries no name.',
@@ -266,6 +278,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
     if (section === 'identities') {
       if (isRecord(value) === false) {
         faults.push({
+          code: 'schema.identities_absent',
           path: section,
           section,
           message: 'The identities section is absent.',
@@ -277,6 +290,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
     if (section === 'integrations') {
       if (isRecord(value) === false) {
         faults.push({
+          code: 'schema.integrations_absent',
           path: section,
           section,
           message: 'The integrations section is absent.',
@@ -288,6 +302,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
     if (section === 'governance') {
       if (isRecord(value) === false) {
         faults.push({
+          code: 'schema.governance_absent',
           path: section,
           section,
           message: 'The governance section is absent.',
@@ -299,6 +314,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
     if (section === 'economics') {
       if (value !== null && isRecord(value) === false) {
         faults.push({
+          code: 'schema.economics_shape',
           path: section,
           section,
           message: 'The economics section holds a value the Blueprint refuses.',
@@ -309,6 +325,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
     }
     if (Array.isArray(value) === false) {
       faults.push({
+        code: 'schema.section_absent',
         path: section,
         section,
         message: `The ${section} section is absent.`,
@@ -328,6 +345,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
     if (typeof entry.id === 'string') {
       if (typeIds.has(entry.id)) {
         faults.push({
+          code: 'schema.duplicate_type',
           path: `types[${index}].id`,
           section: 'types',
           message: `Two types carry the name ${entry.id}.`,
@@ -340,6 +358,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
       const fields = Array.isArray(entry.fields) ? entry.fields : [];
       if (fields.length === 0) {
         faults.push({
+          code: 'schema.record_without_field',
           path: `types[${index}].fields`,
           section: 'types',
           message: `The record ${String(entry.id)} holds no field.`,
@@ -355,6 +374,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
       const variants = Array.isArray(entry.variants) ? entry.variants : [];
       if (variants.length === 0) {
         faults.push({
+          code: 'schema.enumeration_without_variant',
           path: `types[${index}].variants`,
           section: 'types',
           message: `The enumeration ${String(entry.id)} names no alternative.`,
@@ -371,6 +391,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
     checkName(faults, 'collections', `collections[${index}].record_type`, entry.record_type);
     if (typeof entry.record_type === 'string' && typeIds.has(entry.record_type) === false) {
       faults.push({
+        code: 'schema.record_type_absent',
         path: `collections[${index}].record_type`,
         section: 'collections',
         message: `The collection ${String(entry.id)} names the record type ${entry.record_type}, which the Blueprint lacks.`,
@@ -388,6 +409,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
     if (isRecord(retention)) {
       if (typeof retention.period_days !== 'number' || retention.period_days < 1) {
         faults.push({
+          code: 'schema.retention_period',
           path: `collections[${index}].retention.period_days`,
           section: 'collections',
           message: 'A retention period holds at least one day.',
@@ -403,6 +425,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
       );
     } else {
       faults.push({
+        code: 'schema.retention_absent',
         path: `collections[${index}].retention`,
         section: 'collections',
         message: `The collection ${String(entry.id)} declares no retention.`,
@@ -412,6 +435,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
     const purpose = entry.purpose;
     if (isRecord(purpose) === false || typeof purpose.statement !== 'string' || purpose.statement.trim().length === 0) {
       faults.push({
+        code: 'schema.purpose_absent',
         path: `collections[${index}].purpose`,
         section: 'collections',
         message: `The collection ${String(entry.id)} states no purpose.`,
@@ -442,6 +466,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
     if (isRecord(entry) === false) return;
     if (typeof entry.role === 'string' && roleIds.has(entry.role) === false) {
       faults.push({
+        code: 'schema.role_absent',
         path: `permissions[${index}].role`,
         section: 'permissions',
         message: `The permission names the role ${entry.role}, which the Blueprint lacks.`,
@@ -450,6 +475,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
     }
     if (typeof entry.collection === 'string' && collectionIds.has(entry.collection) === false) {
       faults.push({
+        code: 'schema.collection_absent',
         path: `permissions[${index}].collection`,
         section: 'permissions',
         message: `The permission names the collection ${entry.collection}, which the Blueprint lacks.`,
@@ -474,6 +500,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
     checkName(faults, 'rules', `rules[${index}].id`, entry.id);
     if (typeof entry.statement !== 'string' || entry.statement.trim().length === 0) {
       faults.push({
+        code: 'schema.rule_statement_absent',
         path: `rules[${index}].statement`,
         section: 'rules',
         message: `The rule ${String(entry.id)} states nothing in plain words.`,
@@ -490,7 +517,15 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
   actions.forEach((entry, index) => {
     if (isRecord(entry) === false) return;
     checkName(faults, 'actions', `actions[${index}].id`, entry.id);
-    if (entry.class !== undefined) {
+    if (entry.class === undefined) {
+      faults.push({
+        code: 'schema.action_class_absent',
+        path: `actions[${index}].class`,
+        section: 'actions',
+        message: `The action ${String(entry.id)} names no transaction class.`,
+        fix: `Name the class this action belongs to, so Cerulea knows the share of validators that must agree. Use one of ${TRANSACTION_CLASS_NAMES.join(', ')}.`,
+      });
+    } else {
       checkMember(
         faults,
         'actions',
@@ -503,6 +538,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
     roleList.forEach((role, position) => {
       if (typeof role === 'string' && roleIds.has(role) === false) {
         faults.push({
+          code: 'schema.action_role_absent',
           path: `actions[${index}].roles[${position}]`,
           section: 'actions',
           message: `The action ${String(entry.id)} names the role ${role}, which the Blueprint lacks.`,
@@ -518,6 +554,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
     checkName(faults, 'workflows', `workflows[${index}].id`, entry.id);
     if (typeof entry.collection === 'string' && collectionIds.has(entry.collection) === false) {
       faults.push({
+        code: 'schema.workflow_collection_absent',
         path: `workflows[${index}].collection`,
         section: 'workflows',
         message: `The workflow ${String(entry.id)} names the collection ${entry.collection}, which the Blueprint lacks.`,
@@ -528,6 +565,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
     const stateIds = new Set(states.filter(isRecord).map((state) => String(state.id ?? '')));
     if (typeof entry.initial_state === 'string' && stateIds.has(entry.initial_state) === false) {
       faults.push({
+        code: 'schema.workflow_initial_state_absent',
         path: `workflows[${index}].initial_state`,
         section: 'workflows',
         message: `The workflow ${String(entry.id)} opens in the state ${entry.initial_state}, which it lacks.`,
@@ -540,6 +578,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
         const value = transition[side];
         if (typeof value === 'string' && stateIds.has(value) === false) {
           faults.push({
+            code: 'schema.workflow_state_absent',
             path: `workflows[${index}].transitions[${position}].${side}`,
             section: 'workflows',
             message: `The workflow ${String(entry.id)} moves to the state ${value}, which it lacks.`,
@@ -556,6 +595,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
     checkName(faults, 'views', `views[${index}].id`, entry.id);
     if (typeof entry.collection === 'string' && collectionIds.has(entry.collection) === false) {
       faults.push({
+        code: 'schema.view_collection_absent',
         path: `views[${index}].collection`,
         section: 'views',
         message: `The screen ${String(entry.id)} reads the collection ${entry.collection}, which the Blueprint lacks.`,
@@ -592,6 +632,7 @@ export function validateBlueprint(document: unknown): SchemaFault[] {
     const value = quorum[name];
     if (typeof value !== 'number' || value < 1 || value > 100) {
       faults.push({
+        code: 'schema.quorum_share',
         path: `governance.quorum.${name}`,
         section: 'governance',
         message: `The ${name} threshold holds a share between 1 and 100.`,
@@ -633,6 +674,7 @@ export function readBlueprintText(text: string): DocumentReading {
     return {
       faults: [
         {
+          code: 'schema.document_unreadable',
           path: '',
           section: 'document',
           message: `Cerulea could not read this document. ${cause instanceof Error ? cause.message : String(cause)}`,

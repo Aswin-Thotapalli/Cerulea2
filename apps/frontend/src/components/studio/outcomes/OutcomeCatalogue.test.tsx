@@ -11,20 +11,20 @@ const modules = SEED_MODULES;
 describe('the outcome catalogue surface', () => {
   it('opens populated and grouped by area', () => {
     render(<OutcomeCatalogue modules={modules} />);
-    expect(screen.getByText('225 of 225 outcomes match. 0 selected.')).toBeInTheDocument();
+    expect(screen.getByText('232 of 232 outcomes match. 0 selected.')).toBeInTheDocument();
     expect(screen.getAllByTestId('outcome-group').length).toBeGreaterThan(1);
   });
 
   it('narrows to the network the project runs on', () => {
     render(<OutcomeCatalogue modules={modules} track="blockchain" />);
-    expect(screen.getByText('100 of 100 outcomes match. 0 selected.')).toBeInTheDocument();
+    expect(screen.getByText('107 of 107 outcomes match. 0 selected.')).toBeInTheDocument();
   });
 
   it('narrows as we search', async () => {
     render(<OutcomeCatalogue modules={modules} />);
     await userEvent.type(screen.getByLabelText('Search the outcomes'), 'wallet');
     await waitFor(() => {
-      expect(screen.getByText(/of 225 outcomes match/)).not.toHaveTextContent('225 of 225');
+      expect(screen.getByText(/of 232 outcomes match/)).not.toHaveTextContent('232 of 232');
     });
   });
 

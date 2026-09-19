@@ -10,6 +10,7 @@ import type { CatalogueModule, ProjectTrack } from '@/lib/catalogue/types';
 import { indexModules, resolveDependencyClosure, type ModuleIndex } from '@/lib/modules/resolve';
 import { termSet, tokenise } from '@/lib/intent/tokenise';
 import { deriveOutcomes, type Outcome } from './catalogue';
+import { modulesWithBridgeRuntime, outcomesWithBridges } from './bridges';
 
 /** One module of the bundle an outcome installs. */
 export type BundlePart = {
@@ -70,10 +71,16 @@ export function describeOutcome(outcome: Outcome, index: ModuleIndex): OutcomeCa
   };
 }
 
-/** Describes the whole outcome catalogue. */
+/**
+ * Describes the whole outcome catalogue.
+ * The list holds one statement per module and one statement per bridge target
+ * network, so a person selects a bridge the same way they select anything else.
+ */
 export function describeOutcomes(modules: CatalogueModule[]): OutcomeCard[] {
-  const index = indexModules(modules);
-  return deriveOutcomes(modules).map((outcome) => describeOutcome(outcome, index));
+  const index = indexModules(modulesWithBridgeRuntime(modules));
+  return outcomesWithBridges(deriveOutcomes(modules)).map((outcome) =>
+    describeOutcome(outcome, index),
+  );
 }
 
 export type OutcomeFilter = {

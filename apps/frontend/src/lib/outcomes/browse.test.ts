@@ -35,8 +35,8 @@ describe('groupLabel', () => {
 });
 
 describe('the outcome catalogue', () => {
-  it('carries one statement per module', () => {
-    expect(cards).toHaveLength(225);
+  it('carries one statement per module and one per bridge target network', () => {
+    expect(cards).toHaveLength(232);
   });
 
   it('never shows an internal identifier inside a statement', () => {
@@ -51,7 +51,7 @@ describe('the outcome catalogue', () => {
   it('groups every statement under an area', () => {
     const groups = groupOutcomeCards(cards);
     expect(groups.length).toBeGreaterThan(1);
-    expect(groups.reduce((total, entry) => total + entry.cards.length, 0)).toBe(225);
+    expect(groups.reduce((total, entry) => total + entry.cards.length, 0)).toBe(232);
     const sizes = groups.map((entry) => entry.cards.length);
     expect([...sizes].sort((left, right) => right - left)).toEqual(sizes);
   });
@@ -116,11 +116,11 @@ describe('filterOutcomes', () => {
 
   it('narrows by network', () => {
     const onPrivate = filterOutcomes(cards, { track: 'blockchain' });
-    expect(onPrivate.length).toBe(100);
+    expect(onPrivate.length).toBe(107);
     expect(onPrivate.every((card) => card.outcome.projectType === 'blockchain')).toBe(true);
   });
 
   it('returns the whole catalogue when nothing is set', () => {
-    expect(filterOutcomes(cards, {})).toHaveLength(225);
+    expect(filterOutcomes(cards, {})).toHaveLength(232);
   });
 });
