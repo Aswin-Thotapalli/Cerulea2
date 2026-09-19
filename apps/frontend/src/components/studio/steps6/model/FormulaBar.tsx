@@ -16,6 +16,7 @@ import {
   Box,
   Chip,
   List,
+  ListItem,
   ListItemButton,
   ListItemText,
   Paper,
@@ -120,12 +121,11 @@ export default function FormulaBar({
           </Typography>
           <List dense disablePadding>
             {completions.map((completion) => (
-              <ListItemButton
-                key={`${completion.kind}:${completion.insert}`}
-                onClick={() => insert(completion.insert)}
-              >
-                <ListItemText primary={completion.label} secondary={completion.plain} />
-              </ListItemButton>
+              <ListItem key={`${completion.kind}:${completion.insert}`} disablePadding>
+                <ListItemButton onClick={() => insert(completion.insert)}>
+                  <ListItemText primary={completion.label} secondary={completion.plain} />
+                </ListItemButton>
+              </ListItem>
             ))}
           </List>
         </Box>

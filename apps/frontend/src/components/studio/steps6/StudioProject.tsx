@@ -38,6 +38,7 @@ import Step3Model from './Step3Model';
 import Step4Policies from './Step4Policies';
 import Step6Verify from './Step6Verify';
 import ReadinessChecklist from './ReadinessChecklist';
+import PublicationGate from './PublicationGate';
 import ValidationGuidance from './ValidationGuidance';
 import ExecutionSubstrate from '@/components/studio/ExecutionSubstrate';
 import { api } from '@/lib/apiClient';
@@ -302,6 +303,7 @@ export default function StudioProject({ projectId }: { projectId: string }) {
           <Stack spacing={3}>
             <ReadinessChecklist projectId={projectId} buildState={buildState} />
             <ValidationGuidance projectId={projectId} onChanged={() => void advance()} />
+            <PublicationGate projectId={projectId} />
             <DeploymentManifestPanel
               projectId={projectId}
               statement={buildState.foundation.summary}
