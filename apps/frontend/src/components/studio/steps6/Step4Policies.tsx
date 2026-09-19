@@ -324,12 +324,12 @@ export default function Step4Policies({
           </Paper>
         ))}
 
-        {limits && (
+        {limits && (limits.statements ?? []).length > 0 && (
           <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
               What no answer changes
             </Typography>
-            {limits.statements.map((statement) => (
+            {(limits.statements ?? []).map((statement) => (
               <Typography key={statement} variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 {statement}
               </Typography>
