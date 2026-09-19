@@ -25,6 +25,7 @@ import {
 } from '@mui/material';
 
 import WorkspaceApplication from '@/components/studio/variants/WorkspaceApplication';
+import { partsFor, templatesForVariant } from '@/lib/variants/application';
 import { api } from '@/lib/apiClient';
 import { SEED_MODULES, SEED_TEMPLATES } from '@/lib/catalogue/seed';
 import { describeTemplates } from '@/lib/templates/gallery';
@@ -89,10 +90,12 @@ export default function Step1Foundation({
   const application = (handle.state?.buildState.foundation.application ?? 'dapps') as Application;
 
   const templates = useMemo(
-    () => describeTemplates(SEED_TEMPLATES, SEED_MODULES).filter(
-        (card) => card.template.projectType === track,
-      ),
-    [track],
+    () =>
+      describeTemplates(
+        templatesForVariant(application, SEED_TEMPLATES),
+        partsFor(application, SEED_MODULES),
+      ).filter((card) => card.template.projectType === track),
+    [application, track],
   );
 
   const derivation = useMemo(() => {

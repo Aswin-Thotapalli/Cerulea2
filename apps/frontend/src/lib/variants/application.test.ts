@@ -6,6 +6,7 @@ import {
   airGapGate,
   organisationGate,
   partOffered,
+  partWords,
   partsFor,
   projectGate,
   tierFor,
@@ -15,6 +16,7 @@ import {
 } from './application';
 import { SEED_MODULES } from '@/lib/catalogue/seed';
 import { deriveTrack, type Application } from '@/lib/track/derive';
+import { GOVERNMENT_TEMPLATES } from './government';
 import type { CatalogueModule } from '@/lib/catalogue/types';
 
 const EVERY: Application[] = ['dapps', 'enterprise', 'government'];
@@ -83,8 +85,8 @@ describe('the part subset of each application', () => {
 
   it('withholds the parts Government holds no remit for', () => {
     for (const part of SEED_MODULES) {
-      const held = part.moduleId.toLowerCase();
-      if (GOVERNMENT_WITHHELD.some((word) => held.includes(word))) {
+      const words = partWords(part.moduleId);
+      if (GOVERNMENT_WITHHELD.some((word) => words.includes(word))) {
         expect(partOffered('government', part), part.moduleId).toBe(false);
       }
     }
@@ -105,6 +107,37 @@ describe('the part subset of each application', () => {
       category: 'identity',
     };
     expect(partOffered('government', identity)).toBe(true);
+  });
+
+
+  it('reads a part name as whole words', () => {
+    expect(partWords('indexer-sink')).toEqual(['indexer', 'sink']);
+    expect(GOVERNMENT_WITHHELD).toContain('dex');
+    expect(
+      partOffered('government', {
+        moduleId: 'indexer-sink',
+        title: 'Indexer sink',
+        projectType: 'blockchain',
+        category: 'Data & Logic',
+      }),
+    ).toBe(true);
+    expect(
+      partOffered('government', {
+        moduleId: 'dex-core',
+        title: 'Exchange core',
+        projectType: 'dapp',
+        category: 'Finance & Settlement',
+      }),
+    ).toBe(false);
+  });
+
+  it('offers every part a Government template names', () => {
+    const offered = new Set(partsFor('government', SEED_MODULES).map((part) => part.moduleId));
+    for (const template of GOVERNMENT_TEMPLATES) {
+      for (const name of template.modules ?? []) {
+        expect(offered.has(name), `${template.id} ${name}`).toBe(true);
+      }
+    }
   });
 });
 

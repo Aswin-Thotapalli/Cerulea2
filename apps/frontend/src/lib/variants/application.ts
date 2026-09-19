@@ -13,7 +13,12 @@
 // Without this module each surface would carry its own idea of what an
 // application offers.
 
-import type { CatalogueModule, ProjectTrack } from '@/lib/catalogue/types';
+import type { CatalogueModule, CatalogueTemplate, ProjectTrack } from '@/lib/catalogue/types';
+import {
+  authoredForGovernment,
+  modulesForApplication,
+  templatesForApplication,
+} from './government';
 import { APPLICATION_LABEL, type Application } from '@/lib/track/derive';
 import { groupLabel } from '@/lib/outcomes/catalogue';
 
@@ -62,30 +67,13 @@ export type ApplicationVariant = {
   serves: string;
 };
 
-/** The areas Cerulea for Government offers. Every other area sits outside its remit. */
-export const GOVERNMENT_AREAS = [
-  'Identity',
-  'Governance',
-  'Compliance',
-  'Data',
-  'Storage',
-  'Records',
-  'Workflow',
-  'Payments',
-  'Integrations',
-  'Operations',
-  'Security',
-  'Analytics',
-  'Public Services',
-  'Land',
-  'Health',
-  'Welfare',
-  'Licensing',
-  'Procurement',
-];
-
-/** Parts Cerulea for Government never offers. */
-export const GOVERNMENT_WITHHELD = ['bridge', 'dex', 'nft', 'token', 'airdrop', 'staking'];
+/**
+ * Parts Cerulea for Government never offers.
+ * Each name below belongs to a token marketplace, and Cerulea operates with no
+ * token. The rule reads the part name, so a part added to the catalogue later
+ * falls on the right side with no second edit.
+ */
+export const GOVERNMENT_WITHHELD = ['dex', 'nft', 'airdrop', 'staking', 'meme', 'gamefi'];
 
 export const APPLICATION_VARIANTS: Record<Application, ApplicationVariant> = {
   dapps: {
@@ -192,7 +180,7 @@ export const APPLICATION_VARIANTS: Record<Application, ApplicationVariant> = {
     audience: 'Public bodies and agencies',
     defaultTrack: 'blockchain',
     bothTracks: false,
-    areas: GOVERNMENT_AREAS,
+    areas: 'every',
     withheld: GOVERNMENT_WITHHELD,
     tiers: [
       {
@@ -223,26 +211,50 @@ export function variantFor(application: Application): ApplicationVariant {
   return APPLICATION_VARIANTS[application] ?? APPLICATION_VARIANTS.dapps;
 }
 
+/**
+ * The words one part identifier is built from.
+ * A name matches a withheld word only where the whole word appears, so
+ * indexer-sink is never read as a token exchange.
+ */
+export function partWords(moduleId: string): string[] {
+  return moduleId.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 0);
+}
+
 /** Reports whether one application offers one part. */
 export function partOffered(application: Application, part: CatalogueModule): boolean {
   const variant = variantFor(application);
-  const held = part.moduleId.toLowerCase();
-  if (variant.withheld.some((word) => held.includes(word))) return false;
+  if (application === 'government' && authoredForGovernment(part.moduleId)) return true;
+  const words = partWords(part.moduleId);
+  if (variant.withheld.some((word) => words.includes(word))) return false;
   if (variant.areas === 'every') return true;
   return variant.areas.includes(groupLabel(part.category));
 }
 
-/** The parts one application offers, in catalogue order. */
+/**
+ * The parts one application offers, in catalogue order.
+ * Cerulea for Government joins the Government set the content package holds,
+ * so a public body meets the parts authored for it beside the general ones.
+ */
 export function partsFor(application: Application, modules: CatalogueModule[]): CatalogueModule[] {
-  return modules.filter((part) => partOffered(application, part));
+  return modulesForApplication(application, modules).filter((part) =>
+    partOffered(application, part),
+  );
+}
+
+/** The templates one application offers. */
+export function templatesForVariant(
+  application: Application,
+  templates: CatalogueTemplate[],
+): CatalogueTemplate[] {
+  return templatesForApplication(application, templates);
 }
 
 /** One sentence stating why a part is withheld. */
 export function withheldReason(application: Application, part: CatalogueModule): string | null {
   if (partOffered(application, part)) return null;
   const variant = variantFor(application);
-  const held = part.moduleId.toLowerCase();
-  if (variant.withheld.some((word) => held.includes(word))) {
+  const words = partWords(part.moduleId);
+  if (variant.withheld.some((word) => words.includes(word))) {
     return `${variant.label} offers no part of this kind. The audience holds no remit for it.`;
   }
   return `${variant.label} offers the areas its audience works in, and ${groupLabel(part.category)} sits outside them.`;

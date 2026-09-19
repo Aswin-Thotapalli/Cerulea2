@@ -32,6 +32,7 @@ import {
   Typography,
 } from '@mui/material';
 
+import GovernmentPosture from '@/components/studio/variants/GovernmentPosture';
 import { StudioRouteError, api } from '@/lib/apiClient';
 import { useProjectState, type BuildState } from '@/lib/studio/project-state';
 
@@ -287,6 +288,10 @@ export default function Step4Policies({
       )}
 
       <Stack spacing={3}>
+        {handle.state?.buildState.foundation.application === 'government' && (
+          <GovernmentPosture templateId={handle.state.buildState.foundation.templateId} />
+        )}
+
         {questions.map((question) => (
           <Paper key={question.id} variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
             <FormControl data-control-group={question.id}>

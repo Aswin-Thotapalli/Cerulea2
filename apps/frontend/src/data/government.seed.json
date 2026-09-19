@@ -1,0 +1,2141 @@
+{
+  "modules": [
+    {
+      "moduleId": "public-health-records",
+      "title": "Public Health Records",
+      "projectType": "blockchain",
+      "category": "Public health",
+      "tags": [
+        "government",
+        "public health"
+      ],
+      "blurb": "A clinical record rests under the patient consent that governs it, and every reading of it leaves a trail the patient sees.",
+      "longDescription": [
+        "The module holds the health records a public service keeps, the consent a patient gives over each one, and the access log every reading writes.",
+        "A clinical record moves between services with no consent attached and no record of who read it."
+      ],
+      "dependsOn": [
+        "civil-registry"
+      ],
+      "recommends": [
+        "privacy-compliance",
+        "evidence-chain"
+      ],
+      "reasonByDepId": {
+        "civil-registry": "The civil register names the person a health record belongs to.",
+        "privacy-compliance": "The guard rules narrow a reading to the fields a consent admits.",
+        "evidence-chain": "The evidence chain anchors an image or a scan referenced by a clinical entry."
+      }
+    },
+    {
+      "moduleId": "welfare-delivery",
+      "title": "Welfare Delivery",
+      "projectType": "blockchain",
+      "category": "Welfare",
+      "tags": [
+        "government",
+        "welfare"
+      ],
+      "blurb": "A household entitlement, every payment made against it and every appeal raised rest in one record the household and the auditor both read.",
+      "longDescription": [
+        "The module holds the welfare programmes a government runs, the household entitlements under each one, the payments released, and the appeals a household raises.",
+        "A benefit reaches a list nobody outside the office can check and a household has no way to question it."
+      ],
+      "dependsOn": [
+        "civil-registry"
+      ],
+      "recommends": [
+        "kyc-utility-registry",
+        "indexer-sink"
+      ],
+      "reasonByDepId": {
+        "civil-registry": "The civil register names the people inside a household.",
+        "kyc-utility-registry": "A shared identity attestation confirms a household member without a fresh document check.",
+        "indexer-sink": "The index store answers an office report across every programme at once."
+      }
+    },
+    {
+      "moduleId": "permit-issuance",
+      "title": "Permit Issuance",
+      "projectType": "blockchain",
+      "category": "Permits",
+      "tags": [
+        "government",
+        "permits"
+      ],
+      "blurb": "An application for a permit carries its checks, its decision and its conditions in one record the applicant follows from the first day.",
+      "longDescription": [
+        "The module holds the permit kinds an authority issues, the applications people make, the checks each one passes, and the permit and its conditions.",
+        "An applicant chases an office for a decision nobody can date."
+      ],
+      "dependsOn": [
+        "civil-registry"
+      ],
+      "recommends": [
+        "evidence-chain",
+        "indexer-sink"
+      ],
+      "reasonByDepId": {
+        "civil-registry": "The civil register names the applicant behind a permit application.",
+        "evidence-chain": "The evidence chain anchors the plans and photographs attached to an application.",
+        "indexer-sink": "The index store answers a public search over permits by address."
+      }
+    },
+    {
+      "moduleId": "licence-register",
+      "title": "Licence Register",
+      "projectType": "blockchain",
+      "category": "Licensing",
+      "tags": [
+        "government",
+        "licensing"
+      ],
+      "blurb": "A trade licence, a professional licence and their renewals rest in one public register anybody checks in a moment.",
+      "longDescription": [
+        "The module holds the licence classes a regulator issues, the licences themselves, the renewal record, and the sanctions placed against a holder.",
+        "A member of the public takes a licence claim on trust and a regulator finds a lapse months later."
+      ],
+      "dependsOn": [
+        "civil-registry"
+      ],
+      "recommends": [
+        "permit-issuance",
+        "indexer-sink"
+      ],
+      "reasonByDepId": {
+        "civil-registry": "The civil register names the person or the business behind a licence.",
+        "permit-issuance": "A permit covers one activity while a licence covers a standing right to trade.",
+        "indexer-sink": "The index store answers a public licence search by name or address."
+      }
+    },
+    {
+      "moduleId": "inter-department-transfer",
+      "title": "Inter Department Transfer",
+      "projectType": "blockchain",
+      "category": "Inter department work",
+      "tags": [
+        "government",
+        "inter department work"
+      ],
+      "blurb": "A case, a budget line and a duty move between departments with both sides recording the handover on the same record.",
+      "longDescription": [
+        "The module holds the transfers moving between departments, the acceptance each receiving department records, and the standing agreement that permits the movement.",
+        "A file leaves one department and arrives at another with two versions of what was sent."
+      ],
+      "dependsOn": [],
+      "recommends": [
+        "civil-registry",
+        "evidence-chain",
+        "indexer-sink"
+      ],
+      "reasonByDepId": {
+        "civil-registry": "A case file about a person names the civil record behind it.",
+        "evidence-chain": "The evidence chain anchors the documents a case file carries across departments.",
+        "indexer-sink": "The index store answers a search for every transfer touching one case."
+      }
+    },
+    {
+      "moduleId": "public-ballot-tally",
+      "title": "Public Ballot and Tally",
+      "projectType": "blockchain",
+      "category": "Public voting",
+      "tags": [
+        "government",
+        "public voting"
+      ],
+      "blurb": "A public vote publishes its roll, its sealed ballots and its count, so any observer recomputes the result.",
+      "longDescription": [
+        "The module holds the ballots a returning officer opens, the sealed votes cast at each station, and the counts an observer recomputes from the published record.",
+        "A result arrives as a number and an observer checks nothing."
+      ],
+      "dependsOn": [
+        "civil-registry"
+      ],
+      "recommends": [
+        "evidence-chain",
+        "indexer-sink"
+      ],
+      "reasonByDepId": {
+        "civil-registry": "The civil register supplies the roll a ballot is opened against.",
+        "evidence-chain": "The evidence chain anchors the paper records a recount reads.",
+        "indexer-sink": "The index store lets an observer recompute a national total in one pass."
+      }
+    }
+  ],
+  "templates": [
+    {
+      "id": "gov-court-records",
+      "projectType": "blockchain",
+      "title": "Court Records and Evidence",
+      "description": "The template holds court evidence with an unbroken handling record, sealed items and an access log a court reads.",
+      "tags": [
+        "government",
+        "court_records"
+      ],
+      "preinstalledModules": [
+        "evidence-chain",
+        "provenance-notary",
+        "private-tx",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations"
+      ],
+      "modules": [
+        "evidence-chain",
+        "provenance-notary",
+        "private-tx",
+        "civil-registry",
+        "inter-department-transfer",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      }
+    },
+    {
+      "id": "gov-farm-support",
+      "projectType": "blockchain",
+      "title": "Farm Support Distribution",
+      "description": "The template runs farm support from the published rate through enrolment and eligibility to the payments, with an appeal path.",
+      "tags": [
+        "government",
+        "farm_support"
+      ],
+      "preinstalledModules": [
+        "farm-subsidy-ledger",
+        "land-title-registry",
+        "kyc-utility-registry",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations"
+      ],
+      "modules": [
+        "farm-subsidy-ledger",
+        "land-title-registry",
+        "kyc-utility-registry",
+        "produce-grades",
+        "traceability-ledger",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      }
+    },
+    {
+      "id": "gov-grants",
+      "projectType": "blockchain",
+      "title": "Grants",
+      "description": "The template runs a grant programme from the application through review and milestones to the payouts, with the decisions published.",
+      "tags": [
+        "government",
+        "grants"
+      ],
+      "preinstalledModules": [
+        "grants-manager",
+        "escrow-settlement",
+        "compliance-attestations",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance"
+      ],
+      "modules": [
+        "grants-manager",
+        "escrow-settlement",
+        "compliance-attestations",
+        "kyc-utility-registry",
+        "inter-department-transfer",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      }
+    },
+    {
+      "id": "gov-inter-department-transfer",
+      "projectType": "blockchain",
+      "title": "Inter Department Transfer",
+      "description": "The template moves a case, a budget line or a statutory duty between departments with both sides recording the same handover.",
+      "tags": [
+        "government",
+        "inter_department_transfer"
+      ],
+      "preinstalledModules": [
+        "inter-department-transfer",
+        "evidence-chain",
+        "compliance-attestations",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance"
+      ],
+      "modules": [
+        "inter-department-transfer",
+        "evidence-chain",
+        "compliance-attestations",
+        "civil-registry",
+        "indexer-sink",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      }
+    },
+    {
+      "id": "gov-land-administration",
+      "projectType": "blockchain",
+      "title": "Land Administration",
+      "description": "The template runs a parcel register with ownership, liens and controlled transfers, each carrying the officer who recorded it.",
+      "tags": [
+        "government",
+        "land_administration"
+      ],
+      "preinstalledModules": [
+        "land-title-registry",
+        "civil-registry",
+        "escrow-settlement",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations"
+      ],
+      "modules": [
+        "land-title-registry",
+        "civil-registry",
+        "escrow-settlement",
+        "provenance-notary",
+        "permit-issuance",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      }
+    },
+    {
+      "id": "gov-licensing",
+      "projectType": "blockchain",
+      "title": "Licensing",
+      "description": "The template runs a public licence register with classes, renewals, sanctions and the allocation registers a regulator keeps.",
+      "tags": [
+        "government",
+        "licensing"
+      ],
+      "preinstalledModules": [
+        "licence-register",
+        "spectrum-registry",
+        "number-registry",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations"
+      ],
+      "modules": [
+        "licence-register",
+        "spectrum-registry",
+        "number-registry",
+        "civil-registry",
+        "did-vc-ledger",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      }
+    },
+    {
+      "id": "gov-permits",
+      "projectType": "blockchain",
+      "title": "Permits",
+      "description": "The template runs a permit application from the submission through inspections to a decision, with the conditions published beside the permit.",
+      "tags": [
+        "government",
+        "permits"
+      ],
+      "preinstalledModules": [
+        "permit-issuance",
+        "civil-registry",
+        "evidence-chain",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations"
+      ],
+      "modules": [
+        "permit-issuance",
+        "civil-registry",
+        "evidence-chain",
+        "land-title-registry",
+        "licence-register",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      }
+    },
+    {
+      "id": "gov-public-health-records",
+      "projectType": "blockchain",
+      "title": "Public Health Records",
+      "description": "The template anchors clinical records under patient consent, with every reading logged and reportable counts held apart from names.",
+      "tags": [
+        "government",
+        "public_health_records"
+      ],
+      "preinstalledModules": [
+        "public-health-records",
+        "civil-registry",
+        "private-tx",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations"
+      ],
+      "modules": [
+        "public-health-records",
+        "civil-registry",
+        "private-tx",
+        "evidence-chain",
+        "licence-register",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      }
+    },
+    {
+      "id": "gov-public-procurement",
+      "projectType": "blockchain",
+      "title": "Public Procurement",
+      "description": "The template runs an open tender from the published notice through sealed bids and the award to the goods receipt.",
+      "tags": [
+        "government",
+        "procurement"
+      ],
+      "preinstalledModules": [
+        "procurement-ledger",
+        "escrow-settlement",
+        "kyc-utility-registry",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations"
+      ],
+      "modules": [
+        "procurement-ledger",
+        "escrow-settlement",
+        "kyc-utility-registry",
+        "evidence-chain",
+        "inter-department-transfer",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      }
+    },
+    {
+      "id": "gov-public-voting",
+      "projectType": "blockchain",
+      "title": "Public Voting and Tallies",
+      "description": "The template runs a public vote with a published roll size, sealed votes, station totals and a result any observer recomputes.",
+      "tags": [
+        "government",
+        "public_voting"
+      ],
+      "preinstalledModules": [
+        "public-ballot-tally",
+        "civil-registry",
+        "evidence-chain",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "compliance-attestations"
+      ],
+      "modules": [
+        "public-ballot-tally",
+        "civil-registry",
+        "evidence-chain",
+        "provenance-notary",
+        "privacy-compliance",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "compliance-attestations",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      }
+    },
+    {
+      "id": "gov-welfare-delivery",
+      "projectType": "blockchain",
+      "title": "Welfare Delivery",
+      "description": "The template runs a benefit programme from enrolment through eligibility to payment, with an appeal path a household reaches.",
+      "tags": [
+        "government",
+        "welfare_delivery"
+      ],
+      "preinstalledModules": [
+        "welfare-delivery",
+        "civil-registry",
+        "kyc-utility-registry",
+        "privacy-compliance",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "compliance-attestations"
+      ],
+      "modules": [
+        "welfare-delivery",
+        "civil-registry",
+        "kyc-utility-registry",
+        "privacy-compliance",
+        "inter-department-transfer",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "compliance-attestations",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      }
+    }
+  ],
+  "postures": [
+    {
+      "templateId": "gov-court-records",
+      "outcome": "An item of evidence carries a complete handling record, so its standing survives a challenge in court.",
+      "deployment": {
+        "air_gapped": true,
+        "air_gap_statement": "The deployment package installs with no outbound network access and carries every dependency it needs.",
+        "residency": {
+          "jurisdiction": "the declared national jurisdiction",
+          "statement": "Storage and processing stay inside the declared national jurisdiction. The infrastructure layer enforces the lock and the deployment manifest records it."
+        },
+        "retention": {
+          "default_years": 30,
+          "statement": "Every court collection keeps its records for thirty years, which covers the period a conviction stays open to appeal. The template states every retention span in whole years.",
+          "extended": [
+            {
+              "collection": "evidence_chain_item",
+              "years": 30,
+              "statement": "An evidence item stays readable for thirty years so its standing survives a late appeal."
+            },
+            {
+              "collection": "evidence_chain_custody_record",
+              "years": 30,
+              "statement": "A custody record stays readable for thirty years so a gap in handling appears at any point."
+            },
+            {
+              "collection": "provenance_notary_notarised_item",
+              "years": 30,
+              "statement": "A notarised record stays readable for thirty years so a document proves its own age."
+            }
+          ]
+        }
+      },
+      "governance": {
+        "organisations": [
+          {
+            "id": "court_service",
+            "title": "Court Service",
+            "summary": "The service that runs the proceedings and reads the custody record."
+          },
+          {
+            "id": "evidence_office",
+            "title": "Evidence Office",
+            "summary": "The office that holds evidence and records every movement."
+          },
+          {
+            "id": "prosecution_authority",
+            "title": "Prosecution Authority",
+            "summary": "The authority that brings a case and examines an item."
+          }
+        ],
+        "statement": "Every structural change requires agreement across the named organisations. One organisation changes the shared record with the others agreeing.",
+        "quorum": [
+          {
+            "class": "Routine",
+            "threshold_percent": 51,
+            "minimum_organisations": 1,
+            "delay_days": 0,
+            "summary": "A routine change passes on a simple majority inside the owning organisation."
+          },
+          {
+            "class": "Financial",
+            "threshold_percent": 67,
+            "minimum_organisations": 2,
+            "delay_days": 0,
+            "summary": "A change that moves public money passes with two organisations agreeing."
+          },
+          {
+            "class": "Structural",
+            "threshold_percent": 80,
+            "minimum_organisations": 3,
+            "delay_days": 2,
+            "summary": "A structural change passes with three organisations agreeing and waits two days before it takes effect."
+          },
+          {
+            "class": "Constitutional",
+            "threshold_percent": 90,
+            "minimum_organisations": 3,
+            "delay_days": 7,
+            "summary": "A change to the governance itself passes with three organisations agreeing and waits seven days."
+          }
+        ],
+        "stages": [
+          {
+            "id": "change_drafted",
+            "summary": "The owning department writes the change and states the reason a person reads."
+          },
+          {
+            "id": "change_reviewed",
+            "summary": "Every named organisation reads the change and records a position."
+          },
+          {
+            "id": "change_agreed",
+            "summary": "The organisations record agreement and the waiting period starts."
+          },
+          {
+            "id": "change_applied",
+            "summary": "The change takes effect and the manifest records the new position."
+          }
+        ]
+      },
+      "answers": [
+        {
+          "question": "What are we building?",
+          "answer": "An evidence record that carries every movement and every viewing of an item.",
+          "why": "A gap in the handling record is what defeats evidence in court, so the model records each step."
+        },
+        {
+          "question": "Who uses it?",
+          "answer": "Custodians book in and seal. Case officers take and return. Courts read the custody record during proceedings.",
+          "why": "The court reads a narrow projection of the record, which is the part proceedings need."
+        },
+        {
+          "question": "What has to be true on day one?",
+          "answer": "Every movement names a taker and a place, and a sealed item opens on a court order alone.",
+          "why": "Those two rules carry the chain of custody the law expects."
+        },
+        {
+          "question": "How does the system reach the outside world?",
+          "answer": "The system reaches no outside network. The package installs from media and carries every dependency with it.",
+          "why": "A Government deployment runs inside an air gapped site, so every part travels in the package rather than over a connection."
+        },
+        {
+          "question": "Where does the data live?",
+          "answer": "Storage and processing stay inside the declared national jurisdiction.",
+          "why": "The residency lock is enforced at the infrastructure layer and the manifest records it, so a reviewer reads the position rather than asking for it."
+        },
+        {
+          "question": "Who agrees to a change?",
+          "answer": "A structural change needs agreement from Court Service, Evidence Office, Prosecution Authority.",
+          "why": "Governance across organisations is standard for Government, so one department changes the shared record with the others agreeing."
+        },
+        {
+          "question": "How long do we keep the records?",
+          "answer": "Every collection keeps its records for 30 years unless the template states a longer span.",
+          "why": "Government retention defaults run longer than the commercial defaults, and the manifest states each span in plain words."
+        }
+      ]
+    },
+    {
+      "templateId": "gov-farm-support",
+      "outcome": "A farmer reads the entitlement and every payment against it, and a district report reaches the department the same day.",
+      "deployment": {
+        "air_gapped": true,
+        "air_gap_statement": "The deployment package installs with no outbound network access and carries every dependency it needs.",
+        "residency": {
+          "jurisdiction": "the declared national jurisdiction",
+          "statement": "Storage and processing stay inside the declared national jurisdiction. The infrastructure layer enforces the lock and the deployment manifest records it."
+        },
+        "retention": {
+          "default_years": 10,
+          "statement": "Every farm support collection keeps its records for ten years, which covers the audit period and the appeal window. The template states every retention span in whole years.",
+          "extended": [
+            {
+              "collection": "farm_subsidy_ledger_scheme",
+              "years": 10,
+              "statement": "A scheme stays readable for ten years so a past payment reads against the rate of its season."
+            },
+            {
+              "collection": "farm_subsidy_ledger_entitlement",
+              "years": 10,
+              "statement": "An entitlement stays readable for ten years and the farmer reference is removed at the end of the span."
+            },
+            {
+              "collection": "land_title_registry_parcel",
+              "years": 30,
+              "statement": "A parcel record stays readable for thirty years so a land area claim reaches the original entry."
+            }
+          ]
+        }
+      },
+      "governance": {
+        "organisations": [
+          {
+            "id": "agriculture_department",
+            "title": "Agriculture Department",
+            "summary": "The department that runs the support schemes."
+          },
+          {
+            "id": "finance_ministry",
+            "title": "Finance Ministry",
+            "summary": "The ministry that releases the money behind a payment."
+          },
+          {
+            "id": "audit_authority",
+            "title": "Audit Authority",
+            "summary": "The authority that inspects entitlements and payments."
+          }
+        ],
+        "statement": "Every structural change requires agreement across the named organisations. One organisation changes the shared record with the others agreeing.",
+        "quorum": [
+          {
+            "class": "Routine",
+            "threshold_percent": 51,
+            "minimum_organisations": 1,
+            "delay_days": 0,
+            "summary": "A routine change passes on a simple majority inside the owning organisation."
+          },
+          {
+            "class": "Financial",
+            "threshold_percent": 67,
+            "minimum_organisations": 2,
+            "delay_days": 0,
+            "summary": "A change that moves public money passes with two organisations agreeing."
+          },
+          {
+            "class": "Structural",
+            "threshold_percent": 80,
+            "minimum_organisations": 3,
+            "delay_days": 2,
+            "summary": "A structural change passes with three organisations agreeing and waits two days before it takes effect."
+          },
+          {
+            "class": "Constitutional",
+            "threshold_percent": 90,
+            "minimum_organisations": 3,
+            "delay_days": 7,
+            "summary": "A change to the governance itself passes with three organisations agreeing and waits seven days."
+          }
+        ],
+        "stages": [
+          {
+            "id": "change_drafted",
+            "summary": "The owning department writes the change and states the reason a person reads."
+          },
+          {
+            "id": "change_reviewed",
+            "summary": "Every named organisation reads the change and records a position."
+          },
+          {
+            "id": "change_agreed",
+            "summary": "The organisations record agreement and the waiting period starts."
+          },
+          {
+            "id": "change_applied",
+            "summary": "The change takes effect and the manifest records the new position."
+          }
+        ]
+      },
+      "answers": [
+        {
+          "question": "What are we building?",
+          "answer": "A farm support record that carries a farmer from enrolment through eligibility to each payment.",
+          "why": "The land area behind a payment rests in the parcel register, so a claim rests on a checked record."
+        },
+        {
+          "question": "Who uses it?",
+          "answer": "District clerks enrol and check. Scheme officers pay and decide appeals. Farmers read and appeal. Auditors inspect.",
+          "why": "A farmer reaching an appeal in one step is what turns a list into a service."
+        },
+        {
+          "question": "What has to be true on day one?",
+          "answer": "Payments never exceed the amount an entitlement draws, and every entitlement names a checked land area.",
+          "why": "Those two rules carry the two failures a support programme is most often accused of."
+        },
+        {
+          "question": "How does the system reach the outside world?",
+          "answer": "The system reaches no outside network. The package installs from media and carries every dependency with it.",
+          "why": "A Government deployment runs inside an air gapped site, so every part travels in the package rather than over a connection."
+        },
+        {
+          "question": "Where does the data live?",
+          "answer": "Storage and processing stay inside the declared national jurisdiction.",
+          "why": "The residency lock is enforced at the infrastructure layer and the manifest records it, so a reviewer reads the position rather than asking for it."
+        },
+        {
+          "question": "Who agrees to a change?",
+          "answer": "A structural change needs agreement from Agriculture Department, Finance Ministry, Audit Authority.",
+          "why": "Governance across organisations is standard for Government, so one department changes the shared record with the others agreeing."
+        },
+        {
+          "question": "How long do we keep the records?",
+          "answer": "Every collection keeps its records for 10 years unless the template states a longer span.",
+          "why": "Government retention defaults run longer than the commercial defaults, and the manifest states each span in plain words."
+        }
+      ]
+    },
+    {
+      "templateId": "gov-grants",
+      "outcome": "An applicant reads the review and the milestone record behind every payment, and a citizen reads where public money went.",
+      "deployment": {
+        "air_gapped": true,
+        "air_gap_statement": "The deployment package installs with no outbound network access and carries every dependency it needs.",
+        "residency": {
+          "jurisdiction": "the declared national jurisdiction",
+          "statement": "Storage and processing stay inside the declared national jurisdiction. The infrastructure layer enforces the lock and the deployment manifest records it."
+        },
+        "retention": {
+          "default_years": 10,
+          "statement": "Every grant collection keeps its records for ten years, which covers the audit period and the reporting duty. The template states every retention span in whole years.",
+          "extended": [
+            {
+              "collection": "grants_manager_application",
+              "years": 10,
+              "statement": "An application stays readable for ten years so a review decision reads against the request it answered."
+            },
+            {
+              "collection": "grants_manager_milestone",
+              "years": 10,
+              "statement": "A milestone stays readable for ten years so a payout traces back to the work that released it."
+            },
+            {
+              "collection": "compliance_attestations_attestation",
+              "years": 7,
+              "statement": "An attestation stays readable for seven years so an inspection reads the position each year carried."
+            }
+          ]
+        }
+      },
+      "governance": {
+        "organisations": [
+          {
+            "id": "grants_department",
+            "title": "Grants Department",
+            "summary": "The department that publishes a grant programme and decides an application."
+          },
+          {
+            "id": "finance_ministry",
+            "title": "Finance Ministry",
+            "summary": "The ministry that releases the money behind a payout."
+          },
+          {
+            "id": "audit_authority",
+            "title": "Audit Authority",
+            "summary": "The authority that inspects grant decisions and payouts."
+          }
+        ],
+        "statement": "Every structural change requires agreement across the named organisations. One organisation changes the shared record with the others agreeing.",
+        "quorum": [
+          {
+            "class": "Routine",
+            "threshold_percent": 51,
+            "minimum_organisations": 1,
+            "delay_days": 0,
+            "summary": "A routine change passes on a simple majority inside the owning organisation."
+          },
+          {
+            "class": "Financial",
+            "threshold_percent": 67,
+            "minimum_organisations": 2,
+            "delay_days": 0,
+            "summary": "A change that moves public money passes with two organisations agreeing."
+          },
+          {
+            "class": "Structural",
+            "threshold_percent": 80,
+            "minimum_organisations": 3,
+            "delay_days": 2,
+            "summary": "A structural change passes with three organisations agreeing and waits two days before it takes effect."
+          },
+          {
+            "class": "Constitutional",
+            "threshold_percent": 90,
+            "minimum_organisations": 3,
+            "delay_days": 7,
+            "summary": "A change to the governance itself passes with three organisations agreeing and waits seven days."
+          }
+        ],
+        "stages": [
+          {
+            "id": "change_drafted",
+            "summary": "The owning department writes the change and states the reason a person reads."
+          },
+          {
+            "id": "change_reviewed",
+            "summary": "Every named organisation reads the change and records a position."
+          },
+          {
+            "id": "change_agreed",
+            "summary": "The organisations record agreement and the waiting period starts."
+          },
+          {
+            "id": "change_applied",
+            "summary": "The change takes effect and the manifest records the new position."
+          }
+        ]
+      },
+      "answers": [
+        {
+          "question": "What are we building?",
+          "answer": "A grant record that carries an application through review and milestones to each payout.",
+          "why": "The money follows recorded work, so a citizen reads why a payment left."
+        },
+        {
+          "question": "Who uses it?",
+          "answer": "Grant officers publish and decide. Applicants apply and report. Reviewers score. Auditors inspect.",
+          "why": "A review score is a record in the model rather than a note in a spreadsheet."
+        },
+        {
+          "question": "What has to be true on day one?",
+          "answer": "A payout follows a met milestone, and every decision carries a written ground.",
+          "why": "Those two rules are what a public audit of a grant programme tests."
+        },
+        {
+          "question": "How does the system reach the outside world?",
+          "answer": "The system reaches no outside network. The package installs from media and carries every dependency with it.",
+          "why": "A Government deployment runs inside an air gapped site, so every part travels in the package rather than over a connection."
+        },
+        {
+          "question": "Where does the data live?",
+          "answer": "Storage and processing stay inside the declared national jurisdiction.",
+          "why": "The residency lock is enforced at the infrastructure layer and the manifest records it, so a reviewer reads the position rather than asking for it."
+        },
+        {
+          "question": "Who agrees to a change?",
+          "answer": "A structural change needs agreement from Grants Department, Finance Ministry, Audit Authority.",
+          "why": "Governance across organisations is standard for Government, so one department changes the shared record with the others agreeing."
+        },
+        {
+          "question": "How long do we keep the records?",
+          "answer": "Every collection keeps its records for 10 years unless the template states a longer span.",
+          "why": "Government retention defaults run longer than the commercial defaults, and the manifest states each span in plain words."
+        }
+      ]
+    },
+    {
+      "templateId": "gov-inter-department-transfer",
+      "outcome": "A file leaves one department and arrives at another with one account of what moved and when.",
+      "deployment": {
+        "air_gapped": true,
+        "air_gap_statement": "The deployment package installs with no outbound network access and carries every dependency it needs.",
+        "residency": {
+          "jurisdiction": "the declared national jurisdiction",
+          "statement": "Storage and processing stay inside the declared national jurisdiction. The infrastructure layer enforces the lock and the deployment manifest records it."
+        },
+        "retention": {
+          "default_years": 10,
+          "statement": "Every transfer collection keeps its records for ten years, and a standing agreement runs far longer. The template states every retention span in whole years.",
+          "extended": [
+            {
+              "collection": "inter_department_transfer_agreement",
+              "years": 30,
+              "statement": "A standing agreement stays readable for thirty years so a past movement reads against the arrangement of its day."
+            },
+            {
+              "collection": "inter_department_transfer_transfer",
+              "years": 30,
+              "statement": "A transfer stays readable for thirty years so a statutory duty traces back through every department that held it."
+            },
+            {
+              "collection": "evidence_chain_custody_record",
+              "years": 30,
+              "statement": "A custody record stays readable for thirty years so a gap in handling appears years later."
+            }
+          ]
+        }
+      },
+      "governance": {
+        "organisations": [
+          {
+            "id": "transfer_secretariat",
+            "title": "Transfer Secretariat",
+            "summary": "The office that records a movement between departments."
+          },
+          {
+            "id": "sending_department",
+            "title": "Sending Department",
+            "summary": "The department that hands work or money over."
+          },
+          {
+            "id": "receiving_department",
+            "title": "Receiving Department",
+            "summary": "The department that takes the work or the money."
+          }
+        ],
+        "statement": "Every structural change requires agreement across the named organisations. One organisation changes the shared record with the others agreeing.",
+        "quorum": [
+          {
+            "class": "Routine",
+            "threshold_percent": 51,
+            "minimum_organisations": 1,
+            "delay_days": 0,
+            "summary": "A routine change passes on a simple majority inside the owning organisation."
+          },
+          {
+            "class": "Financial",
+            "threshold_percent": 67,
+            "minimum_organisations": 2,
+            "delay_days": 0,
+            "summary": "A change that moves public money passes with two organisations agreeing."
+          },
+          {
+            "class": "Structural",
+            "threshold_percent": 80,
+            "minimum_organisations": 3,
+            "delay_days": 2,
+            "summary": "A structural change passes with three organisations agreeing and waits two days before it takes effect."
+          },
+          {
+            "class": "Constitutional",
+            "threshold_percent": 90,
+            "minimum_organisations": 3,
+            "delay_days": 7,
+            "summary": "A change to the governance itself passes with three organisations agreeing and waits seven days."
+          }
+        ],
+        "stages": [
+          {
+            "id": "change_drafted",
+            "summary": "The owning department writes the change and states the reason a person reads."
+          },
+          {
+            "id": "change_reviewed",
+            "summary": "Every named organisation reads the change and records a position."
+          },
+          {
+            "id": "change_agreed",
+            "summary": "The organisations record agreement and the waiting period starts."
+          },
+          {
+            "id": "change_applied",
+            "summary": "The change takes effect and the manifest records the new position."
+          }
+        ]
+      },
+      "answers": [
+        {
+          "question": "What are we building?",
+          "answer": "A shared record of every case, budget line and duty moving between departments.",
+          "why": "Two departments reading one record removes the two versions a handover usually produces."
+        },
+        {
+          "question": "Who uses it?",
+          "answer": "Sending officers offer. Receiving officers accept or return. The secretariat records and settles. Auditors inspect.",
+          "why": "The return path is a state in the workflow rather than an email nobody files."
+        },
+        {
+          "question": "What has to be true on day one?",
+          "answer": "Every transfer carries an answer date, and every handover states what is moving.",
+          "why": "A movement with no answer date sits unanswered, which is the failure this template removes."
+        },
+        {
+          "question": "How does the system reach the outside world?",
+          "answer": "The system reaches no outside network. The package installs from media and carries every dependency with it.",
+          "why": "A Government deployment runs inside an air gapped site, so every part travels in the package rather than over a connection."
+        },
+        {
+          "question": "Where does the data live?",
+          "answer": "Storage and processing stay inside the declared national jurisdiction.",
+          "why": "The residency lock is enforced at the infrastructure layer and the manifest records it, so a reviewer reads the position rather than asking for it."
+        },
+        {
+          "question": "Who agrees to a change?",
+          "answer": "A structural change needs agreement from Transfer Secretariat, Sending Department, Receiving Department.",
+          "why": "Governance across organisations is standard for Government, so one department changes the shared record with the others agreeing."
+        },
+        {
+          "question": "How long do we keep the records?",
+          "answer": "Every collection keeps its records for 10 years unless the template states a longer span.",
+          "why": "Government retention defaults run longer than the commercial defaults, and the manifest states each span in plain words."
+        }
+      ]
+    },
+    {
+      "templateId": "gov-land-administration",
+      "outcome": "An owner proves title from one register, and a transfer passes through the checks the law sets.",
+      "deployment": {
+        "air_gapped": true,
+        "air_gap_statement": "The deployment package installs with no outbound network access and carries every dependency it needs.",
+        "residency": {
+          "jurisdiction": "the declared national jurisdiction",
+          "statement": "Storage and processing stay inside the declared national jurisdiction. The infrastructure layer enforces the lock and the deployment manifest records it."
+        },
+        "retention": {
+          "default_years": 30,
+          "statement": "Every land collection keeps its records for thirty years, which covers the period a title claim reaches back over. The template states every retention span in whole years.",
+          "extended": [
+            {
+              "collection": "land_title_registry_parcel",
+              "years": 30,
+              "statement": "A parcel record stays readable for thirty years so a title claim reaches the original entry."
+            },
+            {
+              "collection": "land_title_registry_transfer",
+              "years": 30,
+              "statement": "A transfer stays readable for thirty years so a later dispute reads the chain of ownership."
+            },
+            {
+              "collection": "civil_registry_civil_record",
+              "years": 30,
+              "statement": "A civil record stays readable for thirty years so an inheritance claim finds the person behind a title."
+            }
+          ]
+        }
+      },
+      "governance": {
+        "organisations": [
+          {
+            "id": "land_records_department",
+            "title": "Land Records Department",
+            "summary": "The department that keeps the parcel register."
+          },
+          {
+            "id": "revenue_authority",
+            "title": "Revenue Authority",
+            "summary": "The authority that collects the duty on a transfer."
+          },
+          {
+            "id": "state_audit_office",
+            "title": "State Audit Office",
+            "summary": "The office that inspects register changes after the fact."
+          }
+        ],
+        "statement": "Every structural change requires agreement across the named organisations. One organisation changes the shared record with the others agreeing.",
+        "quorum": [
+          {
+            "class": "Routine",
+            "threshold_percent": 51,
+            "minimum_organisations": 1,
+            "delay_days": 0,
+            "summary": "A routine change passes on a simple majority inside the owning organisation."
+          },
+          {
+            "class": "Financial",
+            "threshold_percent": 67,
+            "minimum_organisations": 2,
+            "delay_days": 0,
+            "summary": "A change that moves public money passes with two organisations agreeing."
+          },
+          {
+            "class": "Structural",
+            "threshold_percent": 80,
+            "minimum_organisations": 3,
+            "delay_days": 2,
+            "summary": "A structural change passes with three organisations agreeing and waits two days before it takes effect."
+          },
+          {
+            "class": "Constitutional",
+            "threshold_percent": 90,
+            "minimum_organisations": 3,
+            "delay_days": 7,
+            "summary": "A change to the governance itself passes with three organisations agreeing and waits seven days."
+          }
+        ],
+        "stages": [
+          {
+            "id": "change_drafted",
+            "summary": "The owning department writes the change and states the reason a person reads."
+          },
+          {
+            "id": "change_reviewed",
+            "summary": "Every named organisation reads the change and records a position."
+          },
+          {
+            "id": "change_agreed",
+            "summary": "The organisations record agreement and the waiting period starts."
+          },
+          {
+            "id": "change_applied",
+            "summary": "The change takes effect and the manifest records the new position."
+          }
+        ]
+      },
+      "answers": [
+        {
+          "question": "What are we building?",
+          "answer": "A land register that carries a parcel, its owners, its liens and every transfer in one place.",
+          "why": "One register removes the gap between a paper record in an office and the claim a person makes."
+        },
+        {
+          "question": "Who uses it?",
+          "answer": "Registry officers record. Revenue officers collect duty. Owners read their own titles. Auditors inspect changes.",
+          "why": "An owner reads a narrow set of fields while an officer reads the whole record, and the matrix carries that difference."
+        },
+        {
+          "question": "What has to be true on day one?",
+          "answer": "A parcel carries one owner at a time, and a transfer under dispute stays held.",
+          "why": "Those two rules stop the double sale a land register exists to prevent."
+        },
+        {
+          "question": "How does the system reach the outside world?",
+          "answer": "The system reaches no outside network. The package installs from media and carries every dependency with it.",
+          "why": "A Government deployment runs inside an air gapped site, so every part travels in the package rather than over a connection."
+        },
+        {
+          "question": "Where does the data live?",
+          "answer": "Storage and processing stay inside the declared national jurisdiction.",
+          "why": "The residency lock is enforced at the infrastructure layer and the manifest records it, so a reviewer reads the position rather than asking for it."
+        },
+        {
+          "question": "Who agrees to a change?",
+          "answer": "A structural change needs agreement from Land Records Department, Revenue Authority, State Audit Office.",
+          "why": "Governance across organisations is standard for Government, so one department changes the shared record with the others agreeing."
+        },
+        {
+          "question": "How long do we keep the records?",
+          "answer": "Every collection keeps its records for 30 years unless the template states a longer span.",
+          "why": "Government retention defaults run longer than the commercial defaults, and the manifest states each span in plain words."
+        }
+      ]
+    },
+    {
+      "templateId": "gov-licensing",
+      "outcome": "Anybody checks a licence in a moment, and a lapse or a sanction appears the day it happens.",
+      "deployment": {
+        "air_gapped": true,
+        "air_gap_statement": "The deployment package installs with no outbound network access and carries every dependency it needs.",
+        "residency": {
+          "jurisdiction": "the declared national jurisdiction",
+          "statement": "Storage and processing stay inside the declared national jurisdiction. The infrastructure layer enforces the lock and the deployment manifest records it."
+        },
+        "retention": {
+          "default_years": 10,
+          "statement": "Every licensing collection keeps its records for ten years, and an allocation register runs far longer. The template states every retention span in whole years.",
+          "extended": [
+            {
+              "collection": "licence_register_licence",
+              "years": 30,
+              "statement": "A licence stays readable for thirty years so a professional history reads as one record."
+            },
+            {
+              "collection": "spectrum_registry_allocation",
+              "years": 30,
+              "statement": "A band allocation stays readable for thirty years so a clash check reaches every past grant."
+            },
+            {
+              "collection": "number_registry_block",
+              "years": 30,
+              "statement": "A number block stays readable for thirty years so a routing question reaches the original allocation."
+            }
+          ]
+        }
+      },
+      "governance": {
+        "organisations": [
+          {
+            "id": "licensing_regulator",
+            "title": "Licensing Regulator",
+            "summary": "The regulator that issues and withdraws a licence."
+          },
+          {
+            "id": "consumer_protection_office",
+            "title": "Consumer Protection Office",
+            "summary": "The office that acts on a complaint against a holder."
+          },
+          {
+            "id": "audit_authority",
+            "title": "Audit Authority",
+            "summary": "The authority that inspects licensing decisions."
+          }
+        ],
+        "statement": "Every structural change requires agreement across the named organisations. One organisation changes the shared record with the others agreeing.",
+        "quorum": [
+          {
+            "class": "Routine",
+            "threshold_percent": 51,
+            "minimum_organisations": 1,
+            "delay_days": 0,
+            "summary": "A routine change passes on a simple majority inside the owning organisation."
+          },
+          {
+            "class": "Financial",
+            "threshold_percent": 67,
+            "minimum_organisations": 2,
+            "delay_days": 0,
+            "summary": "A change that moves public money passes with two organisations agreeing."
+          },
+          {
+            "class": "Structural",
+            "threshold_percent": 80,
+            "minimum_organisations": 3,
+            "delay_days": 2,
+            "summary": "A structural change passes with three organisations agreeing and waits two days before it takes effect."
+          },
+          {
+            "class": "Constitutional",
+            "threshold_percent": 90,
+            "minimum_organisations": 3,
+            "delay_days": 7,
+            "summary": "A change to the governance itself passes with three organisations agreeing and waits seven days."
+          }
+        ],
+        "stages": [
+          {
+            "id": "change_drafted",
+            "summary": "The owning department writes the change and states the reason a person reads."
+          },
+          {
+            "id": "change_reviewed",
+            "summary": "Every named organisation reads the change and records a position."
+          },
+          {
+            "id": "change_agreed",
+            "summary": "The organisations record agreement and the waiting period starts."
+          },
+          {
+            "id": "change_applied",
+            "summary": "The change takes effect and the manifest records the new position."
+          }
+        ]
+      },
+      "answers": [
+        {
+          "question": "What are we building?",
+          "answer": "A public licence register with the allocation registers a regulator keeps beside it.",
+          "why": "A member of the public checks a trader without asking the trader, and a regulator sees a clash before it reaches the field."
+        },
+        {
+          "question": "Who uses it?",
+          "answer": "Licensing officers issue and renew. Conduct panels sanction. Holders read their own licence. The public checks.",
+          "why": "The public reads a narrow projection, so a check reveals the standing without revealing the file."
+        },
+        {
+          "question": "What has to be true on day one?",
+          "answer": "A licence carries a renewal date, and a sanction states its ground.",
+          "why": "A register that carries a lapse silently misleads the public it serves."
+        },
+        {
+          "question": "How does the system reach the outside world?",
+          "answer": "The system reaches no outside network. The package installs from media and carries every dependency with it.",
+          "why": "A Government deployment runs inside an air gapped site, so every part travels in the package rather than over a connection."
+        },
+        {
+          "question": "Where does the data live?",
+          "answer": "Storage and processing stay inside the declared national jurisdiction.",
+          "why": "The residency lock is enforced at the infrastructure layer and the manifest records it, so a reviewer reads the position rather than asking for it."
+        },
+        {
+          "question": "Who agrees to a change?",
+          "answer": "A structural change needs agreement from Licensing Regulator, Consumer Protection Office, Audit Authority.",
+          "why": "Governance across organisations is standard for Government, so one department changes the shared record with the others agreeing."
+        },
+        {
+          "question": "How long do we keep the records?",
+          "answer": "Every collection keeps its records for 10 years unless the template states a longer span.",
+          "why": "Government retention defaults run longer than the commercial defaults, and the manifest states each span in plain words."
+        }
+      ]
+    },
+    {
+      "templateId": "gov-permits",
+      "outcome": "An applicant follows a decision date from the first day, and a neighbour reads the conditions on a permit.",
+      "deployment": {
+        "air_gapped": true,
+        "air_gap_statement": "The deployment package installs with no outbound network access and carries every dependency it needs.",
+        "residency": {
+          "jurisdiction": "the declared national jurisdiction",
+          "statement": "Storage and processing stay inside the declared national jurisdiction. The infrastructure layer enforces the lock and the deployment manifest records it."
+        },
+        "retention": {
+          "default_years": 10,
+          "statement": "Every permit collection keeps its records for ten years, which covers the period a decision is open to challenge. The template states every retention span in whole years.",
+          "extended": [
+            {
+              "collection": "permit_issuance_application",
+              "years": 10,
+              "statement": "An application stays readable for ten years so a challenge reads the submission as it stood."
+            },
+            {
+              "collection": "permit_issuance_check",
+              "years": 10,
+              "statement": "A check stays readable for ten years so an inspection decision carries its recorded work."
+            },
+            {
+              "collection": "permit_issuance_permit",
+              "years": 10,
+              "statement": "A permit stays readable for ten years so a neighbour reads the conditions long after the work."
+            }
+          ]
+        }
+      },
+      "governance": {
+        "organisations": [
+          {
+            "id": "permitting_authority",
+            "title": "Permitting Authority",
+            "summary": "The authority that decides a permit application."
+          },
+          {
+            "id": "environment_office",
+            "title": "Environment Office",
+            "summary": "The office that reviews the environmental effect of an activity."
+          },
+          {
+            "id": "audit_authority",
+            "title": "Audit Authority",
+            "summary": "The authority that inspects permit decisions."
+          }
+        ],
+        "statement": "Every structural change requires agreement across the named organisations. One organisation changes the shared record with the others agreeing.",
+        "quorum": [
+          {
+            "class": "Routine",
+            "threshold_percent": 51,
+            "minimum_organisations": 1,
+            "delay_days": 0,
+            "summary": "A routine change passes on a simple majority inside the owning organisation."
+          },
+          {
+            "class": "Financial",
+            "threshold_percent": 67,
+            "minimum_organisations": 2,
+            "delay_days": 0,
+            "summary": "A change that moves public money passes with two organisations agreeing."
+          },
+          {
+            "class": "Structural",
+            "threshold_percent": 80,
+            "minimum_organisations": 3,
+            "delay_days": 2,
+            "summary": "A structural change passes with three organisations agreeing and waits two days before it takes effect."
+          },
+          {
+            "class": "Constitutional",
+            "threshold_percent": 90,
+            "minimum_organisations": 3,
+            "delay_days": 7,
+            "summary": "A change to the governance itself passes with three organisations agreeing and waits seven days."
+          }
+        ],
+        "stages": [
+          {
+            "id": "change_drafted",
+            "summary": "The owning department writes the change and states the reason a person reads."
+          },
+          {
+            "id": "change_reviewed",
+            "summary": "Every named organisation reads the change and records a position."
+          },
+          {
+            "id": "change_agreed",
+            "summary": "The organisations record agreement and the waiting period starts."
+          },
+          {
+            "id": "change_applied",
+            "summary": "The change takes effect and the manifest records the new position."
+          }
+        ]
+      },
+      "answers": [
+        {
+          "question": "What are we building?",
+          "answer": "A permit record that carries an application through inspections to a dated decision.",
+          "why": "The applicant and the neighbour read the same standing, so a decision needs no chasing."
+        },
+        {
+          "question": "Who uses it?",
+          "answer": "Applicants submit. Inspectors check. Permit officers decide and revoke. The public reads permits and conditions.",
+          "why": "The public reads the conditions on a live permit, which is the part that affects a neighbour."
+        },
+        {
+          "question": "What has to be true on day one?",
+          "answer": "Every application carries a decision date, and every permit states its conditions.",
+          "why": "A decision date turns a promise into something the Blueprint measures and a person reads."
+        },
+        {
+          "question": "How does the system reach the outside world?",
+          "answer": "The system reaches no outside network. The package installs from media and carries every dependency with it.",
+          "why": "A Government deployment runs inside an air gapped site, so every part travels in the package rather than over a connection."
+        },
+        {
+          "question": "Where does the data live?",
+          "answer": "Storage and processing stay inside the declared national jurisdiction.",
+          "why": "The residency lock is enforced at the infrastructure layer and the manifest records it, so a reviewer reads the position rather than asking for it."
+        },
+        {
+          "question": "Who agrees to a change?",
+          "answer": "A structural change needs agreement from Permitting Authority, Environment Office, Audit Authority.",
+          "why": "Governance across organisations is standard for Government, so one department changes the shared record with the others agreeing."
+        },
+        {
+          "question": "How long do we keep the records?",
+          "answer": "Every collection keeps its records for 10 years unless the template states a longer span.",
+          "why": "Government retention defaults run longer than the commercial defaults, and the manifest states each span in plain words."
+        }
+      ]
+    },
+    {
+      "templateId": "gov-public-health-records",
+      "outcome": "Care carries forward between facilities, and a patient sees who opened the record that names them.",
+      "deployment": {
+        "air_gapped": true,
+        "air_gap_statement": "The deployment package installs with no outbound network access and carries every dependency it needs.",
+        "residency": {
+          "jurisdiction": "the declared national jurisdiction",
+          "statement": "Storage and processing stay inside the declared national jurisdiction. The infrastructure layer enforces the lock and the deployment manifest records it."
+        },
+        "retention": {
+          "default_years": 10,
+          "statement": "Every health collection keeps its records for ten years, and the clinical record itself runs far longer. The template states every retention span in whole years.",
+          "extended": [
+            {
+              "collection": "public_health_records_health_record",
+              "years": 30,
+              "statement": "A clinical entry stays readable for thirty years so a lifetime of care reads as one history."
+            },
+            {
+              "collection": "public_health_records_access_entry",
+              "years": 10,
+              "statement": "An access entry stays readable for ten years so a patient questions a reading long after it happened."
+            },
+            {
+              "collection": "public_health_records_consent",
+              "years": 10,
+              "statement": "A consent stays readable for ten years so an inspector reads the permission a past reading rested on."
+            }
+          ]
+        }
+      },
+      "governance": {
+        "organisations": [
+          {
+            "id": "health_department",
+            "title": "Health Department",
+            "summary": "The department that holds the health records of the jurisdiction."
+          },
+          {
+            "id": "data_protection_authority",
+            "title": "Data Protection Authority",
+            "summary": "The authority that supervises how personal records are read."
+          },
+          {
+            "id": "medical_council",
+            "title": "Medical Council",
+            "summary": "The council that registers the clinicians permitted to write a record."
+          }
+        ],
+        "statement": "Every structural change requires agreement across the named organisations. One organisation changes the shared record with the others agreeing.",
+        "quorum": [
+          {
+            "class": "Routine",
+            "threshold_percent": 51,
+            "minimum_organisations": 1,
+            "delay_days": 0,
+            "summary": "A routine change passes on a simple majority inside the owning organisation."
+          },
+          {
+            "class": "Financial",
+            "threshold_percent": 67,
+            "minimum_organisations": 2,
+            "delay_days": 0,
+            "summary": "A change that moves public money passes with two organisations agreeing."
+          },
+          {
+            "class": "Structural",
+            "threshold_percent": 80,
+            "minimum_organisations": 3,
+            "delay_days": 2,
+            "summary": "A structural change passes with three organisations agreeing and waits two days before it takes effect."
+          },
+          {
+            "class": "Constitutional",
+            "threshold_percent": 90,
+            "minimum_organisations": 3,
+            "delay_days": 7,
+            "summary": "A change to the governance itself passes with three organisations agreeing and waits seven days."
+          }
+        ],
+        "stages": [
+          {
+            "id": "change_drafted",
+            "summary": "The owning department writes the change and states the reason a person reads."
+          },
+          {
+            "id": "change_reviewed",
+            "summary": "Every named organisation reads the change and records a position."
+          },
+          {
+            "id": "change_agreed",
+            "summary": "The organisations record agreement and the waiting period starts."
+          },
+          {
+            "id": "change_applied",
+            "summary": "The change takes effect and the manifest records the new position."
+          }
+        ]
+      },
+      "answers": [
+        {
+          "question": "What are we building?",
+          "answer": "A health record anchor that carries clinical entries under the consent that governs each reading.",
+          "why": "Care moves between facilities while the patient keeps a view of who opened the record."
+        },
+        {
+          "question": "Who uses it?",
+          "answer": "Clinicians write and read under a consent. Patients grant and withdraw consent. Analysts read counts with names removed.",
+          "why": "The analyst reads a narrow projection, so a public health count needs no access to a named record."
+        },
+        {
+          "question": "What has to be true on day one?",
+          "answer": "A reading rests on a live consent or a stated legal ground, and every reading writes an access entry.",
+          "why": "The trail is what lets a patient hold the service to account, so the Blueprint records it on every read."
+        },
+        {
+          "question": "How does the system reach the outside world?",
+          "answer": "The system reaches no outside network. The package installs from media and carries every dependency with it.",
+          "why": "A Government deployment runs inside an air gapped site, so every part travels in the package rather than over a connection."
+        },
+        {
+          "question": "Where does the data live?",
+          "answer": "Storage and processing stay inside the declared national jurisdiction.",
+          "why": "The residency lock is enforced at the infrastructure layer and the manifest records it, so a reviewer reads the position rather than asking for it."
+        },
+        {
+          "question": "Who agrees to a change?",
+          "answer": "A structural change needs agreement from Health Department, Data Protection Authority, Medical Council.",
+          "why": "Governance across organisations is standard for Government, so one department changes the shared record with the others agreeing."
+        },
+        {
+          "question": "How long do we keep the records?",
+          "answer": "Every collection keeps its records for 10 years unless the template states a longer span.",
+          "why": "Government retention defaults run longer than the commercial defaults, and the manifest states each span in plain words."
+        }
+      ]
+    },
+    {
+      "templateId": "gov-public-procurement",
+      "outcome": "A supplier reads one published tender, places a sealed bid, and every award carries the ground a citizen reads.",
+      "deployment": {
+        "air_gapped": true,
+        "air_gap_statement": "The deployment package installs with no outbound network access and carries every dependency it needs.",
+        "residency": {
+          "jurisdiction": "the declared national jurisdiction",
+          "statement": "Storage and processing stay inside the declared national jurisdiction. The infrastructure layer enforces the lock and the deployment manifest records it."
+        },
+        "retention": {
+          "default_years": 10,
+          "statement": "Every procurement collection keeps its records for ten years, which covers the audit period and any later challenge. The template states every retention span in whole years.",
+          "extended": [
+            {
+              "collection": "procurement_ledger_tender",
+              "years": 10,
+              "statement": "A tender stays readable for ten years so a challenge reaches the published notice."
+            },
+            {
+              "collection": "procurement_ledger_bid",
+              "years": 10,
+              "statement": "A sealed bid stays readable for ten years so an auditor compares the offers behind an award."
+            },
+            {
+              "collection": "procurement_ledger_purchase_order",
+              "years": 10,
+              "statement": "An order stays readable for ten years so the three way match survives an inspection."
+            }
+          ]
+        }
+      },
+      "governance": {
+        "organisations": [
+          {
+            "id": "procurement_department",
+            "title": "Procurement Department",
+            "summary": "The department that publishes a tender and awards it."
+          },
+          {
+            "id": "audit_authority",
+            "title": "Audit Authority",
+            "summary": "The authority that inspects award decisions after the fact."
+          },
+          {
+            "id": "finance_ministry",
+            "title": "Finance Ministry",
+            "summary": "The ministry that releases the budget behind an award."
+          }
+        ],
+        "statement": "Every structural change requires agreement across the named organisations. One organisation changes the shared record with the others agreeing.",
+        "quorum": [
+          {
+            "class": "Routine",
+            "threshold_percent": 51,
+            "minimum_organisations": 1,
+            "delay_days": 0,
+            "summary": "A routine change passes on a simple majority inside the owning organisation."
+          },
+          {
+            "class": "Financial",
+            "threshold_percent": 67,
+            "minimum_organisations": 2,
+            "delay_days": 0,
+            "summary": "A change that moves public money passes with two organisations agreeing."
+          },
+          {
+            "class": "Structural",
+            "threshold_percent": 80,
+            "minimum_organisations": 3,
+            "delay_days": 2,
+            "summary": "A structural change passes with three organisations agreeing and waits two days before it takes effect."
+          },
+          {
+            "class": "Constitutional",
+            "threshold_percent": 90,
+            "minimum_organisations": 3,
+            "delay_days": 7,
+            "summary": "A change to the governance itself passes with three organisations agreeing and waits seven days."
+          }
+        ],
+        "stages": [
+          {
+            "id": "change_drafted",
+            "summary": "The owning department writes the change and states the reason a person reads."
+          },
+          {
+            "id": "change_reviewed",
+            "summary": "Every named organisation reads the change and records a position."
+          },
+          {
+            "id": "change_agreed",
+            "summary": "The organisations record agreement and the waiting period starts."
+          },
+          {
+            "id": "change_applied",
+            "summary": "The change takes effect and the manifest records the new position."
+          }
+        ]
+      },
+      "answers": [
+        {
+          "question": "What are we building?",
+          "answer": "An open procurement record that carries a tender from the published notice to the goods receipt.",
+          "why": "Every step rests on one record, so a supplier and a citizen read the same account of an award."
+        },
+        {
+          "question": "Who uses it?",
+          "answer": "Procurement officers publish and award. Suppliers bid. Receiving clerks record goods. Auditors inspect.",
+          "why": "The permission matrix narrows each role to the fields and the rows its work needs."
+        },
+        {
+          "question": "What has to be true on day one?",
+          "answer": "A bid stays sealed until the close, and an award carries a written ground.",
+          "why": "Those two rules carry the fairness the process promises, so the Blueprint holds them as invariants rather than as guidance."
+        },
+        {
+          "question": "How does the system reach the outside world?",
+          "answer": "The system reaches no outside network. The package installs from media and carries every dependency with it.",
+          "why": "A Government deployment runs inside an air gapped site, so every part travels in the package rather than over a connection."
+        },
+        {
+          "question": "Where does the data live?",
+          "answer": "Storage and processing stay inside the declared national jurisdiction.",
+          "why": "The residency lock is enforced at the infrastructure layer and the manifest records it, so a reviewer reads the position rather than asking for it."
+        },
+        {
+          "question": "Who agrees to a change?",
+          "answer": "A structural change needs agreement from Procurement Department, Audit Authority, Finance Ministry.",
+          "why": "Governance across organisations is standard for Government, so one department changes the shared record with the others agreeing."
+        },
+        {
+          "question": "How long do we keep the records?",
+          "answer": "Every collection keeps its records for 10 years unless the template states a longer span.",
+          "why": "Government retention defaults run longer than the commercial defaults, and the manifest states each span in plain words."
+        }
+      ]
+    },
+    {
+      "templateId": "gov-public-voting",
+      "outcome": "An observer recomputes the declared result from the published parts, and a voter checks that their vote was counted.",
+      "deployment": {
+        "air_gapped": true,
+        "air_gap_statement": "The deployment package installs with no outbound network access and carries every dependency it needs.",
+        "residency": {
+          "jurisdiction": "the declared national jurisdiction",
+          "statement": "Storage and processing stay inside the declared national jurisdiction. The infrastructure layer enforces the lock and the deployment manifest records it."
+        },
+        "retention": {
+          "default_years": 10,
+          "statement": "Every voting collection keeps its records for ten years, and the ballot and the counts run far longer. The template states every retention span in whole years.",
+          "extended": [
+            {
+              "collection": "public_ballot_tally_ballot",
+              "years": 30,
+              "statement": "A ballot stays readable for thirty years so a historic result reads against the roll of its day."
+            },
+            {
+              "collection": "public_ballot_tally_station_count",
+              "years": 30,
+              "statement": "A station total stays readable for thirty years so a recount reaches every published part."
+            },
+            {
+              "collection": "public_ballot_tally_sealed_vote",
+              "years": 10,
+              "statement": "A sealed vote stays readable for ten years and the record is erased at the end of the span."
+            }
+          ]
+        }
+      },
+      "governance": {
+        "organisations": [
+          {
+            "id": "election_commission",
+            "title": "Election Commission",
+            "summary": "The body that runs the vote and declares the result."
+          },
+          {
+            "id": "observer_body",
+            "title": "Observer Body",
+            "summary": "The accredited body that recomputes a count independently."
+          },
+          {
+            "id": "audit_authority",
+            "title": "Audit Authority",
+            "summary": "The authority that inspects the conduct of the vote."
+          }
+        ],
+        "statement": "Every structural change requires agreement across the named organisations. One organisation changes the shared record with the others agreeing.",
+        "quorum": [
+          {
+            "class": "Routine",
+            "threshold_percent": 51,
+            "minimum_organisations": 1,
+            "delay_days": 0,
+            "summary": "A routine change passes on a simple majority inside the owning organisation."
+          },
+          {
+            "class": "Financial",
+            "threshold_percent": 67,
+            "minimum_organisations": 2,
+            "delay_days": 0,
+            "summary": "A change that moves public money passes with two organisations agreeing."
+          },
+          {
+            "class": "Structural",
+            "threshold_percent": 80,
+            "minimum_organisations": 3,
+            "delay_days": 2,
+            "summary": "A structural change passes with three organisations agreeing and waits two days before it takes effect."
+          },
+          {
+            "class": "Constitutional",
+            "threshold_percent": 90,
+            "minimum_organisations": 3,
+            "delay_days": 7,
+            "summary": "A change to the governance itself passes with three organisations agreeing and waits seven days."
+          }
+        ],
+        "stages": [
+          {
+            "id": "change_drafted",
+            "summary": "The owning department writes the change and states the reason a person reads."
+          },
+          {
+            "id": "change_reviewed",
+            "summary": "Every named organisation reads the change and records a position."
+          },
+          {
+            "id": "change_agreed",
+            "summary": "The organisations record agreement and the waiting period starts."
+          },
+          {
+            "id": "change_applied",
+            "summary": "The change takes effect and the manifest records the new position."
+          }
+        ]
+      },
+      "answers": [
+        {
+          "question": "What are we building?",
+          "answer": "A public vote that publishes its roll size, its sealed votes and every station total.",
+          "why": "A result anybody recomputes needs no trust in the body that declared it."
+        },
+        {
+          "question": "Who uses it?",
+          "answer": "Returning officers open and declare. Presiding officers seal votes and publish totals. Observers recompute. Voters check a receipt.",
+          "why": "The observer is a role in the model with a credential, so a recount is an ordinary read."
+        },
+        {
+          "question": "What has to be true on day one?",
+          "answer": "Votes recorded never exceed the roll, and every voter holds a receipt.",
+          "why": "Those two rules carry the two questions a contested result always asks."
+        },
+        {
+          "question": "How does the system reach the outside world?",
+          "answer": "The system reaches no outside network. The package installs from media and carries every dependency with it.",
+          "why": "A Government deployment runs inside an air gapped site, so every part travels in the package rather than over a connection."
+        },
+        {
+          "question": "Where does the data live?",
+          "answer": "Storage and processing stay inside the declared national jurisdiction.",
+          "why": "The residency lock is enforced at the infrastructure layer and the manifest records it, so a reviewer reads the position rather than asking for it."
+        },
+        {
+          "question": "Who agrees to a change?",
+          "answer": "A structural change needs agreement from Election Commission, Observer Body, Audit Authority.",
+          "why": "Governance across organisations is standard for Government, so one department changes the shared record with the others agreeing."
+        },
+        {
+          "question": "How long do we keep the records?",
+          "answer": "Every collection keeps its records for 10 years unless the template states a longer span.",
+          "why": "Government retention defaults run longer than the commercial defaults, and the manifest states each span in plain words."
+        }
+      ]
+    },
+    {
+      "templateId": "gov-welfare-delivery",
+      "outcome": "A household reads its own entitlement and every payment made against it, and questions a decision in one step.",
+      "deployment": {
+        "air_gapped": true,
+        "air_gap_statement": "The deployment package installs with no outbound network access and carries every dependency it needs.",
+        "residency": {
+          "jurisdiction": "the declared national jurisdiction",
+          "statement": "Storage and processing stay inside the declared national jurisdiction. The infrastructure layer enforces the lock and the deployment manifest records it."
+        },
+        "retention": {
+          "default_years": 10,
+          "statement": "Every welfare collection keeps its records for ten years, which covers the audit period and the appeal window. The template states every retention span in whole years.",
+          "extended": [
+            {
+              "collection": "welfare_delivery_programme",
+              "years": 30,
+              "statement": "A programme stays readable for thirty years so a historic entitlement reads against the rule of its day."
+            },
+            {
+              "collection": "welfare_delivery_entitlement",
+              "years": 10,
+              "statement": "An entitlement stays readable for ten years and the household reference is removed at the end of the span."
+            },
+            {
+              "collection": "welfare_delivery_appeal",
+              "years": 10,
+              "statement": "An appeal stays readable for ten years so a decision carries its ground long after the payment."
+            }
+          ]
+        }
+      },
+      "governance": {
+        "organisations": [
+          {
+            "id": "welfare_department",
+            "title": "Welfare Department",
+            "summary": "The department that runs the benefit programmes."
+          },
+          {
+            "id": "finance_ministry",
+            "title": "Finance Ministry",
+            "summary": "The ministry that releases the money behind a payment."
+          },
+          {
+            "id": "audit_authority",
+            "title": "Audit Authority",
+            "summary": "The authority that inspects entitlements and payments."
+          }
+        ],
+        "statement": "Every structural change requires agreement across the named organisations. One organisation changes the shared record with the others agreeing.",
+        "quorum": [
+          {
+            "class": "Routine",
+            "threshold_percent": 51,
+            "minimum_organisations": 1,
+            "delay_days": 0,
+            "summary": "A routine change passes on a simple majority inside the owning organisation."
+          },
+          {
+            "class": "Financial",
+            "threshold_percent": 67,
+            "minimum_organisations": 2,
+            "delay_days": 0,
+            "summary": "A change that moves public money passes with two organisations agreeing."
+          },
+          {
+            "class": "Structural",
+            "threshold_percent": 80,
+            "minimum_organisations": 3,
+            "delay_days": 2,
+            "summary": "A structural change passes with three organisations agreeing and waits two days before it takes effect."
+          },
+          {
+            "class": "Constitutional",
+            "threshold_percent": 90,
+            "minimum_organisations": 3,
+            "delay_days": 7,
+            "summary": "A change to the governance itself passes with three organisations agreeing and waits seven days."
+          }
+        ],
+        "stages": [
+          {
+            "id": "change_drafted",
+            "summary": "The owning department writes the change and states the reason a person reads."
+          },
+          {
+            "id": "change_reviewed",
+            "summary": "Every named organisation reads the change and records a position."
+          },
+          {
+            "id": "change_agreed",
+            "summary": "The organisations record agreement and the waiting period starts."
+          },
+          {
+            "id": "change_applied",
+            "summary": "The change takes effect and the manifest records the new position."
+          }
+        ]
+      },
+      "answers": [
+        {
+          "question": "What are we building?",
+          "answer": "A welfare record that carries a household from enrolment through eligibility to each payment.",
+          "why": "The household reads the same record the office reads, so a question reaches a recorded answer."
+        },
+        {
+          "question": "Who uses it?",
+          "answer": "Caseworkers enrol and check. Programme officers pay and decide appeals. Households read and appeal. Auditors inspect.",
+          "why": "The appeal path is a role in the model rather than a message to an inbox."
+        },
+        {
+          "question": "What has to be true on day one?",
+          "answer": "Payments never exceed the amount an entitlement draws, and every household reaches an appeal.",
+          "why": "Those two rules carry the fairness the programme promises, so the Blueprint holds them as invariants."
+        },
+        {
+          "question": "How does the system reach the outside world?",
+          "answer": "The system reaches no outside network. The package installs from media and carries every dependency with it.",
+          "why": "A Government deployment runs inside an air gapped site, so every part travels in the package rather than over a connection."
+        },
+        {
+          "question": "Where does the data live?",
+          "answer": "Storage and processing stay inside the declared national jurisdiction.",
+          "why": "The residency lock is enforced at the infrastructure layer and the manifest records it, so a reviewer reads the position rather than asking for it."
+        },
+        {
+          "question": "Who agrees to a change?",
+          "answer": "A structural change needs agreement from Welfare Department, Finance Ministry, Audit Authority.",
+          "why": "Governance across organisations is standard for Government, so one department changes the shared record with the others agreeing."
+        },
+        {
+          "question": "How long do we keep the records?",
+          "answer": "Every collection keeps its records for 10 years unless the template states a longer span.",
+          "why": "Government retention defaults run longer than the commercial defaults, and the manifest states each span in plain words."
+        }
+      ]
+    }
+  ]
+}
