@@ -1,196 +1,288 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+// apps/frontend/src/components/AI/Assistant.tsx
+// The chat surface for Cerulea Intelligence.
+// Studio holds no model. Every question reaches the Cerulea APIs intelligence
+// routes, and every reply arrives as typed cards this surface renders with
+// Material UI. A failure shows the message Cerulea named together with its fix.
+// Without this surface a person could not ask Cerulea to change the Blueprint.
+
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Fab, Drawer, Box, Typography, TextField, IconButton, Stack,
-  Chip, Divider, Avatar, Paper, Tooltip,
+  Alert,
+  AlertTitle,
+  Avatar,
+  Box,
+  Chip,
+  Divider,
+  Drawer,
+  Fab,
+  IconButton,
+  LinearProgress,
+  Paper,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { motion, AnimatePresence } from 'framer-motion';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { usePathname } from 'next/navigation';
-import { useStudio } from '@/context/StudioContext';
-import { api } from '@/lib/apiClient';
 
-const fabVariants = {
-  hidden: { scale: 0, y: 50, opacity: 0 },
-  visible: {
-    scale: 1, y: 0, opacity: 1,
-    transition: { type: 'spring' as const, stiffness: 260, damping: 20, delay: 0.5 },
-  },
+import CardSurface, { type CardActions } from '@/components/studio/intelligence/CardSurface';
+import { useStudio } from '@/context/StudioContext';
+import { StudioRouteError, api } from '@/lib/apiClient';
+import type {
+  Card,
+  InterfaceState,
+  MessageReply,
+  PatchApplied,
+  Thread,
+  ThreadStart,
+} from '@/lib/intelligence/types';
+
+export type Turn = {
+  turnId: string;
+  role: 'person' | 'cerulea';
+  text: string;
+  cards: Card[];
 };
 
-type ChatRole = 'user' | 'assistant';
-type ChatMessage = { id: string; role: ChatRole; text: string; createdAt: Date };
+export type SurfaceFailure = { message: string; fix: string };
 
-let messageCounter = 0;
-
-/** Names one message in this conversation. The value never leaves the browser. */
-function makeId(prefix = 'msg') {
-  messageCounter += 1;
-  return `${prefix}_${messageCounter}_${Date.now().toString(36)}`;
+/** Turns any failure into the message and the fix the surface shows. */
+export function describeFailure(cause: unknown): SurfaceFailure {
+  if (cause instanceof StudioRouteError) {
+    return { message: cause.message.replace(` ${cause.fix}`, ''), fix: cause.fix };
+  }
+  return {
+    message: cause instanceof Error ? cause.message : String(cause),
+    fix: 'Ask again. Report the problem to the Cerulea operator when it repeats.',
+  };
 }
 
-function normalize(s: string) {
-  return s.trim().toLowerCase().replace(/[?!.]+$/g, '').replace(/\s+/g, ' ');
-}
+let turnCounter = 0;
 
-function formatTime(d: Date) {
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
+/** Names one turn in this conversation. The value never leaves the browser. */
+function nextTurnId(prefix: string): string {
+  turnCounter += 1;
+  return `${prefix}_${turnCounter}`;
 }
 
 /** The four questions a person asks most often on a first visit. */
-const QUICK_PROMPTS = [
+export const QUICK_QUESTIONS = [
   'Which parts does this system need?',
   'What does the Blueprint hold?',
-  'How does a unit of account work?',
-  'What is a collection?',
+  'What remains before we deploy?',
+  'What does this screen change?',
 ];
+
+/** Reads the screen a route names, in the words a person uses. */
+export function screenName(pathname: string | null): string {
+  if (!pathname) return 'Studio';
+  if (pathname === '/') return 'The project workspace';
+  const trimmed = pathname.replace(/^\/+/, '').split('/')[0];
+  return trimmed.length === 0 ? 'Studio' : trimmed.replace(/-/g, ' ');
+}
 
 export default function Assistant() {
   const pathname = usePathname();
   const studio = useStudio();
   const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
 
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [
-    {
-      id: makeId('assistant'),
-      role: 'assistant',
-      text:
-        'We are Cerulea Intelligence. We help shape the model, choose the parts a system needs and explain any screen in Studio.\n\nWhat shall we build?',
-      createdAt: new Date(),
-    },
-  ]);
-  const [isTyping, setIsTyping] = useState(false);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<SurfaceFailure | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    const surface = scrollRef.current;
+    if (surface && typeof surface.scrollTo === 'function') {
+      surface.scrollTo({ top: surface.scrollHeight, behavior: 'smooth' });
     }
-  }, [messages, isTyping]);
+  }, [turns, busy]);
 
-  function addAssistantMessage(fullText: string) {
-    setMessages((previous) => [
-      ...previous,
-      { id: makeId('assistant'), role: 'assistant', text: fullText, createdAt: new Date() },
-    ]);
-    setIsTyping(false);
-  }
+  const projectId = studio.projectId ?? '';
 
-  function buildStudioSnapshot() {
+  const buildInterfaceState = useCallback((): InterfaceState => {
+    const selection = [...studio.selectedOutcomes, ...studio.selectedModules];
     return {
-      currentRoute: pathname,
-      studioState: {
-        projectId: studio.projectId,
-        projectType: studio.projectType,
-        templateId: studio.templateId,
-        selectedModules: studio.selectedModules,
-        appMetadata: studio.appMetadata,
-      },
+      screen: screenName(pathname),
+      selection,
+      validationErrors: [],
+      recentActions: [],
     };
-  }
+  }, [pathname, studio.selectedModules, studio.selectedOutcomes]);
 
-  function readProjectMemory() {
+  const openThread = useCallback(async (): Promise<string | null> => {
+    if (threadId) return threadId;
     try {
-      const raw = localStorage.getItem(`ceruleai:memory:${studio.projectId || 'local'}`);
-      return raw ? JSON.parse(raw) : {};
-    } catch { return {}; }
-  }
-
-  function buildProjectMemory() {
-    const prev = readProjectMemory();
-    const next = { ...prev, projectType: studio.projectType, selectedModules: studio.selectedModules, appMetadata: studio.appMetadata, updatedAt: new Date().toISOString() };
-    try { localStorage.setItem(`ceruleai:memory:${studio.projectId || 'local'}`, JSON.stringify(next)); } catch {}
-    return next;
-  }
-
-  function toHistoryPayload(msgs: ChatMessage[]) {
-    const budget = 12000;
-    const out: { role: ChatRole; text: string }[] = [];
-    let used = 0;
-    for (let i = msgs.length - 1; i >= 0; i--) {
-      const line = `${msgs[i].role}:${msgs[i].text}\n`;
-      if (used + line.length > budget) break;
-      out.unshift({ role: msgs[i].role, text: msgs[i].text });
-      used += line.length;
-    }
-    return out;
-  }
-
-  async function handleSend(text?: string) {
-    const asked = (text || input).trim();
-    if (!asked) return;
-    setInput('');
-    setMessages((previous) => [
-      ...previous,
-      { id: makeId('user'), role: 'user', text: asked, createdAt: new Date() },
-    ]);
-    setIsTyping(true);
-    try {
-      const answer = await api<{ reply: string }>('/api/ceruleai', {
+      const started = await api<ThreadStart>('/api/intelligence/threads', {
         method: 'POST',
-        body: JSON.stringify({
-          message: asked,
-          history: toHistoryPayload(messages),
-          studioSnapshot: buildStudioSnapshot(),
-          projectMemory: buildProjectMemory(),
-        }),
+        body: JSON.stringify({ projectId }),
       });
-      addAssistantMessage(
-        answer.reply ||
-          'Cerulea Intelligence answered with no text. Ask the question again in a moment.',
-      );
+      setThreadId(started.threadId);
+      setFailure(null);
+      return started.threadId;
     } catch (cause) {
-      addAssistantMessage(
-        cause instanceof Error
-          ? cause.message
-          : 'Cerulea Intelligence did not answer. Ask the question again in a moment.',
-      );
+      setFailure(describeFailure(cause));
+      return null;
     }
-  }
+  }, [projectId, threadId]);
 
-  const isLight = theme.palette.mode === 'light';
+  useEffect(() => {
+    if (!open || threadId) return;
+    void openThread();
+  }, [open, openThread, threadId]);
+
+  useEffect(() => {
+    if (!threadId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const held = await api<Thread>(
+          `/api/intelligence/threads/${encodeURIComponent(threadId)}`,
+        );
+        if (cancelled || held.turns.length === 0) return;
+        setTurns(
+          held.turns.map((turn) => ({
+            turnId: turn.messageId,
+            role: turn.role,
+            text: turn.text,
+            cards: turn.cards,
+          })),
+        );
+      } catch (cause) {
+        if (!cancelled) setFailure(describeFailure(cause));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [threadId]);
+
+  const send = useCallback(
+    async (asked: string) => {
+      const text = asked.trim();
+      if (text.length === 0 || busy) return;
+      setInput('');
+      setNotice(null);
+      setTurns((previous) => [
+        ...previous,
+        { turnId: nextTurnId('person'), role: 'person', text, cards: [] },
+      ]);
+      setBusy(true);
+      try {
+        const thread = await openThread();
+        if (!thread) return;
+        const reply = await api<MessageReply>(
+          `/api/intelligence/threads/${encodeURIComponent(thread)}/messages`,
+          {
+            method: 'POST',
+            body: JSON.stringify({ text, interfaceState: buildInterfaceState() }),
+          },
+        );
+        setTurns((previous) => [
+          ...previous,
+          {
+            turnId: reply.messageId,
+            role: 'cerulea',
+            text: '',
+            cards: reply.cards,
+          },
+        ]);
+        setFailure(null);
+      } catch (cause) {
+        setFailure(describeFailure(cause));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [buildInterfaceState, busy, openThread],
+  );
+
+  const actions: CardActions = {
+    applyPatch: (card) => {
+      void (async () => {
+        setBusy(true);
+        try {
+          const applied = await api<PatchApplied>(
+            `/api/intelligence/patches/${encodeURIComponent(card.patchId)}/apply`,
+            { method: 'POST', body: JSON.stringify({}) },
+          );
+          setNotice(
+            `Cerulea applied the change and wrote checkpoint ${applied.checkpointId}. The Blueprint now holds version ${applied.version}.`,
+          );
+          setFailure(null);
+        } catch (cause) {
+          setFailure(describeFailure(cause));
+        } finally {
+          setBusy(false);
+        }
+      })();
+    },
+    discardPatch: (card) => {
+      void (async () => {
+        setBusy(true);
+        try {
+          await api(`/api/intelligence/patches/${encodeURIComponent(card.patchId)}/discard`, {
+            method: 'POST',
+            body: JSON.stringify({}),
+          });
+          setNotice('Cerulea discarded the change. The Blueprint keeps the state it holds.');
+          setFailure(null);
+        } catch (cause) {
+          setFailure(describeFailure(cause));
+        } finally {
+          setBusy(false);
+        }
+      })();
+    },
+    submitForm: (card, values) => {
+      const stated = card.fields
+        .map((field) => `${field.label}: ${values[field.name] ?? ''}`)
+        .join('. ');
+      void send(`${card.title}. ${stated}`);
+    },
+    submitChoice: (card, optionId) => {
+      const option = card.options.find((entry) => entry.id === optionId);
+      void send(`${card.title}. We take ${option?.label ?? optionId}.`);
+    },
+    openScreen: (card) => {
+      window.location.assign(card.href);
+    },
+  };
 
   return (
     <>
-      <AnimatePresence>
-        {!open && (
-          <motion.div
-            variants={fabVariants}
-            initial="hidden"
-            animate="visible"
-            exit="hidden"
-            style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 1301, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
-          >
-            <Fab
-              color="primary"
-              aria-label="Cerulea AI"
-              onClick={() => setOpen(true)}
-              sx={{
-                background: 'linear-gradient(135deg, #3d5afe 0%, #7c3aed 100%)',
-                boxShadow: `0 8px 32px ${alpha('#3d5afe', 0.45)}`,
-                '&:hover': { boxShadow: `0 12px 40px ${alpha('#3d5afe', 0.55)}` },
-              }}
-            >
-              <AutoAwesomeIcon />
-            </Fab>
-            <Typography
-              variant="caption"
-              sx={{ fontWeight: 800, fontSize: '0.62rem', letterSpacing: 0.5, color: 'text.secondary', textAlign: 'center', lineHeight: 1, userSelect: 'none' }}
-            >
-              Cerulea AI
-            </Typography>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {!open && (
+        <Box
+          sx={{
+            position: 'fixed',
+            bottom: 32,
+            right: 32,
+            zIndex: 1301,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 0.5,
+          }}
+        >
+          <Fab color="primary" aria-label="Open Cerulea Intelligence" onClick={() => setOpen(true)}>
+            <AutoAwesomeIcon />
+          </Fab>
+          <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+            Cerulea Intelligence
+          </Typography>
+        </Box>
+      )}
 
       <Drawer
         anchor="right"
@@ -198,182 +290,107 @@ export default function Assistant() {
         onClose={() => setOpen(false)}
         PaperProps={{
           sx: {
-            width: { xs: '92%', sm: 420 },
-            border: 'none',
-            bgcolor: isLight ? '#ffffff' : '#131823',
+            width: { xs: '95%', sm: 480 },
             display: 'flex',
             flexDirection: 'column',
           },
         }}
       >
-        {/* Header */}
-        <Box
-          sx={{
-            px: 3, pt: 2.5, pb: 2,
-            background: 'linear-gradient(135deg, #3d5afe 0%, #7c3aed 100%)',
-            flexShrink: 0,
-          }}
-        >
+        <Box sx={{ px: 3, pt: 2.5, pb: 2, bgcolor: 'primary.main', flexShrink: 0 }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Stack direction="row" alignItems="center" spacing={1.5}>
-              <Box
-                sx={{
-                  width: 36, height: 36, borderRadius: '50%',
-                  bgcolor: 'rgba(255,255,255,0.2)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >
-                <AutoAwesomeIcon sx={{ fontSize: 18, color: 'white' }} />
-              </Box>
+              <Avatar sx={{ width: 36, height: 36, bgcolor: alpha('#FFFFFF', 0.2) }}>
+                <AutoAwesomeIcon sx={{ fontSize: 18, color: '#FFFFFF' }} />
+              </Avatar>
               <Box>
-                <Typography variant="subtitle1" fontWeight={800} sx={{ color: 'white', lineHeight: 1.2 }}>
-                  Cerulea AI
+                <Typography variant="subtitle1" sx={{ color: '#FFFFFF', fontWeight: 800 }}>
+                  Cerulea Intelligence
                 </Typography>
-                <Stack direction="row" alignItems="center" spacing={0.5}>
-                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#4ade80' }} />
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.75)', fontWeight: 600 }}>
-                    Online
-                  </Typography>
-                </Stack>
+                <Typography variant="caption" sx={{ color: alpha('#FFFFFF', 0.8) }}>
+                  We shape the model with you and change the Blueprint on your word
+                </Typography>
               </Box>
             </Stack>
             <IconButton
               onClick={() => setOpen(false)}
               size="small"
-              sx={{ color: 'rgba(255,255,255,0.8)', '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
+              aria-label="Close Cerulea Intelligence"
+              sx={{ color: alpha('#FFFFFF', 0.85) }}
             >
               <CloseIcon fontSize="small" />
             </IconButton>
           </Stack>
-
-          {/* Context chip */}
-          {studio.projectType && (
-            <Chip
-              label={studio.projectType === 'blockchain' ? 'Private Blockchain project' : 'dApp project'}
-              size="small"
-              sx={{
-                mt: 1.5, bgcolor: 'rgba(255,255,255,0.18)', color: 'white',
-                fontWeight: 600, fontSize: '0.68rem', border: '1px solid rgba(255,255,255,0.25)',
-              }}
-            />
-          )}
         </Box>
 
-        {/* Messages */}
+        {busy && <LinearProgress />}
+
         <Box
           ref={scrollRef}
           sx={{ flex: 1, overflowY: 'auto', px: 2.5, py: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}
         >
-          {messages.map((m) => {
-            const isUser = m.role === 'user';
+          {notice && <Alert severity="success">{notice}</Alert>}
+
+          {failure && (
+            <Alert severity="error">
+              <AlertTitle>{failure.message}</AlertTitle>
+              {failure.fix}
+            </Alert>
+          )}
+
+          {turns.length === 0 && failure === null && (
+            <Alert severity="info">
+              <AlertTitle>We are ready for the first question</AlertTitle>
+              Ask what this screen changes, or ask us to change the Blueprint. Every change arrives
+              as a card with apply and discard.
+            </Alert>
+          )}
+
+          {turns.map((turn) => {
+            const person = turn.role === 'person';
             return (
-              <Box key={m.id} sx={{ display: 'flex', flexDirection: isUser ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: 1 }}>
-                {!isUser && (
-                  <Avatar
-                    sx={{
-                      width: 28, height: 28, flexShrink: 0, mb: 0.5,
-                      background: 'linear-gradient(135deg, #3d5afe 0%, #7c3aed 100%)',
-                      fontSize: '0.75rem',
-                    }}
-                  >
-                    <AutoAwesomeIcon sx={{ fontSize: 14 }} />
-                  </Avatar>
-                )}
-                <Box sx={{ maxWidth: '82%' }}>
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      px: 1.75, py: 1.25, borderRadius: isUser ? '18px 18px 4px 18px' : '4px 18px 18px 18px',
-                      bgcolor: isUser
-                        ? 'primary.main'
-                        : isLight ? '#f1f5ff' : 'rgba(255,255,255,0.07)',
-                      border: `1px solid ${isUser ? 'transparent' : alpha(theme.palette.divider, 0.5)}`,
-                    }}
-                  >
-                    <Typography
-                      variant="body2"
+              <Box
+                key={turn.turnId}
+                sx={{ display: 'flex', flexDirection: person ? 'row-reverse' : 'row', gap: 1 }}
+              >
+                <Box sx={{ maxWidth: person ? '82%' : '100%', width: person ? 'auto' : '100%' }}>
+                  {turn.text.length > 0 && (
+                    <Paper
+                      elevation={0}
+                      variant={person ? 'elevation' : 'outlined'}
                       sx={{
-                        lineHeight: 1.6, whiteSpace: 'pre-line',
-                        color: isUser ? 'white' : 'text.primary',
-                        fontSize: '0.84rem',
+                        px: 1.75,
+                        py: 1.25,
+                        bgcolor: person ? 'primary.main' : isLight ? 'grey.50' : 'background.paper',
+                        color: person ? '#FFFFFF' : 'text.primary',
+                        borderRadius: 2,
                       }}
                     >
-                      {m.text}
-                    </Typography>
-                  </Paper>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      opacity: 0.45, display: 'block',
-                      mt: 0.4, fontSize: '0.6rem', fontWeight: 600,
-                      textAlign: isUser ? 'right' : 'left',
-                      mr: isUser ? 0.5 : 0, ml: isUser ? 0 : 0.5,
-                    }}
-                  >
-                    {formatTime(m.createdAt)}
-                  </Typography>
+                      <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+                        {turn.text}
+                      </Typography>
+                    </Paper>
+                  )}
+                  <CardSurface cards={turn.cards} actions={actions} />
                 </Box>
               </Box>
             );
           })}
-
-          {isTyping && (
-            <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
-              <Avatar
-                sx={{
-                  width: 28, height: 28, flexShrink: 0, mb: 0.5,
-                  background: 'linear-gradient(135deg, #3d5afe 0%, #7c3aed 100%)',
-                }}
-              >
-                <AutoAwesomeIcon sx={{ fontSize: 14 }} />
-              </Avatar>
-              <Paper
-                elevation={0}
-                sx={{
-                  px: 2, py: 1.25, borderRadius: '4px 18px 18px 18px',
-                  bgcolor: isLight ? '#f1f5ff' : 'rgba(255,255,255,0.07)',
-                  border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
-                  display: 'flex', alignItems: 'center', gap: 0.5,
-                }}
-              >
-                {[0, 0.18, 0.36].map((delay, i) => (
-                  <Box
-                    key={i}
-                    sx={{
-                      width: 7, height: 7, borderRadius: '50%',
-                      bgcolor: 'primary.main',
-                      animation: 'dotBlink 1.1s infinite',
-                      animationDelay: `${delay}s`,
-                      '@keyframes dotBlink': {
-                        '0%': { opacity: 0.3, transform: 'translateY(0px)' },
-                        '20%': { opacity: 1, transform: 'translateY(-3px)' },
-                        '40%': { opacity: 0.3, transform: 'translateY(0px)' },
-                        '100%': { opacity: 0.3 },
-                      },
-                    }}
-                  />
-                ))}
-              </Paper>
-            </Box>
-          )}
         </Box>
 
-        {/* Quick prompts */}
-        {messages.length <= 2 && !isTyping && (
+        {turns.length === 0 && (
           <Box sx={{ px: 2.5, pb: 1.5, flexShrink: 0 }}>
-            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ px: 0.5, mb: 0.75, display: 'block', letterSpacing: 0.5 }}>
-              QUICK QUESTIONS
+            <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.75 }}>
+              Questions people ask first
             </Typography>
             <Stack direction="row" flexWrap="wrap" gap={0.75}>
-              {QUICK_PROMPTS.map((q) => (
+              {QUICK_QUESTIONS.map((question) => (
                 <Chip
-                  key={q}
-                  label={q}
+                  key={question}
+                  label={question}
                   size="small"
                   variant="outlined"
                   clickable
-                  onClick={() => handleSend(q)}
-                  sx={{ fontWeight: 600, fontSize: '0.72rem', borderRadius: '999px' }}
+                  onClick={() => void send(question)}
                 />
               ))}
             </Stack>
@@ -382,60 +399,43 @@ export default function Assistant() {
 
         <Divider />
 
-        {/* Input */}
         <Box
           component="form"
-          onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-          sx={{
-            px: 2, py: 1.75, flexShrink: 0,
-            display: 'flex', alignItems: 'flex-end', gap: 1,
+          onSubmit={(event) => {
+            event.preventDefault();
+            void send(input);
           }}
+          sx={{ px: 2, py: 1.75, display: 'flex', alignItems: 'flex-end', gap: 1, flexShrink: 0 }}
         >
           <TextField
             fullWidth
             multiline
             maxRows={4}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask anything about your project..."
             size="small"
-            disabled={isTyping}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
-            }}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 3,
-                bgcolor: isLight ? alpha('#3d5afe', 0.04) : alpha('#3d5afe', 0.1),
-              },
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            label="Ask Cerulea"
+            helperText="We read the screen you are on and the project you have open."
+            disabled={busy}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                void send(input);
+              }
             }}
           />
-          <Tooltip title="Send (Enter)">
+          <Tooltip title="Send">
             <span>
               <IconButton
                 color="primary"
                 type="submit"
-                disabled={isTyping || !input.trim()}
-                sx={{
-                  mb: 0.25, width: 40, height: 40,
-                  bgcolor: input.trim() && !isTyping ? 'primary.main' : 'transparent',
-                  color: input.trim() && !isTyping ? 'white' : 'text.disabled',
-                  borderRadius: 2,
-                  '&:hover': { bgcolor: 'primary.dark', color: 'white' },
-                  transition: 'all 0.2s',
-                }}
+                aria-label="Send the question"
+                disabled={busy || input.trim().length === 0}
               >
-                <SendIcon sx={{ fontSize: 18 }} />
+                <SendIcon />
               </IconButton>
             </span>
           </Tooltip>
-        </Box>
-
-        {/* Branding */}
-        <Box sx={{ px: 2.5, pb: 1.75, flexShrink: 0, textAlign: 'center' }}>
-          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.62rem' }}>
-            Powered by Cerulea AI. May make mistakes. Always verify critical details.
-          </Typography>
         </Box>
       </Drawer>
     </>

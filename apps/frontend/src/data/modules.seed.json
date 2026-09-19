@@ -642,7 +642,7 @@
       "blurb": "Image processing, JSON metadata, and upload.",
       "longDescription": [
         "Prepares images and metadata for NFT collections at scale. Generates JSON metadata, resizes assets, and uploads to the chosen storage. Helps ensure metadata consistency and predictable mint performance.",
-        "Use with NFT Minting for primary sales and with Dynamic NFT when traits update on chain. Configure storage to IPFS or a managed bucket and plan for backups and content hashing."
+        "Use with NFT Minting for primary sales and with Dynamic NFT when traits update on chain. Point storage at IPFS or at a managed bucket, then plan for backups and content hashing."
       ],
       "dependsOn": [],
       "recommends": ["ipfs-pinning-adapter", "dynamic-nft"],
@@ -993,7 +993,7 @@
       "tags": ["governance", "votes"],
       "blurb": "Token or membership voting with quorum and delays.",
       "longDescription": [
-        "Adds governance voting with configurable quorum, threshold, and delay parameters. Works for token voting or membership voting depending on your community model.",
+        "Adds governance voting with the quorum, threshold and delay values you set. Works for token voting or membership voting depending on your community model.",
         "Decide whether proposals execute automatically or require a timelock. Pair with Proposals for authoring and with Treasury if votes control budgets."
       ],
       "dependsOn": [],
@@ -1452,7 +1452,7 @@
       "tags": ["audit", "logs"],
       "blurb": "Tamper-evident logs for sensitive actions.",
       "longDescription": [
-        "Captures a signed record of sensitive actions and configuration changes. Improves accountability and incident response.",
+        "Captures a signed record of sensitive actions and of every change to a platform value. Improves accountability and incident response.",
         "Store logs with retention policies and secure access. Pair with Audit Export for compliance and with Alerts for critical events."
       ],
       "dependsOn": [],
@@ -1609,7 +1609,7 @@
       "tags": ["compliance", "export"],
       "blurb": "Export logs and reports for audits.",
       "longDescription": [
-        "Packages logs and configuration snapshots into an audit bundle for review. Simplifies compliance workflows and vendor reviews.",
+        "Packages logs and snapshots of the values in force into an audit bundle for review. Simplifies compliance workflows and vendor reviews.",
         "Coordinate exports with retention policies. Secure bundles with checksums and provide a chain of custody."
       ],
       "dependsOn": ["audit-logs"],
@@ -1657,7 +1657,7 @@
       "blurb": "Send emails through Amazon SES.",
       "longDescription": [
         "Connects the Emails module to Amazon SES. Supports regional endpoints and verified identities for production workloads.",
-        "Configure sending quotas and handle suppression lists. Store credentials in Secrets and prefer IAM roles in production."
+        "Set sending quotas and handle suppression lists. Store credentials in Secrets and prefer IAM roles in production."
       ],
       "dependsOn": [],
       "recommends": ["emails", "secrets-local-vault"],
@@ -1751,7 +1751,7 @@
       "blurb": "Global on-ramp through Transak.",
       "longDescription": [
         "Adds a fiat to crypto on-ramp using Transak. Useful when you want broad country coverage with a single integration.",
-        "Configure allowed assets and regions. Show KYC expectations up front to avoid drop off."
+        "Name the allowed assets and the allowed regions. Show KYC expectations up front to avoid drop off."
       ],
       "dependsOn": [],
       "recommends": ["fiat-onramp", "treasury", "secrets-local-vault"],
@@ -1795,7 +1795,7 @@
       "blurb": "On-ramp option for India via CoinSwitch.",
       "longDescription": [
         "Adds a local on-ramp path in India using CoinSwitch where supported. Can improve approval rates for domestic users.",
-        "Validate supported assets and set expectations for settlement times. Keep provider choice configurable."
+        "Validate supported assets and set expectations for settlement times. Keep the provider choice open to change."
       ],
       "dependsOn": [],
       "recommends": ["fiat-onramp", "treasury", "secrets-local-vault"],
@@ -1969,7 +1969,7 @@
   "tags": ["router", "checkout", "multi-gateway"],
   "blurb": "Route cards, UPI, netbanking across gateways.",
   "longDescription": [
-    "Configurable routing across card/UPI/net banking providers with failover and cost/approval optimization.",
+    "Routing you steer across card/UPI/net banking providers with failover and cost/approval optimization.",
     "Normalizes events and metadata for your order and ledger systems."
   ],
   "dependsOn": [],
@@ -2403,7 +2403,7 @@
   "tags": ["governance", "timelock", "execution"],
   "blurb": "Queue, delay, and execute approved proposals safely.",
   "longDescription": [
-    "Queues proposal actions behind a configurable delay, giving time for audits, cancellations, or emergency pauses.",
+    "Queues proposal actions behind a delay you set, giving time for audits, cancellations, or emergency pauses.",
     "Pairs with voting modules and multisigs for robust governance pipelines."
   ],
   "dependsOn": ["proposals", "voting"],
@@ -2839,14 +2839,14 @@
     },
     {
       "moduleId": "evm-config",
-      "title": "EVM Configuration",
+      "title": "EVM Parameters",
       "projectType": "blockchain",
       "category": "core-protocol",
       "tags": ["evm", "params"],
       "blurb": "Chain ID, precompiles, and protocol flags.",
       "longDescription": [
         "Sets core EVM parameters such as chain ID, fork rules, and active precompiles. Ensures compatibility with tooling and clients.",
-        "Plan upgrades on a schedule and test contracts against your configuration. Document deviations from public networks for developers."
+        "Plan upgrades on a schedule and test contracts against the values in force. Document deviations from public networks for developers."
       ],
       "dependsOn": [],
       "recommends": ["upgrade-manager", "contract-verification"],
@@ -2960,7 +2960,7 @@
       "tags": ["upgrades", "governance"],
       "blurb": "Plan and execute protocol upgrades safely.",
       "longDescription": [
-        "Schedules and coordinates protocol upgrades, including fork activation heights and configuration changes. Ensures validators apply changes consistently to avoid splits.",
+        "Schedules and coordinates protocol upgrades, including fork activation heights and changes to protocol values. Ensures validators apply changes consistently to avoid splits.",
         "Pick an approval strategy that fits your governance model and require notice periods for operational readiness. Version every upgrade with changelogs."
       ],
       "dependsOn": [],
@@ -2981,7 +2981,7 @@
       "projectType": "blockchain",
       "category": "economics-staking",
       "tags": ["economics", "supply"],
-      "blurb": "Configure supply, issuance, and rewards.",
+      "blurb": "Set supply, issuance, and rewards.",
       "longDescription": [
         "Defines supply characteristics, issuance schedules, and reward distribution for validators and delegators. Forms the foundation of network incentives.",
         "Model scenarios for inflation and burn before launch. Coordinate with Fees, Validators, and Governance so incentives align across the system."
@@ -3208,15 +3208,15 @@
       "projectType": "blockchain",
       "category": "execution-tooling",
       "tags": ["evm", "precompiles"],
-      "blurb": "Enable or configure EVM precompiles.",
+      "blurb": "Enable or adjust EVM precompiles.",
       "longDescription": [
         "Controls which precompiles are exposed and their parameters where applicable. Helps tailor performance and features for your network.",
-        "Coordinate changes with EVM Configuration and test contracts that rely on specific precompiles before upgrades."
+        "Coordinate changes with EVM Parameters and test contracts that rely on specific precompiles before upgrades."
       ],
       "dependsOn": ["evm-config"],
       "recommends": [],
       "reasonByDepId": {
-        "evm-config": "Precompile availability depends on core EVM configuration and fork rules."
+        "evm-config": "Precompile availability depends on the core EVM values and on fork rules."
       },
       "configSchema": {
         "type": "object",
@@ -3800,7 +3800,7 @@
   "tags": ["governance", "params", "upgrades"],
   "blurb": "Managed updates to fees, limits, and protocol params.",
   "longDescription": [
-    "On-chain configuration for economic and protocol parameters with auditable changes and role/consensus gating.",
+    "On-chain control of economic and protocol parameters with auditable changes and role/consensus gating.",
     "Supports proposals, voting, timelocks, and staged rollouts."
   ],
   "dependsOn": ["consensus"],
@@ -3847,7 +3847,7 @@
   "projectType": "blockchain",
   "category": "Core Architecture",
   "tags": ["mempool", "spam", "tx-policy"],
-  "blurb": "Configurable acceptance policies for pending txs.",
+  "blurb": "Acceptance policies you set for pending txs.",
   "longDescription": [
     "Controls admission, replacement, and prioritization rules for the mempool.",
     "Helps mitigate spam, enforce fee floors, and coordinate with PBS/MEV policies."

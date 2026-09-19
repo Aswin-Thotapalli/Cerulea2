@@ -4,7 +4,7 @@ AI is real and powered by Gemini.
 
 AI role:
 
-- configuration explanation
+- explanation of every value in force
 - decision support
 - option clarification
 

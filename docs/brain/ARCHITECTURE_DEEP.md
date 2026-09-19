@@ -10,7 +10,7 @@ Architecture layers:
 - consensus
 - governance
 - fee models
-- runtime configuration
+- runtime parameters
 - EVM compatibility
 
 ## Layer 2 — Operations Layer
@@ -22,14 +22,14 @@ Architecture layers:
 ## Layer 3 — Workflow Layer
 - templates
 - presets
-- configuration flows
+- parameter flows
 - chain specs
 - runtime packaging
 
 ## Layer 4 — Interfaces
 - Cerulea Studio
 - dashboard
-- CLI/SDK
+- the integration surface
 - explorer
 - wallet integrations
 

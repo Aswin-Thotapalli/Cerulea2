@@ -4,6 +4,15 @@
 // project and Blueprint read or write passes through this module.
 // Without this module Studio shows nothing and saves nothing.
 
+import type {
+  InterfaceState,
+  MessageReply,
+  PatchApplied,
+  PatchDiscarded,
+  Thread,
+  ThreadStart,
+} from '@/lib/intelligence/types';
+
 /** The address Cerulea APIs listens on when the environment names no other. */
 export const CERULEA_API_FALLBACK_URL = 'http://localhost:4000';
 
@@ -1028,6 +1037,72 @@ export function readExecutionSubstrates(
   options: CeruleaApiOptions = {},
 ): Promise<{ substrates: SubstrateDescription[] }> {
   return ceruleaRequest('/studio/execution-substrates', { method: 'GET' }, options);
+}
+
+/* Cerulea Intelligence ----------------------------------------------- */
+
+/**
+ * Opens a thread against one project.
+ * Every retrieval reads that account and that project alone.
+ */
+export function startIntelligenceThread(
+  projectId: string,
+  options: CeruleaApiOptions = {},
+): Promise<ThreadStart> {
+  return ceruleaRequest(
+    '/intelligence/threads',
+    { method: 'POST', body: JSON.stringify({ projectId }) },
+    options,
+  );
+}
+
+/** Sends one message with the state of the screen the person is on. */
+export function sendIntelligenceMessage(
+  threadId: string,
+  input: { text: string; interfaceState: InterfaceState },
+  options: CeruleaApiOptions = {},
+): Promise<MessageReply> {
+  return ceruleaRequest(
+    `/intelligence/threads/${encodeURIComponent(threadId)}/messages`,
+    { method: 'POST', body: JSON.stringify(input) },
+    options,
+  );
+}
+
+/** Reads one thread with every turn it holds. */
+export function readIntelligenceThread(
+  threadId: string,
+  options: CeruleaApiOptions = {},
+): Promise<Thread> {
+  return ceruleaRequest(
+    `/intelligence/threads/${encodeURIComponent(threadId)}`,
+    { method: 'GET' },
+    options,
+  );
+}
+
+/** Applies one patch to the Blueprint and writes the checkpoint it produces. */
+export function applyIntelligencePatch(
+  patchId: string,
+  options: CeruleaApiOptions = {},
+): Promise<PatchApplied> {
+  return ceruleaRequest(
+    `/intelligence/patches/${encodeURIComponent(patchId)}/apply`,
+    { method: 'POST', body: JSON.stringify({}) },
+    options,
+  );
+}
+
+/** Discards one patch, so the Blueprint keeps the state it holds. */
+export function discardIntelligencePatch(
+  patchId: string,
+  options: CeruleaApiOptions = {},
+): Promise<PatchDiscarded> {
+  return ceruleaRequest(
+    `/intelligence/patches/${encodeURIComponent(patchId)}/discard`,
+    { method: 'POST', body: JSON.stringify({}) },
+    options,
+  );
 }
 
 /* The Cerulea operator reads ----------------------------------------- */

@@ -4,7 +4,7 @@ Cerulea is a deployment and operations platform for blockchain and infrastructur
 
 It is not a code generator and not just a no-code builder.
 
-Cerulea enables users to configure, deploy, and operate:
+Cerulea lets a person shape, deploy and operate:
 
 - public blockchain networks (for dApps)
 - private blockchain networks (enterprise/government)
@@ -12,7 +12,7 @@ Cerulea enables users to configure, deploy, and operate:
 - runtime environments
 - operational governance layers
 
-Cerulea Studio is the configuration interface within the Cerulea platform.
+Cerulea Studio is the authoring surface within the Cerulea platform.
 
 The core value of Cerulea is:
 deployment + operations + lifecycle management of real systems.

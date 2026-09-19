@@ -430,7 +430,7 @@
       "id": "chain-enterprise-defi-l2",
       "projectType": "blockchain",
       "title": "Enterprise DeFi L2 (Private)",
-      "description": "Private EVM environment for internal markets with configurable fees and monitoring.",
+      "description": "Private EVM environment for internal markets with the fees you set and with monitoring.",
       "tags": ["defi", "l2", "enterprise"],
       "preinstalledModules": ["consensus", "evm-config", "tokenomics", "fees", "p2p", "rpc", "explorer"],
       "modules": ["consensus", "evm-config", "tokenomics", "fees", "p2p", "rpc", "explorer", "metrics-monitoring", "api-gateway"],
