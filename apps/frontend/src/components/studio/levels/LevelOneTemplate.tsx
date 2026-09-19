@@ -313,11 +313,16 @@ export default function LevelOneTemplate({
           .filter((question) => (DECLARATION_IDS as readonly string[]).includes(question.id))
           .map((question) => (
             <Paper key={question.id} variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
-              <FormControl>
+              <FormControl data-control-group={question.id}>
                 <FormLabel sx={{ fontWeight: 800, color: 'text.primary' }}>
                   {question.question}
                 </FormLabel>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mb: 1.5 }}
+                  data-mirror={`policy.${question.id}`}
+                >
                   {question.explanation}
                 </Typography>
                 <RadioGroup

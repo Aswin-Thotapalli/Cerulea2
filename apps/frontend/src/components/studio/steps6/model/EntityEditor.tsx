@@ -33,6 +33,7 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
+import ControlMirror from '@/components/studio/common/ControlMirror';
 import { toIdentifier, toReadable } from '@/lib/blueprint/compose';
 import {
   FIELD_KINDS,
@@ -96,6 +97,20 @@ export function describeType(type: TypeExpression): string {
   if (type.kind === 'List') return `Several ${describeType(type.element).toLowerCase()}`;
   if (type.kind === 'Map') return 'Lookup table';
   return FIELD_KINDS.find((entry) => entry.kind === type.kind)?.label ?? type.kind;
+}
+
+/**
+ * The plain sentence under one column of the field table.
+ * Every cell of the column points at this sentence, so a person reading one
+ * field reaches the same statement of what the setting does and what breaks
+ * without it.
+ */
+export function FieldColumnMirror({ id, controlId }: { id: string; controlId: string }) {
+  return (
+    <Box id={id}>
+      <ControlMirror controlId={controlId} dense />
+    </Box>
+  );
 }
 
 export default function EntityEditor({
@@ -271,6 +286,32 @@ export default function EntityEditor({
                       <TableCell>What it holds</TableCell>
                       <TableCell align="right">Remove</TableCell>
                     </TableRow>
+                    <TableRow>
+                      <TableCell sx={{ verticalAlign: 'top' }}>
+                        <FieldColumnMirror
+                          id={`${collection.id}-mirror-field-name`}
+                          controlId="blueprint.field_name"
+                        />
+                      </TableCell>
+                      <TableCell sx={{ verticalAlign: 'top' }}>
+                        <FieldColumnMirror
+                          id={`${collection.id}-mirror-field-type`}
+                          controlId="blueprint.field_type"
+                        />
+                      </TableCell>
+                      <TableCell sx={{ verticalAlign: 'top' }}>
+                        <FieldColumnMirror
+                          id={`${collection.id}-mirror-field-required`}
+                          controlId="blueprint.field_required"
+                        />
+                      </TableCell>
+                      <TableCell sx={{ verticalAlign: 'top' }} colSpan={2}>
+                        <FieldColumnMirror
+                          id={`${collection.id}-mirror-field-note`}
+                          controlId="blueprint.field_note"
+                        />
+                      </TableCell>
+                    </TableRow>
                   </TableHead>
                   <TableBody>
                     {(record?.fields ?? []).map((field, index) => (
@@ -285,7 +326,10 @@ export default function EntityEditor({
                                 name: toIdentifier(event.target.value),
                               })
                             }
-                            inputProps={{ 'aria-label': `Name of field ${index + 1}` }}
+                            inputProps={{
+                              'aria-label': `Name of field ${index + 1}`,
+                              'aria-describedby': `${collection.id}-mirror-field-name`,
+                            }}
                           />
                         </TableCell>
                         <TableCell sx={{ width: 260 }}>
@@ -304,7 +348,10 @@ export default function EntityEditor({
                               })
                             }
                             fullWidth
-                            inputProps={{ 'aria-label': `Kind of field ${index + 1}` }}
+                            inputProps={{
+                              'aria-label': `Kind of field ${index + 1}`,
+                              'aria-describedby': `${collection.id}-mirror-field-type`,
+                            }}
                           >
                             {FIELD_KINDS.map((entry) => (
                               <MenuItem key={entry.kind} value={entry.kind}>
@@ -341,6 +388,10 @@ export default function EntityEditor({
                               })
                             }
                             fullWidth
+                            inputProps={{
+                              'aria-label': `What field ${index + 1} holds`,
+                              'aria-describedby': `${collection.id}-mirror-field-note`,
+                            }}
                           />
                         </TableCell>
                         <TableCell align="right">

@@ -289,9 +289,14 @@ export default function Step4Policies({
       <Stack spacing={3}>
         {questions.map((question) => (
           <Paper key={question.id} variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
-            <FormControl>
+            <FormControl data-control-group={question.id}>
               <FormLabel sx={{ fontWeight: 800, mb: 0.5 }}>{question.question}</FormLabel>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mb: 1.5 }}
+                data-mirror={`policy.${question.id}`}
+              >
                 {question.explanation}
               </Typography>
               <RadioGroup
