@@ -157,8 +157,8 @@ export default function Step4Policies({
       `/api/projects/${encodeURIComponent(projectId)}/policies`,
     )
       .then((reply) => {
-        setQuestions(reply.questions);
-        setLimits(reply.limits);
+        setQuestions(Array.isArray(reply.questions) ? reply.questions : []);
+        setLimits(reply.limits ?? null);
       })
       .catch((cause: unknown) =>
         setFailure({

@@ -2,100 +2,131 @@
 'use client';
 
 // The door into Studio.
-// Studio opens the project the address names, or the project the person worked
-// on last. The Blueprint of that project comes from Cerulea APIs, so the first
-// screen is already populated.
+// A visitor holding no project meets the three doors. Describe it, browse it,
+// or start fresh. Each door opens a project, and the project then runs the six
+// steps once before it settles into a workspace.
 // Without this module Studio would open on an empty canvas.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Box, Button, CircularProgress, Stack, Typography } from '@mui/material';
 
-import StudioShell from '@/app/_studio/shell/StudioShell';
-import { type CeruleaApplication, useStudio } from '@/context/StudioContext';
-import { StudioRouteError, api, readProjectBlueprint } from '@/lib/apiClient';
+import EntryDoors, { type EntryAnswer } from '@/components/studio/entry/EntryDoors';
+import StudioProject from '@/components/studio/steps6/StudioProject';
+import { StudioRouteError, api } from '@/lib/apiClient';
+import type { BuildState } from '@/lib/studio/project-state';
 
 type Props = { projectId?: string | null };
 
 type ProjectListing = {
   projectId: string;
   name: string;
-  headVersion: number;
   workspaceId: string;
   workspaceApplication: string;
+  updatedAt: string;
 };
 
 export default function StudioEntry({ projectId: initialProjectId }: Props) {
-  const { setStudioState } = useStudio();
-  const [resolvedId, setResolvedId] = useState<string | null>(null);
-  const [initialStep, setInitialStep] = useState(0);
+  const [projectId, setProjectId] = useState<string | null>(initialProjectId ?? null);
   const [ready, setReady] = useState(false);
+  const [opening, setOpening] = useState(false);
   const [failure, setFailure] = useState<{ message: string; fix: string } | null>(null);
+
+  const describe = (cause: unknown) => ({
+    message: cause instanceof Error ? cause.message : String(cause),
+    fix:
+      cause instanceof StudioRouteError
+        ? cause.fix
+        : 'Open Studio again. Report the problem to the Cerulea operator when it repeats.',
+  });
 
   useEffect(() => {
     async function open() {
       try {
-        let chosen = initialProjectId ?? null;
-        let listing: ProjectListing | undefined;
-
+        if (initialProjectId) {
+          setProjectId(initialProjectId);
+          return;
+        }
         const page = await api<{ projects: ProjectListing[] }>('/api/projects');
-        if (chosen) {
-          listing = page.projects.find((entry) => entry.projectId === chosen);
-        } else {
-          listing = page.projects[0];
-          chosen = listing?.projectId ?? null;
-          if (chosen) window.history.replaceState(null, '', `/?project=${chosen}`);
+        const newest = page.projects[0];
+        if (newest) {
+          setProjectId(newest.projectId);
+          window.history.replaceState(null, '', `/?project=${newest.projectId}`);
         }
-
-        if (chosen && listing) {
-          const blueprint = await readProjectBlueprint(chosen);
-          setStudioState({
-            projectId: chosen,
-            workspaceId: listing.workspaceId,
-            application: listing.workspaceApplication as CeruleaApplication,
-            blueprint: blueprint.document,
-            blueprintVersion: blueprint.version,
-          });
-          setInitialStep(1);
-        }
-
-        setResolvedId(chosen);
       } catch (cause) {
-        setFailure({
-          message: cause instanceof Error ? cause.message : String(cause),
-          fix:
-            cause instanceof StudioRouteError
-              ? cause.fix
-              : 'Open Studio again. Report the problem to the Cerulea operator when it repeats.',
-        });
+        setFailure(describe(cause));
       } finally {
         setReady(true);
       }
     }
-
     void open();
-    // The door runs once per visit. A later change reaches Studio through the shell.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialProjectId]);
+
+  const startProject = useCallback(async (answer: EntryAnswer) => {
+    setOpening(true);
+    setFailure(null);
+    try {
+      const created = await api<{ project: { projectId: string } }>('/api/projects', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: answer.description?.slice(0, 80) || 'New system',
+          summary: answer.description ?? '',
+        }),
+      });
+      const opened = created.project.projectId;
+      const held = await api<{ buildState: BuildState }>(
+        `/api/projects/${encodeURIComponent(opened)}/build-state`,
+      );
+      await api(`/api/projects/${encodeURIComponent(opened)}/build-state`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          buildState: {
+            ...held.buildState,
+            foundation: {
+              ...held.buildState.foundation,
+              projectName: answer.description?.slice(0, 80) || 'New system',
+              summary: answer.description ?? '',
+              track: answer.track ?? held.buildState.foundation.track,
+              templateId: answer.templateId ?? '',
+              publishSelectedRecords:
+                answer.publishSelectedRecords ?? held.buildState.foundation.publishSelectedRecords,
+            },
+            compose: {
+              ...held.buildState.compose,
+              outcomeIds: answer.outcomeIds ?? [],
+            },
+          },
+        }),
+      });
+      window.history.replaceState(null, '', `/?project=${opened}`);
+      setProjectId(opened);
+    } catch (cause) {
+      setFailure(describe(cause));
+    } finally {
+      setOpening(false);
+    }
   }, []);
 
-  if (!ready) {
+  if (!ready || opening) {
     return (
-      <Box sx={{ display: 'grid', placeItems: 'center', minHeight: '100vh' }}>
+      <Box sx={{ display: 'grid', placeItems: 'center', minHeight: '60vh' }}>
         <Stack alignItems="center" spacing={2}>
           <CircularProgress />
-          <Typography variant="body2">Cerulea is opening the project.</Typography>
+          <Typography variant="body2">
+            {opening ? 'Cerulea is opening the project.' : 'Cerulea is reading your work.'}
+          </Typography>
         </Stack>
       </Box>
     );
   }
 
-  if (failure) {
-    return (
-      <Box sx={{ display: 'grid', placeItems: 'center', minHeight: '100vh', px: 2 }}>
+  return (
+    <Box>
+      {failure && (
         <Alert
           severity="error"
-          sx={{ maxWidth: 560 }}
+          sx={{ m: 3 }}
           action={
-            <Button onClick={() => window.location.reload()} size="small">
+            <Button size="small" onClick={() => window.location.reload()}>
               Open again
             </Button>
           }
@@ -103,9 +134,14 @@ export default function StudioEntry({ projectId: initialProjectId }: Props) {
           <Typography sx={{ fontWeight: 700 }}>{failure.message}</Typography>
           <Typography variant="body2">{failure.fix}</Typography>
         </Alert>
-      </Box>
-    );
-  }
-
-  return <StudioShell initialStep={initialStep} initialProjectId={resolvedId} />;
+      )}
+      {projectId ? (
+        <StudioProject projectId={projectId} />
+      ) : (
+        <Box sx={{ p: 4 }}>
+          <EntryDoors onAnswer={(answer) => void startProject(answer)} />
+        </Box>
+      )}
+    </Box>
+  );
 }
