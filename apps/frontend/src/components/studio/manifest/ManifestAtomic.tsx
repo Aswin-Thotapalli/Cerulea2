@@ -57,6 +57,13 @@ export default function ManifestAtomic({
       const held = await api<AtomicReply>(
         `/api/projects/${encodeURIComponent(projectId)}/manifest?view=atomic`,
       );
+      if (held.manifest === undefined || held.manifest === null) {
+        setFailure({
+          message: 'Cerulea answered with no manifest for this project.',
+          fix: 'Read the manifest again. Report the problem to the Cerulea operator when it repeats.',
+        });
+        return;
+      }
       setManifest(held.manifest);
       setVersion(held.version);
       setFailure(null);

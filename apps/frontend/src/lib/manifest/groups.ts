@@ -71,13 +71,13 @@ export const GROUP_WORDING: Record<
   interfaces: {
     heading: 'Interfaces',
     states: 'Every screen, the data it shows, the actions it offers and the roles that reach it.',
-    screen: 'Interface',
+    screen: 'Blueprint, views',
   },
   integration: {
     heading: 'Integration',
     states:
       'Every endpoint with its method, its path, the values it takes, what it answers and who reaches it.',
-    screen: 'Interface',
+    screen: 'Blueprint, views',
   },
   chain: {
     heading: 'Chain',
@@ -424,19 +424,19 @@ export function summaryLines(counts: ManifestGroupCounts): SummaryLine[] {
       count: counts.interfaces,
       heading: 'Screens',
       states: 'Every screen the deployed application publishes.',
-      screen: 'Interface',
+      screen: 'Blueprint, views',
     },
     {
       count: counts.endpoints,
       heading: 'Endpoints',
       states: 'Every address another system calls.',
-      screen: 'Interface',
+      screen: 'Blueprint, views',
     },
     {
       count: counts.webhooks,
       heading: 'Notifications',
       states: 'Every event this system sends outward.',
-      screen: 'Interface',
+      screen: 'Blueprint, views',
     },
     {
       count: counts.modules,

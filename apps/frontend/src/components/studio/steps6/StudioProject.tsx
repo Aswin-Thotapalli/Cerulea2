@@ -27,6 +27,7 @@ import {
   Typography,
 } from '@mui/material';
 
+import DeploymentManifestPanel from '@/components/studio/manifest/DeploymentManifestPanel';
 import LevelFourBlueprint from '@/components/studio/levels/LevelFourBlueprint';
 import LevelOneTemplate from '@/components/studio/levels/LevelOneTemplate';
 import LevelTwoOutcomes from '@/components/studio/levels/LevelTwoOutcomes';
@@ -45,6 +46,7 @@ import {
   type DisclosureArea,
   type DisclosureLevel,
 } from '@/lib/studio/disclosure';
+import { screenTarget, type ModelSurface } from '@/lib/studio/screens';
 import type { BuildState } from '@/lib/studio/project-state';
 
 /** The areas a project opens with, in the order a person meets them. */
@@ -101,6 +103,7 @@ export default function StudioProject({ projectId }: { projectId: string }) {
   const [loading, setLoading] = useState(true);
   const [area, setArea] = useState<ProjectArea>('foundation');
   const [level, setLevel] = useState<DisclosureLevel>(2);
+  const [modelSurface, setModelSurface] = useState<ModelSurface>('entities');
   const [failure, setFailure] = useState<string | null>(null);
 
   const read = useCallback(async () => {
@@ -203,6 +206,20 @@ export default function StudioProject({ projectId }: { projectId: string }) {
 
   const open = areasForLevel(level);
 
+  /**
+   * Opens the area one manifest line names.
+   * Every manifest line carries the screen that produces it, so finding a
+   * problem and fixing it take one action each.
+   */
+  const openScreen = (screen: string) => {
+    const target = screenTarget(screen);
+    if (target === undefined) return;
+    if (target.level > level) changeLevel(target.level);
+    setArea(target.area as ProjectArea);
+    if (target.surface !== undefined) setModelSurface(target.surface);
+  };
+
+
   const header = (
     <Paper
       variant="outlined"
@@ -240,7 +257,7 @@ export default function StudioProject({ projectId }: { projectId: string }) {
     ) : area === 'compose' ? (
       <LevelTwoOutcomes projectId={projectId} buildState={buildState} onContinue={advance} />
     ) : area === 'model' ? (
-      <Step3Model projectId={projectId} onContinue={advance} />
+      <Step3Model projectId={projectId} onContinue={advance} surface={modelSurface} />
     ) : area === 'policies' ? (
       <Step4Policies projectId={projectId} onContinue={advance} />
     ) : area === 'blueprint' ? (
@@ -281,6 +298,7 @@ export default function StudioProject({ projectId }: { projectId: string }) {
           <Stack spacing={3}>
             <ReadinessChecklist projectId={projectId} buildState={buildState} />
             <ValidationGuidance projectId={projectId} onChanged={() => void advance()} />
+            <DeploymentManifestPanel projectId={projectId} onOpenScreen={openScreen} />
           </Stack>
         </Box>
         {area === ('substrate' as ProjectArea) ? (

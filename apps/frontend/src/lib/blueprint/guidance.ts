@@ -60,7 +60,7 @@ export const SECTION_SCREEN: Record<string, string> = {
   actions: 'Model, rules and actions',
   workflows: 'Model, workflows',
   events: 'Model, rules and actions',
-  views: 'Interface',
+  views: 'Blueprint, views',
   integrations: 'Compose',
   governance: 'Policies',
   economics: 'Foundation',

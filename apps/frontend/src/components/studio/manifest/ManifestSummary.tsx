@@ -42,6 +42,13 @@ export default function ManifestSummary({
       const held = await api<SummaryReply>(
         `/api/projects/${encodeURIComponent(projectId)}/manifest?view=summary`,
       );
+      if (held.summary === undefined || held.summary === null) {
+        setFailure({
+          message: 'Cerulea answered with no summary for this project.',
+          fix: 'Read the manifest again. Report the problem to the Cerulea operator when it repeats.',
+        });
+        return;
+      }
       setCounts(held.summary);
       setVersion(held.version);
       setFailure(null);
