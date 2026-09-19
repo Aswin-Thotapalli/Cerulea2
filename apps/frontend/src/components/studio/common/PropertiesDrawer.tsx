@@ -680,7 +680,7 @@ function EdgeProperties({
       <Stack spacing={0.6} sx={{ mb: 2 }}>
         <Typography sx={{ fontWeight: 900 }}>Edge</Typography>
         <Typography sx={{ fontSize: 13, color: "rgba(255,255,255,0.75)" }}>
-          Configure when this transition fires and how it behaves (retries, timeouts, data passing).
+          State when this transition fires, and how it behaves on a retry, a timeout and a value it carries.
         </Typography>
       </Stack>
 

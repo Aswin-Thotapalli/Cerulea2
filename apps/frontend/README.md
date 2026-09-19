@@ -1,4 +1,4 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Cerulea Studio, Cerulea Dashboard and the Cerulea operator screens. Next.js with TypeScript and Material UI. Studio holds no database connection. Every read and write passes through Cerulea APIs.
 
 ## Getting Started
 

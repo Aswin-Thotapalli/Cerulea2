@@ -59,7 +59,7 @@ function computeProgress(): Record<string, SectionStatus> {
     const econ = localStorage.getItem('cerulea.step3.economics') || localStorage.getItem('draft:local:4');
     result.economics = econ ? 'done' : 'empty';
 
-    // Integrations: any integration configured
+    // Integrations. The area counts as done once one connection is declared.
     const intg = localStorage.getItem('cerulea.step4.integrations') || localStorage.getItem('draft:local:5');
     result.integrations = intg ? 'done' : 'empty';
 

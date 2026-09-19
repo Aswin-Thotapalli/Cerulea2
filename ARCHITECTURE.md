@@ -38,7 +38,7 @@ Some modules may not be fully implemented yet; however, the target architecture 
 - Publicly accessible
 
 ### 5) Cerulea Studio (subdomain)
-Cerulea Studio is the guided builder experience (step-based workflow) that helps users create and configure applications and related artifacts. It includes:
+Cerulea Studio is the guided builder. A person runs the six steps once and then works in a persistent workspace. It includes:
 - Stepper workflow (step0..stepN)
 - Draft persistence (create/update/load)
 - Controlled AI assistant integrated inside Studio (real Gemini-backed AI)
