@@ -1,239 +1,218 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import {
-  Box, Typography, Paper, Stack, Chip, Button,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Tooltip, LinearProgress, CircularProgress,
-} from '@mui/material';
-import Grid from '@mui/material/GridLegacy';
-import { alpha, useTheme } from '@mui/material/styles';
-import { useSession } from 'next-auth/react';
-import AddIcon from '@mui/icons-material/Add';
-import VpnKeyIcon from '@mui/icons-material/VpnKey';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import ErrorIcon from '@mui/icons-material/Error';
-import ShieldIcon from '@mui/icons-material/Shield';
-import HubIcon from '@mui/icons-material/Hub';
-import DeviceHubIcon from '@mui/icons-material/DeviceHub';
-import DnsIcon from '@mui/icons-material/Dns';
+// apps/frontend/src/app/dashboard/nodes/page.tsx
+// The Nodes panel.
+// Every node value comes from the node itself. Every validator figure comes
+// from the framework pallet through Cerulea APIs, including the Trust Score
+// and the four parts it is made of.
+// Without this panel an operator cannot tell who is authoring blocks.
 
-type Node = {
-  id: string;
-  role: 'Validator' | 'RPC' | 'Archival';
-  status: 'Active' | 'Down' | 'Syncing';
-  region: string;
-  uptime: number;
-  network: string;
-  cpuPct: number;
-  memPct: number;
+import {
+  Box,
+  Chip,
+  LinearProgress,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+
+import { PanelBody, PanelEmpty, usePanelData } from '@/components/dashboard/PanelState';
+import { participationPercent, shortAccount } from '@/components/dashboard/wording';
+
+type NodesView = {
+  network: {
+    node: {
+      systemName: string;
+      systemVersion: string;
+      chainName: string;
+      kind: 'local' | 'live';
+      peers: number;
+      isSyncing: boolean;
+      shouldHavePeers: boolean;
+      observedAt: string;
+    };
+    head: { number: number };
+    finalizedBlock: number;
+    epoch: number;
+    activeValidators: number;
+    totalValidators: number;
+  };
+  validators: {
+    profile: {
+      account: string;
+      stake: string;
+      standingScore: number;
+      trustScore: number;
+      state: 'Active' | 'Inactive' | 'Slashed';
+      authoredBlocks: number;
+      missedBlocks: number;
+    };
+    trust: {
+      total: number;
+      standing: number;
+      performance: number;
+      custody: number;
+      verification: number;
+    };
+  }[];
 };
 
-const TEST_NODES: Node[] = [
-  { id: 'node-val-01', role: 'Validator', status: 'Active',  region: 'us-east-1',      uptime: 99.94, network: 'CeruleaChain Mainnet',  cpuPct: 34, memPct: 51 },
-  { id: 'node-val-02', role: 'Validator', status: 'Active',  region: 'eu-west-1',      uptime: 99.81, network: 'CeruleaChain Mainnet',  cpuPct: 29, memPct: 48 },
-  { id: 'node-val-03', role: 'Validator', status: 'Down',    region: 'ap-southeast-1', uptime: 71.2,  network: 'CeruleaChain Mainnet',  cpuPct: 0,  memPct: 0 },
-  { id: 'node-val-04', role: 'Validator', status: 'Active',  region: 'eu-central-1',   uptime: 100,   network: 'TradeFi Private L1',    cpuPct: 22, memPct: 44 },
-  { id: 'node-val-05', role: 'Validator', status: 'Active',  region: 'us-west-2',      uptime: 99.97, network: 'TradeFi Private L1',    cpuPct: 27, memPct: 46 },
-  { id: 'node-rpc-01', role: 'RPC',       status: 'Active',  region: 'us-east-1',      uptime: 100,   network: 'VoteApp Devnet',         cpuPct: 18, memPct: 38 },
-  { id: 'node-rpc-02', role: 'RPC',       status: 'Active',  region: 'eu-west-1',      uptime: 99.99, network: 'VoteApp Devnet',         cpuPct: 21, memPct: 40 },
-  { id: 'node-rpc-03', role: 'RPC',       status: 'Syncing', region: 'ap-northeast-1', uptime: 98.1,  network: 'NFT Marketplace Chain', cpuPct: 55, memPct: 67 },
-  { id: 'node-arc-01', role: 'Archival',  status: 'Active',  region: 'us-west-2',      uptime: 99.55, network: 'CeruleaChain Mainnet',  cpuPct: 12, memPct: 72 },
-  { id: 'node-arc-02', role: 'Archival',  status: 'Active',  region: 'eu-west-2',      uptime: 99.8,  network: 'TradeFi Private L1',    cpuPct: 9,  memPct: 68 },
-];
-
-const ROLE_COLOR: Record<string, string> = { Validator: 'secondary', RPC: 'primary', Archival: 'info' };
-const STATUS_COLORS: Record<string, string> = { Active: 'success.main', Down: 'error.main', Syncing: 'warning.main' };
-
-function FaultCard({ label, value, sub, color, icon }: {
-  label: string; value: string | number; sub?: string; color: string; icon: React.ReactNode;
-}) {
-  const theme = useTheme();
-  return (
-    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, background: alpha(color, 0.05), borderColor: alpha(color, 0.2) }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <Box>
-          <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ letterSpacing: 0.5 }}>{label.toUpperCase()}</Typography>
-          <Typography variant="h4" fontWeight={900} sx={{ color, mt: 0.5 }}>{value}</Typography>
-          {sub && <Typography variant="caption" color="text.secondary">{sub}</Typography>}
-        </Box>
-        <Box sx={{ color, opacity: 0.6 }}>{icon}</Box>
-      </Stack>
-    </Paper>
-  );
-}
-
-export default function NodesPage() {
-  const theme = useTheme();
-  const { data: session } = useSession();
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const isTestAccount = session?.user?.email === 'test@cerulea.app';
-
-  useEffect(() => {
-    if (!session) return;
-    if (isTestAccount) {
-      setNodes(TEST_NODES);
-      setLoading(false);
-      return;
-    }
-    // For regular users: derive nodes from their deployed projects
-    (async () => {
-      try {
-        const res = await fetch('/api/projects');
-        if (!res.ok) { setLoading(false); return; }
-        const j = await res.json();
-        const userProjects = (j.projects || []).filter((p: any) => p.status === 'active');
-        const derived: Node[] = [];
-        userProjects.forEach((p: any, i: number) => {
-          derived.push(
-            { id: `node-val-${p.id.slice(0, 6)}`, role: 'Validator', status: 'Active', region: 'us-east-1', uptime: 99.9, network: p.name, cpuPct: 25, memPct: 45 },
-            { id: `node-rpc-${p.id.slice(0, 6)}`, role: 'RPC', status: 'Active', region: 'eu-west-1', uptime: 100, network: p.name, cpuPct: 18, memPct: 38 },
-          );
-        });
-        setNodes(derived);
-      } catch {
-        // silent
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [session, isTestAccount]);
-
-  const activeNodes = nodes.filter((n) => n.status === 'Active');
-  const downNodes = nodes.filter((n) => n.status === 'Down');
-  const validators = nodes.filter((n) => n.role === 'Validator');
-  const activeValidators = validators.filter((n) => n.status === 'Active');
-  const faultTolerance = validators.length ? Math.floor((activeValidators.length / validators.length) * 100) : 0;
+export default function NodesPanel() {
+  const reading = usePanelData<NodesView>('/api/dashboard/nodes', 12000);
 
   return (
-    <Box sx={{ p: 4, maxWidth: 1200 }}>
-      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={4}>
-        <Box>
-          <Typography variant="h4" fontWeight={900} gutterBottom>Nodes</Typography>
-          <Typography variant="body1" color="text.secondary">
-            Manage your validator, RPC, and archival nodes across all networks.
-          </Typography>
-        </Box>
-        <Stack direction="row" spacing={1.5}>
-          <Tooltip title="Available after deployment" arrow>
-            <span>
-              <Button variant="contained" startIcon={<AddIcon />} disabled sx={{ borderRadius: 999, fontWeight: 700 }}>
-                Provision Node
-              </Button>
-            </span>
-          </Tooltip>
-          <Button variant="outlined" startIcon={<VpnKeyIcon />} sx={{ borderRadius: 999, fontWeight: 700 }}>
-            Rotate Keys
-          </Button>
-        </Stack>
-      </Stack>
+    <Box sx={{ p: 4 }}>
+      <Typography variant="h4" sx={{ fontWeight: 900, mb: 1 }}>
+        Nodes
+      </Typography>
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+        We read the node this deployment is joined to, and every validator taking part in
+        agreement.
+      </Typography>
 
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
-      ) : nodes.length === 0 ? (
-        <Paper variant="outlined" sx={{ borderRadius: 3, py: 10, textAlign: 'center', borderStyle: 'dashed' }}>
-          <DnsIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-          <Typography variant="body1" color="text.secondary" gutterBottom>No nodes provisioned yet.</Typography>
-          <Typography variant="caption" color="text.secondary">Nodes are automatically provisioned when you deploy a network.</Typography>
-        </Paper>
-      ) : (
-        <>
-          <Grid container spacing={2.5} mb={4}>
-            <Grid xs={12} sm={6} md={3}>
-              <FaultCard label="Total Nodes" value={nodes.length} sub="Across all networks" color={theme.palette.primary.main} icon={<HubIcon sx={{ fontSize: 32 }} />} />
-            </Grid>
-            <Grid xs={12} sm={6} md={3}>
-              <FaultCard label="Active" value={activeNodes.length} sub="Healthy and reachable" color={theme.palette.success.main} icon={<CheckCircleIcon sx={{ fontSize: 32 }} />} />
-            </Grid>
-            <Grid xs={12} sm={6} md={3}>
-              <FaultCard label="Down / Degraded" value={downNodes.length} sub="Require attention" color={theme.palette.error.main} icon={<ErrorIcon sx={{ fontSize: 32 }} />} />
-            </Grid>
-            <Grid xs={12} sm={6} md={3}>
-              <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, background: alpha(theme.palette.warning.main, 0.05), borderColor: alpha(theme.palette.warning.main, 0.2) }}>
-                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ letterSpacing: 0.5 }}>FAULT TOLERANCE</Typography>
-                <Typography variant="h4" fontWeight={900} sx={{ color: theme.palette.warning.main, mt: 0.5 }}>{faultTolerance}%</Typography>
-                <LinearProgress variant="determinate" value={faultTolerance} color={faultTolerance >= 90 ? 'success' : faultTolerance >= 66 ? 'warning' : 'error'} sx={{ mt: 1, borderRadius: 999, height: 6 }} />
-                <Stack direction="row" alignItems="center" gap={0.5} mt={0.5}>
-                  <ShieldIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
-                  <Typography variant="caption" color="text.secondary">{activeValidators.length}/{validators.length} validators active</Typography>
+      <PanelBody reading={reading} subject="the node and the validator set">
+        {(view) => (
+          <Stack spacing={4}>
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                sx={{ mb: 2 }}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                  {view.network.node.systemName} {view.network.node.systemVersion}
+                </Typography>
+                <Stack direction="row" spacing={1}>
+                  <Chip size="small" label={view.network.node.chainName} />
+                  <Chip
+                    size="small"
+                    color={view.network.node.isSyncing ? 'warning' : 'success'}
+                    label={view.network.node.isSyncing ? 'Catching up' : 'In step'}
+                  />
                 </Stack>
-              </Paper>
-            </Grid>
-          </Grid>
-
-          <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden' }}>
-            <Box sx={{ px: 3, py: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
-              <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Typography variant="h6" fontWeight={800}>Node Roster</Typography>
-                <DeviceHubIcon sx={{ color: 'text.disabled' }} fontSize="small" />
               </Stack>
-            </Box>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    {['Node ID', 'Network', 'Role', 'Status', 'Region', 'CPU', 'Memory', 'Uptime', 'Actions'].map((h) => (
-                      <TableCell key={h} sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', letterSpacing: 0.5 }}>{h.toUpperCase()}</TableCell>
-                    ))}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {nodes.map((node) => (
-                    <TableRow key={node.id} sx={{ '&:hover': { bgcolor: alpha(theme.palette.action.hover, 0.5) }, ...(node.status === 'Down' && { bgcolor: alpha(theme.palette.error.main, 0.03) }) }}>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={700} sx={{ fontFamily: 'monospace' }}>{node.id}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">{node.network}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip label={node.role} size="small" color={ROLE_COLOR[node.role] as any} variant="outlined" sx={{ fontWeight: 700, fontSize: '0.7rem' }} />
-                      </TableCell>
-                      <TableCell>
-                        <Stack direction="row" alignItems="center" spacing={0.75}>
-                          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: STATUS_COLORS[node.status] }} />
-                          <Typography variant="body2" fontWeight={600} sx={{ color: STATUS_COLORS[node.status] }}>{node.status}</Typography>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">{node.region}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="caption" fontWeight={700} color={node.cpuPct > 80 ? 'error.main' : node.cpuPct > 60 ? 'warning.main' : 'text.secondary'}>
-                          {node.status === 'Down' ? 'N/A' : `${node.cpuPct}%`}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="caption" fontWeight={700} color={node.memPct > 85 ? 'error.main' : node.memPct > 70 ? 'warning.main' : 'text.secondary'}>
-                          {node.status === 'Down' ? 'N/A' : `${node.memPct}%`}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ minWidth: 90 }}>
-                          <Typography variant="caption" fontWeight={700} color={node.uptime >= 99 ? 'success.main' : node.uptime >= 90 ? 'warning.main' : 'error.main'}>
-                            {node.uptime.toFixed(2)}%
-                          </Typography>
-                          <LinearProgress variant="determinate" value={node.uptime} color={node.uptime >= 99 ? 'success' : node.uptime >= 90 ? 'warning' : 'error'} sx={{ mt: 0.5, borderRadius: 999, height: 4 }} />
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Stack direction="row" spacing={1}>
-                          <Tooltip title="Available after deployment" arrow>
-                            <span><Button size="small" variant="outlined" disabled sx={{ borderRadius: 999, fontSize: '0.7rem' }}>SSH</Button></span>
-                          </Tooltip>
-                          <Button size="small" variant="outlined" startIcon={<VpnKeyIcon sx={{ fontSize: 12 }} />} sx={{ borderRadius: 999, fontSize: '0.7rem' }}>Rotate</Button>
-                        </Stack>
-                      </TableCell>
+              <Stack direction="row" spacing={4} flexWrap="wrap" useFlexGap>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Peers
+                  </Typography>
+                  <Typography variant="h6">{view.network.node.peers}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Other nodes this one is joined to.
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Block height
+                  </Typography>
+                  <Typography variant="h6">{view.network.head.number}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Irreversible to {view.network.finalizedBlock}.
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Epoch
+                  </Typography>
+                  <Typography variant="h6">{view.network.epoch}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    The validator set rotates at the end of each epoch.
+                  </Typography>
+                </Box>
+              </Stack>
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+                Validators
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                The Trust Score decides how often a validator is drawn to author a block. Standing
+                comes from service, performance from measurement, custody from history challenges
+                and verification from sampling.
+              </Typography>
+              {view.validators.length === 0 ? (
+                <PanelEmpty
+                  heading="No validator answers yet"
+                  explanation="Start a validator process and join it to this network. Every validator that answers appears here."
+                />
+              ) : (
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Validator</TableCell>
+                      <TableCell>State</TableCell>
+                      <TableCell align="right">Trust Score</TableCell>
+                      <TableCell align="right">Authored</TableCell>
+                      <TableCell align="right">Missed</TableCell>
+                      <TableCell align="right">Turns taken</TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        </>
-      )}
+                  </TableHead>
+                  <TableBody>
+                    {view.validators.map((entry) => (
+                      <TableRow key={entry.profile.account}>
+                        <TableCell>
+                          <Tooltip title={entry.profile.account}>
+                            <span>{shortAccount(entry.profile.account)}</span>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            size="small"
+                            color={
+                              entry.profile.state === 'Active'
+                                ? 'success'
+                                : entry.profile.state === 'Slashed'
+                                  ? 'error'
+                                  : 'default'
+                            }
+                            label={entry.profile.state}
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Tooltip
+                            title={`Standing ${entry.trust.standing}, performance ${entry.trust.performance}, custody ${entry.trust.custody}, verification ${entry.trust.verification}`}
+                          >
+                            <span>{entry.trust.total}</span>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell align="right">{entry.profile.authoredBlocks}</TableCell>
+                        <TableCell align="right">{entry.profile.missedBlocks}</TableCell>
+                        <TableCell align="right" sx={{ width: 160 }}>
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <LinearProgress
+                              variant="determinate"
+                              value={participationPercent(
+                                entry.profile.authoredBlocks,
+                                entry.profile.missedBlocks,
+                              )}
+                              sx={{ flex: 1, height: 6, borderRadius: 3 }}
+                            />
+                            <Typography variant="caption">
+                              {participationPercent(
+                                entry.profile.authoredBlocks,
+                                entry.profile.missedBlocks,
+                              )}
+                              %
+                            </Typography>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </Paper>
+          </Stack>
+        )}
+      </PanelBody>
     </Box>
   );
 }

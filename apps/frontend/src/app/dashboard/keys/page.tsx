@@ -1,335 +1,277 @@
 'use client';
 
+// apps/frontend/src/app/dashboard/keys/page.tsx
+// The Keys panel.
+// A key lets a caller outside Cerulea reach a deployed system. Each key carries
+// the scopes it may use, a request limit and an expiry. Cerulea stores a hash
+// of the key and shows the key once.
+// Without a key nothing outside Cerulea reaches a deployed system.
+
 import { useState } from 'react';
 import {
-  Box, Typography, Paper, Stack, Chip, Button,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, IconButton, Tooltip, Alert, Divider,
+  Alert,
+  AlertTitle,
+  Box,
+  Button,
+  Checkbox,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControlLabel,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
 } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
-import AddIcon from '@mui/icons-material/Add';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import KeyIcon from '@mui/icons-material/Key';
-import LockIcon from '@mui/icons-material/Lock';
-import CheckIcon from '@mui/icons-material/Check';
 
-type ApiKey = {
-  id: string;
-  name: string;
+import {
+  PanelBody,
+  PanelEmpty,
+  describeFailure,
+  usePanelData,
+  type PanelFailure,
+} from '@/components/dashboard/PanelState';
+import { api } from '@/lib/apiClient';
+import { SCOPE_MEANING } from '@/components/dashboard/wording';
+
+type KeysView = {
+  workspace: { workspaceId: string; name: string };
+  keys: {
+    keyId: string;
+    name: string;
+    prefix: string;
+    scopes: string[];
+    requestsPerMinute: number;
+    expiresAt: string | null;
+    revokedAt: string | null;
+    lastUsedAt: string | null;
+    createdAt: string;
+  }[];
   scopes: string[];
-  created: string;
-  lastUsed: string;
-  preview: string;
 };
 
-type ValidatorKey = {
-  id: string;
-  address: string;
-  type: string;
-  network: string;
-  added: string;
-};
+export default function KeysPanel() {
+  const reading = usePanelData<KeysView>('/api/dashboard/keys');
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [limit, setLimit] = useState('600');
+  const [issued, setIssued] = useState<{ secret: string; guidance: string } | null>(null);
+  const [failure, setFailure] = useState<PanelFailure | null>(null);
+  const [working, setWorking] = useState(false);
 
-const STUB_API_KEYS: ApiKey[] = [
-  { id: 'ak-1', name: 'Production Backend', scopes: ['read', 'write'], created: '2025-11-01', lastUsed: '2 hours ago', preview: 'ck_live_****...****a3f2' },
-  { id: 'ak-2', name: 'Analytics Service', scopes: ['read'], created: '2025-12-15', lastUsed: 'Yesterday', preview: 'ck_live_****...****9b1d' },
-  { id: 'ak-3', name: 'CI/CD Pipeline', scopes: ['deploy', 'read'], created: '2026-01-08', lastUsed: '3 days ago', preview: 'ck_live_****...****c7e8' },
-];
-
-const STUB_VALIDATOR_KEYS: ValidatorKey[] = [
-  { id: 'vk-1', address: '0x3d5a****...****fe29', type: 'BLS-12381', network: 'CeruleaChain Mainnet', added: '2025-11-01' },
-  { id: 'vk-2', address: '0x8f2b****...****aa41', type: 'BLS-12381', network: 'CeruleaChain Mainnet', added: '2025-11-01' },
-  { id: 'vk-3', address: '0x1c9e****...****3d80', type: 'Ed25519', network: 'VoteApp Devnet', added: '2025-12-20' },
-];
-
-const SCOPE_COLOR: Record<string, 'primary' | 'success' | 'warning' | 'error'> = {
-  read: 'primary',
-  write: 'warning',
-  deploy: 'success',
-  admin: 'error',
-};
-
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
-    navigator.clipboard.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-  return (
-    <Tooltip title={copied ? 'Copied!' : 'Copy'} arrow>
-      <IconButton size="small" onClick={handleCopy}>
-        {copied ? <CheckIcon sx={{ fontSize: 14, color: 'success.main' }} /> : <ContentCopyIcon sx={{ fontSize: 14 }} />}
-      </IconButton>
-    </Tooltip>
-  );
-}
-
-export default function KeysPage() {
-  const theme = useTheme();
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>(STUB_API_KEYS);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [newKeyName, setNewKeyName] = useState('');
-  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
-  const [revokeId, setRevokeId] = useState<string | null>(null);
-
-  const handleGenerate = () => {
-    const key = `ck_live_${Math.random().toString(36).slice(2, 10)}...${Math.random().toString(36).slice(2, 6)}`;
-    const newKey: ApiKey = {
-      id: `ak-${Date.now()}`,
-      name: newKeyName || 'New API Key',
-      scopes: ['read'],
-      created: new Date().toISOString().slice(0, 10),
-      lastUsed: 'Never',
-      preview: `ck_live_****...****${Math.random().toString(36).slice(2, 6)}`,
-    };
-    setApiKeys((prev) => [...prev, newKey]);
-    setGeneratedKey(key);
-    setNewKeyName('');
+  const issue = async () => {
+    setWorking(true);
+    setFailure(null);
+    try {
+      const outcome = await api<{ secret: string; guidance: string }>('/api/dashboard/keys', {
+        method: 'POST',
+        body: JSON.stringify({
+          name,
+          scopes: chosen,
+          requestsPerMinute: Number(limit) || 600,
+        }),
+      });
+      setIssued(outcome);
+      setOpen(false);
+      setName('');
+      setChosen([]);
+      reading.readAgain();
+    } catch (cause) {
+      setFailure(describeFailure(cause));
+    } finally {
+      setWorking(false);
+    }
   };
 
-  const handleRevoke = (id: string) => {
-    setApiKeys((prev) => prev.filter((k) => k.id !== id));
-    setRevokeId(null);
+  const act = async (keyId: string, method: 'PATCH' | 'DELETE') => {
+    setFailure(null);
+    try {
+      const outcome = await api<{ secret?: string; guidance: string }>(
+        `/api/dashboard/keys?keyId=${encodeURIComponent(keyId)}`,
+        { method },
+      );
+      if (outcome.secret) setIssued({ secret: outcome.secret, guidance: outcome.guidance });
+      reading.readAgain();
+    } catch (cause) {
+      setFailure(describeFailure(cause));
+    }
   };
 
   return (
-    <Box sx={{ p: 4, maxWidth: 1100 }}>
-      {/* Header */}
-      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={4}>
-        <Box>
-          <Typography variant="h4" fontWeight={900} gutterBottom>
-            Keys & Access
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Manage API keys, validator signing keys, and access credentials.
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => { setGeneratedKey(null); setDialogOpen(true); }}
-          sx={{ borderRadius: 999, fontWeight: 700 }}
-        >
-          Generate API Key
+    <Box sx={{ p: 4 }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+        <Typography variant="h4" sx={{ fontWeight: 900 }}>
+          Keys and access
+        </Typography>
+        <Button variant="contained" onClick={() => setOpen(true)}>
+          Issue a key
         </Button>
       </Stack>
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+        A key lets a program outside Cerulea reach a deployed system. Each key carries the scopes
+        it may use and a request limit. Revoking a key closes it at once.
+      </Typography>
 
-      {/* API Keys */}
-      <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden', mb: 4 }}>
-        <Box sx={{ px: 3, pt: 2.5, pb: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
-            <KeyIcon fontSize="small" sx={{ color: 'primary.main' }} />
-            <Typography variant="h6" fontWeight={800}>API Keys</Typography>
-            <Chip label={apiKeys.length} size="small" sx={{ fontWeight: 700, ml: 0.5 }} />
-          </Stack>
-          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 640 }}>
-            API keys authenticate your backend services, CI/CD pipelines, and third-party integrations with the Cerulea platform. Each key can be scoped to specific permissions (read, write, deploy). Treat API keys like passwords: store them in environment variables, never commit them to source control, and rotate them regularly.
+      {failure && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <AlertTitle>{failure.message}</AlertTitle>
+          {failure.fix}
+        </Alert>
+      )}
+
+      {issued && (
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setIssued(null)}>
+          <AlertTitle>{issued.guidance}</AlertTitle>
+          <Typography component="code" sx={{ wordBreak: 'break-all', fontWeight: 700 }}>
+            {issued.secret}
           </Typography>
-        </Box>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                {['Name', 'Key', 'Scopes', 'Created', 'Last Used', ''].map((h) => (
-                  <TableCell key={h} sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', letterSpacing: 0.5 }}>
-                    {h.toUpperCase()}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {apiKeys.map((key) => (
-                <TableRow key={key.id} sx={{ '&:hover': { bgcolor: alpha(theme.palette.action.hover, 0.5) } }}>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight={700}>{key.name}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Stack direction="row" alignItems="center" spacing={0.5}>
-                      <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
-                        {key.preview}
-                      </Typography>
-                      <CopyButton value={key.preview} />
-                    </Stack>
-                  </TableCell>
-                  <TableCell>
-                    <Stack direction="row" spacing={0.5} flexWrap="wrap">
-                      {key.scopes.map((s) => (
-                        <Chip
-                          key={s}
-                          label={s}
-                          size="small"
-                          color={SCOPE_COLOR[s] || 'default'}
-                          variant="outlined"
-                          sx={{ fontWeight: 700, fontSize: '0.65rem', height: 18 }}
-                        />
-                      ))}
-                    </Stack>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary">{key.created}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary">{key.lastUsed}</Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Tooltip title="Revoke key" arrow>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => setRevokeId(key.id)}
-                      >
-                        <DeleteOutlineIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
+        </Alert>
+      )}
 
-      {/* Validator Keys */}
-      <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden' }}>
-        <Box sx={{ px: 3, pt: 2.5, pb: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
-            <LockIcon fontSize="small" sx={{ color: 'secondary.main' }} />
-            <Typography variant="h6" fontWeight={800}>Validator Keys</Typography>
-            <Chip label={STUB_VALIDATOR_KEYS.length} size="small" sx={{ fontWeight: 700, ml: 0.5 }} />
-          </Stack>
-          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 640 }}>
-            Validator keys are cryptographic signing keys assigned to nodes that participate in your network&apos;s consensus process. These keys sign blocks and attestations to prove the node&apos;s identity and vote weight. BLS-12381 keys are standard for PoS validators; Ed25519 keys are used in faster finality chains. Never share private validator keys; compromise leads to slashing penalties or network forks.
-          </Typography>
-        </Box>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                {['Address', 'Type', 'Network', 'Added', ''].map((h) => (
-                  <TableCell key={h} sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.75rem', letterSpacing: 0.5 }}>
-                    {h.toUpperCase()}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {STUB_VALIDATOR_KEYS.map((vk) => (
-                <TableRow key={vk.id} sx={{ '&:hover': { bgcolor: alpha(theme.palette.action.hover, 0.5) } }}>
-                  <TableCell>
-                    <Stack direction="row" alignItems="center" spacing={0.5}>
-                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
-                        {vk.address}
-                      </Typography>
-                      <CopyButton value={vk.address} />
-                    </Stack>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={vk.type}
-                      size="small"
-                      variant="outlined"
-                      color="secondary"
-                      sx={{ fontWeight: 700, fontSize: '0.7rem' }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary">{vk.network}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary">{vk.added}</Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Button size="small" variant="outlined" sx={{ borderRadius: 999, fontSize: '0.7rem' }}>
-                      Export
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
-
-      {/* Generate Key Dialog */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ fontWeight: 800 }}>Generate New API Key</DialogTitle>
-        <DialogContent>
-          {!generatedKey ? (
-            <Stack spacing={2.5} pt={1}>
-              <TextField
-                label="Key Name"
-                placeholder="e.g. Production Backend"
-                value={newKeyName}
-                onChange={(e) => setNewKeyName(e.target.value)}
-                fullWidth
-                size="small"
+      <PanelBody reading={reading} subject="the keys of this workspace">
+        {(view) => (
+          <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+            {view.keys.length === 0 ? (
+              <PanelEmpty
+                heading="No key yet"
+                explanation="Issue a key when a program outside Cerulea needs to read records or run an action."
+                action={
+                  <Button variant="contained" onClick={() => setOpen(true)}>
+                    Issue the first key
+                  </Button>
+                }
               />
-              <Typography variant="caption" color="text.secondary">
-                The key will be shown only once. Store it securely after generation.
-              </Typography>
-            </Stack>
-          ) : (
-            <Stack spacing={2} pt={1}>
-              <Alert severity="warning" sx={{ borderRadius: 2 }}>
-                Copy this key now; it will not be shown again.
-              </Alert>
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: 2, borderRadius: 2,
-                  bgcolor: alpha(theme.palette.success.main, 0.05),
-                  borderColor: alpha(theme.palette.success.main, 0.3),
-                }}
-              >
-                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                  <Typography variant="body2" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
-                    {generatedKey}
-                  </Typography>
-                  <CopyButton value={generatedKey} />
-                </Stack>
-              </Paper>
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDialogOpen(false)} sx={{ borderRadius: 999 }}>
-            {generatedKey ? 'Done' : 'Cancel'}
-          </Button>
-          {!generatedKey && (
-            <Button
-              variant="contained"
-              onClick={handleGenerate}
-              disabled={!newKeyName.trim()}
-              sx={{ borderRadius: 999, fontWeight: 700 }}
-            >
-              Generate
-            </Button>
-          )}
-        </DialogActions>
-      </Dialog>
+            ) : (
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Name</TableCell>
+                    <TableCell>Opening</TableCell>
+                    <TableCell>Scopes</TableCell>
+                    <TableCell align="right">Requests each minute</TableCell>
+                    <TableCell>Last used</TableCell>
+                    <TableCell>State</TableCell>
+                    <TableCell align="right">Change</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {view.keys.map((key) => (
+                    <TableRow key={key.keyId}>
+                      <TableCell>{key.name}</TableCell>
+                      <TableCell>
+                        <Typography component="code" variant="body2">
+                          {key.prefix}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                          {key.scopes.map((scope) => (
+                            <Chip key={scope} size="small" label={scope} variant="outlined" />
+                          ))}
+                        </Stack>
+                      </TableCell>
+                      <TableCell align="right">{key.requestsPerMinute}</TableCell>
+                      <TableCell>
+                        {key.lastUsedAt
+                          ? new Date(key.lastUsedAt).toLocaleString()
+                          : 'Not used yet'}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          color={key.revokedAt ? 'default' : 'success'}
+                          label={key.revokedAt ? 'Closed' : 'Open'}
+                        />
+                      </TableCell>
+                      <TableCell align="right">
+                        {key.revokedAt === null && (
+                          <Stack direction="row" spacing={1} justifyContent="flex-end">
+                            <Button size="small" onClick={() => void act(key.keyId, 'PATCH')}>
+                              Rotate
+                            </Button>
+                            <Button
+                              size="small"
+                              color="error"
+                              onClick={() => void act(key.keyId, 'DELETE')}
+                            >
+                              Revoke
+                            </Button>
+                          </Stack>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </Paper>
+        )}
+      </PanelBody>
 
-      {/* Revoke Confirm Dialog */}
-      <Dialog open={!!revokeId} onClose={() => setRevokeId(null)} maxWidth="xs" fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ fontWeight: 800 }}>Revoke API Key?</DialogTitle>
+      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Issue a key</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary">
-            This action is irreversible. Any service using this key will lose access immediately.
-          </Typography>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="Name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              size="small"
+              helperText="The name tells a reader which program holds this key."
+            />
+            <TextField
+              label="Requests each minute"
+              value={limit}
+              onChange={(event) => setLimit(event.target.value)}
+              size="small"
+              inputProps={{ inputMode: 'numeric' }}
+              helperText="Cerulea refuses calls above this rate and names the wait."
+            />
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Scopes
+              </Typography>
+              {(reading.data?.scopes ?? []).map((scope) => (
+                <Box key={scope}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={chosen.includes(scope)}
+                        onChange={(event) =>
+                          setChosen((previous) =>
+                            event.target.checked
+                              ? [...previous, scope]
+                              : previous.filter((entry) => entry !== scope),
+                          )
+                        }
+                      />
+                    }
+                    label={scope}
+                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', ml: 4 }}>
+                    {SCOPE_MEANING[scope] ?? 'Reaches part of the generated surface.'}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </Stack>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setRevokeId(null)} sx={{ borderRadius: 999 }}>Cancel</Button>
+        <DialogActions>
+          <Button onClick={() => setOpen(false)}>Leave it</Button>
           <Button
             variant="contained"
-            color="error"
-            onClick={() => revokeId && handleRevoke(revokeId)}
-            sx={{ borderRadius: 999, fontWeight: 700 }}
+            onClick={() => void issue()}
+            disabled={working || name.trim().length < 2 || chosen.length === 0}
           >
-            Revoke
+            Issue the key
           </Button>
         </DialogActions>
       </Dialog>

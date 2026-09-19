@@ -1,281 +1,312 @@
 'use client';
 
+// apps/frontend/src/app/dashboard/settings/page.tsx
+// The account and workspace screen.
+// The account, the open sessions, the workspace and its members all come from
+// Cerulea APIs. Closing a session here closes it everywhere at once.
+// Without this screen nobody can see where an account is signed in.
+
 import { useState } from 'react';
+import Link from 'next/link';
 import {
-  Box, Typography, Paper, Stack, Chip, Button,
-  TextField, Divider, LinearProgress,
-  Dialog, DialogTitle, DialogContent, DialogActions, Alert,
+  Alert,
+  AlertTitle,
+  Box,
+  Button,
+  Chip,
+  Divider,
+  MenuItem,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
 } from '@mui/material';
-import Grid from '@mui/material/GridLegacy';
-import { alpha, useTheme } from '@mui/material/styles';
-import { useSession } from 'next-auth/react';
-import SaveIcon from '@mui/icons-material/Save';
-import UpgradeIcon from '@mui/icons-material/Upgrade';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import StarIcon from '@mui/icons-material/Star';
 
-const PLAN_COLOR: Record<string, string> = {
-  Developer: '#448aff',
-  Pro: '#9c27b0',
-  Enterprise: '#ff6d00',
+import {
+  PanelBody,
+  describeFailure,
+  usePanelData,
+  type PanelFailure,
+} from '@/components/dashboard/PanelState';
+import { api } from '@/lib/apiClient';
+import { ROLE_MEANING } from '@/components/dashboard/wording';
+
+type SettingsView = {
+  account: {
+    accountId: string;
+    email: string;
+    displayName: string;
+    state: string;
+    multiFactorActive: boolean;
+    lastSignInAt?: string;
+    createdAt: string;
+  };
+  sessions: {
+    sessionId: string;
+    device: string;
+    networkAddress: string;
+    issuedAt: string;
+    expiresAt: string;
+    rotationCount: number;
+    current: boolean;
+  }[];
+  workspace: { workspaceId: string; name: string; application: string; tier: string };
+  members: {
+    memberId: string;
+    email: string;
+    displayName: string;
+    role: string;
+    state: string;
+    joinedAt?: string;
+  }[];
+  roles: { role: string; capabilities: string[] }[];
 };
 
-const USAGE = {
-  projects: { used: 3, limit: 5 },
-  deployments: { used: 12, limit: 20 },
-  apiCalls: { used: 48_200, limit: 100_000 },
-  storage: { used: 4.8, limit: 10 },
-};
+export default function AccountPanel() {
+  const reading = usePanelData<SettingsView>('/api/dashboard/settings');
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState('builder');
+  const [notice, setNotice] = useState<string | null>(null);
+  const [failure, setFailure] = useState<PanelFailure | null>(null);
+  const [working, setWorking] = useState(false);
 
-function UsageMeter({ label, used, limit, unit }: { label: string; used: number; limit: number; unit?: string }) {
-  const theme = useTheme();
-  const pct = Math.min((used / limit) * 100, 100);
-  const color = pct >= 90 ? theme.palette.error.main : pct >= 70 ? theme.palette.warning.main : theme.palette.success.main;
-  return (
-    <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="baseline" mb={0.5}>
-        <Typography variant="body2" fontWeight={600}>{label}</Typography>
-        <Typography variant="caption" color="text.secondary">
-          {typeof used === 'number' && used > 1000 ? used.toLocaleString() : used}
-          {unit ? ` ${unit}` : ''} / {typeof limit === 'number' && limit > 1000 ? limit.toLocaleString() : limit}{unit ? ` ${unit}` : ''}
-        </Typography>
-      </Stack>
-      <LinearProgress
-        variant="determinate"
-        value={pct}
-        sx={{ borderRadius: 999, height: 7, bgcolor: alpha(color, 0.12), '& .MuiLinearProgress-bar': { bgcolor: color } }}
-      />
-    </Box>
-  );
-}
+  const invite = async () => {
+    setWorking(true);
+    setFailure(null);
+    try {
+      const outcome = await api<{ guidance: string }>('/api/dashboard/settings', {
+        method: 'POST',
+        body: JSON.stringify({ email, role }),
+      });
+      setNotice(outcome.guidance);
+      setEmail('');
+      reading.readAgain();
+    } catch (cause) {
+      setFailure(describeFailure(cause));
+    } finally {
+      setWorking(false);
+    }
+  };
 
-export default function SettingsPage() {
-  const theme = useTheme();
-  const { data: session } = useSession();
-
-  const [name, setName] = useState(session?.user?.name || '');
-  const [email, setEmail] = useState(session?.user?.email || '');
-  const [saved, setSaved] = useState(false);
-
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState('');
-
-  const currentPlan = 'Developer';
-
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const closeSession = async (sessionId: string) => {
+    setFailure(null);
+    try {
+      await api(`/api/dashboard/settings?sessionId=${encodeURIComponent(sessionId)}`, {
+        method: 'DELETE',
+      });
+      reading.readAgain();
+    } catch (cause) {
+      setFailure(describeFailure(cause));
+    }
   };
 
   return (
-    <Box sx={{ p: 4, maxWidth: 860 }}>
-      {/* Header */}
-      <Box mb={4}>
-        <Typography variant="h4" fontWeight={900} gutterBottom>
-          Settings & Billing
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Manage your profile, subscription, and account configuration.
-        </Typography>
-      </Box>
+    <Box sx={{ p: 4, maxWidth: 1000 }}>
+      <Typography variant="h4" sx={{ fontWeight: 900, mb: 1 }}>
+        Account and workspace
+      </Typography>
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+        One account opens Studio, Dashboard and Explorer. A workspace holds the projects a team
+        builds together.
+      </Typography>
 
-      {/* ── Section 1: Profile ── */}
-      <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, mb: 3 }}>
-        <Typography variant="h6" fontWeight={800} mb={2.5}>Profile</Typography>
-        <Grid container spacing={2.5}>
-          <Grid xs={12} sm={6}>
-            <TextField
-              label="Full Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              fullWidth
-              size="small"
-            />
-          </Grid>
-          <Grid xs={12} sm={6}>
-            <TextField
-              label="Email Address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              fullWidth
-              size="small"
-              type="email"
-            />
-          </Grid>
-          <Grid xs={12} sm={6}>
-            <TextField
-              label="Current Password"
-              type="password"
-              placeholder="Leave blank to keep unchanged"
-              fullWidth
-              size="small"
-            />
-          </Grid>
-          <Grid xs={12} sm={6}>
-            <TextField
-              label="New Password"
-              type="password"
-              placeholder="Minimum 8 characters"
-              fullWidth
-              size="small"
-            />
-          </Grid>
-        </Grid>
-        <Box mt={2.5}>
-          <Button
-            variant="contained"
-            startIcon={saved ? undefined : <SaveIcon />}
-            onClick={handleSave}
-            color={saved ? 'success' : 'primary'}
-            sx={{ borderRadius: 999, fontWeight: 700 }}
-          >
-            {saved ? 'Saved!' : 'Save Changes'}
-          </Button>
-        </Box>
-      </Paper>
+      {notice && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setNotice(null)}>
+          {notice}
+        </Alert>
+      )}
+      {failure && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <AlertTitle>{failure.message}</AlertTitle>
+          {failure.fix}
+        </Alert>
+      )}
 
-      {/* ── Section 2: Subscription ── */}
-      <Paper
-        variant="outlined"
-        sx={{
-          p: 3, borderRadius: 3, mb: 3,
-          background: alpha(PLAN_COLOR[currentPlan] || theme.palette.primary.main, 0.03),
-          borderColor: alpha(PLAN_COLOR[currentPlan] || theme.palette.primary.main, 0.18),
-        }}
-      >
-        <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2.5}>
-          <Stack direction="row" alignItems="center" spacing={1.5}>
-            <StarIcon sx={{ color: PLAN_COLOR[currentPlan] || 'primary.main' }} />
-            <Typography variant="h6" fontWeight={800}>Subscription</Typography>
-          </Stack>
-          <Chip
-            label={currentPlan}
-            sx={{
-              fontWeight: 900,
-              bgcolor: alpha(PLAN_COLOR[currentPlan] || theme.palette.primary.main, 0.12),
-              color: PLAN_COLOR[currentPlan] || 'primary.main',
-              border: `1px solid ${alpha(PLAN_COLOR[currentPlan] || theme.palette.primary.main, 0.3)}`,
-              fontSize: '0.8rem',
-            }}
-          />
-        </Stack>
-
-        <Stack spacing={2} mb={2.5}>
-          <UsageMeter label="Projects" used={USAGE.projects.used} limit={USAGE.projects.limit} />
-          <UsageMeter label="Deployments this month" used={USAGE.deployments.used} limit={USAGE.deployments.limit} />
-          <UsageMeter label="API Calls" used={USAGE.apiCalls.used} limit={USAGE.apiCalls.limit} unit="calls" />
-          <UsageMeter label="Storage" used={USAGE.storage.used} limit={USAGE.storage.limit} unit="GB" />
-        </Stack>
-
-        <Divider sx={{ mb: 2.5 }} />
-
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Box>
-            <Typography variant="body2" color="text.secondary">
-              Next billing: <strong>May 1, 2026</strong> · $0 (Developer plan is free)
-            </Typography>
-          </Box>
-          <Button
-            variant="contained"
-            startIcon={<UpgradeIcon />}
-            sx={{
-              borderRadius: 999, fontWeight: 700,
-              bgcolor: PLAN_COLOR['Pro'],
-              '&:hover': { bgcolor: alpha(PLAN_COLOR['Pro'], 0.85) },
-            }}
-          >
-            Upgrade to Pro
-          </Button>
-        </Stack>
-      </Paper>
-
-      {/* ── Section 3: Danger Zone ── */}
-      <Paper
-        variant="outlined"
-        sx={{
-          p: 3, borderRadius: 3,
-          borderColor: alpha(theme.palette.error.main, 0.25),
-          background: alpha(theme.palette.error.main, 0.02),
-        }}
-      >
-        <Stack direction="row" alignItems="center" spacing={1.5} mb={2.5}>
-          <WarningAmberIcon sx={{ color: 'error.main' }} fontSize="small" />
-          <Typography variant="h6" fontWeight={800} color="error.main">Danger Zone</Typography>
-        </Stack>
-
-        <Stack spacing={2}>
-          {/* Delete account */}
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            sx={{
-              p: 2, borderRadius: 2,
-              border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
-            }}
-          >
-            <Box>
-              <Typography variant="body2" fontWeight={700}>Delete Account</Typography>
-              <Typography variant="caption" color="text.secondary">
-                Permanently remove your account, all projects, and deployed networks. This cannot be undone.
+      <PanelBody reading={reading} subject="the account and the workspace">
+        {(view) => (
+          <Stack spacing={3}>
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>
+                Account
               </Typography>
-            </Box>
-            <Button
-              variant="outlined"
-              color="error"
-              startIcon={<DeleteForeverIcon />}
-              onClick={() => setDeleteDialogOpen(true)}
-              sx={{ borderRadius: 999, fontWeight: 700, whiteSpace: 'nowrap', ml: 2 }}
-            >
-              Delete Account
-            </Button>
-          </Stack>
-        </Stack>
+              <Stack direction="row" spacing={4} flexWrap="wrap" useFlexGap>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Name
+                  </Typography>
+                  <Typography variant="body1">{view.account.displayName}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Email address
+                  </Typography>
+                  <Typography variant="body1">{view.account.email}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Second factor
+                  </Typography>
+                  <Chip
+                    size="small"
+                    color={view.account.multiFactorActive ? 'success' : 'warning'}
+                    label={view.account.multiFactorActive ? 'Active' : 'Waiting'}
+                  />
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Opened
+                  </Typography>
+                  <Typography variant="body1">
+                    {new Date(view.account.createdAt).toLocaleDateString()}
+                  </Typography>
+                </Box>
+              </Stack>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
+                Cerulea holds a verifier rather than the password. Recover the password from the
+                sign in screen when it is lost.
+              </Typography>
+            </Paper>
 
-      </Paper>
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+                Open sessions
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Each session binds to the device and the network it opened from. Closing one stops
+                it at once.
+              </Typography>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Device</TableCell>
+                    <TableCell>From</TableCell>
+                    <TableCell>Opened</TableCell>
+                    <TableCell>Ends</TableCell>
+                    <TableCell align="right">Close</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {view.sessions.map((session) => (
+                    <TableRow key={session.sessionId}>
+                      <TableCell>
+                        {session.device}
+                        {session.current && <Chip size="small" sx={{ ml: 1 }} label="This one" />}
+                      </TableCell>
+                      <TableCell>{session.networkAddress || 'this machine'}</TableCell>
+                      <TableCell>{new Date(session.issuedAt).toLocaleString()}</TableCell>
+                      <TableCell>{new Date(session.expiresAt).toLocaleString()}</TableCell>
+                      <TableCell align="right">
+                        <Button
+                          size="small"
+                          color="error"
+                          disabled={session.current}
+                          onClick={() => void closeSession(session.sessionId)}
+                        >
+                          Close
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Paper>
 
-      {/* Delete Confirm Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => { setDeleteDialogOpen(false); setDeleteConfirm(''); }} maxWidth="sm" fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ fontWeight: 800, color: 'error.main' }}>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <DeleteForeverIcon />
-            <span>Delete Account</span>
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{ mb: 2 }}
+              >
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                    {view.workspace.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {view.workspace.application} application, {view.workspace.tier} plan
+                  </Typography>
+                </Box>
+                <Button component={Link} href="/pricing" size="small">
+                  Change the plan
+                </Button>
+              </Stack>
+
+              <Divider sx={{ mb: 2 }} />
+
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Members
+              </Typography>
+              <Table size="small" sx={{ mb: 3 }}>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Person</TableCell>
+                    <TableCell>Role</TableCell>
+                    <TableCell>What the role may do</TableCell>
+                    <TableCell>State</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {view.members.map((member) => (
+                    <TableRow key={member.memberId}>
+                      <TableCell>{member.displayName || member.email}</TableCell>
+                      <TableCell>{member.role}</TableCell>
+                      <TableCell>{ROLE_MEANING[member.role] ?? ''}</TableCell>
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          color={member.state === 'active' ? 'success' : 'default'}
+                          label={member.state}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Invite a colleague
+              </Typography>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start">
+                <TextField
+                  label="Email address"
+                  size="small"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  sx={{ minWidth: 260 }}
+                  helperText="Cerulea sends the invitation link to this address."
+                />
+                <TextField
+                  select
+                  label="Role"
+                  size="small"
+                  value={role}
+                  onChange={(event) => setRole(event.target.value)}
+                  sx={{ minWidth: 200 }}
+                  helperText={ROLE_MEANING[role] ?? ''}
+                >
+                  {view.roles.map((entry) => (
+                    <MenuItem key={entry.role} value={entry.role}>
+                      {entry.role}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <Button
+                  variant="contained"
+                  onClick={() => void invite()}
+                  disabled={working || email.trim().length < 5}
+                >
+                  Send the invitation
+                </Button>
+              </Stack>
+            </Paper>
           </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <Alert severity="error" sx={{ borderRadius: 2, mb: 2.5 }}>
-            This will permanently delete your account, all projects, deployed networks, snapshots, and API keys. There is no recovery.
-          </Alert>
-          <Typography variant="body2" color="text.secondary" mb={1.5}>
-            Type <strong>DELETE</strong> to confirm:
-          </Typography>
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="DELETE"
-            value={deleteConfirm}
-            onChange={(e) => setDeleteConfirm(e.target.value)}
-            error={deleteConfirm.length > 0 && deleteConfirm !== 'DELETE'}
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => { setDeleteDialogOpen(false); setDeleteConfirm(''); }} sx={{ borderRadius: 999 }}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            disabled={deleteConfirm !== 'DELETE'}
-            startIcon={<DeleteForeverIcon />}
-            sx={{ borderRadius: 999, fontWeight: 700 }}
-          >
-            Delete My Account
-          </Button>
-        </DialogActions>
-      </Dialog>
+        )}
+      </PanelBody>
     </Box>
   );
 }

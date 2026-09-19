@@ -776,6 +776,174 @@ export function readInterfaceDescription(
   );
 }
 
+/* Studio panel reads ------------------------------------------------ */
+
+export type PlatformHealth = {
+  service: string;
+  mode: 'local' | 'live';
+  ready: boolean;
+  checkedAt: string;
+  integrations: { integration: string; kind: 'local' | 'live'; ready: boolean; detail: string }[];
+};
+
+/** Reads whether every Cerulea APIs driver is ready, and which one is holding back. */
+export function readPlatformHealth(options: CeruleaApiOptions = {}): Promise<PlatformHealth> {
+  return ceruleaRequest('/health/ready', { method: 'GET' }, options);
+}
+
+export type StudioOverview = {
+  account: { accountId: string; email: string; displayName: string };
+  counts: {
+    workspaces: number;
+    projects: number;
+    projectsDeployed: number;
+    projectsInBuild: number;
+    blueprintVersions: number;
+    checkpoints: number;
+    deployments: number;
+    deploymentsRunning: number;
+    openKeys: number;
+  };
+  chain: {
+    chainName: string;
+    kind: 'local' | 'live';
+    head: number;
+    finalizedBlock: number;
+    activeValidators: number;
+    totalValidators: number;
+    consensusHealth: 'Healthy' | 'Degraded' | 'Critical';
+    healthy: boolean;
+  };
+  integrations: { integration: string; kind: 'local' | 'live'; ready: boolean; detail: string }[];
+  attention: { subject: string; fix: string }[];
+  recentProjects: {
+    projectId: string;
+    workspaceId: string;
+    name: string;
+    state: string;
+    headVersion: number;
+    updatedAt: string;
+  }[];
+  recentEvents: {
+    eventId: string;
+    action: string;
+    subjectType: string;
+    outcome: string;
+    occurredAt: string;
+  }[];
+};
+
+/** Reads the counts, the Blockchain state and the open items for the Overview panel. */
+export function readStudioOverview(options: CeruleaApiOptions = {}): Promise<StudioOverview> {
+  return ceruleaRequest('/studio/overview', { method: 'GET' }, options);
+}
+
+export type AuditEvent = {
+  eventId: string;
+  workspaceId: string | null;
+  accountId: string | null;
+  actorEmail: string;
+  actorName: string;
+  action: string;
+  subjectType: string;
+  subjectId: string;
+  outcome: string;
+  networkAddress: string;
+  detail: Record<string, unknown>;
+  occurredAt: string;
+};
+
+/** Reads the audit record of one workspace with its filters. */
+export function readAuditEvents(
+  workspaceId: string,
+  selector: {
+    action?: string;
+    outcome?: string;
+    search?: string;
+    since?: string;
+    until?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
+  options: CeruleaApiOptions = {},
+): Promise<{ events: AuditEvent[]; total: number; actions: string[]; outcomes: string[] }> {
+  return ceruleaRequest(
+    `/studio/workspaces/${encodeURIComponent(workspaceId)}/audit-events${query(selector)}`,
+    { method: 'GET' },
+    options,
+  );
+}
+
+export type AccessKey = {
+  keyId: string;
+  workspaceId: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  requestsPerMinute: number;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  lastUsedAt: string | null;
+  rotatedFromKeyId: string | null;
+  createdAt: string;
+};
+
+/** Lists the access keys of one workspace with the scopes Cerulea publishes. */
+export function listAccessKeys(
+  workspaceId: string,
+  options: CeruleaApiOptions = {},
+): Promise<{ keys: AccessKey[]; scopes: string[] }> {
+  return ceruleaRequest(
+    `/studio/workspaces/${encodeURIComponent(workspaceId)}/keys`,
+    { method: 'GET' },
+    options,
+  );
+}
+
+/** Issues one access key. Cerulea shows the key once. */
+export function issueAccessKey(
+  workspaceId: string,
+  input: {
+    name: string;
+    scopes: string[];
+    requestsPerMinute?: number;
+    expiresInDays?: number;
+  },
+  options: CeruleaApiOptions = {},
+): Promise<{ key: AccessKey; secret: string; guidance: string }> {
+  return ceruleaRequest(
+    `/studio/workspaces/${encodeURIComponent(workspaceId)}/keys`,
+    { method: 'POST', body: JSON.stringify(input) },
+    options,
+  );
+}
+
+/** Rotates one access key and closes the earlier one in the same call. */
+export function rotateAccessKey(
+  workspaceId: string,
+  keyId: string,
+  options: CeruleaApiOptions = {},
+): Promise<{ key: AccessKey; secret: string; guidance: string }> {
+  return ceruleaRequest(
+    `/studio/workspaces/${encodeURIComponent(workspaceId)}/keys/${encodeURIComponent(keyId)}/rotation`,
+    { method: 'POST', body: JSON.stringify({}) },
+    options,
+  );
+}
+
+/** Revokes one access key. */
+export function revokeAccessKey(
+  workspaceId: string,
+  keyId: string,
+  options: CeruleaApiOptions = {},
+): Promise<{ key: AccessKey; guidance: string }> {
+  return ceruleaRequest(
+    `/studio/workspaces/${encodeURIComponent(workspaceId)}/keys/${encodeURIComponent(keyId)}`,
+    { method: 'DELETE' },
+    options,
+  );
+}
+
 /* Deployments ------------------------------------------------------- */
 
 export type DeploymentStageStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'skipped';
