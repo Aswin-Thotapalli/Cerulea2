@@ -207,9 +207,10 @@ describe('the disclosure level', () => {
       'policies',
       'verify',
     ]);
-    expect(areasForLevel(4).map((entry) => entry.id)).toEqual(
-      PROJECT_AREAS.map((entry) => entry.id),
-    );
+    expect(areasForLevel(4).map((entry) => entry.id)).toEqual([
+      ...PROJECT_AREAS.map((entry) => entry.id),
+      'blueprint',
+    ]);
   });
 
   it('shows the designer areas once the project opens at level three', { timeout: 40000 }, async () => {

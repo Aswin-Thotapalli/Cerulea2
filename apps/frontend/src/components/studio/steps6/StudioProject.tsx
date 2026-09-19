@@ -27,6 +27,7 @@ import {
   Typography,
 } from '@mui/material';
 
+import LevelFourBlueprint from '@/components/studio/levels/LevelFourBlueprint';
 import LevelOneTemplate from '@/components/studio/levels/LevelOneTemplate';
 import LevelTwoOutcomes from '@/components/studio/levels/LevelTwoOutcomes';
 import LevelSwitch from '@/components/studio/levels/LevelSwitch';
@@ -54,12 +55,27 @@ export const PROJECT_AREAS = [
   { id: 'verify', label: 'Verify', step: 6, stateKey: 'verify' as const },
 ] as const;
 
+/**
+ * The typed document itself, opened at level four alone.
+ * The area reads the Blueprint rather than one step of the sequence, so it
+ * carries the readiness of the verify area.
+ */
+export const BLUEPRINT_AREA = {
+  id: 'blueprint',
+  label: 'Blueprint',
+  step: 6,
+  stateKey: 'verify' as const,
+} as const;
+
 /** The areas one disclosure level opens, in the order a person meets them. */
-export function areasForLevel(level: DisclosureLevel) {
-  return PROJECT_AREAS.filter((area) => levelOpens(level, area.id as DisclosureArea));
+export function areasForLevel(
+  level: DisclosureLevel,
+): ReadonlyArray<{ id: string; label: string; step: number; stateKey: keyof BuildState['steps'] }> {
+  const base = PROJECT_AREAS.filter((area) => levelOpens(level, area.id as DisclosureArea));
+  return levelOpens(level, 'blueprint') ? [...base, BLUEPRINT_AREA] : base;
 }
 
-export type ProjectArea = (typeof PROJECT_AREAS)[number]['id'];
+export type ProjectArea = (typeof PROJECT_AREAS)[number]['id'] | 'blueprint';
 
 /** The steps a person has finished, counted from the build state. */
 export function finishedCount(steps: BuildState['steps']): number {
@@ -101,7 +117,7 @@ export default function StudioProject({ projectId }: { projectId: string }) {
       setArea(
         reachable.some((entry) => entry.id === opened)
           ? opened
-          : (reachable[0]?.id ?? 'verify'),
+          : ((reachable[0]?.id ?? 'verify') as ProjectArea),
       );
       setFailure(null);
     } catch (cause) {
@@ -147,7 +163,9 @@ export default function StudioProject({ projectId }: { projectId: string }) {
       setLevel(next);
       const reachable = areasForLevel(next);
       setArea((held) =>
-        reachable.some((entry) => entry.id === held) ? held : (reachable[0]?.id ?? 'verify'),
+        reachable.some((entry) => entry.id === held)
+          ? held
+          : ((reachable[0]?.id ?? 'verify') as ProjectArea),
       );
       if (!buildState) return;
       const updated: BuildState = { ...buildState, disclosureLevel: next };
@@ -224,6 +242,8 @@ export default function StudioProject({ projectId }: { projectId: string }) {
       <Step3Model projectId={projectId} onContinue={advance} />
     ) : area === 'policies' ? (
       <Step4Policies projectId={projectId} onContinue={advance} />
+    ) : area === 'blueprint' ? (
+      <LevelFourBlueprint projectId={projectId} onSaved={() => void advance()} />
     ) : (
       <Step6Verify projectId={projectId} />
     );
@@ -286,7 +306,9 @@ export default function StudioProject({ projectId }: { projectId: string }) {
         <Stepper nonLinear activeStep={activeIndex} alternativeLabel>
           {open.map((entry) => (
             <Step key={entry.id} completed={buildState.steps[entry.stateKey]}>
-              <StepButton onClick={() => setArea(entry.id)}>{entry.label}</StepButton>
+              <StepButton onClick={() => setArea(entry.id as ProjectArea)}>
+                {entry.label}
+              </StepButton>
             </Step>
           ))}
         </Stepper>

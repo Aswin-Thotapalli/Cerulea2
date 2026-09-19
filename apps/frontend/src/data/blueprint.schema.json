@@ -1,0 +1,4803 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cerulea:blueprint:fragment:1",
+  "title": "Cerulea Blueprint fragment",
+  "description": "One module fragment of the Cerulea module catalogue. A fragment is the serde form of the Blueprint type set, with the catalogue entry and the declared module dependencies beside it.",
+  "x-cerulea": {
+    "schemaVersion": "1.0.0",
+    "sections": [
+      "types",
+      "collections",
+      "identities",
+      "permissions",
+      "rules",
+      "actions",
+      "workflows",
+      "events",
+      "views",
+      "integrations",
+      "governance",
+      "economics",
+      "interface"
+    ]
+  },
+  "type": "object",
+  "properties": {
+    "module": {
+      "$ref": "#/$defs/ModuleEntry"
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Dependency"
+      }
+    },
+    "meta": {
+      "$ref": "#/$defs/BlueprintMeta"
+    },
+    "types": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/TypeDef"
+      }
+    },
+    "collections": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Collection"
+      }
+    },
+    "identities": {
+      "$ref": "#/$defs/Identities"
+    },
+    "permissions": {
+      "$ref": "#/$defs/Permissions"
+    },
+    "rules": {
+      "$ref": "#/$defs/Rules"
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Action"
+      }
+    },
+    "workflows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Workflow"
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/EventDef"
+      }
+    },
+    "views": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/View"
+      }
+    },
+    "integrations": {
+      "$ref": "#/$defs/Integrations"
+    },
+    "governance": {
+      "$ref": "#/$defs/Governance"
+    },
+    "economics": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/Economics"
+        }
+      ]
+    },
+    "blocks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Block"
+      }
+    },
+    "interface": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/Interface"
+        }
+      ]
+    }
+  },
+  "required": [
+    "module",
+    "dependencies",
+    "meta",
+    "types",
+    "collections",
+    "identities",
+    "permissions",
+    "rules",
+    "actions",
+    "workflows",
+    "events",
+    "views",
+    "integrations",
+    "governance",
+    "economics",
+    "blocks"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "Identifier": {
+      "description": "A Blueprint name. The name starts with a lower case letter and holds lower case letters, digits and underscores.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "FieldPath": {
+      "description": "A path to a field inside a record, held as one name per step.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Identifier"
+      },
+      "minItems": 1
+    },
+    "ModuleEntry": {
+      "type": "object",
+      "description": "The catalogue entry this fragment installs.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The catalogue identifier of the module."
+        },
+        "position": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The position of the module in the catalogue, counting from one."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The title a person reads on screen."
+        },
+        "track": {
+          "description": "The application track the module serves.",
+          "type": "string",
+          "enum": [
+            "dapp",
+            "enterprise",
+            "government",
+            "blockchain"
+          ]
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The catalogue category."
+        },
+        "prefix": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "contributes": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the module adds to a deployment."
+        },
+        "removal": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what stops working after removal."
+        }
+      },
+      "required": [
+        "id",
+        "position",
+        "title",
+        "track",
+        "category",
+        "prefix",
+        "contributes",
+        "removal"
+      ],
+      "additionalProperties": false
+    },
+    "Dependency": {
+      "type": "object",
+      "description": "One module this fragment depends on.",
+      "properties": {
+        "module": {
+          "type": "string",
+          "description": "The catalogue identifier of the module depended on."
+        },
+        "fragment": {
+          "type": "string",
+          "description": "The fragment file holding that module."
+        },
+        "kind": {
+          "description": "The strength of the link.",
+          "type": "string",
+          "enum": [
+            "requires",
+            "recommends"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating why the link holds."
+        }
+      },
+      "required": [
+        "module",
+        "fragment",
+        "kind",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "SchemaVersion": {
+      "type": "object",
+      "description": "A three part version number.",
+      "properties": {
+        "major": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The major number."
+        },
+        "minor": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The minor number."
+        },
+        "patch": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The patch number."
+        }
+      },
+      "required": [
+        "major",
+        "minor",
+        "patch"
+      ],
+      "additionalProperties": false
+    },
+    "VersionStamp": {
+      "type": "object",
+      "description": "The version stamp every Blueprint carries.",
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/SchemaVersion"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The revision of this deployment."
+        }
+      },
+      "required": [
+        "schema",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "BlueprintMeta": {
+      "type": "object",
+      "description": "The descriptive header of a fragment.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The name of the deployment part."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the part does."
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The organisation that owns the deployment part."
+        },
+        "version": {
+          "$ref": "#/$defs/VersionStamp"
+        }
+      },
+      "required": [
+        "name",
+        "summary",
+        "owner",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "TypeExpr": {
+      "description": "A type in the Blueprint.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Bool",
+            "Integer",
+            "Text",
+            "Bytes",
+            "Timestamp",
+            "Identity",
+            "Hash"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Decimal": {
+              "type": "object",
+              "description": "A fixed-point decimal carrying an explicit scale.",
+              "properties": {
+                "scale": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 30,
+                  "description": "The count of digits after the decimal point."
+                }
+              },
+              "required": [
+                "scale"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Decimal"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "List": {
+              "$ref": "#/$defs/TypeExpr"
+            }
+          },
+          "required": [
+            "List"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Map": {
+              "type": "object",
+              "description": "A set of key and value pairs sorted by key.",
+              "properties": {
+                "key": {
+                  "$ref": "#/$defs/TypeExpr"
+                },
+                "value": {
+                  "$ref": "#/$defs/TypeExpr"
+                }
+              },
+              "required": [
+                "key",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Map"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Optional": {
+              "$ref": "#/$defs/TypeExpr"
+            }
+          },
+          "required": [
+            "Optional"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Record": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "Record"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Enumeration": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "Enumeration"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Sum": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "Sum"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Reference": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "Reference"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Decimal": {
+      "type": "object",
+      "description": "A fixed-point decimal. The value equals the units divided by ten raised to the scale.",
+      "properties": {
+        "units": {
+          "type": "integer",
+          "description": "The scaled integer holding every digit."
+        },
+        "scale": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 30
+        }
+      },
+      "required": [
+        "units",
+        "scale"
+      ],
+      "additionalProperties": false
+    },
+    "Value": {
+      "description": "A Blueprint value.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Bool": {
+              "type": "boolean",
+              "description": "A truth value."
+            }
+          },
+          "required": [
+            "Bool"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Integer": {
+              "type": "integer",
+              "description": "A whole number."
+            }
+          },
+          "required": [
+            "Integer"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Decimal": {
+              "$ref": "#/$defs/Decimal"
+            }
+          },
+          "required": [
+            "Decimal"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Text": {
+              "type": "string",
+              "description": "A run of characters."
+            }
+          },
+          "required": [
+            "Text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Bytes": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              "description": "A run of bytes."
+            }
+          },
+          "required": [
+            "Bytes"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Timestamp": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Milliseconds since the start of 1970."
+            }
+          },
+          "required": [
+            "Timestamp"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Identity": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              "description": "An account or an organisation.",
+              "minItems": 32,
+              "maxItems": 32
+            }
+          },
+          "required": [
+            "Identity"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Hash": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              "description": "A 32 byte hash.",
+              "minItems": 32,
+              "maxItems": 32
+            }
+          },
+          "required": [
+            "Hash"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "List": {
+              "type": "object",
+              "description": "A list value carrying its element type.",
+              "properties": {
+                "element": {
+                  "$ref": "#/$defs/TypeExpr"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/Value"
+                  }
+                }
+              },
+              "required": [
+                "element",
+                "items"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "List"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Map": {
+              "type": "object",
+              "description": "A map value carrying its key and value types.",
+              "properties": {
+                "key": {
+                  "$ref": "#/$defs/TypeExpr"
+                },
+                "value": {
+                  "$ref": "#/$defs/TypeExpr"
+                },
+                "entries": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "$ref": "#/$defs/Value"
+                      },
+                      {
+                        "$ref": "#/$defs/Value"
+                      }
+                    ],
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              },
+              "required": [
+                "key",
+                "value",
+                "entries"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Map"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Optional": {
+              "type": "object",
+              "description": "An optional value carrying its element type.",
+              "properties": {
+                "element": {
+                  "$ref": "#/$defs/TypeExpr"
+                },
+                "item": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/$defs/Value"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "element",
+                "item"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Optional"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Record": {
+              "type": "object",
+              "description": "A record value.",
+              "properties": {
+                "type_id": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "$ref": "#/$defs/Identifier"
+                      },
+                      {
+                        "$ref": "#/$defs/Value"
+                      }
+                    ],
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              },
+              "required": [
+                "type_id",
+                "fields"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Record"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Enumeration": {
+              "type": "object",
+              "description": "An enumeration value.",
+              "properties": {
+                "type_id": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "variant": {
+                  "$ref": "#/$defs/Identifier"
+                }
+              },
+              "required": [
+                "type_id",
+                "variant"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Enumeration"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Sum": {
+              "type": "object",
+              "description": "A sum value.",
+              "properties": {
+                "type_id": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "variant": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "payload": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/$defs/Value"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "type_id",
+                "variant",
+                "payload"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Sum"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Reference": {
+              "type": "object",
+              "description": "A pointer to one record held in a collection.",
+              "properties": {
+                "collection": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "key": {
+                  "$ref": "#/$defs/Value"
+                }
+              },
+              "required": [
+                "collection",
+                "key"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Reference"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "UnaryOp": {
+      "description": "An operation over one operand.",
+      "type": "string",
+      "enum": [
+        "Not",
+        "Negate"
+      ]
+    },
+    "BinaryOp": {
+      "description": "An operation over two operands.",
+      "type": "string",
+      "enum": [
+        "Add",
+        "Subtract",
+        "Multiply",
+        "Divide",
+        "Remainder",
+        "Equal",
+        "NotEqual",
+        "Less",
+        "LessOrEqual",
+        "Greater",
+        "GreaterOrEqual",
+        "And",
+        "Or",
+        "ConcatText",
+        "AppendList"
+      ]
+    },
+    "Builtin": {
+      "description": "A named operation the Blueprint supplies.",
+      "type": "string",
+      "enum": [
+        "Now",
+        "Caller",
+        "HashOf",
+        "TimestampPlus",
+        "TimestampSince",
+        "AbsoluteInteger",
+        "MinimumInteger",
+        "MaximumInteger",
+        "BytesOfText"
+      ]
+    },
+    "Pattern": {
+      "description": "A pattern in a match arm.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Absent"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Variant": {
+              "type": "object",
+              "description": "One alternative of a sum type.",
+              "properties": {
+                "variant": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "binding": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/$defs/Identifier"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "variant",
+                "binding"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Variant"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Choice": {
+              "type": "object",
+              "description": "One alternative of an enumeration.",
+              "properties": {
+                "variant": {
+                  "$ref": "#/$defs/Identifier"
+                }
+              },
+              "required": [
+                "variant"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Choice"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Present": {
+              "type": "object",
+              "description": "A present optional.",
+              "properties": {
+                "binding": {
+                  "$ref": "#/$defs/Identifier"
+                }
+              },
+              "required": [
+                "binding"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Present"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "MatchArm": {
+      "type": "object",
+      "description": "One arm of a match expression.",
+      "properties": {
+        "pattern": {
+          "$ref": "#/$defs/Pattern"
+        },
+        "body": {
+          "$ref": "#/$defs/Expr"
+        }
+      },
+      "required": [
+        "pattern",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "FoldBound": {
+      "type": "object",
+      "description": "The declared maximum element count of a fold.",
+      "properties": {
+        "maximum_elements": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The largest element count the fold accepts."
+        }
+      },
+      "required": [
+        "maximum_elements"
+      ],
+      "additionalProperties": false
+    },
+    "FoldSource": {
+      "description": "The elements a fold walks.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "List": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "List"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Collection": {
+              "type": "object",
+              "description": "A key range inside a collection.",
+              "properties": {
+                "collection": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "keys": {
+                  "$ref": "#/$defs/KeySelector"
+                },
+                "element": {
+                  "$ref": "#/$defs/TypeExpr"
+                }
+              },
+              "required": [
+                "collection",
+                "keys",
+                "element"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Collection"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FoldExpr": {
+      "type": "object",
+      "description": "A bounded walk over a list or a collection range.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/FoldSource"
+        },
+        "element": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "accumulator": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "initial": {
+          "$ref": "#/$defs/Expr"
+        },
+        "step": {
+          "$ref": "#/$defs/Expr"
+        },
+        "bound": {
+          "$ref": "#/$defs/FoldBound"
+        }
+      },
+      "required": [
+        "source",
+        "element",
+        "accumulator",
+        "initial",
+        "step",
+        "bound"
+      ],
+      "additionalProperties": false
+    },
+    "Expr": {
+      "description": "An expression. Every expression carries a declared type.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Literal": {
+              "$ref": "#/$defs/Value"
+            }
+          },
+          "required": [
+            "Literal"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Bound": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "Bound"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Field": {
+              "type": "object",
+              "description": "One field read out of a record.",
+              "properties": {
+                "base": {
+                  "$ref": "#/$defs/Expr"
+                },
+                "field": {
+                  "$ref": "#/$defs/Identifier"
+                }
+              },
+              "required": [
+                "base",
+                "field"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Field"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Unary": {
+              "type": "object",
+              "description": "An operation over one operand.",
+              "properties": {
+                "op": {
+                  "$ref": "#/$defs/UnaryOp"
+                },
+                "operand": {
+                  "$ref": "#/$defs/Expr"
+                }
+              },
+              "required": [
+                "op",
+                "operand"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Unary"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Binary": {
+              "type": "object",
+              "description": "An operation over two operands.",
+              "properties": {
+                "op": {
+                  "$ref": "#/$defs/BinaryOp"
+                },
+                "left": {
+                  "$ref": "#/$defs/Expr"
+                },
+                "right": {
+                  "$ref": "#/$defs/Expr"
+                }
+              },
+              "required": [
+                "op",
+                "left",
+                "right"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Binary"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "If": {
+              "type": "object",
+              "description": "A conditional. Both branches carry one type.",
+              "properties": {
+                "condition": {
+                  "$ref": "#/$defs/Expr"
+                },
+                "then_branch": {
+                  "$ref": "#/$defs/Expr"
+                },
+                "else_branch": {
+                  "$ref": "#/$defs/Expr"
+                }
+              },
+              "required": [
+                "condition",
+                "then_branch",
+                "else_branch"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "If"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Match": {
+              "type": "object",
+              "description": "A match over a sum type, an enumeration or an optional.",
+              "properties": {
+                "scrutinee": {
+                  "$ref": "#/$defs/Expr"
+                },
+                "arms": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/MatchArm"
+                  }
+                },
+                "fallback": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/$defs/Expr"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "scrutinee",
+                "arms",
+                "fallback"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Match"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Let": {
+              "type": "object",
+              "description": "A local binding.",
+              "properties": {
+                "name": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "value": {
+                  "$ref": "#/$defs/Expr"
+                },
+                "body": {
+                  "$ref": "#/$defs/Expr"
+                }
+              },
+              "required": [
+                "name",
+                "value",
+                "body"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Let"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "MakeRecord": {
+              "type": "object",
+              "description": "Build a record.",
+              "properties": {
+                "type_id": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "$ref": "#/$defs/Identifier"
+                      },
+                      {
+                        "$ref": "#/$defs/Expr"
+                      }
+                    ],
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              },
+              "required": [
+                "type_id",
+                "fields"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "MakeRecord"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "MakeEnumeration": {
+              "type": "object",
+              "description": "Build an enumeration value.",
+              "properties": {
+                "type_id": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "variant": {
+                  "$ref": "#/$defs/Identifier"
+                }
+              },
+              "required": [
+                "type_id",
+                "variant"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "MakeEnumeration"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "MakeSum": {
+              "type": "object",
+              "description": "Build a sum value.",
+              "properties": {
+                "type_id": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "variant": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "payload": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/$defs/Expr"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "type_id",
+                "variant",
+                "payload"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "MakeSum"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "MakeList": {
+              "type": "object",
+              "description": "Build a list.",
+              "properties": {
+                "element": {
+                  "$ref": "#/$defs/TypeExpr"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/Expr"
+                  }
+                }
+              },
+              "required": [
+                "element",
+                "items"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "MakeList"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "MakeMap": {
+              "type": "object",
+              "description": "Build a map.",
+              "properties": {
+                "key": {
+                  "$ref": "#/$defs/TypeExpr"
+                },
+                "value": {
+                  "$ref": "#/$defs/TypeExpr"
+                },
+                "entries": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "$ref": "#/$defs/Expr"
+                      },
+                      {
+                        "$ref": "#/$defs/Expr"
+                      }
+                    ],
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              },
+              "required": [
+                "key",
+                "value",
+                "entries"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "MakeMap"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "MakeOptional": {
+              "type": "object",
+              "description": "Build an optional.",
+              "properties": {
+                "element": {
+                  "$ref": "#/$defs/TypeExpr"
+                },
+                "item": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/$defs/Expr"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "element",
+                "item"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "MakeOptional"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "MakeReference": {
+              "type": "object",
+              "description": "Build a reference to a record in a collection.",
+              "properties": {
+                "collection": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "key": {
+                  "$ref": "#/$defs/Expr"
+                }
+              },
+              "required": [
+                "collection",
+                "key"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "MakeReference"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "UnwrapOr": {
+              "type": "object",
+              "description": "The element of a present optional, or a supplied value.",
+              "properties": {
+                "optional": {
+                  "$ref": "#/$defs/Expr"
+                },
+                "fallback": {
+                  "$ref": "#/$defs/Expr"
+                }
+              },
+              "required": [
+                "optional",
+                "fallback"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "UnwrapOr"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "IsPresent": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "IsPresent"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Length": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "Length"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Contains": {
+              "type": "object",
+              "description": "Report whether a list holds a value.",
+              "properties": {
+                "list": {
+                  "$ref": "#/$defs/Expr"
+                },
+                "item": {
+                  "$ref": "#/$defs/Expr"
+                }
+              },
+              "required": [
+                "list",
+                "item"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Contains"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Lookup": {
+              "type": "object",
+              "description": "Read one value out of a map.",
+              "properties": {
+                "map": {
+                  "$ref": "#/$defs/Expr"
+                },
+                "key": {
+                  "$ref": "#/$defs/Expr"
+                }
+              },
+              "required": [
+                "map",
+                "key"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Lookup"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Rescale": {
+              "type": "object",
+              "description": "Move a decimal to another scale without losing a digit.",
+              "properties": {
+                "value": {
+                  "$ref": "#/$defs/Expr"
+                },
+                "scale": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 30
+                }
+              },
+              "required": [
+                "value",
+                "scale"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Rescale"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Call": {
+              "type": "object",
+              "description": "Apply a named operation the Blueprint supplies.",
+              "properties": {
+                "function": {
+                  "$ref": "#/$defs/Builtin"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/Expr"
+                  }
+                }
+              },
+              "required": [
+                "function",
+                "args"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Call"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Fold": {
+              "$ref": "#/$defs/FoldExpr"
+            }
+          },
+          "required": [
+            "Fold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Attempt": {
+              "type": "object",
+              "description": "Run an expression and fall back to a compensation on a recoverable fault.",
+              "properties": {
+                "body": {
+                  "$ref": "#/$defs/Expr"
+                },
+                "compensation": {
+                  "$ref": "#/$defs/Expr"
+                }
+              },
+              "required": [
+                "body",
+                "compensation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Attempt"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FieldDef": {
+      "type": "object",
+      "description": "One field of a record.",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "ty": {
+          "$ref": "#/$defs/TypeExpr"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the field holds."
+        }
+      },
+      "required": [
+        "name",
+        "ty",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "RecordDef": {
+      "type": "object",
+      "description": "A record type. A record holds a fixed set of named fields.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FieldDef"
+          },
+          "minItems": 1
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the record holds."
+        }
+      },
+      "required": [
+        "id",
+        "fields",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "EnumerationDef": {
+      "type": "object",
+      "description": "An enumeration type. An enumeration holds one name out of a fixed set.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "minItems": 1
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the enumeration holds."
+        }
+      },
+      "required": [
+        "id",
+        "variants",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "SumVariant": {
+      "type": "object",
+      "description": "One alternative of a sum type.",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "payload": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/TypeExpr"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "SumDef": {
+      "type": "object",
+      "description": "A sum type. A sum type holds one value out of several named alternatives.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SumVariant"
+          },
+          "minItems": 1
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the sum type holds."
+        }
+      },
+      "required": [
+        "id",
+        "variants",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "TypeDef": {
+      "description": "A declared type.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Record": {
+              "$ref": "#/$defs/RecordDef"
+            }
+          },
+          "required": [
+            "Record"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Enumeration": {
+              "$ref": "#/$defs/EnumerationDef"
+            }
+          },
+          "required": [
+            "Enumeration"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Sum": {
+              "$ref": "#/$defs/SumDef"
+            }
+          },
+          "required": [
+            "Sum"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "PrivacyClass": {
+      "description": "The visibility class of a collection.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Open",
+            "HashOnly"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Encrypted": {
+              "type": "object",
+              "description": "The Blockchain holds an encrypted payload.",
+              "properties": {
+                "key_holders": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/Identifier"
+                  },
+                  "minItems": 1
+                }
+              },
+              "required": [
+                "key_holders"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Encrypted"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "External": {
+              "type": "object",
+              "description": "The Blockchain holds a commitment and a locator.",
+              "properties": {
+                "commitment": {
+                  "$ref": "#/$defs/FieldPath"
+                },
+                "locator": {
+                  "$ref": "#/$defs/FieldPath"
+                }
+              },
+              "required": [
+                "commitment",
+                "locator"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "External"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "RetentionPeriod": {
+      "description": "The span a record stays in the collection.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Indefinite"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Milliseconds": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "The span a record stays, in milliseconds."
+            }
+          },
+          "required": [
+            "Milliseconds"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "RetentionAction": {
+      "description": "The action retention expiry runs.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Review",
+            "Erase"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Anonymise": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/FieldPath"
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "Anonymise"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "MoveTo": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "MoveTo"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Retention": {
+      "type": "object",
+      "description": "The retention rule of a collection.",
+      "properties": {
+        "period": {
+          "$ref": "#/$defs/RetentionPeriod"
+        },
+        "on_expiry": {
+          "$ref": "#/$defs/RetentionAction"
+        }
+      },
+      "required": [
+        "period",
+        "on_expiry"
+      ],
+      "additionalProperties": false
+    },
+    "PurposeDeclaration": {
+      "type": "object",
+      "description": "The declared purpose of a collection. A read outside the declared purpose is denied and recorded.",
+      "properties": {
+        "statement": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating why the deployment holds this data."
+        },
+        "purposes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "statement",
+        "purposes"
+      ],
+      "additionalProperties": false
+    },
+    "Index": {
+      "type": "object",
+      "description": "A secondary index over a collection.",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FieldPath"
+          },
+          "minItems": 1
+        },
+        "unique": {
+          "type": "boolean",
+          "description": "A unique index admits one record per key."
+        }
+      },
+      "required": [
+        "name",
+        "fields",
+        "unique"
+      ],
+      "additionalProperties": false
+    },
+    "Collection": {
+      "type": "object",
+      "description": "A collection holding records of one declared type.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "record_type": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "primary_key": {
+          "$ref": "#/$defs/FieldPath"
+        },
+        "indexes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Index"
+          }
+        },
+        "privacy": {
+          "$ref": "#/$defs/PrivacyClass"
+        },
+        "retention": {
+          "$ref": "#/$defs/Retention"
+        },
+        "purpose": {
+          "$ref": "#/$defs/PurposeDeclaration"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the collection holds."
+        }
+      },
+      "required": [
+        "id",
+        "record_type",
+        "primary_key",
+        "indexes",
+        "privacy",
+        "retention",
+        "purpose",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "OrganisationUnit": {
+      "type": "object",
+      "description": "One part of an organisation.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "parent": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Identifier"
+            }
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The name a person reads on screen."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the unit does."
+        }
+      },
+      "required": [
+        "id",
+        "parent",
+        "title",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "RoleDef": {
+      "type": "object",
+      "description": "A named capacity a person holds.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "unit": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Identifier"
+            }
+          ]
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          }
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The name a person reads on screen."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the role does."
+        }
+      },
+      "required": [
+        "id",
+        "unit",
+        "requires",
+        "title",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "CredentialIssuer": {
+      "description": "The party that issues a credential.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Unit": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "Unit"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Role": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "Role"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "External": {
+              "type": "object",
+              "description": "A named authority outside this deployment.",
+              "properties": {
+                "authority": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The name of the authority."
+                }
+              },
+              "required": [
+                "authority"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "External"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "CredentialValidity": {
+      "description": "The span a credential stays valid.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "UntilRevoked"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Milliseconds": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "The span the credential stays valid, in milliseconds."
+            }
+          },
+          "required": [
+            "Milliseconds"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "CredentialDef": {
+      "type": "object",
+      "description": "An attestation a role requires.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "issuer": {
+          "$ref": "#/$defs/CredentialIssuer"
+        },
+        "validity": {
+          "$ref": "#/$defs/CredentialValidity"
+        },
+        "attests": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the credential attests."
+        }
+      },
+      "required": [
+        "id",
+        "issuer",
+        "validity",
+        "attests"
+      ],
+      "additionalProperties": false
+    },
+    "DelegationRule": {
+      "type": "object",
+      "description": "A rule letting one role pass a scope to another role.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "from": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "to": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "scope": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "minItems": 1
+        },
+        "maximum_millis": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The longest span a delegation lasts."
+        },
+        "requires": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Identifier"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "from",
+        "to",
+        "scope",
+        "maximum_millis",
+        "requires"
+      ],
+      "additionalProperties": false
+    },
+    "Identities": {
+      "type": "object",
+      "description": "The organisation tree, the roles, the credentials and the delegation rules.",
+      "properties": {
+        "units": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/OrganisationUnit"
+          }
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RoleDef"
+          },
+          "minItems": 1
+        },
+        "credentials": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CredentialDef"
+          }
+        },
+        "delegations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DelegationRule"
+          }
+        }
+      },
+      "required": [
+        "units",
+        "roles",
+        "credentials",
+        "delegations"
+      ],
+      "additionalProperties": false
+    },
+    "Capability": {
+      "description": "One capability over a collection.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Read",
+            "Insert",
+            "Update",
+            "Delete"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Invoke": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "Invoke"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FieldQualification": {
+      "description": "The fields one entry reaches.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "EveryField"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Only": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/FieldPath"
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "Only"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Apart": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/FieldPath"
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "Apart"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "RowQualification": {
+      "description": "The rows one entry reaches.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "EveryRow"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Where": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "Where"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "CapabilityEntry": {
+      "type": "object",
+      "description": "One entry of the capability matrix.",
+      "properties": {
+        "role": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "collection": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "capability": {
+          "$ref": "#/$defs/Capability"
+        },
+        "fields": {
+          "$ref": "#/$defs/FieldQualification"
+        },
+        "rows": {
+          "$ref": "#/$defs/RowQualification"
+        },
+        "purposes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          }
+        }
+      },
+      "required": [
+        "role",
+        "collection",
+        "capability",
+        "fields",
+        "rows",
+        "purposes"
+      ],
+      "additionalProperties": false
+    },
+    "Permissions": {
+      "type": "object",
+      "description": "The capability matrix.",
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CapabilityEntry"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "entries"
+      ],
+      "additionalProperties": false
+    },
+    "Invariant": {
+      "type": "object",
+      "description": "A condition holding at all times over one collection.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "collection": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "holds": {
+          "$ref": "#/$defs/Expr"
+        },
+        "problem": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One sentence a person reads when the rule declines a change."
+        },
+        "fix": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One sentence stating what a person does next."
+        }
+      },
+      "required": [
+        "id",
+        "collection",
+        "holds",
+        "problem",
+        "fix"
+      ],
+      "additionalProperties": false
+    },
+    "RuleInput": {
+      "type": "object",
+      "description": "One input a precondition reads.",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "ty": {
+          "$ref": "#/$defs/TypeExpr"
+        }
+      },
+      "required": [
+        "name",
+        "ty"
+      ],
+      "additionalProperties": false
+    },
+    "Precondition": {
+      "type": "object",
+      "description": "A condition gating one action.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RuleInput"
+          }
+        },
+        "holds": {
+          "$ref": "#/$defs/Expr"
+        },
+        "problem": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One sentence a person reads when the rule declines the action."
+        },
+        "fix": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One sentence stating what a person does next."
+        }
+      },
+      "required": [
+        "id",
+        "inputs",
+        "holds",
+        "problem",
+        "fix"
+      ],
+      "additionalProperties": false
+    },
+    "Rules": {
+      "type": "object",
+      "description": "The invariants and the preconditions.",
+      "properties": {
+        "invariants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Invariant"
+          }
+        },
+        "preconditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Precondition"
+          }
+        }
+      },
+      "required": [
+        "invariants",
+        "preconditions"
+      ],
+      "additionalProperties": false
+    },
+    "TransactionClass": {
+      "description": "The class of a transaction. The class sets the agreement threshold.",
+      "type": "string",
+      "enum": [
+        "Routine",
+        "Financial",
+        "Structural",
+        "Constitutional"
+      ]
+    },
+    "Param": {
+      "type": "object",
+      "description": "One parameter of an action or a reusable block.",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "ty": {
+          "$ref": "#/$defs/TypeExpr"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the parameter holds."
+        }
+      },
+      "required": [
+        "name",
+        "ty",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "KeySelector": {
+      "description": "The span of keys a read or a write touches.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Full"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Exact": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "Exact"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Prefix": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "Prefix"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Effect": {
+      "description": "One step of an effect sequence.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Insert": {
+              "type": "object",
+              "description": "Add one record.",
+              "properties": {
+                "collection": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "key": {
+                  "$ref": "#/$defs/KeySelector"
+                },
+                "record": {
+                  "$ref": "#/$defs/Expr"
+                }
+              },
+              "required": [
+                "collection",
+                "key",
+                "record"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Insert"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Update": {
+              "type": "object",
+              "description": "Change one field of the records the key reaches.",
+              "properties": {
+                "collection": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "key": {
+                  "$ref": "#/$defs/KeySelector"
+                },
+                "field": {
+                  "$ref": "#/$defs/FieldPath"
+                },
+                "value": {
+                  "$ref": "#/$defs/Expr"
+                }
+              },
+              "required": [
+                "collection",
+                "key",
+                "field",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Update"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Delete": {
+              "type": "object",
+              "description": "Remove the records the key reaches.",
+              "properties": {
+                "collection": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "key": {
+                  "$ref": "#/$defs/KeySelector"
+                }
+              },
+              "required": [
+                "collection",
+                "key"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Delete"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Read": {
+              "type": "object",
+              "description": "Read one record and bind it to a name for the later steps.",
+              "properties": {
+                "collection": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "key": {
+                  "$ref": "#/$defs/KeySelector"
+                },
+                "binding": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "element": {
+                  "$ref": "#/$defs/TypeExpr"
+                }
+              },
+              "required": [
+                "collection",
+                "key",
+                "binding",
+                "element"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Read"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Emit": {
+              "type": "object",
+              "description": "Write one event to the audit log.",
+              "properties": {
+                "event": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "payload": {
+                  "$ref": "#/$defs/Expr"
+                }
+              },
+              "required": [
+                "event",
+                "payload"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Emit"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Transition": {
+              "type": "object",
+              "description": "Move one record to another workflow state.",
+              "properties": {
+                "workflow": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "collection": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "key": {
+                  "$ref": "#/$defs/KeySelector"
+                },
+                "to": {
+                  "$ref": "#/$defs/Identifier"
+                }
+              },
+              "required": [
+                "workflow",
+                "collection",
+                "key",
+                "to"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Transition"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "RunBlock": {
+              "type": "object",
+              "description": "Run a reusable block.",
+              "properties": {
+                "block": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "arguments": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "$ref": "#/$defs/Identifier"
+                      },
+                      {
+                        "$ref": "#/$defs/Expr"
+                      }
+                    ],
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              },
+              "required": [
+                "block",
+                "arguments"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "RunBlock"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Action": {
+      "type": "object",
+      "description": "An action a caller runs.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Param"
+          }
+        },
+        "preconditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          }
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Effect"
+          }
+        },
+        "compensation": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Effect"
+          }
+        },
+        "emits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          }
+        },
+        "class": {
+          "$ref": "#/$defs/TransactionClass"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "minItems": 1
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the action does."
+        }
+      },
+      "required": [
+        "id",
+        "params",
+        "preconditions",
+        "effects",
+        "compensation",
+        "emits",
+        "class",
+        "roles",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "CyclePolicy": {
+      "description": "Whether a loop between states is lawful in this workflow.",
+      "type": "string",
+      "enum": [
+        "Forbid",
+        "Allow"
+      ]
+    },
+    "WorkflowState": {
+      "type": "object",
+      "description": "One state of a workflow.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "final_state": {
+          "type": "boolean",
+          "description": "A record in a final state stays there."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The name a person reads on screen."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the state means."
+        }
+      },
+      "required": [
+        "id",
+        "final_state",
+        "title",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "Transition": {
+      "type": "object",
+      "description": "One guarded transition between two states.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "from": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "to": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "guard": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Expr"
+            }
+          ]
+        },
+        "action": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Identifier"
+            }
+          ]
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "from",
+        "to",
+        "guard",
+        "action",
+        "roles"
+      ],
+      "additionalProperties": false
+    },
+    "TimerAction": {
+      "description": "The step a timer or a deadline runs.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "MoveTo": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "MoveTo"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Run": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "Run"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Emit": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "Emit"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Timer": {
+      "type": "object",
+      "description": "A timer firing after a span inside one state.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "state": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "after_millis": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The span from entry to firing."
+        },
+        "on_expiry": {
+          "$ref": "#/$defs/TimerAction"
+        }
+      },
+      "required": [
+        "id",
+        "state",
+        "after_millis",
+        "on_expiry"
+      ],
+      "additionalProperties": false
+    },
+    "Deadline": {
+      "type": "object",
+      "description": "A deadline falling due at a computed time.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "state": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "due": {
+          "$ref": "#/$defs/Expr"
+        },
+        "on_miss": {
+          "$ref": "#/$defs/TimerAction"
+        }
+      },
+      "required": [
+        "id",
+        "state",
+        "due",
+        "on_miss"
+      ],
+      "additionalProperties": false
+    },
+    "Workflow": {
+      "type": "object",
+      "description": "A workflow driving records through states.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "collection": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "state_field": {
+          "$ref": "#/$defs/FieldPath"
+        },
+        "states": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WorkflowState"
+          },
+          "minItems": 2
+        },
+        "initial": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "transitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Transition"
+          },
+          "minItems": 1
+        },
+        "timers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Timer"
+          }
+        },
+        "deadlines": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Deadline"
+          }
+        },
+        "cycles": {
+          "$ref": "#/$defs/CyclePolicy"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the workflow drives."
+        }
+      },
+      "required": [
+        "id",
+        "collection",
+        "state_field",
+        "states",
+        "initial",
+        "transitions",
+        "timers",
+        "deadlines",
+        "cycles",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "AuditPolicy": {
+      "description": "Whether the audit log keeps the event.",
+      "type": "string",
+      "enum": [
+        "Keep",
+        "Expire"
+      ]
+    },
+    "DeliveryTarget": {
+      "description": "The party that reads an event.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Workflow": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "Workflow"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "View": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "View"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Integration": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "Integration"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Subscriber": {
+      "type": "object",
+      "description": "One party reading an event.",
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/DeliveryTarget"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the subscriber does with the event."
+        }
+      },
+      "required": [
+        "target",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "EventDef": {
+      "type": "object",
+      "description": "A typed event written to the audit log.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "payload": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "audit": {
+          "$ref": "#/$defs/AuditPolicy"
+        },
+        "subscribers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Subscriber"
+          }
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the event records."
+        }
+      },
+      "required": [
+        "id",
+        "payload",
+        "audit",
+        "subscribers",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "JoinKind": {
+      "description": "The shape of a join.",
+      "type": "string",
+      "enum": [
+        "Matched",
+        "Optional"
+      ]
+    },
+    "Join": {
+      "type": "object",
+      "description": "One join a view follows.",
+      "properties": {
+        "collection": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "alias": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "left": {
+          "$ref": "#/$defs/FieldPath"
+        },
+        "right": {
+          "$ref": "#/$defs/FieldPath"
+        },
+        "kind": {
+          "$ref": "#/$defs/JoinKind"
+        }
+      },
+      "required": [
+        "collection",
+        "alias",
+        "left",
+        "right",
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    "Projection": {
+      "type": "object",
+      "description": "One projected field.",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "value": {
+          "$ref": "#/$defs/Expr"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "SortDirection": {
+      "description": "The direction a sort runs.",
+      "type": "string",
+      "enum": [
+        "Ascending",
+        "Descending"
+      ]
+    },
+    "SortKey": {
+      "type": "object",
+      "description": "One sort key.",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "direction": {
+          "$ref": "#/$defs/SortDirection"
+        }
+      },
+      "required": [
+        "name",
+        "direction"
+      ],
+      "additionalProperties": false
+    },
+    "AggregateFunction": {
+      "description": "The operation an aggregate runs over a group.",
+      "type": "string",
+      "enum": [
+        "Count",
+        "Total",
+        "Smallest",
+        "Largest"
+      ]
+    },
+    "Aggregate": {
+      "type": "object",
+      "description": "One aggregate a view computes.",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "function": {
+          "$ref": "#/$defs/AggregateFunction"
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Expr"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "function",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "View": {
+      "type": "object",
+      "description": "A declarative query. A view reads state and changes nothing.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "source": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "joins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Join"
+          }
+        },
+        "projection": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Projection"
+          }
+        },
+        "filter": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Expr"
+            }
+          ]
+        },
+        "group_by": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          }
+        },
+        "aggregates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Aggregate"
+          }
+        },
+        "sort": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SortKey"
+          }
+        },
+        "limit": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "description": "The largest count of rows the view returns."
+            }
+          ]
+        },
+        "purposes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "minItems": 1
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "minItems": 1
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the view answers."
+        }
+      },
+      "required": [
+        "id",
+        "source",
+        "joins",
+        "projection",
+        "filter",
+        "group_by",
+        "aggregates",
+        "sort",
+        "limit",
+        "purposes",
+        "roles",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "AttestationRequirement": {
+      "type": "object",
+      "description": "The proof an integration presents before the Blockchain accepts its work.",
+      "properties": {
+        "signers": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The count of signatures required."
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "minItems": 1
+        },
+        "credentials": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          }
+        }
+      },
+      "required": [
+        "signers",
+        "roles",
+        "credentials"
+      ],
+      "additionalProperties": false
+    },
+    "Feed": {
+      "type": "object",
+      "description": "A feed carrying values into a collection.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "target": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "record_type": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "refresh_millis": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The span between two reads."
+        },
+        "attestation": {
+          "$ref": "#/$defs/AttestationRequirement"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the feed carries."
+        }
+      },
+      "required": [
+        "id",
+        "target",
+        "record_type",
+        "refresh_millis",
+        "attestation",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "BridgeDirection": {
+      "description": "The direction records move across a bridge endpoint.",
+      "type": "string",
+      "enum": [
+        "Inbound",
+        "Outbound",
+        "BothWays"
+      ]
+    },
+    "BridgeEndpoint": {
+      "type": "object",
+      "description": "An endpoint moving records between this deployment and a named network.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "network": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The name the operator gave the network on the other side."
+        },
+        "direction": {
+          "$ref": "#/$defs/BridgeDirection"
+        },
+        "collection": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "attestation": {
+          "$ref": "#/$defs/AttestationRequirement"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the endpoint moves."
+        }
+      },
+      "required": [
+        "id",
+        "network",
+        "direction",
+        "collection",
+        "attestation",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "ExternalTrigger": {
+      "type": "object",
+      "description": "A trigger letting an outside system run one action.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "action": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "attestation": {
+          "$ref": "#/$defs/AttestationRequirement"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the trigger starts."
+        }
+      },
+      "required": [
+        "id",
+        "action",
+        "attestation",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "Integrations": {
+      "type": "object",
+      "description": "The feeds, the bridge endpoints and the external triggers.",
+      "properties": {
+        "feeds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Feed"
+          }
+        },
+        "bridges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BridgeEndpoint"
+          }
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ExternalTrigger"
+          }
+        }
+      },
+      "required": [
+        "feeds",
+        "bridges",
+        "triggers"
+      ],
+      "additionalProperties": false
+    },
+    "UpgradeAuthority": {
+      "type": "object",
+      "description": "The parties that change the deployment.",
+      "properties": {
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "minItems": 1
+        },
+        "threshold_percent": {
+          "type": "integer",
+          "minimum": 51,
+          "maximum": 100
+        },
+        "minimum_voters": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The count of approvals a change collects."
+        }
+      },
+      "required": [
+        "roles",
+        "threshold_percent",
+        "minimum_voters"
+      ],
+      "additionalProperties": false
+    },
+    "QuorumRule": {
+      "type": "object",
+      "description": "The agreement one class of change requires.",
+      "properties": {
+        "class": {
+          "$ref": "#/$defs/TransactionClass"
+        },
+        "threshold_percent": {
+          "type": "integer",
+          "minimum": 51,
+          "maximum": 100
+        },
+        "minimum_voters": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The count of validators that vote."
+        },
+        "delay_millis": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The span between approval and effect."
+        }
+      },
+      "required": [
+        "class",
+        "threshold_percent",
+        "minimum_voters",
+        "delay_millis"
+      ],
+      "additionalProperties": false
+    },
+    "ChangeStage": {
+      "type": "object",
+      "description": "One stage of a change process.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "minItems": 1
+        },
+        "duration_millis": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The longest span the stage runs for."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what happens in the stage."
+        }
+      },
+      "required": [
+        "id",
+        "roles",
+        "duration_millis",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "ChangeProcess": {
+      "type": "object",
+      "description": "The stages a change passes through.",
+      "properties": {
+        "stages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChangeStage"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "stages"
+      ],
+      "additionalProperties": false
+    },
+    "Governance": {
+      "type": "object",
+      "description": "The upgrade authority, the quorum rules and the change process.",
+      "properties": {
+        "authority": {
+          "$ref": "#/$defs/UpgradeAuthority"
+        },
+        "quorum": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/QuorumRule"
+          },
+          "minItems": 1
+        },
+        "process": {
+          "$ref": "#/$defs/ChangeProcess"
+        }
+      },
+      "required": [
+        "authority",
+        "quorum",
+        "process"
+      ],
+      "additionalProperties": false
+    },
+    "UnitOfAccount": {
+      "type": "object",
+      "description": "The currency or the measure a deployment records.",
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The short code a person reads."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The name a person reads."
+        },
+        "scale": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 30
+        }
+      },
+      "required": [
+        "code",
+        "name",
+        "scale"
+      ],
+      "additionalProperties": false
+    },
+    "BalanceSheet": {
+      "type": "object",
+      "description": "A collection holding balances.",
+      "properties": {
+        "collection": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "amount_field": {
+          "$ref": "#/$defs/FieldPath"
+        },
+        "holder_field": {
+          "$ref": "#/$defs/FieldPath"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the sheet records."
+        }
+      },
+      "required": [
+        "collection",
+        "amount_field",
+        "holder_field",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "StandardAmount": {
+      "type": "object",
+      "description": "A standard amount one action records.",
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "amount": {
+          "$ref": "#/$defs/Decimal"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the amount covers."
+        }
+      },
+      "required": [
+        "action",
+        "amount",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "AmountLimit": {
+      "type": "object",
+      "description": "A ceiling on the amount one role moves in one action.",
+      "properties": {
+        "role": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "maximum": {
+          "$ref": "#/$defs/Decimal"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating why the ceiling holds."
+        }
+      },
+      "required": [
+        "role",
+        "maximum",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "Economics": {
+      "type": "object",
+      "description": "The unit of account. A deployment that records no amounts leaves this section out.",
+      "properties": {
+        "unit": {
+          "$ref": "#/$defs/UnitOfAccount"
+        },
+        "sheets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BalanceSheet"
+          }
+        },
+        "amounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StandardAmount"
+          }
+        },
+        "limits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AmountLimit"
+          }
+        }
+      },
+      "required": [
+        "unit",
+        "sheets",
+        "amounts",
+        "limits"
+      ],
+      "additionalProperties": false
+    },
+    "BlockOutput": {
+      "type": "object",
+      "description": "One typed output a reusable block produces.",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "ty": {
+          "$ref": "#/$defs/TypeExpr"
+        },
+        "value": {
+          "$ref": "#/$defs/Expr"
+        }
+      },
+      "required": [
+        "name",
+        "ty",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "Block": {
+      "type": "object",
+      "description": "A reusable block grouping a subgraph under a name.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Param"
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BlockOutput"
+          }
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Effect"
+          }
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating what the block does."
+        }
+      },
+      "required": [
+        "id",
+        "inputs",
+        "outputs",
+        "effects",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "StringKey": {
+      "description": "A key naming one translated string. The key reads as names joined by full stops.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "LanguageTag": {
+      "description": "A language tag, with a region after a hyphen where one applies.",
+      "type": "string",
+      "pattern": "^[a-z]{2,8}(-[a-z]{2,8})?$"
+    },
+    "ComponentKind": {
+      "description": "One component of the Cerulea component set.",
+      "type": "string",
+      "enum": [
+        "Page",
+        "Section",
+        "Grid",
+        "Stack",
+        "Split",
+        "Tabs",
+        "Accordion",
+        "Modal",
+        "Drawer",
+        "Table",
+        "List",
+        "CardGrid",
+        "DetailPanel",
+        "Chart",
+        "Timeline",
+        "Map",
+        "Calendar",
+        "Kanban",
+        "TextInput",
+        "NumberInput",
+        "DecimalInput",
+        "BooleanInput",
+        "TimestampInput",
+        "IdentityInput",
+        "HashInput",
+        "BytesInput",
+        "ReferenceInput",
+        "EnumerationInput",
+        "SumInput",
+        "ListInput",
+        "MapInput",
+        "OptionalInput",
+        "FileUpload",
+        "SignatureCapture",
+        "CameraCapture",
+        "BarcodeScan",
+        "ProofViewer",
+        "AuditTrail",
+        "TransactionStatus",
+        "VerificationBadge",
+        "HistoryDiff",
+        "Navigation",
+        "Header",
+        "Search",
+        "Notifications",
+        "Profile",
+        "LanguageSwitch",
+        "EmptyState",
+        "LoadingState",
+        "ErrorState",
+        "Confirmation",
+        "Toast"
+      ]
+    },
+    "Binding": {
+      "description": "What one component reads out of the Blueprint.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Collection": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "Collection"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Field": {
+              "type": "object",
+              "description": "One field of the record of one collection.",
+              "properties": {
+                "collection": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "field": {
+                  "$ref": "#/$defs/FieldPath"
+                }
+              },
+              "required": [
+                "collection",
+                "field"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Field"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Parameter": {
+              "type": "object",
+              "description": "One parameter of one action.",
+              "properties": {
+                "action": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "parameter": {
+                  "$ref": "#/$defs/Identifier"
+                }
+              },
+              "required": [
+                "action",
+                "parameter"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Parameter"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Action": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "Action"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Workflow": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "Workflow"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "View": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "View"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Event": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "Event"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "VisibilityRule": {
+      "description": "One rule deciding whether a component appears.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "ForRoles": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Identifier"
+              }
+            }
+          },
+          "required": [
+            "ForRoles"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "InStates": {
+              "type": "object",
+              "description": "The component appears while the record rests in one of the listed states.",
+              "properties": {
+                "workflow": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "states": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/Identifier"
+                  }
+                }
+              },
+              "required": [
+                "workflow",
+                "states"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "InStates"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "WhenValue": {
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "WhenValue"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "BreakpointOverride": {
+      "type": "object",
+      "description": "One change a breakpoint applies to a component.",
+      "properties": {
+        "breakpoint": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "visible": {
+          "type": "boolean",
+          "description": "Whether the component appears at this width."
+        },
+        "span": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The count of grid columns the component covers."
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The position the component takes among its siblings."
+        }
+      },
+      "required": [
+        "breakpoint",
+        "visible",
+        "span",
+        "order"
+      ],
+      "additionalProperties": false
+    },
+    "Property": {
+      "type": "object",
+      "description": "One named property of a placed component.",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "value": {
+          "type": "string",
+          "description": "The value the name carries."
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "ComponentNode": {
+      "type": "object",
+      "description": "One component placed on a screen.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "component": {
+          "$ref": "#/$defs/ComponentKind"
+        },
+        "binding": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Binding"
+            }
+          ]
+        },
+        "label_key": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/StringKey"
+            }
+          ]
+        },
+        "visibility": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/VisibilityRule"
+          }
+        },
+        "overrides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BreakpointOverride"
+          }
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Property"
+          }
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ComponentNode"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "component",
+        "binding",
+        "label_key",
+        "visibility",
+        "overrides",
+        "properties",
+        "children"
+      ],
+      "additionalProperties": false
+    },
+    "ScreenKind": {
+      "description": "The reason a screen exists.",
+      "type": "string",
+      "enum": [
+        "List",
+        "Detail",
+        "Create",
+        "Edit",
+        "Approval",
+        "Custom"
+      ]
+    },
+    "Screen": {
+      "type": "object",
+      "description": "One screen of the generated application.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "kind": {
+          "$ref": "#/$defs/ScreenKind"
+        },
+        "route": {
+          "type": "string",
+          "description": "The address the screen answers on."
+        },
+        "collection": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Identifier"
+            }
+          ]
+        },
+        "workflow": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Identifier"
+            }
+          ]
+        },
+        "action": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Identifier"
+            }
+          ]
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          }
+        },
+        "title_key": {
+          "$ref": "#/$defs/StringKey"
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ComponentNode"
+          }
+        },
+        "offline_capture": {
+          "type": "boolean",
+          "description": "Whether the screen captures records without a connection."
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "route",
+        "collection",
+        "workflow",
+        "action",
+        "roles",
+        "title_key",
+        "components",
+        "offline_capture"
+      ],
+      "additionalProperties": false
+    },
+    "Token": {
+      "type": "object",
+      "description": "One named theme token.",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "value": {
+          "type": "string",
+          "description": "The value the name carries."
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "Theme": {
+      "type": "object",
+      "description": "The theme token set the screens read.",
+      "properties": {
+        "colour_light": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Token"
+          }
+        },
+        "colour_dark": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Token"
+          }
+        },
+        "type_scale": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Token"
+          }
+        },
+        "spacing": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Token"
+          }
+        }
+      },
+      "required": [
+        "colour_light",
+        "colour_dark",
+        "type_scale",
+        "spacing"
+      ],
+      "additionalProperties": false
+    },
+    "Breakpoint": {
+      "type": "object",
+      "description": "One responsive breakpoint.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "min_width": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The smallest viewport width the breakpoint covers, in pixels."
+        },
+        "columns": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The count of grid columns at this width."
+        },
+        "label_key": {
+          "$ref": "#/$defs/StringKey"
+        }
+      },
+      "required": [
+        "id",
+        "min_width",
+        "columns",
+        "label_key"
+      ],
+      "additionalProperties": false
+    },
+    "Translation": {
+      "type": "object",
+      "description": "One translation file.",
+      "properties": {
+        "language": {
+          "$ref": "#/$defs/LanguageTag"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "$ref": "#/$defs/StringKey"
+              },
+              {
+                "type": "string",
+                "description": "One sentence a reader sees."
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          }
+        }
+      },
+      "required": [
+        "language",
+        "entries"
+      ],
+      "additionalProperties": false
+    },
+    "ConflictResolution": {
+      "description": "How a conflict between a captured record and the stored record resolves.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "KeepStored",
+            "TakeCaptured",
+            "AskAPerson"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "LaterTimestamp": {
+              "type": "object",
+              "description": "The record carrying the later timestamp stays.",
+              "properties": {
+                "field": {
+                  "$ref": "#/$defs/FieldPath"
+                }
+              },
+              "required": [
+                "field"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "LaterTimestamp"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "LargerValue": {
+              "type": "object",
+              "description": "The record carrying the larger value stays.",
+              "properties": {
+                "field": {
+                  "$ref": "#/$defs/FieldPath"
+                }
+              },
+              "required": [
+                "field"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "LargerValue"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "MergeFields": {
+              "type": "object",
+              "description": "The listed fields merge from the captured record.",
+              "properties": {
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/FieldPath"
+                  }
+                }
+              },
+              "required": [
+                "fields"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "MergeFields"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ConflictRule": {
+      "type": "object",
+      "description": "One declared conflict rule.",
+      "properties": {
+        "collection": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "resolution": {
+          "$ref": "#/$defs/ConflictResolution"
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One plain sentence stating why the rule reads this way."
+        }
+      },
+      "required": [
+        "collection",
+        "resolution",
+        "statement"
+      ],
+      "additionalProperties": false
+    },
+    "Interface": {
+      "type": "object",
+      "description": "The interface section. The screens, the theme, the breakpoints, the translations and the conflict rules.",
+      "properties": {
+        "screens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Screen"
+          }
+        },
+        "theme": {
+          "$ref": "#/$defs/Theme"
+        },
+        "breakpoints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Breakpoint"
+          }
+        },
+        "translations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Translation"
+          }
+        },
+        "conflict_rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ConflictRule"
+          }
+        },
+        "default_language": {
+          "$ref": "#/$defs/LanguageTag"
+        }
+      },
+      "required": [
+        "screens",
+        "theme",
+        "breakpoints",
+        "translations",
+        "conflict_rules",
+        "default_language"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
