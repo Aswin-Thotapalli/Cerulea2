@@ -9,11 +9,15 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
+
+import { landingAfterSignIn } from '@/lib/same-site-path';
 import { Alert, Box, Button, Link, Paper, Stack, TextField, Typography } from '@mui/material';
 
 export default function LoginClient() {
   const search = useSearchParams();
-  const next = search.get('next') || '/dashboard';
+  // The landing page stays on this site. A script address or another site
+  // lands on the home page.
+  const next = landingAfterSignIn(search.get('next'));
   const carried = search.get('error');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
