@@ -75,3 +75,63 @@ describe('the gate in front of every screen', () => {
     expect(JSON.stringify(config).length).toBeGreaterThan(5);
   });
 });
+
+describe('the content security policy of every screen', () => {
+  function nonceOf(policy: string): string {
+    const found = /'nonce-([^']+)'/.exec(policy);
+    return found?.[1] ?? '';
+  }
+
+  it('hands Next.js the same nonce the browser reads in the policy', async () => {
+    token = null;
+    const answer = await middleware(request('https://cerulea.test/auth/login', 'cerulea.test'));
+    const policy = answer.headers.get('content-security-policy') ?? '';
+    const nonce = nonceOf(policy);
+    expect(nonce.length).toBeGreaterThan(20);
+    expect(answer.headers.get('x-middleware-request-x-nonce')).toBe(nonce);
+    expect(answer.headers.get('x-middleware-request-content-security-policy')).toBe(policy);
+    expect(policy).toContain("'strict-dynamic'");
+    expect(policy).toContain("frame-ancestors 'none'");
+  });
+
+  it('issues a fresh nonce for every request', async () => {
+    token = { email: 'person@cerulea.test' };
+    const first = await middleware(request('https://cerulea.test/dashboard', 'cerulea.test'));
+    const second = await middleware(request('https://cerulea.test/dashboard', 'cerulea.test'));
+    const one = nonceOf(first.headers.get('content-security-policy') ?? '');
+    const two = nonceOf(second.headers.get('content-security-policy') ?? '');
+    expect(one.length).toBeGreaterThan(20);
+    expect(one).not.toBe(two);
+  });
+
+  it('carries the policy on the redirect to the sign in page', async () => {
+    token = null;
+    const answer = await middleware(request('https://cerulea.test/dashboard', 'cerulea.test'));
+    expect(answer.headers.get('location')).toContain('/auth/login');
+    expect(answer.headers.get('content-security-policy')).toContain("object-src 'none'");
+  });
+});
+
+describe('the transport the policy reads', () => {
+  it('keeps the upgrade directive over HTTPS and through an HTTPS proxy', async () => {
+    token = null;
+    const direct = await middleware(request('https://cerulea.test/auth/login', 'cerulea.test'));
+    expect(direct.headers.get('content-security-policy')).toContain('upgrade-insecure-requests');
+    const proxied = await middleware(
+      new NextRequest(
+        new Request('http://cerulea.test/auth/login', {
+          headers: { host: 'cerulea.test', 'x-forwarded-proto': 'https' },
+        }),
+      ),
+    );
+    expect(proxied.headers.get('content-security-policy')).toContain('upgrade-insecure-requests');
+  });
+
+  it('leaves the upgrade directive out on plain HTTP, where it would break every redirect', async () => {
+    token = null;
+    const answer = await middleware(request('http://localhost:3000/auth/login', 'localhost:3000'));
+    expect(answer.headers.get('content-security-policy')).not.toContain(
+      'upgrade-insecure-requests',
+    );
+  });
+});

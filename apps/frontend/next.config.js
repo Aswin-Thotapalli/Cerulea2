@@ -4,6 +4,10 @@
  * The list matches apis/src/security/headers.ts exactly. A test in the APIs
  * repository reads this file and holds it to that list, so one change never
  * lands in one surface alone.
+ *
+ * Every screen carries a content security policy with a fresh nonce, which
+ * src/middleware.ts issues per request. The fixed policy below covers the
+ * Studio routes under /api, which answer data and run no script.
  */
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -23,7 +27,6 @@ const contentSecurityPolicy = [
 ].join('; ');
 
 const securityHeaders = [
-  { key: 'content-security-policy', value: contentSecurityPolicy },
   { key: 'strict-transport-security', value: 'max-age=63072000; includeSubDomains; preload' },
   { key: 'x-content-type-options', value: 'nosniff' },
   { key: 'x-frame-options', value: 'DENY' },
@@ -73,7 +76,13 @@ const nextConfig = {
   },
 
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }];
+    return [
+      { source: '/:path*', headers: securityHeaders },
+      {
+        source: '/api/:path*',
+        headers: [{ key: 'content-security-policy', value: contentSecurityPolicy }],
+      },
+    ];
   },
 };
 

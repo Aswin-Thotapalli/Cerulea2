@@ -12,6 +12,11 @@ export const metadata: Metadata = {
   description: 'The AI Layer 1 for the next internet',
 };
 
+// Every screen renders per request. The content security policy carries a
+// fresh nonce each time, and a page rendered once at build time would carry
+// inline scripts with no nonce, which the policy refuses.
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
