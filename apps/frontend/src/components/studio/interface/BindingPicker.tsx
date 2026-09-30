@@ -17,30 +17,27 @@ import {
   Typography,
 } from '@mui/material';
 
-import { CeruleaApiError } from '@/lib/cerulea-api';
-import { readBindings } from '@/lib/interface/client';
+import { StudioRouteError } from '@/lib/apiClient';
+import { readInterfaceBindings } from '@/lib/interface/studio';
 import type { BindingChoice } from '@/lib/interface/types';
 
 export type BindingPickerProps = {
-  document: unknown;
+  projectId: string;
   role: string;
+  /** The name a person reads for the role. */
+  roleName?: string;
   component: string;
   /** What the component reads. A component reading nothing shows the reason. */
   binds: string;
-  accessToken?: string;
-  baseUrl?: string;
-  fetchImpl?: typeof fetch;
   onChoose?: (choice: BindingChoice) => void;
 };
 
 export default function BindingPicker({
-  document,
+  projectId,
   role,
+  roleName,
   component,
   binds,
-  accessToken,
-  baseUrl,
-  fetchImpl,
   onChoose,
 }: BindingPickerProps) {
   const [choices, setChoices] = useState<BindingChoice[] | null>(null);
@@ -48,7 +45,7 @@ export default function BindingPicker({
 
   useEffect(() => {
     let live = true;
-    if (binds === 'nothing') {
+    if (binds === 'nothing' || role === '') {
       setChoices([]);
       setFailure(null);
       return () => {
@@ -57,7 +54,7 @@ export default function BindingPicker({
     }
     setChoices(null);
     setFailure(null);
-    readBindings({ document, role, component }, { accessToken, baseUrl, fetchImpl })
+    readInterfaceBindings(projectId, { role, component })
       .then((held) => {
         if (live) {
           setChoices(held.choices);
@@ -68,8 +65,8 @@ export default function BindingPicker({
           return;
         }
         const held =
-          error instanceof CeruleaApiError
-            ? { message: error.message, fix: error.fix }
+          error instanceof StudioRouteError
+            ? { message: error.message.replace(` ${error.fix}`, ''), fix: error.fix }
             : {
                 message: 'Cerulea did not answer with the bindings.',
                 fix: 'Open the screen again, then choose the component.',
@@ -79,13 +76,22 @@ export default function BindingPicker({
     return () => {
       live = false;
     };
-  }, [document, role, component, binds, accessToken, baseUrl, fetchImpl]);
+  }, [projectId, role, component, binds]);
 
   if (binds === 'nothing') {
     return (
       <Typography variant="body2" data-testid="binding-none">
         The {component} component reads nothing from the model. It places the components inside it.
       </Typography>
+    );
+  }
+
+  if (role === '') {
+    return (
+      <Alert severity="info" data-testid="binding-no-role">
+        The model declares no role yet. Add a role in Step 3, and the bindings each role reaches
+        appear here.
+      </Alert>
     );
   }
 
@@ -104,7 +110,7 @@ export default function BindingPicker({
   if (choices.length === 0) {
     return (
       <Alert severity="info" data-testid="binding-empty">
-        The {role} role reaches nothing this component reads. Grant the role a capability in the
+        The {roleName ?? role} role reaches nothing this component reads. Grant the role a capability in the
         permission matrix, and the bindings appear here.
       </Alert>
     );
@@ -113,7 +119,7 @@ export default function BindingPicker({
   return (
     <Box data-testid="binding-picker">
       <Typography variant="subtitle2" component="h3">
-        Bindings the {role} role reaches
+        Bindings the {roleName ?? role} role reaches
       </Typography>
       <List dense aria-label="Legal bindings">
         {choices.map((choice) => (

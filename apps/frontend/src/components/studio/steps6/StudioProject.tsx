@@ -37,6 +37,7 @@ import Step1Foundation from './Step1Foundation';
 import Step3Model from './Step3Model';
 import Step4Policies from './Step4Policies';
 import Step6Verify from './Step6Verify';
+import Step5Interface from '@/components/studio/interface/Step5Interface';
 import ReadinessChecklist from './ReadinessChecklist';
 import PublicationGate from './PublicationGate';
 import ValidationGuidance from './ValidationGuidance';
@@ -57,6 +58,7 @@ export const PROJECT_AREAS = [
   { id: 'compose', label: 'Compose', step: 2, stateKey: 'compose' as const },
   { id: 'model', label: 'Model', step: 3, stateKey: 'model' as const },
   { id: 'policies', label: 'Policies', step: 4, stateKey: 'policies' as const },
+  { id: 'interface', label: 'Interface', step: 5, stateKey: 'interfaceAuthoring' as const },
   { id: 'verify', label: 'Verify', step: 6, stateKey: 'verify' as const },
 ] as const;
 
@@ -265,6 +267,8 @@ export default function StudioProject({ projectId }: { projectId: string }) {
       <Step3Model projectId={projectId} onContinue={advance} surface={modelSurface} />
     ) : area === 'policies' ? (
       <Step4Policies projectId={projectId} onContinue={advance} />
+    ) : area === 'interface' ? (
+      <Step5Interface projectId={projectId} onContinue={() => void advance()} />
     ) : area === 'blueprint' ? (
       <LevelFourBlueprint projectId={projectId} onSaved={() => void advance()} />
     ) : (

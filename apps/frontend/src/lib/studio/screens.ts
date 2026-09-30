@@ -17,6 +17,7 @@ export type ScreenArea =
   | 'compose'
   | 'model'
   | 'policies'
+  | 'interface'
   | 'verify'
   | 'blueprint';
 
@@ -72,6 +73,11 @@ export const SCREEN_TARGETS: Record<string, ScreenTarget> = {
     area: 'policies',
     level: 2,
     does: 'The agreement profile this deployment runs under.',
+  },
+  Interface: {
+    area: 'interface',
+    level: 2,
+    does: 'The screens and the endpoints Cerulea generated from the model, with the preview as any role.',
   },
   Verify: {
     area: 'verify',

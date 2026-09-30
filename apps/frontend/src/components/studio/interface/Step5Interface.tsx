@@ -4,8 +4,11 @@
 // Step 5 Interface. The generated application and its authoring.
 // Cerulea generates a complete working application from the model on entry.
 // A person opens a finished thing and edits it. This screen shows the screens
-// the engine generated, the component set, the bindings each role may legally
-// reach, the theme tokens, the preview as any role and the accessibility gate.
+// the engine generated, the endpoints beside them, the component set, the
+// bindings each role may legally reach, the theme tokens, the preview as any
+// role and the accessibility gate.
+// Every read passes through a Studio route, so the browser holds no access
+// token and no Blueprint document.
 // Without this screen a person would write an interface by hand.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -19,6 +22,7 @@ import {
   Divider,
   Grid,
   List,
+  ListItem,
   ListItemButton,
   ListItemText,
   MenuItem,
@@ -30,7 +34,7 @@ import {
   Typography,
 } from '@mui/material';
 
-import { CeruleaApiError } from '@/lib/cerulea-api';
+import { StudioRouteError } from '@/lib/apiClient';
 import {
   describeScreen,
   componentCount,
@@ -42,39 +46,36 @@ import {
   widthWords,
 } from '@/lib/interface/authoring';
 import {
-  generateInterface,
-  readAccessibility,
-  readComponentCatalogue,
-  readPreview,
-  readPreviewRoles,
-} from '@/lib/interface/client';
-import type {
-  AccessibilityOutcome,
-  ComponentCatalogue,
-  ComponentEntry,
-  GeneratedInterface,
-  PreviewOutcome,
-  PreviewRole,
-} from '@/lib/interface/types';
+  type InterfaceWorkspace,
+  markInterfaceAuthored,
+  readInterfaceAccessibility,
+  readInterfacePreview,
+  readInterfaceWorkspace,
+} from '@/lib/interface/studio';
+import type { AccessibilityOutcome, ComponentEntry, PreviewOutcome } from '@/lib/interface/types';
 import AccessibilityReport from './AccessibilityReport';
 import BindingPicker from './BindingPicker';
 import ComponentPalette from './ComponentPalette';
 import PreviewFrame from './PreviewFrame';
 
 export type Step5InterfaceProps = {
-  /** The Blueprint the project holds. */
-  document: unknown;
-  accessToken?: string;
-  baseUrl?: string;
-  fetchImpl?: typeof fetch;
-  /** Called once the engine answers, so the project records the section. */
-  onGenerated?: (generated: GeneratedInterface) => void;
+  projectId: string;
+  /** Called once the person marks the application checked. */
+  onContinue?: () => void;
 };
 
-type Panel = 'screens' | 'components' | 'theme' | 'preview' | 'accessibility' | 'translation';
+type Panel =
+  | 'screens'
+  | 'endpoints'
+  | 'components'
+  | 'theme'
+  | 'preview'
+  | 'accessibility'
+  | 'translation';
 
 const PANELS: { id: Panel; label: string }[] = [
   { id: 'screens', label: 'Screens' },
+  { id: 'endpoints', label: 'Endpoints' },
   { id: 'components', label: 'Components' },
   { id: 'theme', label: 'Theme' },
   { id: 'preview', label: 'Preview' },
@@ -82,29 +83,43 @@ const PANELS: { id: Panel; label: string }[] = [
   { id: 'translation', label: 'Translation' },
 ];
 
+/**
+ * The words a person reads for who reaches an endpoint.
+ * The manifest names the roles by their identifiers. The person reads the names.
+ */
+export function reachedBy(visibility: string, roleNames: Readonly<Record<string, string>>): string {
+  if (visibility.trim().length === 0 || visibility === 'every role') return 'every role';
+  return visibility
+    .split(',')
+    .map((role) => role.trim())
+    .filter((role) => role.length > 0)
+    .map((role) => roleNames[role] ?? role)
+    .join(', ');
+}
+
 /** The failure shape every panel reads. */
 function failureOf(error: unknown, fallbackFix: string): { message: string; fix: string } {
-  if (error instanceof CeruleaApiError) {
-    return { message: error.message, fix: error.fix };
+  if (error instanceof StudioRouteError) {
+    return { message: error.message.replace(` ${error.fix}`, ''), fix: error.fix };
   }
   return { message: 'Cerulea did not answer.', fix: fallbackFix };
 }
 
-export default function Step5Interface({
-  document,
-  accessToken,
-  baseUrl,
-  fetchImpl,
-  onGenerated,
-}: Step5InterfaceProps) {
-  const options = useMemo(
-    () => ({ accessToken, baseUrl, fetchImpl }),
-    [accessToken, baseUrl, fetchImpl],
+/** Reports whether an answer carries everything Step 5 draws. */
+export function readableWorkspace(held: unknown): held is InterfaceWorkspace {
+  if (held === null || typeof held !== 'object') return false;
+  const answer = held as Partial<InterfaceWorkspace>;
+  return (
+    Array.isArray(answer.generated?.section?.screens) &&
+    Array.isArray(answer.catalogue?.components) &&
+    Array.isArray(answer.roles) &&
+    Array.isArray(answer.endpoints)
   );
+}
+
+export default function Step5Interface({ projectId, onContinue }: Step5InterfaceProps) {
   const [panel, setPanel] = useState<Panel>('screens');
-  const [generated, setGenerated] = useState<GeneratedInterface | null>(null);
-  const [catalogue, setCatalogue] = useState<ComponentCatalogue | null>(null);
-  const [roles, setRoles] = useState<PreviewRole[]>([]);
+  const [workspace, setWorkspace] = useState<InterfaceWorkspace | null>(null);
   const [failure, setFailure] = useState<{ message: string; fix: string } | null>(null);
   const [chosenScreen, setChosenScreen] = useState<string>('');
   const [chosenComponent, setChosenComponent] = useState<ComponentEntry | null>(null);
@@ -113,105 +128,128 @@ export default function Step5Interface({
   const [mode, setMode] = useState<'light' | 'dark'>('light');
   const [preview, setPreview] = useState<PreviewOutcome | null>(null);
   const [accessibility, setAccessibility] = useState<AccessibilityOutcome | null>(null);
+  const [marking, setMarking] = useState(false);
+  const [marked, setMarked] = useState(false);
 
   useEffect(() => {
     let live = true;
-    Promise.all([
-      generateInterface({ document }, options),
-      readComponentCatalogue(options),
-      readPreviewRoles({ document }, options),
-    ])
-      .then(([held, set, previewRoles]) => {
-        if (!live) {
+    setWorkspace(null);
+    setFailure(null);
+    readInterfaceWorkspace(projectId)
+      .then((held) => {
+        if (!live) return;
+        if (!readableWorkspace(held)) {
+          setFailure({
+            message: 'Cerulea answered with no generated application for this project.',
+            fix: 'Open Step 5 again. Report the problem to the Cerulea operator when it repeats.',
+          });
           return;
         }
-        setGenerated(held);
-        setCatalogue(set);
-        setRoles(previewRoles.roles);
-        setChosenScreen(held.section.screens[0]?.id ?? '');
-        setRole(previewRoles.roles[0]?.role ?? '');
-        onGenerated?.(held);
+        setWorkspace(held);
+        setChosenScreen(held.generated.section.screens[0]?.id ?? '');
+        setRole(held.roles[0]?.role ?? '');
       })
       .catch((error: unknown) => {
-        if (live) {
-          setFailure(
-            failureOf(error, 'Open Step 5 again once Cerulea APIs answers.'),
-          );
-        }
+        if (live) setFailure(failureOf(error, 'Open Step 5 again once Cerulea APIs answers.'));
       });
     return () => {
       live = false;
     };
-  }, [document, options, onGenerated]);
+  }, [projectId]);
 
   const loadPreview = useCallback(() => {
-    if (generated === null || role === '') {
-      return;
-    }
-    readPreview(
-      { document, section: generated.section, role, breakpoint: width, mode },
-      options,
-    )
+    if (workspace === null || role === '') return;
+    setPreview(null);
+    readInterfacePreview(projectId, { role, breakpoint: width, mode })
       .then(setPreview)
       .catch((error: unknown) =>
-        setFailure(failureOf(error, 'Choose a role the model declares, then read the preview again.')),
+        setFailure(
+          failureOf(error, 'Choose a role the model declares, then read the preview again.'),
+        ),
       );
-  }, [document, generated, role, width, mode, options]);
+  }, [projectId, workspace, role, width, mode]);
 
   useEffect(() => {
-    loadPreview();
-  }, [loadPreview]);
+    if (panel === 'preview') loadPreview();
+  }, [panel, loadPreview]);
 
   useEffect(() => {
-    if (generated === null) {
-      return;
-    }
+    if (workspace === null || panel !== 'accessibility' || accessibility !== null) return;
     let live = true;
-    readAccessibility({ section: generated.section }, options)
+    readInterfaceAccessibility(projectId)
       .then((held) => {
-        if (live) {
-          setAccessibility(held);
-        }
+        if (live) setAccessibility(held);
       })
       .catch((error: unknown) => {
-        if (live) {
-          setFailure(failureOf(error, 'Read the accessibility report again.'));
-        }
+        if (live) setFailure(failureOf(error, 'Read the accessibility report again.'));
       });
     return () => {
       live = false;
     };
-  }, [generated, options]);
+  }, [projectId, workspace, panel, accessibility]);
 
-  if (failure !== null && generated === null) {
+  const roleNames = useMemo(
+    () => Object.fromEntries((workspace?.roles ?? []).map((held) => [held.role, held.name])),
+    [workspace],
+  );
+
+  const markChecked = async () => {
+    setMarking(true);
+    try {
+      await markInterfaceAuthored(projectId);
+      setMarked(true);
+      onContinue?.();
+    } catch (error) {
+      setFailure(failureOf(error, 'Mark the application checked again.'));
+    } finally {
+      setMarking(false);
+    }
+  };
+
+  if (failure !== null && workspace === null) {
     return (
-      <Alert severity="error" data-testid="step5-failure">
-        <AlertTitle>Cerulea generated no application</AlertTitle>
-        {failure.message} {failure.fix}
-      </Alert>
+      <Box sx={{ px: 4, py: 3 }}>
+        <Alert severity="error" data-testid="step5-failure">
+          <AlertTitle>Cerulea generated no application</AlertTitle>
+          {failure.message} {failure.fix}
+        </Alert>
+      </Box>
     );
   }
 
-  if (generated === null || catalogue === null) {
+  if (workspace === null) {
     return (
-      <Stack direction="row" spacing={2} alignItems="center" data-testid="step5-reading">
+      <Stack
+        direction="row"
+        spacing={2}
+        alignItems="center"
+        sx={{ px: 4, py: 3 }}
+        data-testid="step5-reading"
+      >
         <CircularProgress size={22} />
         <Typography>Cerulea is generating the application from the model.</Typography>
       </Stack>
     );
   }
 
+  const { generated, catalogue, roles, endpoints } = workspace;
   const section = generated.section;
   const screen = section.screens.find((held) => held.id === chosenScreen);
 
   return (
-    <Box data-testid="step5-interface">
+    <Box data-testid="step5-interface" sx={{ px: 4, py: 3 }}>
       <Typography variant="h5" component="h2">
         Interface
       </Typography>
       <Typography variant="body1" sx={{ mb: 2 }}>
         {openingSentence(section)}
       </Typography>
+
+      {failure === null ? null : (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setFailure(null)}>
+          {failure.message} {failure.fix}
+        </Alert>
+      )}
 
       {generated.omissions.length === 0 ? null : (
         <Alert severity="info" sx={{ mb: 2 }} data-testid="step5-omissions">
@@ -239,6 +277,7 @@ export default function Step5Interface({
         value={panel}
         onChange={(_event, held: Panel) => setPanel(held)}
         aria-label="Interface panels"
+        variant="scrollable"
         sx={{ mb: 2 }}
       >
         {PANELS.map((entry) => (
@@ -263,7 +302,7 @@ export default function Step5Interface({
                     >
                       <ListItemText
                         primary={sentenceFor(section, held.title_key)}
-                        secondary={describeScreen(held)}
+                        secondary={describeScreen(held, roleNames)}
                       />
                       <Chip size="small" label={`${componentCount(held)} components`} />
                     </ListItemButton>
@@ -280,7 +319,7 @@ export default function Step5Interface({
                 <Typography variant="h6" component="h3">
                   {sentenceFor(section, screen.title_key)}
                 </Typography>
-                <Typography variant="body2">{describeScreen(screen)}</Typography>
+                <Typography variant="body2">{describeScreen(screen, roleNames)}</Typography>
                 <Divider sx={{ my: 1 }} />
                 <Typography variant="body2">
                   {screen.offline_capture
@@ -291,6 +330,34 @@ export default function Step5Interface({
             )}
           </Grid>
         </Grid>
+      ) : null}
+
+      {panel === 'endpoints' ? (
+        <Box data-testid="panel-endpoints">
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            Another system reaches the deployment through these addresses. Each one answers with
+            the records the caller may read, and a call outside the permission matrix meets a
+            refusal.
+          </Typography>
+          {endpoints.length === 0 ? (
+            <Alert severity="info">
+              {workspace.endpointsNote.length > 0
+                ? workspace.endpointsNote
+                : 'This deployment publishes no endpoint yet. Add an action or a view in Step 3, and the endpoints appear here.'}
+            </Alert>
+          ) : (
+            <List dense aria-label="Endpoints">
+              {endpoints.map((held) => (
+                <ListItem key={`${held.method} ${held.path}`} disableGutters>
+                  <ListItemText
+                    primary={`${held.method} ${held.path}`}
+                    secondary={`Takes ${held.parameters.length === 0 ? 'no value' : held.parameters.join(', ')}. Answers with ${held.response}. Reached by ${reachedBy(held.visibility, roleNames)}.`}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </Box>
       ) : null}
 
       {panel === 'components' ? (
@@ -307,13 +374,11 @@ export default function Step5Interface({
               <Typography>Choose a component to see the bindings it may read.</Typography>
             ) : (
               <BindingPicker
-                document={document}
+                projectId={projectId}
                 role={role}
+                roleName={roleNames[role] ?? role}
                 component={chosenComponent.kind}
                 binds={chosenComponent.binds}
-                accessToken={accessToken}
-                baseUrl={baseUrl}
-                fetchImpl={fetchImpl}
               />
             )}
           </Grid>
@@ -340,11 +405,7 @@ export default function Step5Interface({
                 </Typography>
                 <List dense aria-label={label}>
                   {section.theme[group].map((token) => (
-                    <ListItemText
-                      key={token.name}
-                      primary={token.name}
-                      secondary={token.value}
-                    />
+                    <ListItemText key={token.name} primary={token.name} secondary={token.value} />
                   ))}
                 </List>
               </Grid>
@@ -355,7 +416,7 @@ export default function Step5Interface({
 
       {panel === 'preview' ? (
         <Box data-testid="panel-preview">
-          <Stack direction="row" spacing={2} sx={{ mb: 2 }} flexWrap="wrap">
+          <Stack direction="row" spacing={2} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
             <TextField
               select
               size="small"
@@ -363,6 +424,7 @@ export default function Step5Interface({
               value={role}
               onChange={(event) => setRole(event.target.value)}
               sx={{ minWidth: 220 }}
+              helperText="The preview shows what a person holding this role reaches."
             >
               {roles.map((held) => (
                 <MenuItem key={held.role} value={held.role}>
@@ -397,7 +459,12 @@ export default function Step5Interface({
             </TextField>
             <Button onClick={loadPreview}>Read the preview again</Button>
           </Stack>
-          {preview === null ? (
+          {roles.length === 0 ? (
+            <Alert severity="info">
+              The model declares no role yet. Add a role in Step 3, and the preview shows what the
+              role reaches.
+            </Alert>
+          ) : preview === null ? (
             <CircularProgress size={22} aria-label="Cerulea is rendering the preview" />
           ) : (
             <PreviewFrame preview={preview} screen={chosenScreen} />
@@ -436,6 +503,23 @@ export default function Step5Interface({
           </List>
         </Box>
       ) : null}
+
+      <Divider sx={{ my: 3 }} />
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
+        <Button
+          variant="contained"
+          onClick={() => void markChecked()}
+          disabled={marking}
+          data-testid="step5-continue"
+        >
+          Mark the application checked
+        </Button>
+        <Typography variant="body2" color="text.secondary">
+          {marked
+            ? 'Cerulea recorded the check. The readiness checklist shows Step 5 as done.'
+            : 'The readiness checklist shows Step 5 as done once the application is checked. Deployment waits for every step.'}
+        </Typography>
+      </Stack>
     </Box>
   );
 }

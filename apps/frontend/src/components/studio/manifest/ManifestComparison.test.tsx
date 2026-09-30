@@ -76,8 +76,8 @@ describe('reading a comparison', () => {
     expect(screenForComparisonLine('Workflow booking_flow')).toBe('Model, workflows');
     expect(screenForComparisonLine('Rule berth_free')).toBe('Model, rules and actions');
     expect(screenForComparisonLine('Permission clerk on booking')).toBe('Model, permissions');
-    expect(screenForComparisonLine('Screen booking_list')).toBe('Blueprint, views');
-    expect(screenForComparisonLine('Endpoint GET /booking')).toBe('Blueprint, views');
+    expect(screenForComparisonLine('Screen booking_list')).toBe('Interface');
+    expect(screenForComparisonLine('Endpoint GET /booking')).toBe('Interface');
     expect(screenForComparisonLine('Something else')).toBe('Blueprint');
   });
 

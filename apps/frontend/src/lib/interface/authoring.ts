@@ -102,9 +102,12 @@ export function componentCount(screen: Screen): number {
 }
 
 /** One line naming what a screen shows. */
-export function describeScreen(screen: Screen): string {
+export function describeScreen(
+  screen: Screen,
+  roleNames: Readonly<Record<string, string>> = {},
+): string {
   const kind = SCREEN_KIND_WORDS[screen.kind] ?? screen.kind;
-  const roles = screen.roles.join(', ');
+  const roles = screen.roles.map((role) => roleNames[role] ?? role).join(', ');
   return `${kind} · ${screen.route} · ${roles}`;
 }
 

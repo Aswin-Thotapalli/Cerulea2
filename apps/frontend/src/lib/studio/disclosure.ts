@@ -20,6 +20,7 @@ export type DisclosureArea =
   | 'compose'
   | 'model'
   | 'policies'
+  | 'interface'
   | 'verify'
   | 'blueprint';
 
@@ -54,7 +55,7 @@ export const DISCLOSURE_LEVELS: LevelDescription[] = [
     shows: 'The statements this system delivers, and the map of the parts we assembled.',
     holdsBack:
       'Fields, roles and workflow states stay out of sight. Move up a level to change any of them.',
-    areas: ['foundation', 'compose', 'policies', 'verify'],
+    areas: ['foundation', 'compose', 'policies', 'interface', 'verify'],
   },
   {
     level: 3,
@@ -63,7 +64,7 @@ export const DISCLOSURE_LEVELS: LevelDescription[] = [
     shows: 'The record editor, the permission matrix, the workflow canvas and the formula bar.',
     holdsBack:
       'The typed document itself stays out of sight. Move up a level to read and edit it directly.',
-    areas: ['foundation', 'compose', 'model', 'policies', 'verify'],
+    areas: ['foundation', 'compose', 'model', 'policies', 'interface', 'verify'],
   },
   {
     level: 4,
@@ -71,7 +72,7 @@ export const DISCLOSURE_LEVELS: LevelDescription[] = [
     audience: 'Power users, support and audit',
     shows: 'The typed document itself, read and edited against the Blueprint schema.',
     holdsBack: 'Nothing stays out of sight at this level.',
-    areas: ['foundation', 'compose', 'model', 'policies', 'verify', 'blueprint'],
+    areas: ['foundation', 'compose', 'model', 'policies', 'interface', 'verify', 'blueprint'],
   },
 ];
 

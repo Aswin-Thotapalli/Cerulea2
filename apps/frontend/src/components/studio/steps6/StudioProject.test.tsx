@@ -126,10 +126,32 @@ describe('the sequence', () => {
           compose: true,
           model: true,
           policies: true,
+          interfaceAuthoring: true,
           verify: true,
         }),
       ),
     ).toBe(true);
+  });
+
+  it('holds the sequence open while Step 5 Interface waits for a check', () => {
+    const steps = {
+      foundation: true,
+      compose: true,
+      model: true,
+      policies: true,
+      interfaceAuthoring: false,
+      verify: true,
+    };
+    expect(sequenceFinished(buildState(steps))).toBe(false);
+    expect(nextArea(buildState(steps).steps)).toBe('interface');
+    expect(finishedCount(buildState(steps).steps)).toBe(5);
+  });
+
+  it('places Step 5 Interface between the policies and the verification', () => {
+    expect(PROJECT_AREAS.map((entry) => entry.step)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(PROJECT_AREAS.find((entry) => entry.id === 'interface')?.stateKey).toBe(
+      'interfaceAuthoring',
+    );
   });
 
   it('collapses once the person opens the project as a workspace', () => {
@@ -159,12 +181,34 @@ describe('the wizard', () => {
 
   it('offers the move to a workspace once every area carries work', { timeout: 40000 }, async () => {
     stubFetch(
-      buildState({ foundation: true, compose: true, model: true, policies: true, verify: false }),
+      buildState({
+        foundation: true,
+        compose: true,
+        model: true,
+        policies: true,
+        interfaceAuthoring: true,
+        verify: false,
+      }),
     );
     render(<StudioProject projectId="p-1" />);
     await waitFor(() => expect(screen.getByText('Step 6 of 6')).toBeInTheDocument(), {
       timeout: 15000,
     });
+  });
+
+  it('opens Step 5 Interface once the policies are chosen', { timeout: 40000 }, async () => {
+    const calls = stubFetch(
+      buildState({ foundation: true, compose: true, model: true, policies: true }),
+    );
+    render(<StudioProject projectId="p-1" />);
+    await waitFor(
+      () =>
+        expect(calls.some((call) => call.url === '/api/projects/p-1/interface')).toBe(true),
+      { timeout: 15000 },
+    );
+    expect(screen.getAllByText('Interface').length).toBeGreaterThan(0);
+    // The stub answers the Step 5 route with a project, so Step 5 names the fix.
+    await waitFor(() => expect(screen.getByTestId('step5-failure')).toBeInTheDocument());
   });
 });
 
@@ -198,6 +242,7 @@ describe('the disclosure level', () => {
       'foundation',
       'compose',
       'policies',
+      'interface',
       'verify',
     ]);
     expect(areasForLevel(3).map((entry) => entry.id)).toEqual([
@@ -205,6 +250,7 @@ describe('the disclosure level', () => {
       'compose',
       'model',
       'policies',
+      'interface',
       'verify',
     ]);
     expect(areasForLevel(4).map((entry) => entry.id)).toEqual([

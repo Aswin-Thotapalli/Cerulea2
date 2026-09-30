@@ -58,8 +58,8 @@ export const SCREEN_BY_KIND: Record<string, string> = {
   Workflow: 'Model, workflows',
   Rule: 'Model, rules and actions',
   Permission: 'Model, permissions',
-  Screen: 'Blueprint, views',
-  Endpoint: 'Blueprint, views',
+  Screen: 'Interface',
+  Endpoint: 'Interface',
 };
 
 /** Reads the screen out of one comparison line. */
