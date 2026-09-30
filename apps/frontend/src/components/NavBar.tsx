@@ -4,7 +4,7 @@ import {
   AppBar, Toolbar, Typography, Button, IconButton, Avatar, Box,
   Menu, MenuItem, Divider, ListItemIcon, Chip, Tooltip,
 } from '@mui/material';
-import { useTheme, alpha } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import { useState, useEffect } from 'react';
 import { useSession, signOut, getSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -37,25 +37,37 @@ export default function NavBar() {
       position="sticky"
       elevation={0}
       sx={{
-        backgroundColor: alpha(theme.palette.background.paper, 0.85),
-        backdropFilter: 'blur(16px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+        backgroundColor: theme.palette.background.paper,
         borderBottom: `1px solid ${theme.palette.divider}`,
         color: theme.palette.text.primary,
+        '& .MuiButton-startIcon': { display: { xs: 'none', sm: 'inherit' } },
       }}
     >
-      <Toolbar sx={{ gap: 0.5 }}>
+      <Toolbar sx={{ gap: { xs: 0.5, sm: 1 }, px: { xs: 2, sm: 3 } }}>
+        <Box
+          aria-hidden
+          sx={{
+            width: 10,
+            height: 24,
+            borderRadius: 0.5,
+            bgcolor: 'secondary.main',
+            flex: '0 0 auto',
+            mr: 0.5,
+          }}
+        />
         {/* Logo */}
         <Typography
           component={Link}
           href="/"
-          variant="h6"
+          variant="h4"
+          noWrap
           sx={{
             flexGrow: 1,
-            fontWeight: 800,
+            minWidth: 0,
+            fontWeight: 700,
             textDecoration: 'none',
             color: 'inherit',
-            letterSpacing: -0.5,
+            letterSpacing: '-0.01em',
           }}
         >
           Cerulea Studio
@@ -63,7 +75,13 @@ export default function NavBar() {
 
         {/* Theme toggle */}
         <Tooltip title={theme.palette.mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
-          <IconButton onClick={toggleTheme} color="inherit" size="small" sx={{ ml: 0.5 }}>
+          <IconButton
+            onClick={toggleTheme}
+            color="inherit"
+            size="small"
+            aria-label={theme.palette.mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            sx={{ ml: 0.5, border: 1, borderColor: 'divider', width: 36, height: 36 }}
+          >
             {theme.palette.mode === 'dark' ? <Brightness7Icon fontSize="small" /> : <Brightness4Icon fontSize="small" />}
           </IconButton>
         </Tooltip>

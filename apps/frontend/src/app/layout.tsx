@@ -4,12 +4,12 @@ import { Providers } from './providers';
 import { StudioProvider } from '@/context/StudioContext';
 import NavBar from '../components/NavBar';
 import Assistant from '@/components/AI/Assistant';
-import Background from '@/components/Theme/Background'; // Import the new Background component
+import Background from '@/components/Theme/Background';
 import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Cerulea Studio',
-  description: 'The AI Layer 1 for the next internet',
+  description: 'Cerulea Studio builds a private Blockchain network or a decentralised application without code.',
 };
 
 // Every screen renders per request. The content security policy carries a
@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body suppressHydrationWarning>
         <Providers>
           <StudioProvider>
-            <Background /> {/* This renders the background behind everything */}
+            <Background />
             <NavBar />
             {children}
             <Assistant />
