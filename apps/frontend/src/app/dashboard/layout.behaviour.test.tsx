@@ -132,11 +132,10 @@ describe('the Dashboard frame', { timeout: 30000 }, () => {
 
   describe('the New Project control', () => {
     function withLocation(hostname: string, run: (target: { href: string }) => Promise<void>) {
-      const original = window.location;
       const target = { hostname, href: `http://${hostname}/dashboard` };
-      Object.defineProperty(window, 'location', { configurable: true, value: target });
+      vi.stubGlobal('location', target);
       return run(target).finally(() => {
-        Object.defineProperty(window, 'location', { configurable: true, value: original });
+        vi.unstubAllGlobals();
       });
     }
 
