@@ -7,6 +7,7 @@
 // Without this screen a workspace stays on no plan and deployment stays closed.
 
 import { useCallback, useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import {
   Alert,
   Box,
@@ -77,6 +78,7 @@ export function describePeriod(periodDays: number): string {
 
 export default function PricingPage() {
   const theme = useTheme();
+  const { status } = useSession();
   const [view, setView] = useState<BillingView | null>(null);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState<string | null>(null);
@@ -100,9 +102,12 @@ export default function PricingPage() {
     }
   }, []);
 
+  // The plans and the subscription belong to a workspace, so the screen reads
+  // them once a person has signed in. A visitor meets the sign in step first.
   useEffect(() => {
-    void read();
-  }, [read]);
+    if (status === 'authenticated') void read();
+    if (status === 'unauthenticated') setLoading(false);
+  }, [read, status]);
 
   const choose = async (plan: Plan) => {
     setWorking(plan.planId);
@@ -130,6 +135,28 @@ export default function PricingPage() {
           <CircularProgress />
           <Typography variant="body2">Cerulea is reading the plans it publishes.</Typography>
         </Stack>
+      </Box>
+    );
+  }
+
+  if (status === 'unauthenticated') {
+    return (
+      <Box sx={{ maxWidth: 720, mx: 'auto', py: 8, px: 2 }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
+          Subscription
+        </Typography>
+        <Alert
+          severity="info"
+          data-testid="pricing-sign-in"
+          action={
+            <Button color="inherit" href="/auth/login?next=%2Fpricing">
+              Sign in
+            </Button>
+          }
+        >
+          We settle every deployment through a subscription held by a workspace. Sign in to read
+          the plans and the subscription your workspace holds.
+        </Alert>
       </Box>
     );
   }
