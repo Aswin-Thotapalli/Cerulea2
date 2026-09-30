@@ -48,7 +48,7 @@ export default function LevelSwitch({
           }}
         >
           {DISCLOSURE_LEVELS.map((entry) => (
-            <Tooltip key={entry.level} title={entry.shows}>
+            <Tooltip key={entry.level} title={entry.shows} describeChild>
               <ToggleButton value={entry.level} disabled={saving === true}>
                 {entry.label}
               </ToggleButton>
