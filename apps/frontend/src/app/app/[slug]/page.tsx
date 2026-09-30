@@ -26,6 +26,14 @@ import {
 } from '@mui/material';
 
 import { PanelBody, PanelEmpty, usePanelData } from '@/components/dashboard/PanelState';
+import {
+  deploymentState,
+  plainOutcome,
+  projectState,
+  sentenceWords,
+  stageName,
+  stageState,
+} from '@/lib/deployment/plain';
 
 type DeployedView = {
   project: { projectId: string; name: string; summary: string; state: string; headVersion: number };
@@ -66,7 +74,7 @@ export default function DeployedSystemPage() {
                 <Chip
                   size="small"
                   color={view.project.state === 'deployed' ? 'success' : 'default'}
-                  label={view.project.state}
+                  label={projectState(view.project.state)}
                 />
               </Stack>
             </Box>
@@ -95,7 +103,7 @@ export default function DeployedSystemPage() {
                     <Chip
                       size="small"
                       color={view.deployment.status === 'succeeded' ? 'success' : 'warning'}
-                      label={view.deployment.status.replace('_', ' ')}
+                      label={deploymentState(view.deployment.status)}
                     />
                   </Stack>
                   <Table size="small">
@@ -109,9 +117,11 @@ export default function DeployedSystemPage() {
                     <TableBody>
                       {view.deployment.stages.map((stage) => (
                         <TableRow key={stage.name}>
-                          <TableCell>{stage.name}</TableCell>
-                          <TableCell>{stage.status}</TableCell>
-                          <TableCell>{stage.outcome ?? 'Still running.'}</TableCell>
+                          <TableCell>{stageName(stage.name)}</TableCell>
+                          <TableCell>{stageState(stage.status)}</TableCell>
+                          <TableCell>
+                            {stage.outcome === null ? 'Still running.' : plainOutcome(stage.outcome)}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -131,7 +141,7 @@ export default function DeployedSystemPage() {
                 {Object.entries(view.counts).map(([section, total]) => (
                   <Box key={section}>
                     <Typography variant="caption" color="text.secondary">
-                      {section}
+                      {sentenceWords(section)}
                     </Typography>
                     <Typography variant="h6">{total}</Typography>
                   </Box>

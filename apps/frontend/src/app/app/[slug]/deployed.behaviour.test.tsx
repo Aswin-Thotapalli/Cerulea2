@@ -73,13 +73,13 @@ describe('the deployed system page', { timeout: 30000 }, () => {
     expect(screen.getByText('Every crate carries its record from farm to shop.')).toBeInTheDocument();
     expect(screen.getByText('Harbour')).toBeInTheDocument();
     expect(screen.getByText('Version 7')).toBeInTheDocument();
-    expect(screen.getByText('deployed')).toBeInTheDocument();
-    expect(screen.getByText('rolled back')).toBeInTheDocument();
+    expect(screen.getByText('Deployed')).toBeInTheDocument();
+    expect(screen.getByText('Rolled back')).toBeInTheDocument();
 
     const rows = screen.getAllByRole('row');
     expect(within(rows[1]).getByText('Install the Blueprint')).toBeInTheDocument();
     expect(within(rows[1]).getByText('Installed 12 sections.')).toBeInTheDocument();
-    expect(within(rows[2]).getByText('running')).toBeInTheDocument();
+    expect(within(rows[2]).getByText('Running')).toBeInTheDocument();
     expect(within(rows[2]).getByText('Still running.')).toBeInTheDocument();
 
     expect(screen.getByText('Collections')).toBeInTheDocument();
@@ -108,7 +108,7 @@ describe('the deployed system page', { timeout: 30000 }, () => {
     render(<DeployedSystemPage />);
     expect(await screen.findByText('This system is not deployed yet')).toBeInTheDocument();
     expect(screen.getByText('No summary is written for this system yet.')).toBeInTheDocument();
-    expect(screen.getByText('draft')).toBeInTheDocument();
+    expect(screen.getByText('Draft')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open the project' })).toHaveAttribute('href', '/?project=p-42');
     expect(screen.getByText(/No collection is declared yet\./)).toBeInTheDocument();
     expect(screen.queryByRole('table')).toBeNull();
@@ -131,7 +131,7 @@ describe('the deployed system page', { timeout: 30000 }, () => {
         reply(200, { ...deployed, deployment: { ...deployed.deployment, status: 'succeeded', stages: [] } }),
       );
     await userEvent.click(screen.getByRole('button', { name: 'Read again' }));
-    expect(await screen.findByText('succeeded')).toBeInTheDocument();
+    expect(await screen.findByText('Finished')).toBeInTheDocument();
     expect(urls).toHaveLength(2);
   });
 });
