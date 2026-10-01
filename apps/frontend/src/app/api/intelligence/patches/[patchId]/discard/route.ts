@@ -8,6 +8,7 @@ import { callOptions, withActor } from '@/lib/cerulea-server';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function POST(_request: Request, { params }: { params: { patchId: string } }) {
+export async function POST(_request: Request, context: { params: Promise<{ patchId: string }> }) {
+  const params = await context.params;
   return withActor(async (actor) => discardIntelligencePatch(params.patchId, callOptions(actor)));
 }

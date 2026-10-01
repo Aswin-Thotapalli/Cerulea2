@@ -13,7 +13,8 @@ import { projectsWithBlueprints } from '@/lib/project-blueprints';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function GET(_request: Request, { params }: { params: { slug: string } }) {
+export async function GET(_request: Request, context: { params: Promise<{ slug: string }> }) {
+  const params = await context.params;
   const actor = await ceruleaActor();
   if (!actor) return signInRequired();
   try {

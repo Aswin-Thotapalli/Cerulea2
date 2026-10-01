@@ -11,7 +11,8 @@ import { readInterfaceState } from '@/lib/intelligence/types';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function POST(request: Request, { params }: { params: { threadId: string } }) {
+export async function POST(request: Request, context: { params: Promise<{ threadId: string }> }) {
+  const params = await context.params;
   return withActor(async (actor) => {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     return sendIntelligenceMessage(

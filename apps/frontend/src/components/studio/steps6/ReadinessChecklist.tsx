@@ -129,7 +129,7 @@ export default function ReadinessChecklist({
                   <Typography component="span" variant="caption" color="text.secondary">
                     {item.fix}
                   </Typography>
-                  <Chip size="small" sx={{ ml: 1 }} label={item.screen} />
+                  <Chip component="span" size="small" sx={{ ml: 1 }} label={item.screen} />
                 </Box>
               }
             />

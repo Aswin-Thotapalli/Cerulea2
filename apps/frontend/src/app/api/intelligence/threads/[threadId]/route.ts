@@ -9,7 +9,8 @@ import { callOptions, withActor } from '@/lib/cerulea-server';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function GET(_request: Request, { params }: { params: { threadId: string } }) {
+export async function GET(_request: Request, context: { params: Promise<{ threadId: string }> }) {
+  const params = await context.params;
   return withActor(async (actor) =>
     readIntelligenceThread(params.threadId, callOptions(actor)),
   );

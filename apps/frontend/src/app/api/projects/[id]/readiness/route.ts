@@ -11,7 +11,8 @@ import { buildReadiness } from '@/lib/studio/readiness';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   return withActor(async (actor) => {
     const options = callOptions(actor);
     const [run, held] = await Promise.all([

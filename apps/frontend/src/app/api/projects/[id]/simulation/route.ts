@@ -17,7 +17,8 @@ const body = z.object({
   version: z.number().int().min(1).optional(),
 });
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   const actor = await ceruleaActor();
   if (!actor) return signInRequired();
   const parsed = body.safeParse((await request.json().catch(() => null)) ?? {});

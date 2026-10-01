@@ -11,7 +11,8 @@ import { callOptions, withActor } from '@/lib/cerulea-server';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   const asked = new URL(request.url).searchParams.get('version');
   const held = asked === null ? Number.NaN : Number(asked);
   const version = Number.isInteger(held) && held > 0 ? held : undefined;
