@@ -55,7 +55,7 @@ export default function LoginClient() {
 
   return (
     <Box sx={{ display: 'grid', placeItems: 'center', minHeight: '100vh', px: 2 }}>
-      <Paper variant="outlined" sx={{ width: 420, p: 3, borderRadius: 3 }}>
+      <Paper variant="outlined" sx={{ width: '100%', maxWidth: 420, boxSizing: 'border-box', p: 3, borderRadius: 3 }}>
         <Typography variant="h5" sx={{ mb: 1, fontWeight: 700 }}>
           Sign in
         </Typography>

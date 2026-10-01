@@ -23,9 +23,9 @@ export default function ResetPasswordPage(){
   };
 
   return (
-    <Box sx={{display:'grid',placeItems:'center',minHeight:'100vh',
+    <Box sx={{display:'grid',placeItems:'center',minHeight:'100vh',px:2,
       background:'radial-gradient(1200px 600px at 10% 10%, rgba(99,102,241,.18), transparent), radial-gradient(1000px 500px at 90% 10%, rgba(16,185,129,.12), transparent)'}}>
-      <Paper elevation={0} sx={{width: 420, p:3, borderRadius:3, backdropFilter:'blur(16px)', backgroundColor:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.16)'}}>
+      <Paper elevation={0} sx={{width: '100%', maxWidth: 420, boxSizing: 'border-box', p:3, borderRadius:3, backdropFilter:'blur(16px)', backgroundColor:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.16)'}}>
         <Typography variant="h5" sx={{mb:1.5, fontWeight:700}}>Reset password</Typography>
         <Typography variant="body2" sx={{mb:3, opacity:.8}}>We set a new password on the account. Twelve characters or more.</Typography>
         {ok && <Alert severity="success" sx={{mb:2}}>The password is set. Every session on the account is closed. Sign in again.</Alert>}
