@@ -1,3 +1,4 @@
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import type { Metadata } from 'next';
 import { ReactNode } from 'react';
 import { Providers } from './providers';
@@ -9,7 +10,8 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Cerulea Studio',
-  description: 'Cerulea Studio builds a private Blockchain network or a decentralised application without code.',
+  description:
+    'Cerulea Studio builds a private Blockchain network or a decentralised application without code.',
 };
 
 // Every screen renders per request. The content security policy carries a
@@ -21,14 +23,21 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body suppressHydrationWarning>
-        <Providers>
-          <StudioProvider>
-            <Background />
-            <NavBar />
-            {children}
-            <Assistant />
-          </StudioProvider>
-        </Providers>
+        {/*
+          The style cache gathers every style the server renders into the head.
+          Without it each component writes its own style element into the body,
+          and React meets elements on the client the server never placed there.
+        */}
+        <AppRouterCacheProvider options={{ key: 'css' }}>
+          <Providers>
+            <StudioProvider>
+              <Background />
+              <NavBar />
+              {children}
+              <Assistant />
+            </StudioProvider>
+          </Providers>
+        </AppRouterCacheProvider>
       </body>
     </html>
   );
