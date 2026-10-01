@@ -122,7 +122,7 @@ function project(projectId: string, name: string, updatedAt: string) {
   return { projectId, name, state: 'draft', updatedAt, createdAt: '2026-01-01T00:00:00.000Z' };
 }
 
-const context = { params: { id: 'prj_land' } };
+const context = { params: Promise.resolve({ id: 'prj_land' }) };
 
 function get(path: string): Request {
   return new Request(`${STUDIO}${path}`);

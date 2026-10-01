@@ -311,14 +311,14 @@ describe('the deployed page route', () => {
 
   it('refuses with no session', async () => {
     state.signedIn = false;
-    const { status } = await read(await deployed.GET(get('/api/deployed/land-titles'), { params: { slug: 'land-titles' } }));
+    const { status } = await read(await deployed.GET(get('/api/deployed/land-titles'), { params: Promise.resolve({ slug: 'land-titles' }) }));
     expect(status).toBe(401);
   });
 
   it('answers 404 with the fix when no project carries the address', async () => {
     answerProjects();
     const { status, body } = await read(
-      await deployed.GET(get('/api/deployed/fish-market'), { params: { slug: 'fish-market' } }),
+      await deployed.GET(get('/api/deployed/fish-market'), { params: Promise.resolve({ slug: 'fish-market' }) }),
     );
     expect(status).toBe(404);
     expect(body.error.code).toBe('deployed.project_absent');
@@ -339,7 +339,7 @@ describe('the deployed page route', () => {
     });
 
     const { status, body } = await read(
-      await deployed.GET(get('/api/deployed/land-titles'), { params: { slug: 'land-titles' } }),
+      await deployed.GET(get('/api/deployed/land-titles'), { params: Promise.resolve({ slug: 'land-titles' }) }),
     );
 
     expect(status).toBe(200);
@@ -371,7 +371,7 @@ describe('the deployed page route', () => {
     answerProjects();
     answer('GET', '/v1/projects/prj_land/deployments', { deployments: [] });
     const { status, body } = await read(
-      await deployed.GET(get('/api/deployed/prj_land'), { params: { slug: 'prj_land' } }),
+      await deployed.GET(get('/api/deployed/prj_land'), { params: Promise.resolve({ slug: 'prj_land' }) }),
     );
     expect(status).toBe(200);
     expect(body.deployment).toBeNull();
@@ -381,7 +381,7 @@ describe('the deployed page route', () => {
     answerProjects();
     unreachable('GET', '/v1/projects/prj_land/deployments');
     const { status, body } = await read(
-      await deployed.GET(get('/api/deployed/land-titles'), { params: { slug: 'land-titles' } }),
+      await deployed.GET(get('/api/deployed/land-titles'), { params: Promise.resolve({ slug: 'land-titles' }) }),
     );
     expect(status).toBe(503);
     expect(body.error.details.path).toBe('/v1/projects/prj_land/deployments');
@@ -391,12 +391,12 @@ describe('the deployed page route', () => {
 describe('the operator route', () => {
   it('refuses with no session', async () => {
     state.signedIn = false;
-    const { status } = await read(await admin.GET(get('/api/admin/summary'), { params: { surface: 'summary' } }));
+    const { status } = await read(await admin.GET(get('/api/admin/summary'), { params: Promise.resolve({ surface: 'summary' }) }));
     expect(status).toBe(401);
   });
 
   it('answers 404 naming the five surfaces for an unknown one', async () => {
-    const { status, body } = await read(await admin.GET(get('/api/admin/billing'), { params: { surface: 'billing' } }));
+    const { status, body } = await read(await admin.GET(get('/api/admin/billing'), { params: Promise.resolve({ surface: 'billing' }) }));
     expect(status).toBe(404);
     expect(body.error.code).toBe('operator.surface_absent');
     expect(body.error.fix).toBe(
@@ -408,7 +408,7 @@ describe('the operator route', () => {
   it('forwards the read of a known surface', async () => {
     answer('GET', '/studio/administration/security', { failedSignIns: 3 });
     const { status, body } = await read(
-      await admin.GET(get('/api/admin/security'), { params: { surface: 'security' } }),
+      await admin.GET(get('/api/admin/security'), { params: Promise.resolve({ surface: 'security' }) }),
     );
     expect(status).toBe(200);
     expect(body.failedSignIns).toBe(3);
@@ -422,7 +422,7 @@ describe('the operator route', () => {
       403,
     );
     const { status, body } = await read(
-      await admin.GET(get('/api/admin/accounts'), { params: { surface: 'accounts' } }),
+      await admin.GET(get('/api/admin/accounts'), { params: Promise.resolve({ surface: 'accounts' }) }),
     );
     expect(status).toBe(403);
     expect(body.error.code).toBe('operator.not_listed');
