@@ -127,7 +127,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const context = { params: { id: 'prj_1' } };
+const context = { params: Promise.resolve({ id: 'prj_1' }) };
 
 describe('the Step 5 workspace route', () => {
   it('reads the Blueprint on the server and answers without the token or the document', async () => {

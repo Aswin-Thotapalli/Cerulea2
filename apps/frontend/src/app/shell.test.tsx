@@ -138,7 +138,7 @@ describe('the landing route', () => {
   it('shows the landing screen on the plain host', async () => {
     host = 'cerulea.test';
     const { default: Home } = await import('./page');
-    const tree = await Home({ searchParams: {} });
+    const tree = await Home({ searchParams: Promise.resolve({}) });
     expect(tree).toBeDefined();
     expect(JSON.stringify(tree).length).toBeGreaterThan(10);
   });
@@ -146,14 +146,14 @@ describe('the landing route', () => {
   it('shows the Studio entry on the Studio host', async () => {
     host = 'studio.cerulea.test';
     const { default: Home } = await import('./page');
-    const tree = await Home({ searchParams: {} });
+    const tree = await Home({ searchParams: Promise.resolve({}) });
     expect(tree).toBeDefined();
   });
 
   it('shows the Studio entry when the address asks for it', async () => {
     host = 'cerulea.test';
     const { default: Home } = await import('./page');
-    const tree = await Home({ searchParams: { studio: '1', project: 'prj_suite' } });
+    const tree = await Home({ searchParams: Promise.resolve({ studio: '1', project: 'prj_suite' }) });
     expect(tree).toBeDefined();
   });
 });

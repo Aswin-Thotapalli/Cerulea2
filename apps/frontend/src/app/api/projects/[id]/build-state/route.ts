@@ -12,7 +12,8 @@ import { callOptions, ceruleaActor, failureReply, signInRequired, withActor } fr
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   return withActor(async (actor) => {
     const options = callOptions(actor);
     const [held, substrates] = await Promise.all([
@@ -23,7 +24,8 @@ export async function GET(_request: Request, { params }: { params: { id: string 
   });
 }
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   const actor = await ceruleaActor();
   if (!actor) return signInRequired();
   const body = await request.json().catch(() => null);

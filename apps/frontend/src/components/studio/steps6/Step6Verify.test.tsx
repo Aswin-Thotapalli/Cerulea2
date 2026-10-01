@@ -182,9 +182,11 @@ describe('Step 6 Verify', () => {
     await waitFor(() =>
       expect(screen.getByText('What remains before deployment')).toBeInTheDocument(),
     );
-    expect(
-      screen.getByText('A permission entry names a role the model does not hold.'),
-    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.getByText('A permission entry names a role the model does not hold.'),
+      ).toBeInTheDocument(),
+    );
     expect(
       screen.getByText('Add the role on the Permissions surface, or remove the entry.'),
     ).toBeInTheDocument();

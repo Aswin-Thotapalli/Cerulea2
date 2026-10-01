@@ -21,7 +21,8 @@ const previewBody = z.object({
   language: z.string().min(2).max(20).optional(),
 });
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   const actor = await ceruleaActor();
   if (!actor) return signInRequired();
   const parsed = previewBody.safeParse(await request.json().catch(() => null));

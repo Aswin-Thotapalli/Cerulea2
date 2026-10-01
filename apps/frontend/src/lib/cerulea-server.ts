@@ -25,8 +25,8 @@ export type CeruleaActor = {
 export async function ceruleaActor(): Promise<CeruleaActor | null> {
   const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) return null;
-  const cookieJar = cookies();
-  const headerBag = headers();
+  const cookieJar = await cookies();
+  const headerBag = await headers();
   const request = {
     headers: Object.fromEntries(headerBag.entries()),
     cookies: Object.fromEntries(cookieJar.getAll().map((entry) => [entry.name, entry.value])),

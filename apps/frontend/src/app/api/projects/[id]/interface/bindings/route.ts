@@ -18,7 +18,8 @@ const bindingBody = z.object({
   component: z.string().min(1).max(80),
 });
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   const actor = await ceruleaActor();
   if (!actor) return signInRequired();
   const parsed = bindingBody.safeParse(await request.json().catch(() => null));

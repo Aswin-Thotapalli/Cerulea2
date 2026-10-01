@@ -18,7 +18,8 @@ function wholeNumber(value: string | null): number | undefined {
   return Number.isInteger(held) && held > 0 ? held : undefined;
 }
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   const held = new URL(request.url).searchParams;
   const asked = held.get('view');
   const view =

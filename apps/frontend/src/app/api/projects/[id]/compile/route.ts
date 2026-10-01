@@ -11,7 +11,8 @@ import { callOptions, ceruleaActor, failureReply, signInRequired } from '@/lib/c
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   const actor = await ceruleaActor();
   if (!actor) return signInRequired();
   const version = new URL(request.url).searchParams.get('version');

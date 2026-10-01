@@ -16,7 +16,8 @@ const SURFACES = ['summary', 'accounts', 'workspaces', 'projects', 'security'] a
 
 type Surface = (typeof SURFACES)[number];
 
-export async function GET(_request: Request, { params }: { params: { surface: string } }) {
+export async function GET(_request: Request, context: { params: Promise<{ surface: string }> }) {
+  const params = await context.params;
   const actor = await ceruleaActor();
   if (!actor) return signInRequired();
   if (!SURFACES.includes(params.surface as Surface)) {

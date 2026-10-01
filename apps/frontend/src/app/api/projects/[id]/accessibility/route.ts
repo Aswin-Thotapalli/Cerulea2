@@ -29,7 +29,8 @@ type AccessibilityReply = {
   publication?: { blocked: true; message: string; fix: string };
 };
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   const asked = new URL(request.url).searchParams.get('version');
   const version = asked && Number.isInteger(Number(asked)) ? Number(asked) : undefined;
   return withActor(async (actor) => {
