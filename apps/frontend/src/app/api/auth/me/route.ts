@@ -1,31 +1,30 @@
-import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
-import { db } from '@/db/client';
-import { users } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+// apps/frontend/src/app/api/auth/me/route.ts
+// The account behind the current session.
+// The route reads the account Cerulea APIs holds for the access token of the
+// signed in person, and answers with the name, the address and the state of
+// the second factor. The token stays on the server.
+// Without this route the profile screen reads nothing.
+import { readAccount } from '@/lib/cerulea-api';
+import { callOptions, withActor } from '@/lib/cerulea-server';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET() {
-  const session = await getSession();
-  if (!session?.user?.id) return NextResponse.json(null, { status: 401 });
-  return NextResponse.json({
-    id: (session.user as any).id,
-    email: session.user.email,
-    name: session.user.name ?? null,
+  return withActor(async (actor) => {
+    const held = await readAccount(callOptions(actor));
+    return {
+      // The production screens read these three fields at the top level.
+      id: held.account.accountId,
+      email: held.account.email,
+      name: held.account.displayName,
+      account: {
+        displayName: held.account.displayName,
+        email: held.account.email,
+        multiFactorActive: held.account.multiFactorActive,
+        lastSignInAt: held.account.lastSignInAt ?? null,
+        createdAt: held.account.createdAt,
+      },
+    };
   });
-}
-
-export async function PUT(req: Request) {
-  const session = await getSession();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const body = await req.json().catch(() => ({}));
-  const name = typeof body?.name === 'string' ? body.name.trim().slice(0, 100) : null;
-
-  await db.update(users)
-    .set({ name, updatedAt: new Date().toISOString() })
-    .where(eq(users.id, (session.user as any).id));
-
-  return NextResponse.json({ ok: true });
 }

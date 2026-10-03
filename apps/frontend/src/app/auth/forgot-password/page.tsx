@@ -13,8 +13,11 @@ export default function ForgotPasswordPage(){
     setMsg(null); setErr(null); setLoading(true);
     const res=await fetch('/api/auth/forgot-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
     setLoading(false);
-    if(!res.ok) return setErr('Failed to send reset link. Try again.');
-    setMsg('If an account exists, a reset link has been emailed.');
+    if(!res.ok){
+      const j=await res.json().catch(()=>null);
+      return setErr(j?.error||'Cerulea could not start the recovery. Send the request again.');
+    }
+    setMsg('Cerulea emails a recovery link when the address holds an account. The link works for one hour.');
   };
 
   return (
@@ -30,7 +33,7 @@ export default function ForgotPasswordPage(){
         boxShadow: (t: any) => `0 8px 40px ${t.palette.mode === 'light' ? 'rgba(79,70,229,0.08)' : 'rgba(0,0,20,0.4)'}`,
       }}>
         <Typography variant="h5" fontWeight={600} color="text.primary" sx={{ mb: 1, letterSpacing: '-0.3px' }}>Forgot password</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Enter your email to receive a reset link.</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Cerulea sends a recovery link to the account address.</Typography>
         {msg && <Alert severity="success" sx={{mb:2}}>{msg}</Alert>}
         {err && <Alert severity="error" sx={{mb:2}}>{err}</Alert>}
         <Box component="form" onSubmit={submit}>

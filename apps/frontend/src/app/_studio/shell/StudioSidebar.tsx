@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Typography, Avatar, Menu, MenuItem, ListItemIcon, Divider, Tooltip } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import Link from 'next/link';
@@ -17,6 +17,37 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import HexagonOutlinedIcon from '@mui/icons-material/HexagonOutlined';
 import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 import { useSession } from 'next-auth/react';
+import { applicationForDivision } from '@/config/divisions';
+import { getClientDivision } from '@/lib/division-client';
+
+/**
+ * Reads the name of the workspace Studio works inside.
+ * Cerulea APIs holds the workspaces. Inside a division the workspace serving
+ * that division leads. The answer stays empty until Cerulea APIs replies.
+ */
+function useWorkspaceName(): string {
+  const [name, setName] = useState('');
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/workspaces');
+        if (!res.ok) return;
+        const body = await res.json();
+        // The route answers the list itself, the division workspace first inside a division.
+        const list: { name: string; application: string }[] = Array.isArray(body) ? body : [];
+        const division = getClientDivision();
+        const serving = division ? list.find((w) => w.application === applicationForDivision(division)) : undefined;
+        const chosen = serving ?? list[0];
+        if (live && chosen) setName(chosen.name);
+      } catch {
+        // The pill shows the account name alone when Cerulea APIs is unreachable.
+      }
+    })();
+    return () => { live = false; };
+  }, []);
+  return name;
+}
 
 /* ---- Step definitions ---- */
 const MAIN_STEPS = [
@@ -30,9 +61,9 @@ const MAIN_STEPS = [
 
 function getSubSteps(projectType: string | null): string[] {
   if (projectType === 'blockchain') {
-    return ['Choose type', 'Legacy check', 'Template', 'Configure'];
+    return ['Choose type', 'Legacy check', 'Template', 'Details'];
   }
-  return ['Choose type', 'Template', 'Configure'];
+  return ['Choose type', 'Template', 'Details'];
 }
 
 /* Maps raw phase index (0-3) to display sub-step index based on project type */
@@ -59,6 +90,7 @@ export default function StudioSidebar({ stepIndex, subStepIndex, projectType, on
   const theme = useTheme();
   const { data: session } = useSession();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const workspaceName = useWorkspaceName();
 
   const subSteps = getSubSteps(projectType);
   const activeSubStep = displaySubStep(subStepIndex, projectType);
@@ -67,7 +99,7 @@ export default function StudioSidebar({ stepIndex, subStepIndex, projectType, on
 
   const initials = session?.user?.name
     ? session.user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
-    : 'AT';
+    : 'CS';
 
   return (
     <Box sx={{
@@ -87,7 +119,7 @@ export default function StudioSidebar({ stepIndex, subStepIndex, projectType, on
 
         {/* My Projects — return to the project picker to open an existing project */}
         {onShowProjects && (
-          <Tooltip title="Open one of your existing projects" placement="right">
+          <Tooltip title="Open a saved project" placement="right">
             <Box
               onClick={onShowProjects}
               sx={{
@@ -272,7 +304,7 @@ export default function StudioSidebar({ stepIndex, subStepIndex, projectType, on
       </Box>
 
       {/* ── Smart Contracts ── */}
-      <Tooltip title="View and manage smart contracts derived from your blueprint" placement="right">
+      <Tooltip title="Smart contracts Cerulea derives from the Blueprint" placement="right">
         <Box
           onClick={onSmartContractsOpen}
           sx={{
@@ -327,7 +359,7 @@ export default function StudioSidebar({ stepIndex, subStepIndex, projectType, on
             {session?.user?.name || 'Studio'}
           </Typography>
           <Typography sx={{ fontSize: '0.62rem', color: 'text.secondary' }}>
-            Personal workspace
+            {workspaceName}
           </Typography>
         </Box>
       </Box>

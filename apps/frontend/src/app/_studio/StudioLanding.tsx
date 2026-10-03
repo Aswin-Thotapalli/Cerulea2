@@ -138,7 +138,7 @@ export default function StudioLanding({
           <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 480, lineHeight: 1.7 }}>
             {shown.length > 0
               ? 'Continue working on a project or start something new.'
-              : 'Build your first blockchain app or dApp. No code required.'}
+              : 'Build a first Blockchain network or dApp without writing code.'}
           </Typography>
 
           <Button
@@ -169,15 +169,15 @@ export default function StudioLanding({
               {
                 icon: <AutoAwesomeMosaicIcon sx={{ fontSize: 44 }} />,
                 title: 'dApp',
-                subtitle: 'Build smart-contract powered applications on Cerulea. NFTs, DeFi, DAO, Marketplace.',
+                subtitle: 'Decentralised applications on Cerulea: collectibles, finance, member organisations and marketplaces.',
                 tags: ['Public dApp', 'Private dApp', 'NFT', 'DeFi'],
                 color: '#4F46E5',
               },
               {
                 icon: <LanIcon sx={{ fontSize: 44 }} />,
                 title: 'Private Blockchain',
-                subtitle: 'A sovereign network you control end to end. CBDC, Enterprise.',
-                tags: ['Enterprise', 'CBDC', 'PoA / PoS'],
+                subtitle: 'A sovereign network held end to end by one organisation: central bank currency and enterprise records.',
+                tags: ['Enterprise', 'Central bank currency', 'Permissioned'],
                 color: '#7C3AED',
               },
             ].map((card) => (
@@ -228,7 +228,7 @@ export default function StudioLanding({
           <>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2.5 }}>
               <Stack direction="row" alignItems="center" spacing={1.5}>
-                <Typography variant="h6" fontWeight={800}>Your Projects</Typography>
+                <Typography variant="h6" fontWeight={800}>Projects</Typography>
                 <Box sx={{
                   px: 1.25, py: 0.25, borderRadius: 0.5,
                   bgcolor: alpha(theme.palette.primary.main, 0.1),

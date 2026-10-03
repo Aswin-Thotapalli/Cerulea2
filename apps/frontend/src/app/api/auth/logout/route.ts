@@ -1,4 +1,14 @@
-import { NextResponse } from 'next/server';
+// apps/frontend/src/app/api/auth/logout/route.ts
+// Signs the browser out from a script.
+// The route closes the Cerulea APIs session behind the cookie, then expires the
+// cookie. The account menu calls it before it moves to the sign in screen.
+import { NextRequest, NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
+
+import { closeApisSession, type StudioToken } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 const COOKIE_NAMES = [
   'next-auth.session-token',
@@ -7,17 +17,23 @@ const COOKIE_NAMES = [
   '__Host-next-auth.csrf-token',
 ];
 
-export async function POST() {
-  const isHttps = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;
+export async function POST(req: NextRequest) {
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (secret) {
+    const token = (await getToken({ req, secret }).catch(() => null)) as StudioToken | null;
+    await closeApisSession(token);
+  }
+  const response = NextResponse.json({ ok: true });
   const cookieDomain = process.env.AUTH_COOKIE_DOMAIN;
-
-  const headers = new Headers({ 'Content-Type': 'application/json' });
-  COOKIE_NAMES.forEach((name) => {
-    const secure = isHttps ? '; Secure' : '';
-    const base = `${name}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secure}`;
-    headers.append('Set-Cookie', cookieDomain ? `${base}; Domain=${cookieDomain}` : base);
-    headers.append('Set-Cookie', base);
-  });
-
-  return new NextResponse(JSON.stringify({ ok: true }), { status: 200, headers });
+  const secure = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;
+  for (const name of COOKIE_NAMES) {
+    response.cookies.set(name, '', { path: '/', maxAge: 0, httpOnly: true, sameSite: 'lax', secure });
+    if (cookieDomain) {
+      response.headers.append(
+        'Set-Cookie',
+        `${name}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secure ? '; Secure' : ''}; Domain=${cookieDomain}`,
+      );
+    }
+  }
+  return response;
 }

@@ -1,3 +1,4 @@
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import type { Metadata } from 'next';
 import { ReactNode } from 'react';
 import { Providers } from './providers';
@@ -6,7 +7,8 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Cerulea Studio',
-  description: 'The AI Layer 1 for the next internet',
+  description:
+    'Cerulea Studio builds a private Blockchain network or a decentralised application without code.',
   icons: {
     icon: [
       { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
@@ -18,15 +20,27 @@ export const metadata: Metadata = {
   },
 };
 
+// Every screen renders per request. The content security policy carries a
+// fresh nonce each time, and a page rendered once at build time would carry
+// inline scripts with no nonce, which the policy refuses.
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body suppressHydrationWarning>
-        <Providers>
-          <StudioShell>
-            {children}
-          </StudioShell>
-        </Providers>
+        {/*
+          The style cache gathers every style the server renders into the head.
+          Without it each component writes its own style element into the body,
+          and React meets elements on the client the server never placed there.
+        */}
+        <AppRouterCacheProvider options={{ key: 'css' }}>
+          <Providers>
+            <StudioShell>
+              {children}
+            </StudioShell>
+          </Providers>
+        </AppRouterCacheProvider>
       </body>
     </html>
   );

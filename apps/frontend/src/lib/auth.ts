@@ -1,76 +1,156 @@
 // apps/frontend/src/lib/auth.ts
-import type { NextAuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
-import { getServerSession } from "next-auth/next";
-import { db } from "@/db/client";
-import { users, subscriptions } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import bcrypt from "bcryptjs"; // pure-JS — no native bindings, works on Vercel serverless
-import { rateLimit } from "@/lib/rateLimit";
-import { logAudit } from "@/lib/audit";
-import type { Division, DivisionSubs } from "@/config/divisions";
+// Studio sign in, backed by the Cerulea APIs accounts and sessions routes.
+// Studio holds no account table. Cerulea APIs issues the access token and the
+// refresh token, and Studio carries both inside the browser session.
+// The session also carries what the account holds: one plan per division and
+// the Cerulea operator role. The gate in src/middleware.ts reads both.
+// Without this module nobody signs in and every Studio screen stays closed.
 
-// Build the per-division active-subscription map for a user. A user may hold up
-// to one active subscription per division (dapp / enterprise / govt).
-//
-// Resilient to the `division` column not existing yet (pre-cutover): if the
-// column is missing, it falls back to legacy single-plan behavior treating the
-// active sub as the dapp division. The admin/test account gets all divisions.
-async function fetchDivisionSubs(userId: string, isTest: boolean): Promise<DivisionSubs> {
-  if (isTest) return { dapp: "pro", enterprise: "pro", govt: "pro" };
+import type { NextAuthOptions } from 'next-auth';
+import type { JWT } from 'next-auth/jwt';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import { getServerSession } from 'next-auth/next';
+
+import {
+  CeruleaApiError,
+  closeCurrentSession,
+  refreshSession,
+  signIn,
+} from '@/lib/cerulea-api';
+import { readStanding, type Standing } from '@/lib/standing';
+import type { DivisionSubs } from '@/config/divisions';
+
+/** The seconds left on an access token at which Studio rotates the pair. */
+export const ROTATION_MARGIN_SECONDS = 60;
+
+export type CeruleaTokenSet = {
+  accountId: string;
+  email: string;
+  displayName: string;
+  accessToken: string;
+  refreshToken: string;
+  accessExpiresAt: string;
+  refreshExpiresAt: string;
+  sessionId: string;
+  /** The message to show when the session ended and Cerulea named the fix. */
+  signInFix?: string;
+};
+
+/** The token Studio keeps in the browser cookie. */
+export type StudioToken = JWT & {
+  cerulea?: CeruleaTokenSet;
+  divisionSubs?: DivisionSubs;
+  plan?: string;
+  isOperator?: boolean;
+};
+
+/** Reports whether the access token needs rotation before the next call. */
+export function needsRotation(accessExpiresAt: string, now: Date): boolean {
+  const expiry = Date.parse(accessExpiresAt);
+  if (Number.isNaN(expiry)) return true;
+  return expiry - now.getTime() <= ROTATION_MARGIN_SECONDS * 1000;
+}
+
+/** Reports whether the refresh token itself has passed its window. */
+export function refreshWindowClosed(refreshExpiresAt: string, now: Date): boolean {
+  const expiry = Date.parse(refreshExpiresAt);
+  if (Number.isNaN(expiry)) return true;
+  return expiry <= now.getTime();
+}
+
+/**
+ * Rotates the token pair when the access token is near its end.
+ * The caller receives the same set back when rotation is unnecessary.
+ */
+export async function rotateWhenDue(
+  token: CeruleaTokenSet,
+  now: Date = new Date(),
+): Promise<CeruleaTokenSet> {
+  if (!needsRotation(token.accessExpiresAt, now)) return token;
+  if (refreshWindowClosed(token.refreshExpiresAt, now)) {
+    return {
+      ...token,
+      accessToken: '',
+      signInFix: 'The session reached its end. Sign in again to continue.',
+    };
+  }
   try {
-    const rows = await db
-      .select({ plan: subscriptions.plan, status: subscriptions.status, division: subscriptions.division })
-      .from(subscriptions)
-      .where(eq(subscriptions.userId, userId));
-    const map: DivisionSubs = {};
-    for (const r of rows) {
-      if (r.status === "active") map[r.division as Division] = r.plan;
-    }
-    return map;
-  } catch {
-    // `division` column not present yet — fall back to single-plan legacy read.
-    try {
-      const [sub] = await db
-        .select({ plan: subscriptions.plan, status: subscriptions.status })
-        .from(subscriptions)
-        .where(eq(subscriptions.userId, userId))
-        .limit(1);
-      return sub?.status === "active" ? { dapp: sub.plan } : {};
-    } catch {
-      return {};
-    }
+    const outcome = await refreshSession(token.refreshToken);
+    return {
+      accountId: outcome.account.accountId,
+      email: outcome.account.email,
+      displayName: outcome.account.displayName,
+      accessToken: outcome.session.accessToken,
+      refreshToken: outcome.session.refreshToken,
+      accessExpiresAt: outcome.session.expiresAt,
+      refreshExpiresAt: outcome.session.refreshExpiresAt,
+      sessionId: outcome.session.sessionId,
+    };
+  } catch (cause) {
+    return {
+      ...token,
+      accessToken: '',
+      signInFix:
+        cause instanceof CeruleaApiError
+          ? cause.fix
+          : 'Sign in again to open a new session.',
+    };
   }
 }
 
-// Legacy single `plan` value derived from the division map, for backward compat
-// with code that still reads token.plan / session.user.plan.
-function derivePlan(subs: DivisionSubs, isTest: boolean): string {
-  if (isTest) return "pro";
-  return subs.dapp ?? subs.enterprise ?? subs.govt ?? "free";
+/** Writes the standing of the account onto the token. */
+function carryStanding(token: StudioToken, standing: Standing): void {
+  token.divisionSubs = standing.divisionSubs;
+  token.plan = standing.plan;
+  token.isOperator = standing.isOperator;
+}
+
+/**
+ * Reads the standing again and writes it onto the token.
+ * A failed read keeps the values the token already holds, so a short outage of
+ * Cerulea APIs leaves the person inside the screen they work on.
+ */
+async function refreshStanding(token: StudioToken): Promise<void> {
+  const accessToken = token.cerulea?.accessToken ?? '';
+  if (accessToken.length === 0) return;
+  try {
+    carryStanding(token, await readStanding({ accessToken }));
+  } catch {
+    // The previous standing stays on the token until the next rotation.
+  }
+}
+
+/** Closes the Cerulea APIs session behind one token. */
+export async function closeApisSession(token: StudioToken | null | undefined): Promise<void> {
+  const accessToken = token?.cerulea?.accessToken ?? '';
+  if (accessToken.length === 0) return;
+  try {
+    await closeCurrentSession({ accessToken });
+  } catch {
+    // A session Cerulea APIs already closed needs no second close.
+  }
 }
 
 export const authOptions: NextAuthOptions = {
-  session: { strategy: "jwt" },
+  session: { strategy: 'jwt' },
 
   pages: {
-    signIn: "/auth/login",
-    signOut: "/auth/login",
-    error: "/auth/login",
+    signIn: '/auth/login',
+    signOut: '/auth/login',
+    error: '/auth/login',
   },
 
-  // Use HTTPS-based check (not NODE_ENV) so a production build running on HTTP
-  // (e.g. `next start` locally) still sends cookies — Secure cookies are rejected
-  // over plain HTTP regardless of NODE_ENV.
+  // The secure flag follows the address Studio is served on. A production build
+  // served over plain HTTP still carries its cookie.
   cookies: {
     sessionToken: {
       name: process.env.NEXTAUTH_URL?.startsWith('https://')
-        ? "__Secure-next-auth.session-token"
-        : "next-auth.session-token",
+        ? '__Secure-next-auth.session-token'
+        : 'next-auth.session-token',
       options: {
         httpOnly: true,
-        sameSite: "lax" as const,
-        path: "/",
+        sameSite: 'lax' as const,
+        path: '/',
         secure: process.env.NEXTAUTH_URL?.startsWith('https://') ?? false,
         ...(process.env.AUTH_COOKIE_DOMAIN
           ? { domain: process.env.AUTH_COOKIE_DOMAIN }
@@ -81,106 +161,103 @@ export const authOptions: NextAuthOptions = {
 
   providers: [
     CredentialsProvider({
-      name: "Email & Password",
+      name: 'Cerulea account',
       credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
+        email: { label: 'Email address', type: 'email' },
+        password: { label: 'Password', type: 'password' },
+        multiFactorCode: { label: 'Authenticator code', type: 'text' },
       },
       async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password || !credentials?.multiFactorCode) {
+          throw new Error(
+            'Cerulea needs the address, the password and the six digit code. Fill all three and sign in again.',
+          );
+        }
         try {
-          if (!credentials?.email || !credentials?.password) return null;
-
-          // Rate limit login attempts per email (10 per minute)
-          const rl = rateLimit(`login:${credentials.email.toLowerCase()}`, 10, 60_000);
-          if (!rl.ok) {
-            console.warn('[auth] login rate limit exceeded for', credentials.email);
-            return null;
-          }
-
-          const [user] = await db
-            .select()
-            .from(users)
-            .where(eq(users.email, credentials.email.toLowerCase().trim()));
-
-          if (!user?.hashedPassword) {
-            console.log('[auth] authorize: no user found for', credentials.email);
-            return null;
-          }
-
-          const valid = await bcrypt.compare(credentials.password, user.hashedPassword);
-          if (!valid) {
-            console.log('[auth] authorize: wrong password for', credentials.email);
-            return null;
-          }
-
-          const isTest = String(user.isTestAccount) === 'true';
-
-          // Fetch per-division subscription map to embed in the token.
-          const divisionSubs = await fetchDivisionSubs(user.id, isTest);
-          const plan = derivePlan(divisionSubs, isTest);
-
-          console.log('[auth] authorize: success for', credentials.email, '| divisions:', JSON.stringify(divisionSubs), '| isTest:', isTest);
+          const outcome = await signIn({
+            email: credentials.email.trim().toLowerCase(),
+            password: credentials.password,
+            multiFactorCode: credentials.multiFactorCode.trim(),
+          });
+          const standing = await readStanding({ accessToken: outcome.session.accessToken });
           return {
-            id: user.id,
-            email: user.email,
-            name: user.name ?? null,
+            id: outcome.account.accountId,
+            email: outcome.account.email,
+            name: outcome.account.displayName,
             image: null,
-            plan,
-            divisionSubs,
-            isTestAccount: isTest,
-          } as any;
-        } catch (err) {
-          console.error('[auth] authorize threw:', err);
-          throw err; // re-throw so NextAuth surfaces the real error string
+            standing,
+            cerulea: {
+              accountId: outcome.account.accountId,
+              email: outcome.account.email,
+              displayName: outcome.account.displayName,
+              accessToken: outcome.session.accessToken,
+              refreshToken: outcome.session.refreshToken,
+              accessExpiresAt: outcome.session.expiresAt,
+              refreshExpiresAt: outcome.session.refreshExpiresAt,
+              sessionId: outcome.session.sessionId,
+            } satisfies CeruleaTokenSet,
+          } as unknown as { id: string };
+        } catch (cause) {
+          if (cause instanceof CeruleaApiError) {
+            throw new Error(cause.message);
+          }
+          throw cause;
         }
       },
     }),
   ],
 
   events: {
-    async signIn({ user }) {
-      logAudit({ userId: (user as any).id, actorEmail: user.email ?? undefined, action: 'auth.login', resource: 'user', resourceId: (user as any).id, status: 'success' });
+    // Sign out ends the Cerulea APIs session as well as the browser cookie, so
+    // the refresh token stops working at once.
+    async signOut({ token }) {
+      await closeApisSession(token as StudioToken | null);
     },
   },
 
   callbacks: {
     async jwt({ token, user, trigger }) {
+      const carrier = token as StudioToken;
       if (user) {
-        token.userId = (user as any).id;
-        token.plan = (user as any).plan ?? "free";
-        token.divisionSubs = (user as any).divisionSubs ?? {};
-        token.isTestAccount = (user as any).isTestAccount ?? false;
-        const adminEmails = (process.env.ADMIN_EMAIL ?? '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
-        token.isAdmin = (user as any).isTestAccount === true || adminEmails.includes((user.email ?? '').toLowerCase());
+        const supplied = user as unknown as { cerulea?: CeruleaTokenSet; standing?: Standing };
+        if (supplied.cerulea) {
+          carrier.cerulea = supplied.cerulea;
+          carrier.userId = supplied.cerulea.accountId;
+        }
+        if (supplied.standing) carryStanding(carrier, supplied.standing);
+        return carrier;
       }
-
-      // Re-fetch the division map from DB when the session is explicitly
-      // refreshed (e.g. after a subscription checkout in any division).
-      if (trigger === 'update' && token.userId) {
-        try {
-          const isTest = token.isTestAccount as boolean;
-          const divisionSubs = await fetchDivisionSubs(token.userId as string, isTest);
-          token.divisionSubs = divisionSubs;
-          token.plan = derivePlan(divisionSubs, isTest);
-        } catch { /* non-fatal — keep existing token values */ }
+      if (carrier.cerulea) {
+        const before = carrier.cerulea.accessToken;
+        carrier.cerulea = await rotateWhenDue(carrier.cerulea);
+        carrier.userId = carrier.cerulea.accountId;
+        // A rotation or an explicit refresh, such as the one after a checkout,
+        // reads the plans and the operator role again.
+        if (trigger === 'update' || carrier.cerulea.accessToken !== before) {
+          await refreshStanding(carrier);
+        }
       }
-
-      return token;
+      return carrier;
     },
     async session({ session, token }) {
-      if (session.user) {
-        (session.user as any).id = token.userId as string;
-        (session.user as any).plan = token.plan as string;
-        (session.user as any).divisionSubs = (token.divisionSubs as DivisionSubs) ?? {};
-        (session.user as any).isTestAccount = token.isTestAccount as boolean;
-        (session.user as any).isAdmin = token.isAdmin as boolean;
+      const carrier = token as StudioToken;
+      if (session.user && carrier.cerulea) {
+        session.user.id = carrier.cerulea.accountId;
+        session.user.email = carrier.cerulea.email;
+        session.user.name = carrier.cerulea.displayName;
+        session.user.sessionOpen = carrier.cerulea.accessToken.length > 0;
+        session.user.signInFix = carrier.cerulea.signInFix;
+        session.user.plan = carrier.plan ?? 'free';
+        session.user.divisionSubs = carrier.divisionSubs ?? {};
+        session.user.isOperator = carrier.isOperator === true;
+        session.user.isAdmin = carrier.isOperator === true;
       }
       return session;
     },
   },
 };
 
-// Typed helper so we don't repeat authOptions everywhere
+/** Reads the browser session on the server. */
 export function getSession() {
   return getServerSession(authOptions);
 }

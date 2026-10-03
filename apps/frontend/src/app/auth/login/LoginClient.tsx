@@ -1,19 +1,25 @@
 'use client';
+// apps/frontend/src/app/auth/login/LoginClient.tsx
+// The Cerulea sign in screen.
+// Cerulea holds a second factor on every account, so signing in reads the
+// address, the password and the six digit code from the authenticator.
+// Cerulea APIs checks all three and opens the session.
 
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { landingAfterSignIn } from '@/lib/same-site-path';
 import {
   Box, Paper, Typography, TextField, Button, Stack, Link, Alert
 } from '@mui/material';
 
 export default function LoginPage() {
   const sp = useSearchParams();
-  const router = useRouter();
-  const next = sp.get('next') || '/dashboard';
+  // The landing page stays on this site. Another site lands on the home page.
+  const next = landingAfterSignIn(sp.get('next'));
 
-  // Save any prompt embedded in the `next` URL to sessionStorage so the
-  // register flow can pick it up even though it doesn't use the `next` param.
+  // A prompt carried in the landing address waits in session storage, so the
+  // register flow reads it after the account opens.
   useEffect(() => {
     try {
       const nextUrl = new URL(next, window.location.origin);
@@ -22,11 +28,12 @@ export default function LoginPage() {
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const urlError = sp.get('error'); // NextAuth puts error here when it redirects to the error page
+  const urlError = sp.get('error');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
   const [err, setErr] = useState<string | null>(
-    urlError ? `Auth error: ${urlError}. Please try signing in again.` : null
+    urlError ? 'The earlier sign in did not complete. Type the three values and sign in again.' : null
   );
   const [loading, setLoading] = useState(false);
 
@@ -34,25 +41,30 @@ export default function LoginPage() {
     e.preventDefault();
     setErr(null); setLoading(true);
     try {
-      const res = await signIn('credentials', { redirect: false, email, password });
+      const res = await signIn('credentials', {
+        redirect: false,
+        email,
+        password,
+        multiFactorCode: code,
+      });
       setLoading(false);
       if (!res) {
-        setErr('No response from auth server. Please try again.');
+        setErr('Cerulea did not answer. Check that Cerulea APIs is running, then sign in again.');
         return;
       }
       if (res.error) {
-        // CredentialsSignin = wrong password; other values = server-side error
+        // Cerulea APIs names the reason and the fix in the error text.
         const msg = res.error === 'CredentialsSignin'
-          ? 'Invalid email or password.'
-          : `Sign-in failed (${res.error}). Please try again.`;
+          ? 'Cerulea refused the address, the password or the code. Check all three and sign in again.'
+          : res.error;
         setErr(msg);
         return;
       }
-      // Hard redirect so middleware runs fresh and enforces the pricing gate
+      // A full load runs the gate again, so the plan and division checks apply.
       window.location.href = next;
     } catch (ex: any) {
       setLoading(false);
-      setErr(`Error: ${ex?.message || 'Something went wrong. Please try again.'}`);
+      setErr(ex?.message || 'The sign in stopped. Sign in again.');
     }
   };
 
@@ -72,7 +84,7 @@ export default function LoginPage() {
       }}>
         <Typography variant="h5" fontWeight={600} sx={{ mb: 1, color: 'text.primary', letterSpacing: '-0.3px' }}>Welcome back</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Sign in to access your Cerulea dashboard.
+          Sign in to Cerulea Studio and the Cerulea Dashboard.
         </Typography>
         {err && <Alert severity="error" sx={{mb:2}}>{err}</Alert>}
         <Box component="form" onSubmit={onSubmit}>
@@ -85,14 +97,20 @@ export default function LoginPage() {
               label="Password" type="password" value={password} onChange={e=>setPassword(e.target.value)} required
               size="small" fullWidth
             />
+            <TextField
+              label="Authenticator code" value={code} onChange={e=>setCode(e.target.value)} required
+              size="small" fullWidth
+              inputProps={{ inputMode: 'numeric', maxLength: 12, autoComplete: 'one-time-code' }}
+              helperText="The six digit code the authenticator shows now. A recovery code also works."
+            />
             <Button type="submit" variant="contained" disabled={loading}>
-              {loading ? 'Signing in…' : 'Sign in'}
+              {loading ? 'Signing in' : 'Sign in'}
             </Button>
           </Stack>
         </Box>
         <Stack direction="row" justifyContent="space-between" sx={{mt:2}}>
           <Link href="/auth/register" underline="hover">Create account</Link>
-          <Link href="/auth/forgot-password" underline="hover">Forgot password?</Link>
+          <Link href="/auth/forgot-password" underline="hover">Recover the password</Link>
         </Stack>
       </Paper>
     </Box>

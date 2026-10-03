@@ -37,10 +37,10 @@ export default function DivisionChooser() {
         Cerulea Studio
       </Typography>
       <Typography variant="h4" fontWeight={800} sx={{ mb: 1, textAlign: 'center', letterSpacing: '-0.5px' }}>
-        Where do you want to build?
+        Choose where to build
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 5, textAlign: 'center', maxWidth: 560 }}>
-        Choose your track. Each opens the studio tuned for that audience.
+        Each track opens Studio tuned for its audience.
       </Typography>
 
       <Stack

@@ -67,10 +67,43 @@ export function studioProjectUrl(base: string, projectId: string, division: stri
 
 // Human labels for the studio.cerulea.io chooser.
 export const DIVISION_LABELS: Record<Division, { title: string; blurb: string }> = {
-  dapp: { title: 'dApps', blurb: 'Build and deploy decentralized apps on Cerulea L1 or your own chain.' },
-  enterprise: { title: 'Enterprise', blurb: 'Sovereign chains with SSO, RBAC, audit-grade logging, and on-prem options.' },
-  govt: { title: 'Government', blurb: 'Sovereign, on-soil infrastructure with citizen identity and public transparency.' },
+  dapp: { title: 'dApps', blurb: 'Decentralised applications on the Cerulea public-access chain or on a private Blockchain.' },
+  enterprise: { title: 'Enterprise', blurb: 'Private Blockchain networks with single sign-on, role-based access, audit-grade records and on-premises hosting.' },
+  govt: { title: 'Government', blurb: 'Sovereign infrastructure on national soil, with citizen identity and public transparency.' },
 };
+
+// ─── Division and workspace application ─────────────────────────────────────
+// Cerulea APIs fixes an application on each workspace. The application names
+// the division the workspace serves.
+export type WorkspaceApplication = 'dapps' | 'enterprise' | 'government';
+
+const APPLICATION_TO_DIVISION: Record<WorkspaceApplication, Division> = {
+  dapps: 'dapp',
+  enterprise: 'enterprise',
+  government: 'govt',
+};
+
+const DIVISION_TO_APPLICATION: Record<Division, WorkspaceApplication> = {
+  dapp: 'dapps',
+  enterprise: 'enterprise',
+  govt: 'government',
+};
+
+/** The division a workspace application serves, or null for an unknown value. */
+export function divisionForApplication(application: string | null | undefined): Division | null {
+  if (!application) return null;
+  return APPLICATION_TO_DIVISION[application as WorkspaceApplication] ?? null;
+}
+
+/** The workspace application a division opens. */
+export function applicationForDivision(division: Division): WorkspaceApplication {
+  return DIVISION_TO_APPLICATION[division];
+}
+
+/** Reads a division id from any value, or null. */
+export function asDivision(value: unknown): Division | null {
+  return value === 'dapp' || value === 'enterprise' || value === 'govt' ? value : null;
+}
 
 // ─── Currency (single USD for now; seam kept for the future) ─────────────────
 export type Currency = 'usd';

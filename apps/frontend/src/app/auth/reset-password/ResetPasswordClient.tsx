@@ -8,6 +8,7 @@ export default function ResetPasswordPage(){
   const token=sp.get('token')||'';
   const router=useRouter();
   const [password,setPassword]=useState('');
+  const [code,setCode]=useState('');
   const [ok,setOk]=useState(false);
   const [err,setErr]=useState<string|null>(null);
   const [loading,setLoading]=useState(false);
@@ -15,9 +16,13 @@ export default function ResetPasswordPage(){
   const submit=async(e:React.FormEvent)=>{
     e.preventDefault();
     setErr(null); setOk(false); setLoading(true);
-    const res=await fetch('/api/auth/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,password})});
+    const res=await fetch('/api/auth/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,password,...(code.trim()?{multiFactorCode:code.trim()}:{})})});
     setLoading(false);
-    if(!res.ok){ setErr('Reset failed or token expired.'); return; }
+    if(!res.ok){
+      const j=await res.json().catch(()=>null);
+      setErr(j?.error||'Cerulea refused the recovery. Ask for a fresh link and try again.');
+      return;
+    }
     setOk(true);
     setTimeout(()=>router.push('/auth/login'), 1000);
   };
@@ -35,12 +40,13 @@ export default function ResetPasswordPage(){
         boxShadow: (t: any) => `0 8px 40px ${t.palette.mode === 'light' ? 'rgba(79,70,229,0.08)' : 'rgba(0,0,20,0.4)'}`,
       }}>
         <Typography variant="h5" fontWeight={600} color="text.primary" sx={{ mb: 1, letterSpacing: '-0.3px' }}>Reset password</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Choose a new password for your account.</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Choose a new password for the account. Twelve characters or more.</Typography>
         {ok && <Alert severity="success" sx={{mb:2}}>Password updated. Redirecting…</Alert>}
         {err && <Alert severity="error" sx={{mb:2}}>{err}</Alert>}
         <Box component="form" onSubmit={submit}>
           <Stack spacing={1.5}>
             <TextField label="New password" type="password" value={password} onChange={e=>setPassword(e.target.value)} required size="small"/>
+            <TextField label="Authenticator code" value={code} onChange={e=>setCode(e.target.value)} size="small" inputProps={{inputMode:'numeric',maxLength:12,autoComplete:'one-time-code'}} helperText="Needed when the account holds a second factor. A recovery code also works."/>
             <Button type="submit" variant="contained" disabled={loading || !token}>{loading?'Updating…':'Update password'}</Button>
           </Stack>
         </Box>

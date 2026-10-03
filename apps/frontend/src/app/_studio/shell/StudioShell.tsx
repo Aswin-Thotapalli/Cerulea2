@@ -31,7 +31,10 @@ class StepErrorBoundary extends Component<
       return (
         <Box sx={{ p: 4, textAlign: 'center' }}>
           <Typography variant="h6" color="error" gutterBottom>
-            Something went wrong loading "{this.props.stepLabel}"
+            {`The ${this.props.stepLabel} step stopped while it loaded.`}
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            Press Retry to load the step again. Report the message below to the Cerulea operator when it repeats.
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
             {this.state.error?.message}
@@ -65,10 +68,10 @@ function BrokenStep({ meta, mod }: { meta: StepMeta; mod: any }) {
   return (
     <Paper sx={{ p: 2, border: '1px solid', borderColor: 'error.main', background: (t) => t.palette.error.light + '22' }}>
       <Typography variant="h6" color="error" gutterBottom>
-        Step "{meta.label}" isn't exporting a React component
+        {`The ${meta.label} step module holds no screen.`}
       </Typography>
       <Typography sx={{ mb: 1 }}>
-        <code>export default function YourStep() {'{'} return (&lt;.../&gt;); {'}'}</code>
+        The step module needs a default export holding a React component. The export names it holds follow.
       </Typography>
       <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, Menlo, monospace' }}>
         Module export keys: {JSON.stringify(Object.keys(mod || {}), null, 2)}
@@ -95,8 +98,8 @@ function makeLazy(meta: StepMeta): React.LazyExoticComponent<React.ComponentType
       return {
         default: () => (
           <Paper sx={{ p: 2, border: '1px solid', borderColor: 'error.main' }}>
-            <Typography variant="h6" color="error" gutterBottom>Failed to load step "{meta.label}"</Typography>
-            <Typography variant="body2">Check the import path in StepRegistry for this step.</Typography>
+            <Typography variant="h6" color="error" gutterBottom>{`The ${meta.label} step failed to load.`}</Typography>
+            <Typography variant="body2">Open the project again. The step registry names the module path for each step.</Typography>
           </Paper>
         ),
       };

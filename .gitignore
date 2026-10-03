@@ -53,3 +53,4 @@ apps/frontend/.data/
 
 # Local mode artefacts. Cerulea generates these at first run.
 local/
+tsconfig.tsbuildinfo

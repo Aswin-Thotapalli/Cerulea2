@@ -1,40 +1,43 @@
 // apps/frontend/src/app/page.tsx
+// The home route serves three surfaces.
+// A division path, rewritten by the gate to /?studio=1, opens Studio for that
+// division. The studio host root shows the division chooser. Every other host
+// shows the landing page.
 import { headers } from 'next/headers';
-import dynamic from 'next/dynamic';
 
-// Lazy-load the Studio entry so landing users don't download studio code
-const StudioEntry = dynamic(() => import('@/app/_studio/StudioEntry'), { ssr: false });
-const DivisionChooser = dynamic(() => import('@/components/studio/DivisionChooser'), { ssr: false });
-
-// Your existing landing component:
-import Landing from '@/components/landing/Hero'; // <- adjust if your landing uses a different entry
+// Studio and the chooser load in the browser only, so landing visitors never
+// download Studio code.
+import { DivisionChooserLazy, StudioEntryLazy } from '@/app/_studio/StudioEntryLazy';
+import Landing from '@/components/landing/Hero';
+import { asDivision } from '@/config/divisions';
 
 type SearchParams = { [key: string]: string | string[] | undefined };
 
-export default async function Home({ searchParams }: { searchParams?: SearchParams }) {
-  const host = headers().get('host') ?? '';
+export default async function Home({ searchParams }: { searchParams?: Promise<SearchParams> }) {
+  const headerBag = await headers();
+  const asked = (await searchParams) ?? {};
+  const host = headerBag.get('host') ?? '';
   const isStudioHost =
     host.startsWith('studio.') ||
     host.includes('studio.localhost') ||
     host.includes('studio.lvh.me');
 
-  // Division routes (studio.cerulea.io/dapps etc.) are rewritten by middleware
-  // to /?studio=1 — that (or the dev override) means "render the studio".
-  const forceStudio = !!(searchParams && ('studio' in searchParams));
+  // The gate rewrites /dapps, /enterprise and /govt to /?studio=1. The same
+  // value opens Studio on any host during development.
+  const forceStudio = 'studio' in asked;
 
   if (forceStudio) {
-    const projectId = searchParams?.project ? String(searchParams.project) : null;
-    // Division comes from the x-cerulea-division header the middleware sets from
-    // the /dapps|/enterprise|/govt path — deterministic, no client timing.
-    const division = headers().get('x-cerulea-division');
-    return <StudioEntry projectId={projectId} division={division} />;
+    const projectId = asked.project ? String(asked.project) : null;
+    // The gate names the division in this header from the path, so the server
+    // decides it before any client code runs.
+    const division = asDivision(headerBag.get('x-cerulea-division'));
+    return <StudioEntryLazy projectId={projectId} division={division} />;
   }
 
-  // Studio host root ("/") — the 3-option chooser (Dapps / Enterprise / Govt).
+  // The studio host root offers the three divisions.
   if (isStudioHost) {
-    return <DivisionChooser />;
+    return <DivisionChooserLazy />;
   }
 
-  // Regular marketing / landing page for everything else
   return <Landing />;
 }

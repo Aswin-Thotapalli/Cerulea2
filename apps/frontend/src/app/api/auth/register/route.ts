@@ -1,52 +1,44 @@
 // apps/frontend/src/app/api/auth/register/route.ts
-import { NextResponse } from "next/server";
-import { db } from "@/db/client";
-import { users, profiles } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { z } from "zod";
-import { hashPassword } from "@/lib/passwords";
-import { randomUUID } from "crypto";
-import { rateLimit, getClientIp } from "@/lib/rateLimit";
-import { logAudit } from "@/lib/audit";
+// Opens a Cerulea account through Cerulea APIs.
+// Cerulea issues the second factor at the same moment, so the answer carries
+// the enrolment address and the recovery codes once.
+// Without this route nobody opens an account from Studio.
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
-const RegisterSchema = z.object({
+import { registerAccount } from '@/lib/cerulea-api';
+import { failureReply, failureResponse } from '@/lib/cerulea-server';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+const body = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
-  name: z.string().min(2).max(80),
-  company: z.string().optional(),
-  role: z.string().optional(),
+  password: z.string().min(12),
+  name: z.string().min(2).max(120),
 });
 
-export async function POST(req: Request) {
-  const ip = getClientIp(req);
-  const rl = rateLimit(`register:${ip}`, 5, 60_000); // 5 registrations per minute per IP
-  if (!rl.ok) {
-    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } });
+export async function POST(request: Request) {
+  const parsed = body.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return failureResponse(
+      {
+        code: 'account.details_incomplete',
+        message: 'Cerulea needs a full name, an email address and a password of twelve characters.',
+        fix: 'Fill every field, then open the account again.',
+        details: {},
+      },
+      400,
+    );
   }
-
-  const body = await req.json();
-  const parsed = RegisterSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Invalid inputs" }, { status: 400 });
-
-  const email = parsed.data.email.toLowerCase();
-  const [existing] = await db.select().from(users).where(eq(users.email, email));
-  if (existing) return NextResponse.json({ error: "Email already in use" }, { status: 409 });
-
-  const hashed = await hashPassword(parsed.data.password);
-  const userId = randomUUID();
-  const [newUser] = await db.insert(users)
-    .values({ id: userId, email, hashedPassword: hashed, name: parsed.data.name })
-    .returning({ id: users.id });
-
-  await db.insert(profiles).values({
-    id: randomUUID(),
-    userId: newUser.id,
-    displayName: parsed.data.name,
-    company: parsed.data.company,
-    role: parsed.data.role,
-  });
-
-  logAudit({ userId: newUser.id, actorEmail: email, action: 'auth.register', resource: 'user', resourceId: newUser.id, ip, status: 'success' });
-
-  return NextResponse.json({ ok: true });
+  try {
+    const outcome = await registerAccount({
+      email: parsed.data.email.trim().toLowerCase(),
+      displayName: parsed.data.name.trim(),
+      password: parsed.data.password,
+    });
+    return NextResponse.json(outcome, { status: 201 });
+  } catch (cause) {
+    return failureReply(cause);
+  }
 }

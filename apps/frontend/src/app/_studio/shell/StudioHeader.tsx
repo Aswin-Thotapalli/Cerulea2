@@ -60,7 +60,7 @@ export default function StudioHeader({
             />
           </Box>
 
-          <Tooltip title="Smart Contracts: view and manage contracts derived from your blueprint">
+          <Tooltip title="Smart contracts Cerulea derives from the Blueprint">
             <Button
               variant="outlined"
               size="small"

@@ -1,31 +1,114 @@
-export async function api<T = any>(url: string, init: RequestInit = {}) {
-  const res = await fetch(url, {
-    credentials: "include",
-    headers: { "Content-Type": "application/json", ...(init.headers || {}) },
+// apps/frontend/src/lib/apiClient.ts
+// One fetch helper for every Studio route the browser calls.
+// Every Studio route forwards to Cerulea APIs, so the failure shape is the same
+// everywhere. The helper reads the message and the fix Cerulea named.
+// Without this helper a failed screen would show a bare status code.
+
+export type RouteFailure = {
+  code: string;
+  message: string;
+  fix: string;
+  details: Record<string, unknown>;
+};
+
+/** A failure one Studio route reported, carrying the fix Cerulea named. */
+export class StudioRouteError extends Error {
+  readonly code: string;
+  readonly fix: string;
+  readonly status: number;
+
+  constructor(failure: RouteFailure, status: number) {
+    super(`${failure.message} ${failure.fix}`.trim());
+    this.name = 'StudioRouteError';
+    this.code = failure.code;
+    this.fix = failure.fix;
+    this.status = status;
+  }
+}
+
+function failureOf(payload: unknown, status: number, url: string): StudioRouteError {
+  const outer =
+    payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : null;
+  // A Studio route writes the failure fields beside a one sentence `error`.
+  // An older answer nests them inside `error`.
+  const carrier =
+    outer && typeof outer.error === 'string' && typeof outer.message === 'string'
+      ? outer
+      : outer && 'error' in outer
+        ? outer.error
+        : null;
+  if (carrier && typeof carrier === 'object') {
+    const record = carrier as Record<string, unknown>;
+    if (typeof record.message === 'string') {
+      return new StudioRouteError(
+        {
+          code: typeof record.code === 'string' ? record.code : 'studio.unnamed',
+          message: record.message,
+          fix:
+            typeof record.fix === 'string'
+              ? record.fix
+              : 'Open the screen again, then repeat the action.',
+          details: {},
+        },
+        status,
+      );
+    }
+  }
+  return new StudioRouteError(
+    {
+      code: 'studio.unnamed',
+      message: `Studio answered ${status} for ${url}.`,
+      fix: 'Open the screen again. Report the problem to the Cerulea operator when it repeats.',
+      details: {},
+    },
+    status,
+  );
+}
+
+/** Calls one Studio route and reads the answer. */
+export async function api<T = unknown>(url: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(url, {
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) },
     ...init,
   });
 
-  const contentType = res.headers.get("content-type") || "";
-  const isJson = contentType.includes("application/json");
+  const contentType = response.headers.get('content-type') ?? '';
+  const payload = contentType.includes('application/json')
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => '');
 
-  const payload = isJson ? await res.json().catch(() => null) : await res.text().catch(() => "");
-  if (!res.ok) {
-    const msg =
-      (payload && typeof payload === "object" && (payload.message || payload.error)) ||
-      (typeof payload === "string" && payload) ||
-      `Request failed (${res.status})`;
-    throw new Error(msg);
-  }
-
+  if (!response.ok) throw failureOf(payload, response.status, url);
   return payload as T;
 }
 
-export const getApps = () => api("/api/apps");
-export const createApp = (name: string) =>
-  api("/api/apps", { method: "POST", body: JSON.stringify({ name }) });
+export type BlueprintRecord = {
+  blueprintId: string;
+  projectId: string;
+  version: number;
+  blueprintHash: string;
+  schemaVersion: string;
+  note: string;
+  createdAt: string;
+  document: unknown;
+};
 
-export const getDrafts = () => api("/api/drafts");
-export const upsertDraft = (input: { id?: string; appId?: string | null; step: string; payload?: any }) =>
-  api("/api/drafts/upsert", { method: "POST", body: JSON.stringify(input) });
+/** Reads the Blueprint of one project. */
+export function readProjectBlueprint(projectId: string, version?: number) {
+  const suffix = version === undefined ? '' : `?version=${version}`;
+  return api<BlueprintRecord>(`/api/projects/${encodeURIComponent(projectId)}/blueprint${suffix}`);
+}
 
-export const getDeployments = () => api("/api/deployments");
+/** Saves the Blueprint of one project and answers with the new version. */
+export function writeProjectBlueprint(input: {
+  projectId: string;
+  document: unknown;
+  note?: string;
+  expectedVersion?: number;
+}) {
+  const { projectId, ...body } = input;
+  return api<{ blueprint: Omit<BlueprintRecord, 'document'>; created: boolean }>(
+    `/api/projects/${encodeURIComponent(projectId)}/blueprint`,
+    { method: 'PUT', body: JSON.stringify(body) },
+  );
+}

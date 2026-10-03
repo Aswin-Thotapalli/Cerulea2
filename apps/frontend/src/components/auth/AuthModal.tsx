@@ -1,4 +1,8 @@
 'use client';
+// apps/frontend/src/components/auth/AuthModal.tsx
+// Sign in without leaving the screen. Cerulea APIs checks the address, the
+// password and the authenticator code. Opening an account needs the enrolment
+// of the second factor, so the second tab leads to the full registration screen.
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
@@ -21,8 +25,7 @@ export default function AuthModal({ open, title = 'Sign in', subtitle, onSuccess
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
-  const [regForm, setRegForm] = useState({ name: '', email: '', password: '' });
+  const [loginForm, setLoginForm] = useState({ email: '', password: '', multiFactorCode: '' });
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,36 +33,19 @@ export default function AuthModal({ open, title = 'Sign in', subtitle, onSuccess
     setLoading(true);
     const res = await signIn('credentials', { redirect: false, ...loginForm });
     setLoading(false);
-    if (res?.error) return setError('Invalid email or password.');
+    if (res?.error) {
+      return setError(
+        res.error === 'CredentialsSignin'
+          ? 'Cerulea refused the address, the password or the code. Check all three and sign in again.'
+          : res.error,
+      );
+    }
     onSuccess();
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(regForm),
-    });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({ error: 'Failed' }));
-      setLoading(false);
-      return setError(j.error || 'Registration failed');
-    }
-    const signInRes = await signIn('credentials', {
-      redirect: false,
-      email: regForm.email,
-      password: regForm.password,
-    });
-    setLoading(false);
-    if (signInRes?.error) {
-      setTab(0);
-      return setError('Account created. Please sign in.');
-    }
-    // Pricing page is offline — go straight to dashboard
-    window.location.href = '/dashboard';
+  // Registration issues a second factor, which the full screen enrols.
+  const openRegistration = () => {
+    window.location.href = '/auth/register';
   };
 
   return (
@@ -107,34 +93,27 @@ export default function AuthModal({ open, title = 'Sign in', subtitle, onSuccess
                 value={loginForm.password}
                 onChange={(e) => setLoginForm((f) => ({ ...f, password: e.target.value }))}
               />
+              <TextField
+                label="Authenticator code" size="small" required
+                value={loginForm.multiFactorCode}
+                inputProps={{ inputMode: 'numeric', maxLength: 12, autoComplete: 'one-time-code' }}
+                helperText="The six digit code the authenticator shows now."
+                onChange={(e) => setLoginForm((f) => ({ ...f, multiFactorCode: e.target.value }))}
+              />
               <Button type="submit" variant="contained" disabled={loading} fullWidth>
-                {loading ? 'Signing in...' : 'Sign In'}
+                {loading ? 'Signing in' : 'Sign In'}
               </Button>
             </Stack>
           </Box>
         ) : (
-          <Box component="form" onSubmit={handleRegister}>
-            <Stack spacing={1.5}>
-              <TextField
-                label="Full name" size="small" required autoFocus
-                value={regForm.name}
-                onChange={(e) => setRegForm((f) => ({ ...f, name: e.target.value }))}
-              />
-              <TextField
-                label="Email" type="email" size="small" required
-                value={regForm.email}
-                onChange={(e) => setRegForm((f) => ({ ...f, email: e.target.value }))}
-              />
-              <TextField
-                label="Password" type="password" size="small" required
-                value={regForm.password}
-                onChange={(e) => setRegForm((f) => ({ ...f, password: e.target.value }))}
-              />
-              <Button type="submit" variant="contained" disabled={loading} fullWidth>
-                {loading ? 'Creating account...' : 'Create Account'}
-              </Button>
-            </Stack>
-          </Box>
+          <Stack spacing={1.5}>
+            <Typography variant="body2" color="text.secondary">
+              A new account holds a second factor from the first day. The registration screen shows the authenticator enrolment and the recovery codes.
+            </Typography>
+            <Button variant="contained" fullWidth onClick={openRegistration}>
+              Open the registration screen
+            </Button>
+          </Stack>
         )}
       </DialogContent>
     </Dialog>
