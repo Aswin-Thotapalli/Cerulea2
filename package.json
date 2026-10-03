@@ -2,19 +2,13 @@
   "name": "cerulea-studio",
   "private": true,
   "scripts": {
-    "build": "turbo build",
-    "build:frontend": "turbo build --filter=frontend",
-    "build:explorer": "turbo build --filter=explorer",
-    "dev": "turbo dev",
-    "dev:frontend": "turbo dev --filter=frontend",
-    "dev:explorer": "turbo dev --filter=explorer",
-    "lint": "turbo lint",
+    "build": "turbo build --filter=frontend",
+    "dev": "turbo dev --filter=frontend",
+    "lint": "pnpm --filter frontend run lint",
+    "test": "pnpm --filter frontend run test",
+    "typecheck": "pnpm --filter frontend run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "browserslist": [
     ">0.2%",
     "not dead",
@@ -24,7 +18,8 @@
     "prettier": "^3.2.5",
     "turbo": "latest"
   },
+  "packageManager": "pnpm@11.5.0",
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   }
 }

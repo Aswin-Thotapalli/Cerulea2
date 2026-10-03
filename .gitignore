@@ -50,4 +50,6 @@ apps/frontend/.data/
 *.sqlite
 *.sqlite3
 *.db
-.vercel
+
+# Local mode artefacts. Cerulea generates these at first run.
+local/
