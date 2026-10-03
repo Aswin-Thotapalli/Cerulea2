@@ -1,9 +1,0 @@
-{
-  "installCommand": "npm install",
-  "crons": [
-    {
-      "path": "/api/admin/provision-worker",
-      "schedule": "* * * * *"
-    }
-  ]
-}
