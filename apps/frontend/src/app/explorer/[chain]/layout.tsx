@@ -6,19 +6,21 @@ import ExplorerNav from '@/components/explorer/ExplorerNav';
 
 interface ChainLayoutProps {
   children: React.ReactNode;
-  params: { chain: string };
+  params: Promise<{ chain: string }>;
 }
 
 export async function generateStaticParams() {
   return [{ chain: 'public' }, { chain: 'private' }];
 }
 
-export default function ChainLayout({ children, params }: ChainLayoutProps) {
-  const chainConfig = CHAINS[params.chain as ChainSlug];
+export default async function ChainLayout({ children, params }: ChainLayoutProps) {
+  // Next.js 15 hands the route values over as a promise.
+  const { chain } = await params;
+  const chainConfig = CHAINS[chain as ChainSlug];
   if (!chainConfig) notFound();
 
   return (
-    <ChainProviders chain={params.chain as ChainSlug}>
+    <ChainProviders chain={chain as ChainSlug}>
       <ExplorerNav />
       <main style={{ minHeight: 'calc(100vh - 64px)' }}>
         {children}
