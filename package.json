@@ -7,7 +7,8 @@
     "lint": "pnpm --filter frontend run lint",
     "test": "pnpm --filter frontend run test",
     "typecheck": "pnpm --filter frontend run typecheck",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "dev:3011": "pnpm --filter frontend run dev:3011"
   },
   "browserslist": [
     ">0.2%",
