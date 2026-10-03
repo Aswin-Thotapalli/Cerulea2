@@ -1,34 +1,31 @@
-import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
-import { db } from '@/db/client';
-import { projects, snapshots, aiThreads } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+// apps/frontend/src/app/api/dashboard/overview/route.ts
+// The Overview panel reads this route.
+// Every count comes from the Cerulea APIs overview read, which counts the
+// projects, the checkpoints and the deployments of every workspace the account
+// belongs to. The Blockchain figures come from the node through the same read.
+// Without this route the first Dashboard screen would report nothing.
+import { readStudioOverview } from '@/lib/cerulea-api';
+import { callOptions, withActor } from '@/lib/cerulea-server';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET() {
-  const session = await getSession();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  try {
-    const userId = session.user.id;
-
-    const [allProjects, userSnapshots, userThreads] = await Promise.all([
-      db.select({ id: projects.id, name: projects.name, slug: projects.slug, status: projects.status, projectType: projects.projectType, createdAt: projects.createdAt }).from(projects).where(eq(projects.userId, userId)),
-      db.select({ id: snapshots.id }).from(snapshots).where(eq(snapshots.userId, userId)),
-      db.select({ id: aiThreads.id }).from(aiThreads).where(eq(aiThreads.userId, userId)),
-    ]);
-
-    return NextResponse.json({
-      totalProjects: allProjects.length,
-      activeDeployments: allProjects.filter(p => p.status === 'active').length,
-      draftProjects: allProjects.filter(p => p.status !== 'active').length,
-      blockchainProjects: allProjects.filter(p => p.projectType === 'blockchain').length,
-      totalSnapshots: userSnapshots.length,
-      aiConversations: userThreads.length,
-      recentProjects: allProjects.slice(0, 5),
-    });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
-  }
+  return withActor(async (actor) => {
+    const overview = await readStudioOverview(callOptions(actor));
+    const counts = overview.counts;
+    return {
+      ...overview,
+      // The production screens read these names at the top level.
+      totalProjects: counts.projects,
+      activeDeployments: counts.projectsDeployed,
+      draftProjects: counts.projects - counts.projectsDeployed,
+      totalSnapshots: counts.checkpoints,
+      recentProjects: overview.recentProjects.map((project) => ({
+        ...project,
+        id: project.projectId,
+        status: project.state === 'deployed' ? 'active' : project.state,
+      })),
+    };
+  });
 }

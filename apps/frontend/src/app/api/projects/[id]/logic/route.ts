@@ -1,49 +1,56 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db/client';
-import { projects } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
-import { getSession } from '@/lib/auth';
+// apps/frontend/src/app/api/projects/[id]/logic/route.ts
+// The behaviour flows the model step builds for one project.
+// The flows live in the draft area of the Studio build state under
+// `step2::logic`.
+// Without this route every behaviour flow is lost when the project reopens.
+import { NextResponse } from 'next/server';
+
+import {
+  callOptions,
+  ceruleaActor,
+  failureReply,
+  signInRequired,
+} from '@/lib/cerulea-server';
+import {
+  DRAFT_KEYS,
+  objectBody,
+  readHeldBuildState,
+  writeDraft,
+} from '@/app/api/projects/_shared/project-record';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-async function getOwnedProject(projectId: string, userId: string) {
-  const [row] = await db
-    .select()
-    .from(projects)
-    .where(and(eq(projects.id as any, projectId), eq(projects.userId as any, userId)))
-    .limit(1);
-  return row ?? null;
-}
-
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getSession();
-  if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-
-  const row = await getOwnedProject(params.id, session.user.id);
-  if (!row) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
-
-  let logicData: any = (row as any).logicJson ?? null;
-  if (typeof logicData === 'string') {
-    try { logicData = JSON.parse(logicData); } catch { /* keep raw */ }
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  try {
+    const held = await readHeldBuildState(id, callOptions(actor));
+    const saved = held.drafts[DRAFT_KEYS.logic];
+    // A project with no saved flows answers an empty flow list on its own track.
+    return NextResponse.json(saved ?? { flows: [], track: held.buildState.foundation.track });
+  } catch (cause) {
+    return failureReply(cause);
   }
-  return NextResponse.json(logicData ?? { flows: [], track: 'dapp' });
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getSession();
-  if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-
-  const row = await getOwnedProject(params.id, session.user.id);
-  if (!row) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
-
-  const body = await req.json();
+// PUT /api/projects/[id]/logic  body: { flows, track }
+export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const body = (await objectBody(request)) ?? {};
   const clean = {
     flows: Array.isArray(body.flows) ? body.flows : [],
     track: body.track === 'blockchain' ? 'blockchain' : 'dapp',
   };
-
-  await db.update(projects).set({ logicJson: JSON.stringify(clean) as any }).where(eq(projects.id as any, params.id));
-  return NextResponse.json({ ok: true });
+  try {
+    await writeDraft(id, DRAFT_KEYS.logic, clean, callOptions(actor));
+    return NextResponse.json({ ok: true });
+  } catch (cause) {
+    return failureReply(cause);
+  }
 }
 
 export const PATCH = PUT;

@@ -1,32 +1,32 @@
-import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
-import { db } from "@/db/client";
-import { aiMessages, aiThreads } from "@/db/schema";
-import { eq, and, asc } from "drizzle-orm";
+// apps/frontend/src/app/api/ai/threads/[id]/messages/route.ts
+// Reads every turn of one Cerulea Intelligence thread for the assistant drawer.
+// The turns live in Cerulea APIs. A person turn reads as the user role and a
+// Cerulea turn reads as the assistant role, with the cards each turn carried.
+// Without this route a thread from the history list opens empty.
+import { NextResponse } from 'next/server';
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+import { readIntelligenceThread } from '@/lib/cerulea-api';
+import { callOptions, ceruleaActor, failureReply, signInRequired } from '@/lib/cerulea-server';
 
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
-  const session = await getSession();
-  if (!session?.user?.id) return NextResponse.json({ messages: [] });
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-  const [thread] = await db
-    .select()
-    .from(aiThreads)
-    .where(and(eq(aiThreads.id, params.id), eq(aiThreads.userId, session.user.id)))
-    .limit(1);
-
-  if (!thread) return NextResponse.json({ messages: [] });
-
-  const messages = await db
-    .select()
-    .from(aiMessages)
-    .where(eq(aiMessages.threadId, params.id))
-    .orderBy(asc(aiMessages.createdAt));
-
-  return NextResponse.json({ messages });
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  try {
+    const thread = await readIntelligenceThread(id, callOptions(actor));
+    const messages = thread.turns.map((turn) => ({
+      id: turn.messageId,
+      threadId: thread.threadId,
+      role: turn.role === 'person' ? 'user' : 'assistant',
+      content: turn.text,
+      cards: turn.cards,
+      createdAt: turn.createdAt,
+    }));
+    return NextResponse.json({ messages });
+  } catch (cause) {
+    return failureReply(cause);
+  }
 }

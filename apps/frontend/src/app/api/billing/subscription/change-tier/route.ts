@@ -1,58 +1,103 @@
 // apps/frontend/src/app/api/billing/subscription/change-tier/route.ts
-//
-// POST — upgrade or downgrade the caller's subscription to a different
-// self-serve tier. Existing add-ons that aren't eligible for the new
-// tier are removed automatically; the response reports which ones.
+// Moves the running subscription to another tier.
+// Cerulea APIs starts the new plan on the same workspace and closes the old
+// subscription in one request. The add-ons of the old subscription then go
+// onto the new one, apart from each catalogue add-on the new tier leaves out.
+// The reply names every add-on that left.
+// Without this route the billing screen cannot move a workspace between tiers.
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getSession } from '@/lib/auth';
-import { getCurrentSubscription } from "@/lib/billing/current-subscription";
-import { db } from '@/db/client';
-import { subscriptions } from '@/db/schema';
-import { eq } from 'drizzle-orm';
-import { TIERS, getAddonById, type TierId } from '@/config/billing-catalog';
-import { changeSubscriptionTier } from '@/lib/billing/lifecycle';
+
+import { ceruleaRequest } from '@/lib/cerulea-api';
+import {
+  callOptions,
+  ceruleaActor,
+  failureReply,
+  failureResponse,
+  signInRequired,
+} from '@/lib/cerulea-server';
+import { billingHome, readActiveAddOns, subscriptionAbsent } from '@/lib/entitlements-server';
+import {
+  type TierId,
+  getAddonById,
+  getTierById,
+  isAddonEligibleForTier,
+  isTierInDivision,
+} from '@/config/billing-catalog';
+import { DIVISION_LABELS } from '@/config/divisions';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-const BodySchema = z.object({
-  tierId: z.enum(TIERS.map((t) => t.id) as [TierId, ...TierId[]]),
-});
+const changeBody = z.object({ tierId: z.string().min(1).max(80) });
 
-export async function POST(req: Request) {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const parsed = BodySchema.safeParse(await req.json());
+export async function POST(request: Request) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const parsed = changeBody.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
-  }
-
-  const sub = await getCurrentSubscription(session.user.id);
-
-  if (!sub || sub.status !== 'active') {
-    return NextResponse.json({ ok: false, error: 'No active subscription' }, { status: 404 });
-  }
-
-  if (String(sub.cancelAtPeriodEnd) === 'true') {
-    return NextResponse.json(
-      { ok: false, error: 'Resume your subscription before changing tiers' },
-      { status: 409 }
+    return failureResponse(
+      {
+        code: 'billing.tier_unnamed',
+        message: 'Cerulea reads the new tier on this request.',
+        fix: 'Choose a tier on the billing screen, then switch again.',
+        details: {},
+      },
+      400,
     );
   }
-
+  const { tierId } = parsed.data;
   try {
-    const { removedAddonIds } = await changeSubscriptionTier(sub.id, parsed.data.tierId);
+    const options = callOptions(actor);
+    const home = await billingHome(actor, request);
+    const held = home.subscription;
+    if (!held) return subscriptionAbsent(home);
+
+    const tier = getTierById(tierId);
+    if (tier && home.division && !isTierInDivision(tierId, home.division)) {
+      return failureResponse(
+        {
+          code: 'billing.tier_outside_division',
+          message: `The ${tier.name} tier belongs to the ${DIVISION_LABELS[tier.division].title} division.`,
+          fix: `Choose one of the ${DIVISION_LABELS[home.division].title} tiers.`,
+          details: { tierId, division: home.division },
+        },
+        403,
+      );
+    }
+
+    const before = await readActiveAddOns(home.workspace.workspaceId, held, options);
+    const kept = before.filter(
+      (entry) =>
+        !tier ||
+        getAddonById(entry.addOnId) === undefined ||
+        isAddonEligibleForTier(entry.addOnId, tierId as TierId),
+    );
+    const removed = before.filter((entry) => !kept.includes(entry));
+
+    const workspacePath = `/workspaces/${encodeURIComponent(home.workspace.workspaceId)}`;
+    const started = await ceruleaRequest<Record<string, unknown>>(
+      `/studio${workspacePath}/subscription`,
+      { method: 'POST', body: JSON.stringify({ planId: tierId }) },
+      options,
+    );
+    for (const entry of kept) {
+      await ceruleaRequest(
+        `/v1${workspacePath}/subscription/add-ons`,
+        { method: 'POST', body: JSON.stringify({ addOnId: entry.addOnId, quantity: entry.quantity }) },
+        options,
+      );
+    }
+
     return NextResponse.json({
       ok: true,
-      tierId: parsed.data.tierId,
-      removedAddons: removedAddonIds.map((id) => getAddonById(id)?.name ?? id),
+      tierId,
+      removedAddons: removed.map((entry) => getAddonById(entry.addOnId)?.name ?? entry.displayName),
+      division: home.division,
+      ...started,
     });
-  } catch (err: any) {
-    console.error('Change tier error:', err);
-    return NextResponse.json({ ok: false, error: err.message || 'Could not change tier' }, { status: 500 });
+  } catch (cause) {
+    return failureReply(cause);
   }
 }

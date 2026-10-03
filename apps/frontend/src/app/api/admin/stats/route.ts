@@ -1,52 +1,60 @@
-import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
-import { db } from '@/db/client';
-import { users, projects, subscriptions, billingOneTimePurchases, snapshots, aiThreads } from '@/db/schema';
-import { eq, desc, sum } from 'drizzle-orm';
+// apps/frontend/src/app/api/admin/stats/route.ts
+// The platform figures on the operator overview.
+// Cerulea APIs counts the accounts, the projects, the checkpoints and the open
+// subscriptions through the administration summary read. The project type of
+// each project comes from the division its workspace serves. Every
+// administration read opens for the operator role alone.
+// Without this route the operator overview shows no figure.
+import { readAdministration } from '@/lib/cerulea-api';
+import { callOptions, withActor } from '@/lib/cerulea-server';
+import { divisionForApplication, lockedProjectType } from '@/config/divisions';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-function isAdmin(session: any): boolean {
-  return session?.user?.email === 'test@cerulea.app' || session?.user?.isTestAccount === true;
-}
+type Summary = {
+  platform: Record<string, unknown>;
+  counts: {
+    accounts: number;
+    accountsWithSecondFactor: number;
+    openSessions: number;
+    workspaces: number;
+    projects: number;
+    blueprintVersions: number;
+    checkpoints: number;
+    deployments: number;
+    openKeys: number;
+    openSubscriptions: number;
+    auditEvents: number;
+    refusedActions: number;
+  };
+};
+
+type ProjectRow = { projectId: string; workspaceId: string };
+type WorkspaceRow = { workspaceId: string; application: string };
 
 export async function GET() {
-  const session = await getSession();
-  if (!session?.user?.id || !isAdmin(session)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  try {
-    const [allUsers, allProjects, allSubs, revenue, snapshotCount, threadCount] = await Promise.all([
-      db.select({ id: users.id, email: users.email, name: users.name, isTestAccount: users.isTestAccount, createdAt: users.createdAt }).from(users).orderBy(desc(users.createdAt)),
-      db.select({ id: projects.id, name: projects.name, projectType: projects.projectType, status: projects.status, userId: projects.userId, createdAt: projects.createdAt }).from(projects).orderBy(desc(projects.createdAt)),
-      db.select({ userId: subscriptions.userId, plan: subscriptions.plan, status: subscriptions.status }).from(subscriptions),
-      db.select({ total: sum(billingOneTimePurchases.amountCents) }).from(billingOneTimePurchases).where(eq(billingOneTimePurchases.status, 'paid')),
-      db.select({ id: snapshots.id }).from(snapshots),
-      db.select({ id: aiThreads.id }).from(aiThreads),
+  return withActor(async (actor) => {
+    const options = callOptions(actor);
+    const [summary, held, spaces] = await Promise.all([
+      readAdministration<Summary>('summary', options),
+      readAdministration<{ projects: ProjectRow[] }>('projects', options),
+      readAdministration<{ workspaces: WorkspaceRow[] }>('workspaces', options),
     ]);
-
-    const activeSubs = allSubs.filter(s => s.status === 'active');
-    const planBreakdown: Record<string, number> = {};
-    activeSubs.forEach(s => { planBreakdown[s.plan] = (planBreakdown[s.plan] ?? 0) + 1; });
-
-    // Map userId → plan for user enrichment
-    const subByUser = Object.fromEntries(allSubs.map(s => [s.userId, s]));
-
-    return NextResponse.json({
-      totalUsers: allUsers.length,
-      totalProjects: allProjects.length,
-      activeSubscriptions: activeSubs.length,
-      revenueTotal: Number(revenue[0]?.total ?? 0),
-      blockchainProjects: allProjects.filter(p => p.projectType === 'blockchain').length,
-      dappProjects: allProjects.filter(p => p.projectType !== 'blockchain').length,
-      totalSnapshots: snapshotCount.length,
-      totalAiThreads: threadCount.length,
-      planBreakdown,
-      recentUsers: allUsers.slice(0, 10).map(u => ({ ...u, plan: subByUser[u.id]?.plan ?? 'free' })),
-      recentProjects: allProjects.slice(0, 10),
+    const applications = new Map(spaces.workspaces.map((row) => [row.workspaceId, row.application]));
+    const types = held.projects.map((row) => {
+      const division = divisionForApplication(applications.get(row.workspaceId));
+      return division ? lockedProjectType(division) : null;
     });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
-  }
+    return {
+      ...summary,
+      // The production overview reads these names at the top level.
+      totalUsers: summary.counts.accounts,
+      totalProjects: summary.counts.projects,
+      activeSubscriptions: summary.counts.openSubscriptions,
+      blockchainProjects: types.filter((type) => type === 'blockchain').length,
+      dappProjects: types.filter((type) => type === 'dapp').length,
+      totalSnapshots: summary.counts.checkpoints,
+    };
+  });
 }

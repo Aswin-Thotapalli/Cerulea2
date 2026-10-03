@@ -1,210 +1,165 @@
 // apps/frontend/src/app/api/billing/checkout/route.ts
-//
-// POST /api/billing/checkout — creates ONE Stripe Checkout Session
-// containing the tier price plus every selected add-on's price(s)
-// (recurring and one-time mixed in a single subscription-mode session —
-// Stripe charges one-time line items on the first invoice and creates
-// subscription items for recurring ones). Add-ons are fully optional:
-// an empty `addons` array is valid and simply checks out the tier alone.
+// Starts the subscription the pricing screen chose, with its add-ons.
+// The tier id goes to Cerulea APIs as the plan, on the workspace serving the
+// division of the tier. Cerulea APIs checks the plan against the plans its
+// payments driver publishes and refuses a plan it does not serve. Each chosen
+// add-on then goes onto the subscription Cerulea APIs started.
+// Without this route the pricing screen has no way to start a plan.
 
 import { NextResponse } from 'next/server';
-import { randomUUID } from 'crypto';
 import { z } from 'zod';
-import { getSession } from '@/lib/auth';
-import { db } from '@/db/client';
-import { subscriptions, userPlanSelections } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+
+import { ceruleaRequest } from '@/lib/cerulea-api';
 import {
-  TIERS,
+  callOptions,
+  ceruleaActor,
+  failureReply,
+  failureResponse,
+  signInRequired,
+} from '@/lib/cerulea-server';
+import { billingDivision, billingHome } from '@/lib/entitlements-server';
+import {
+  type TierId,
+  divisionForTierId,
+  getAddonById,
   getTierById,
   isAddonEligibleForTier,
-  getAddonById,
   isTierInDivision,
-  divisionForTierId,
-  type TierId,
 } from '@/config/billing-catalog';
-import { divisionFromPath, type Division } from '@/config/divisions';
-import { and } from 'drizzle-orm';
-import { getStripe, getStripePriceId, isStripeConfigured } from '@/lib/billing/stripe';
-import { addAddonToSubscription } from '@/lib/billing/addons';
-import { dispatchProvisioning } from '@/lib/billing/provisioning';
+import { DIVISION_LABELS } from '@/config/divisions';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-const BodySchema = z.object({
-  tierId: z.enum(TIERS.map((t) => t.id) as [TierId, ...TierId[]]),
+const checkoutBody = z.object({
+  tierId: z.string().min(1).max(80),
   addons: z
-    .array(z.object({ addonId: z.string(), quantity: z.number().int().min(1) }))
+    .array(z.object({ addonId: z.string().min(1).max(80), quantity: z.number().int().min(1) }))
     .default([]),
   returnUrl: z.string().optional(),
+  division: z.string().optional(),
 });
 
-export async function POST(req: Request) {
-  try {
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
+/** The plans Cerulea APIs publishes and the add-ons it sells beside them. */
+type AddOnCatalogue = {
+  plans: { planId: string }[];
+  addOns: { addOnId: string; displayName: string }[];
+};
 
-    const parsed = BodySchema.safeParse(await req.json());
-    if (!parsed.success) {
-      return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
-    }
-    const { tierId, addons, returnUrl: rawReturnUrl } = parsed.data;
-  const returnUrl = rawReturnUrl && rawReturnUrl.startsWith('/') && !rawReturnUrl.startsWith('//')
-    ? rawReturnUrl
-    : undefined;
+export async function POST(request: Request) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const parsed = checkoutBody.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return failureResponse(
+      {
+        code: 'billing.tier_unnamed',
+        message: 'Cerulea reads the tier and the add-ons on this request.',
+        fix: 'Choose a tier on the pricing screen, then start the checkout again.',
+        details: { issues: parsed.error.flatten() },
+      },
+      400,
+    );
+  }
+  const { tierId, addons } = parsed.data;
+  const rawReturn = parsed.data.returnUrl;
+  const returnUrl =
+    rawReturn && rawReturn.startsWith('/') && !rawReturn.startsWith('//') ? rawReturn : null;
 
-    const tier = getTierById(tierId);
-    if (!tier) return NextResponse.json({ ok: false, error: 'Invalid tier' }, { status: 400 });
-
-    // ── Division guard ────────────────────────────────────────────────────────
-    // Resolve the division from the cerulea.division cookie (set by middleware
-    // from the /dapps|/enterprise|/govt path) with the Referer path as a
-    // cross-check. Block any attempt to buy a tier outside the current division.
-    const cookieDivision = (req.headers.get('cookie') || '')
-      .match(/(?:^|;\s*)cerulea\.division=([^;]+)/)?.[1] as Division | undefined;
-    const refererPath = (() => {
-      try { return new URL(req.headers.get('referer') || '').pathname; } catch { return ''; }
-    })();
-    const requestDivision: Division | null = (cookieDivision ?? divisionFromPath(refererPath)) ?? null;
-
-    if (requestDivision && !isTierInDivision(tierId, requestDivision)) {
-      return NextResponse.json(
-        { ok: false, error: `Tier "${tierId}" is not available in the ${requestDivision} division` },
-        { status: 403 }
+  // The tier names its own division. A tier from another division stays closed.
+  const asked = await billingDivision(request, parsed.data.division);
+  const catalogueTier = getTierById(tierId);
+  if (catalogueTier && asked && !isTierInDivision(tierId, asked)) {
+    return failureResponse(
+      {
+        code: 'billing.tier_outside_division',
+        message: `The ${catalogueTier.name} tier belongs to the ${DIVISION_LABELS[catalogueTier.division].title} division.`,
+        fix: `Open the ${DIVISION_LABELS[asked].title} pricing screen and choose one of its tiers.`,
+        details: { tierId, division: asked },
+      },
+      403,
+    );
+  }
+  if (catalogueTier) {
+    const closed = addons.find(
+      (entry) =>
+        getAddonById(entry.addonId) !== undefined &&
+        !isAddonEligibleForTier(entry.addonId, tierId as TierId),
+    );
+    if (closed) {
+      return failureResponse(
+        {
+          code: 'billing.add_on_outside_tier',
+          message: `The ${getAddonById(closed.addonId)?.name ?? closed.addonId} add-on is closed to the ${catalogueTier.name} tier.`,
+          fix: 'Remove the add-on, or choose a tier that offers it.',
+          details: { tierId, addonId: closed.addonId },
+        },
+        400,
       );
     }
-    // The division the subscription belongs to (authoritative — from the tier).
-    const subDivision: Division = divisionForTierId(tierId) ?? requestDivision ?? 'dapp';
+  }
 
-    // Record the plan selection regardless of checkout outcome.
-    db.insert(userPlanSelections).values({ id: randomUUID(), userId: session.user.id, selectedPlan: tierId }).catch(() => {});
+  try {
+    const options = callOptions(actor);
 
-    // Validate every selected add-on is eligible for this tier.
-    for (const sel of addons) {
-      if (!isAddonEligibleForTier(sel.addonId, tierId)) {
-        return NextResponse.json(
-          { ok: false, error: `Add-on "${sel.addonId}" is not eligible for tier "${tierId}"` },
-          { status: 400 }
+    // Every chosen add-on must be on sale before the plan starts, so a checkout
+    // never stops halfway. A plan Cerulea APIs does not publish goes straight
+    // to Cerulea APIs, which names the plans it serves.
+    if (addons.length > 0) {
+      const catalogue = await ceruleaRequest<AddOnCatalogue>(
+        '/v1/billing/plans',
+        { method: 'GET' },
+        options,
+      );
+      const published = catalogue.plans.some((entry) => entry.planId === tierId);
+      const sold = new Set(catalogue.addOns.map((entry) => entry.addOnId));
+      const absent = addons.filter((entry) => !sold.has(entry.addonId));
+      if (published && absent.length > 0) {
+        return failureResponse(
+          {
+            code: 'billing.add_on_absent',
+            message: `Cerulea sells no add-on named ${absent.map((entry) => entry.addonId).join(', ')}.`,
+            fix: `Choose from the add-ons Cerulea sells: ${catalogue.addOns
+              .map((entry) => entry.displayName)
+              .join(', ')}.`,
+            details: { addonIds: absent.map((entry) => entry.addonId) },
+          },
+          400,
         );
       }
     }
 
-    const origin = req.headers.get('origin') || process.env.NEXTAUTH_URL || 'http://localhost:3000';
-
-    // ── Dev-mode fallback: no Stripe keys configured ────────────────────────
-    if (!isStripeConfigured()) {
-      // Scope to THIS division — a user may hold one active sub per division.
-      const [existing] = await db
-        .select({ id: subscriptions.id })
-        .from(subscriptions)
-        .where(and(eq(subscriptions.userId, session.user.id), eq(subscriptions.division, subDivision)))
-        .limit(1);
-
-      const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      const subscriptionId = existing?.id ?? randomUUID();
-
-      if (existing) {
-        await db
-          .update(subscriptions)
-          .set({ plan: tierId, status: 'active', currentPeriodEnd: periodEnd, updatedAt: new Date().toISOString() })
-          .where(eq(subscriptions.id, subscriptionId));
-      } else {
-        await db.insert(subscriptions).values({
-          id: subscriptionId,
-          userId: session.user.id,
-          division: subDivision,
-          plan: tierId,
-          status: 'active',
-          currentPeriodEnd: periodEnd,
-        });
-      }
-
-      for (const sel of addons) {
-        await addAddonToSubscription(subscriptionId, sel.addonId, sel.quantity);
-      }
-
-      // No webhook will fire in dev mode — dispatch provisioning directly.
-      await dispatchProvisioning(subscriptionId);
-
-      const successUrl = returnUrl
-        ? `${origin}/pricing/success?return=${encodeURIComponent(returnUrl)}`
-        : `${origin}/pricing/success`;
-      return NextResponse.json({ ok: true, url: successUrl, devMode: true });
-    }
-
-    // ── Live Stripe checkout ─────────────────────────────────────────────────
-    const stripe = getStripe();
-
-    // Split into recurring vs one-time prices. Dapp tiers are recurring; the
-    // enterprise/govt tiers are one-time. Stripe Checkout subscription mode
-    // requires ≥1 recurring line item; a purely one-time purchase must use
-    // payment mode. So the checkout mode is driven by whether anything recurs.
-    const recurringItems: { price: string; quantity: number }[] = [];
-    const oneTimeItems: { price: string; quantity: number }[] = [];
-
-    (tier.billing === 'recurring' ? recurringItems : oneTimeItems).push({
-      price: getStripePriceId(tier.priceEnvVar), quantity: 1,
+    const home = await billingHome(actor, request, {
+      division: divisionForTierId(tierId) ?? asked,
     });
-
-    for (const sel of addons) {
-      const addon = getAddonById(sel.addonId);
-      if (!addon) continue;
-      const qty = Math.max(1, Math.min(sel.quantity, addon.maxQuantity));
-      if (addon.recurringPriceCents != null && addon.recurringPriceEnvVar) {
-        recurringItems.push({ price: getStripePriceId(addon.recurringPriceEnvVar), quantity: qty });
-      }
-      if (addon.oneTimePriceCents != null && addon.oneTimePriceEnvVar) {
-        oneTimeItems.push({ price: getStripePriceId(addon.oneTimePriceEnvVar), quantity: qty });
-      }
-    }
-
-    const successBase = `${origin}/pricing/success?session_id={CHECKOUT_SESSION_ID}`;
-    const successUrl = returnUrl ? `${successBase}&return=${encodeURIComponent(returnUrl)}` : successBase;
-
-    const metadata = {
-      userId: session.user.id,
-      tierId,
-      division: subDivision,
-      addons: JSON.stringify(addons),
-      returnUrl: returnUrl || '',
-    };
-
-    let checkoutSession;
-    if (recurringItems.length > 0) {
-      // Subscription mode. Any one-time items ride on the first invoice.
-      checkoutSession = await stripe.checkout.sessions.create({
-        mode: 'subscription',
-        payment_method_types: ['card'],
-        line_items: recurringItems,
-        subscription_data: {
-          metadata,
-          ...(oneTimeItems.length ? { add_invoice_items: oneTimeItems } : {}),
+    const workspacePath = `/workspaces/${encodeURIComponent(home.workspace.workspaceId)}`;
+    const started = await ceruleaRequest<Record<string, unknown>>(
+      `/studio${workspacePath}/subscription`,
+      { method: 'POST', body: JSON.stringify({ planId: tierId }) },
+      options,
+    );
+    for (const entry of addons) {
+      await ceruleaRequest(
+        `/v1${workspacePath}/subscription/add-ons`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ addOnId: entry.addonId, quantity: entry.quantity }),
         },
-        metadata,
-        customer_email: session.user.email,
-        success_url: successUrl,
-        cancel_url: `${origin}/pricing`,
-      });
-    } else {
-      // Pure one-time purchase (e.g. an enterprise/govt tier license). The
-      // webhook's payment branch creates the division subscription row.
-      checkoutSession = await stripe.checkout.sessions.create({
-        mode: 'payment',
-        payment_method_types: ['card'],
-        line_items: oneTimeItems,
-        payment_intent_data: { metadata },
-        metadata,
-        customer_email: session.user.email,
-        success_url: successUrl,
-        cancel_url: `${origin}/pricing`,
-      });
+        options,
+      );
     }
 
-    return NextResponse.json({ ok: true, url: checkoutSession.url });
-  } catch (err: any) {
-    console.error('Billing checkout error:', err);
-    return NextResponse.json({ ok: false, error: err.message || 'Checkout failed' }, { status: 500 });
+    const url = returnUrl
+      ? `/pricing/success?return=${encodeURIComponent(returnUrl)}`
+      : '/pricing/success';
+    return NextResponse.json({
+      ok: true,
+      url,
+      division: home.division,
+      workspace: home.workspace,
+      ...started,
+    });
+  } catch (cause) {
+    return failureReply(cause);
   }
 }

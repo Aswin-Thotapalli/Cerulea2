@@ -1,106 +1,110 @@
 // apps/frontend/src/app/api/billing/subscription/addons/route.ts
-//
-// PATCH — applies a new set of *purely recurring* add-on selections
-// (validators, storage, dedicated RPC, API keys, Studio seats) against
-// the caller's existing subscription: diffs against the current active
-// selections and calls the shared addAddonToSubscription /
-// removeAddonFromSubscription for whatever changed.
-//
-// Add-ons with a one-time component (custom domain, block explorer) are
-// deliberately rejected here — adding those for the first time requires
-// an actual card charge, which only a Stripe Checkout redirect can do.
-// See POST /api/billing/addons/checkout for that flow. Removing an
-// already-active recurring component (e.g. dropping the block explorer's
-// monthly hosting) IS allowed here, since removal never charges anything.
-//
-// This calls the SAME addAddonToSubscription/removeAddonFromSubscription
-// functions used by the webhook's signup-completion path — see
-// src/lib/billing/addons.ts.
+// Applies a new set of add-on choices to the running subscription.
+// The route compares the choices with the active add-ons Cerulea APIs holds.
+// An add-on missing from the choices leaves the subscription. A new add-on, or
+// a new quantity, goes onto the subscription. Cerulea APIs checks each add-on
+// against the add-ons it sells and refuses one it does not sell.
+// Without this route the billing screen cannot save its add-on choices.
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getSession } from '@/lib/auth';
-import { getCurrentSubscription } from "@/lib/billing/current-subscription";
-import { db } from '@/db/client';
-import { subscriptions } from '@/db/schema';
-import { eq } from 'drizzle-orm';
-import { getAddonById } from '@/config/billing-catalog';
-import { addAddonToSubscription, removeAddonFromSubscription, getActiveAddonSelections } from '@/lib/billing/addons';
-import { dispatchProvisioning } from '@/lib/billing/provisioning';
-import { isStripeConfigured } from '@/lib/billing/stripe';
+
+import { ceruleaRequest } from '@/lib/cerulea-api';
+import {
+  callOptions,
+  ceruleaActor,
+  failureReply,
+  failureResponse,
+  signInRequired,
+} from '@/lib/cerulea-server';
+import { billingHome, readActiveAddOns, subscriptionAbsent } from '@/lib/entitlements-server';
+import {
+  type TierId,
+  getAddonById,
+  getTierById,
+  isAddonEligibleForTier,
+} from '@/config/billing-catalog';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-const BodySchema = z.object({
-  selections: z.array(z.object({ addonId: z.string(), quantity: z.number().int().min(1) })),
+const selectionBody = z.object({
+  selections: z.array(
+    z.object({ addonId: z.string().min(1).max(80), quantity: z.number().int().min(1).max(1000) }),
+  ),
 });
 
-export async function PATCH(req: Request) {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const parsed = BodySchema.safeParse(await req.json());
+export async function PATCH(request: Request) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const parsed = selectionBody.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
+    return failureResponse(
+      {
+        code: 'billing.selections_unnamed',
+        message: 'Cerulea reads the add-on choices on this request.',
+        fix: 'Choose the add-ons on the billing screen, then save again.',
+        details: { issues: parsed.error.flatten() },
+      },
+      400,
+    );
   }
+  try {
+    const options = callOptions(actor);
+    const home = await billingHome(actor, request);
+    const held = home.subscription;
+    if (!held) return subscriptionAbsent(home);
 
-  const sub = await getCurrentSubscription(session.user.id);
-
-  if (!sub || sub.status !== 'active') {
-    return NextResponse.json({ ok: false, error: 'No active subscription' }, { status: 404 });
-  }
-
-  const current = await getActiveAddonSelections(sub.id);
-  const currentlyActiveIds = new Set(current.map((c) => c.addonId));
-
-  // Reject NEW selections of an add-on with a one-time component — those
-  // must go through the dedicated checkout flow instead (POST
-  // /api/billing/addons/checkout), since adding one for the first time
-  // requires an actual card charge. An add-on that's already active
-  // (its one-time fee was already paid previously) is allowed through
-  // here unchanged, so saving other edits doesn't get blocked by it.
-  for (const sel of parsed.data.selections) {
-    const addon = getAddonById(sel.addonId);
-    if (!addon) {
-      return NextResponse.json({ ok: false, error: `Unknown add-on: ${sel.addonId}` }, { status: 400 });
+    // The catalogue tier decides which catalogue add-ons it offers.
+    const tier = getTierById(held.planId);
+    if (tier) {
+      const closed = parsed.data.selections.find(
+        (entry) =>
+          getAddonById(entry.addonId) !== undefined &&
+          !isAddonEligibleForTier(entry.addonId, held.planId as TierId),
+      );
+      if (closed) {
+        return failureResponse(
+          {
+            code: 'billing.add_on_outside_tier',
+            message: `The ${getAddonById(closed.addonId)?.name ?? closed.addonId} add-on is closed to the ${tier.name} tier.`,
+            fix: 'Remove the add-on, or move to a tier that offers it.',
+            details: { tierId: held.planId, addonId: closed.addonId },
+          },
+          400,
+        );
+      }
     }
-    if (addon.oneTimePriceCents != null && !currentlyActiveIds.has(addon.id)) {
-      return NextResponse.json(
-        { ok: false, error: `"${addon.name}" requires checkout — use POST /api/billing/addons/checkout`, addonId: addon.id },
-        { status: 409 }
+
+    const workspacePath = `/v1/workspaces/${encodeURIComponent(home.workspace.workspaceId)}`;
+    const current = await readActiveAddOns(home.workspace.workspaceId, held, options);
+    const currentMap = new Map(current.map((entry) => [entry.addOnId, entry.quantity]));
+    const nextMap = new Map(parsed.data.selections.map((entry) => [entry.addonId, entry.quantity]));
+
+    for (const addOnId of Array.from(currentMap.keys())) {
+      if (nextMap.has(addOnId)) continue;
+      await ceruleaRequest(
+        `${workspacePath}/subscription/add-ons/${encodeURIComponent(addOnId)}`,
+        { method: 'DELETE' },
+        options,
       );
     }
-    if (!addon.eligibleTierIds.includes(sub.plan as any)) {
-      return NextResponse.json({ ok: false, error: `"${addon.name}" is not eligible for your current tier` }, { status: 400 });
+    for (const [addOnId, quantity] of Array.from(nextMap.entries())) {
+      if (currentMap.get(addOnId) === quantity) continue;
+      await ceruleaRequest(
+        `${workspacePath}/subscription/add-ons`,
+        { method: 'POST', body: JSON.stringify({ addOnId, quantity }) },
+        options,
+      );
     }
+
+    const updated = await readActiveAddOns(home.workspace.workspaceId, held, options);
+    return NextResponse.json({
+      ok: true,
+      division: home.division,
+      addons: updated.map((entry) => ({ addonId: entry.addOnId, quantity: entry.quantity })),
+    });
+  } catch (cause) {
+    return failureReply(cause);
   }
-
-  const currentMap = new Map(current.map((c) => [c.addonId, c.quantity]));
-  const nextMap = new Map(parsed.data.selections.map((s) => [s.addonId, s.quantity]));
-
-  // Removals: in current but not in next.
-  for (const [addonId] of Array.from(currentMap)) {
-    if (!nextMap.has(addonId)) {
-      await removeAddonFromSubscription(sub.id, addonId);
-    }
-  }
-
-  // Adds / quantity changes.
-  for (const [addonId, quantity] of Array.from(nextMap)) {
-    if (currentMap.get(addonId) !== quantity) {
-      await addAddonToSubscription(sub.id, addonId, quantity);
-    }
-  }
-
-  // In dev mode there is no live Stripe subscription, so no
-  // `customer.subscription.updated` webhook will ever fire — dispatch
-  // provisioning directly so the feature still works end-to-end locally.
-  if (!isStripeConfigured()) {
-    await dispatchProvisioning(sub.id);
-  }
-
-  const updated = await getActiveAddonSelections(sub.id);
-  return NextResponse.json({ ok: true, addons: updated });
 }

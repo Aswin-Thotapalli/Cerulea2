@@ -1,13 +1,20 @@
 // apps/frontend/src/app/api/modules/route.ts
+// Serves the module catalogue to the canvas step.
+// The catalogue is the seed file src/data/modules.seed.json, imported so the
+// route works from a built output as well as from the source tree.
+// A division sees its own modules and the shared ones, never the exclusive
+// modules of another division.
+// Without this route the canvas palette is empty.
 import { NextResponse } from 'next/server';
 
-// Import the catalog directly; no filesystem lookups.
-// Make sure your file lives at: apps/frontend/src/data/modules.seed.json
-import catalogJson from '@/data/modules.seed.json';
+import catalogueJson from '@/data/modules.seed.json';
+import { failureReply } from '@/lib/cerulea-server';
+import { asDivision } from '@/config/divisions';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-type Module = {
+type CatalogueModule = {
   moduleId: string;
   title: string;
   projectType: 'dapp' | 'blockchain';
@@ -19,72 +26,53 @@ type Module = {
   dependsOn?: string[];
   recommends?: string[];
   reasonByDepId?: Record<string, string>;
-  configSchema?: any;
+  configSchema?: unknown;
 };
 
-type Catalog = { version: number; updatedAt: string; modules: Module[] };
+type Catalogue = { version: number; updatedAt: string; modules: CatalogueModule[] };
 
-const CATALOG: Catalog = catalogJson as unknown as Catalog;
+const CATALOGUE = catalogueJson as unknown as Catalogue;
 
-export async function GET(req: Request) {
+// GET /api/modules?projectType=&division=&category=&ids=a,b&q=
+export async function GET(request: Request) {
   try {
-    const url = new URL(req.url);
-
-    const projectType = url.searchParams.get('projectType') as
-      | 'dapp'
-      | 'blockchain'
-      | null;
-
-    const division = url.searchParams.get('division') as
-      | 'dapp'
-      | 'enterprise'
-      | 'govt'
-      | null;
-
-    const q = (url.searchParams.get('q') || '').toLowerCase();
-    const category = (url.searchParams.get('category') || '').toLowerCase();
-
-    const ids = (url.searchParams.get('ids') || '')
+    const search = new URL(request.url).searchParams;
+    const projectType = search.get('projectType');
+    const division = asDivision(search.get('division'));
+    const q = (search.get('q') ?? '').toLowerCase();
+    const category = (search.get('category') ?? '').toLowerCase();
+    const ids = (search.get('ids') ?? '')
       .split(',')
-      .map((s) => s.trim())
+      .map((value) => value.trim())
       .filter(Boolean);
 
-    let mods = CATALOG.modules.slice();
-
-    if (projectType) mods = mods.filter((m) => m.projectType === projectType);
-
-    // Division scoping: a division sees its own modules PLUS shared (undivided)
-    // ones, but never another division's exclusive modules.
-    if (division) mods = mods.filter((m) => !m.division || m.division === division);
-
-    if (category) mods = mods.filter((m) => m.category.toLowerCase() === category);
-
-    if (ids.length) {
-      const set = new Set(ids);
-      mods = mods.filter((m) => set.has(m.moduleId));
+    let list = CATALOGUE.modules.slice();
+    if (projectType === 'dapp' || projectType === 'blockchain') {
+      list = list.filter((entry) => entry.projectType === projectType);
     }
-
+    if (division) list = list.filter((entry) => !entry.division || entry.division === division);
+    if (category) list = list.filter((entry) => entry.category.toLowerCase() === category);
+    if (ids.length > 0) {
+      const wanted = new Set(ids);
+      list = list.filter((entry) => wanted.has(entry.moduleId));
+    }
     if (q) {
-      mods = mods.filter((m) => {
-        const hay = [
-          m.title,
-          m.blurb ?? '',
-          (m.tags ?? []).join(' '),
-          ...(m.longDescription ?? []),
-          m.category,
-          m.moduleId,
+      list = list.filter((entry) =>
+        [
+          entry.title,
+          entry.blurb ?? '',
+          (entry.tags ?? []).join(' '),
+          ...(entry.longDescription ?? []),
+          entry.category,
+          entry.moduleId,
         ]
           .join(' ')
-          .toLowerCase();
-        return hay.includes(q);
-      });
+          .toLowerCase()
+          .includes(q),
+      );
     }
-
-    return NextResponse.json(mods, { status: 200 });
-  } catch (err: any) {
-    return NextResponse.json(
-      { ok: false, error: err?.message ?? 'Unknown error' },
-      { status: 500 }
-    );
+    return NextResponse.json(list, { status: 200 });
+  } catch (cause) {
+    return failureReply(cause);
   }
 }

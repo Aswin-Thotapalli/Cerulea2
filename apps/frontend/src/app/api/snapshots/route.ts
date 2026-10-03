@@ -1,60 +1,102 @@
+// apps/frontend/src/app/api/snapshots/route.ts
+// The State screen lists and takes checkpoints of a project here.
+// Cerulea APIs keeps every checkpoint against the project. A checkpoint names
+// one Blueprint version by its content address, so a person returns to it
+// later. A checkpoint never changes once taken.
+// Without this route nobody can mark a state of the Blueprint to return to.
 import { NextResponse } from 'next/server';
-import { db } from '@/db/client';
-import { snapshots } from '@/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
-import { getSession } from '@/lib/auth';
-import { randomUUID } from 'crypto';
-import { logAudit } from '@/lib/audit';
+import { z } from 'zod';
+
+import { type CeruleaCheckpoint, createCheckpoint, listCheckpoints } from '@/lib/cerulea-api';
+import {
+  callOptions,
+  ceruleaActor,
+  failureReply,
+  failureResponse,
+  signInRequired,
+  withActor,
+} from '@/lib/cerulea-server';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-// GET /api/snapshots?projectId=
-export async function GET(req: Request) {
-  try {
-    const session = await getSession();
-    if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+const takeBody = z.object({
+  projectId: z.string().min(1),
+  name: z.string().trim().min(2).max(160),
+  description: z.string().max(400).nullable().optional(),
+});
 
-    const { searchParams } = new URL(req.url);
-    const projectId = searchParams.get('projectId');
-    if (!projectId) return NextResponse.json({ ok: false, error: 'projectId required' }, { status: 400 });
-
-    const rows = await db
-      .select()
-      .from(snapshots)
-      .where(and(eq(snapshots.projectId, projectId), eq(snapshots.userId, session.user.id)))
-      .orderBy(desc(snapshots.createdAt));
-
-    return NextResponse.json({ ok: true, snapshots: rows });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
-  }
+/** The checkpoint as the production screen reads it, with the Cerulea fields beside it. */
+function screenSnapshot(checkpoint: CeruleaCheckpoint) {
+  return {
+    id: checkpoint.checkpointId,
+    projectId: checkpoint.projectId,
+    userId: checkpoint.createdByAccountId,
+    name: checkpoint.label,
+    description: checkpoint.note.length > 0 ? checkpoint.note : null,
+    // Cerulea writes a checkpoint in the same call that takes it, so every checkpoint is ready.
+    status: 'ready',
+    version: checkpoint.version,
+    blueprintId: checkpoint.blueprintId,
+    blueprintHash: checkpoint.blueprintHash,
+    restoredFromCheckpointId: checkpoint.restoredFromCheckpointId ?? null,
+    createdAt: checkpoint.createdAt,
+    // A checkpoint never changes, so its last change is the moment it was taken.
+    updatedAt: checkpoint.createdAt,
+  };
 }
 
-// POST /api/snapshots — create a snapshot
-export async function POST(req: Request) {
+export async function GET(request: Request) {
+  const projectId = new URL(request.url).searchParams.get('projectId');
+  if (!projectId) {
+    return failureResponse(
+      {
+        code: 'checkpoint.project_unnamed',
+        message: 'Cerulea reads the checkpoints of one project at a time.',
+        fix: 'Choose a project, then open the checkpoint list again.',
+        details: {},
+      },
+      400,
+    );
+  }
+  return withActor(async (actor) => {
+    const held = await listCheckpoints(projectId, callOptions(actor));
+    const snapshots = held.checkpoints
+      .map(screenSnapshot)
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    return { ok: true, snapshots };
+  });
+}
+
+export async function POST(request: Request) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const parsed = takeBody.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return failureResponse(
+      {
+        code: 'checkpoint.request_incomplete',
+        message: 'A checkpoint names the project and carries a name of two characters or more.',
+        fix: 'Choose the project, type a name that describes this state, then take the checkpoint again.',
+        details: {},
+      },
+      400,
+    );
+  }
   try {
-    const session = await getSession();
-    if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-
-    const body = await req.json();
-    const { projectId, name, description, stateData } = body;
-    if (!projectId || !name) return NextResponse.json({ ok: false, error: 'projectId and name required' }, { status: 400 });
-
-    const id = randomUUID();
-    await db.insert(snapshots).values({
-      id,
-      projectId,
-      userId: session.user.id,
-      name,
-      description: description || null,
-      stateData: stateData ? JSON.stringify(stateData) : null,
-      status: 'ready',
-    });
-
-    const [row] = await db.select().from(snapshots).where(eq(snapshots.id, id));
-    logAudit({ userId: session.user.id, actorEmail: session.user.email ?? undefined, action: 'snapshot.create', resource: 'snapshot', resourceId: id, status: 'success' });
-    return NextResponse.json({ ok: true, snapshot: row }, { status: 201 });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
+    const taken = await createCheckpoint(
+      parsed.data.projectId,
+      {
+        label: parsed.data.name,
+        note: parsed.data.description ? parsed.data.description : undefined,
+      },
+      callOptions(actor),
+    );
+    return NextResponse.json(
+      { ok: true, snapshot: screenSnapshot(taken.checkpoint) },
+      { status: 201 },
+    );
+  } catch (cause) {
+    return failureReply(cause);
   }
 }

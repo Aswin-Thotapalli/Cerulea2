@@ -1,57 +1,70 @@
 // apps/frontend/src/app/api/billing/subscription/addons/remove/route.ts
-//
-// POST — cancel a single add-on immediately, without needing to resend
-// the full selection list (unlike PATCH /api/billing/subscription/addons,
-// which diffs a whole new selection set). This is what the dashboard's
-// per-add-on "Cancel" button calls. Removal never requires a new charge,
-// so this applies instantly regardless of the add-on's billing type.
+// Removes one add-on from the running subscription at once.
+// The billing screen calls this from the button beside each active add-on.
+// Cerulea APIs marks the add-on removed on the subscription record, so the
+// next invoice leaves it out.
+// Without this route an add-on stays on the subscription until the whole
+// choice set is saved again.
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getSession } from '@/lib/auth';
-import { db } from '@/db/client';
-import { subscriptions } from '@/db/schema';
-import { eq } from 'drizzle-orm';
-import { getAddonById } from '@/config/billing-catalog';
-import { removeAddonFromSubscription } from '@/lib/billing/addons';
-import { dispatchProvisioning } from '@/lib/billing/provisioning';
-import { isStripeConfigured } from '@/lib/billing/stripe';
+
+import { ceruleaRequest } from '@/lib/cerulea-api';
+import {
+  callOptions,
+  ceruleaActor,
+  failureReply,
+  failureResponse,
+  signInRequired,
+} from '@/lib/cerulea-server';
+import { billingHome, readActiveAddOns, subscriptionAbsent } from '@/lib/entitlements-server';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-const BodySchema = z.object({ addonId: z.string() });
+const removeBody = z.object({ addonId: z.string().min(1).max(80) });
 
-export async function POST(req: Request) {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const parsed = BodySchema.safeParse(await req.json());
+export async function POST(request: Request) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const parsed = removeBody.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
+    return failureResponse(
+      {
+        code: 'billing.add_on_unnamed',
+        message: 'Cerulea reads the add-on to remove on this request.',
+        fix: 'Choose the add-on on the billing screen, then remove it again.',
+        details: {},
+      },
+      400,
+    );
   }
+  try {
+    const options = callOptions(actor);
+    const home = await billingHome(actor, request);
+    const held = home.subscription;
+    if (!held) return subscriptionAbsent(home);
 
-  if (!getAddonById(parsed.data.addonId)) {
-    return NextResponse.json({ ok: false, error: 'Unknown add-on' }, { status: 400 });
+    const active = await readActiveAddOns(home.workspace.workspaceId, held, options);
+    if (!active.some((entry) => entry.addOnId === parsed.data.addonId)) {
+      return failureResponse(
+        {
+          code: 'billing.add_on_inactive',
+          message: `The subscription carries no active add-on named ${parsed.data.addonId}.`,
+          fix: 'Open the billing screen again to read the add-ons the subscription carries.',
+          details: { addonId: parsed.data.addonId },
+        },
+        400,
+      );
+    }
+
+    const outcome = await ceruleaRequest<Record<string, unknown>>(
+      `/v1/workspaces/${encodeURIComponent(home.workspace.workspaceId)}/subscription/add-ons/${encodeURIComponent(parsed.data.addonId)}`,
+      { method: 'DELETE' },
+      options,
+    );
+    return NextResponse.json({ ok: true, division: home.division, ...outcome });
+  } catch (cause) {
+    return failureReply(cause);
   }
-
-  const [sub] = await db
-    .select()
-    .from(subscriptions)
-    .where(eq(subscriptions.userId, session.user.id))
-    .limit(1);
-
-  if (!sub || sub.status !== 'active') {
-    return NextResponse.json({ ok: false, error: 'No active subscription' }, { status: 404 });
-  }
-
-  await removeAddonFromSubscription(sub.id, parsed.data.addonId);
-
-  // Dev-mode: no webhook will fire to dispatch provisioning — do it directly.
-  if (!isStripeConfigured()) {
-    await dispatchProvisioning(sub.id);
-  }
-
-  return NextResponse.json({ ok: true });
 }

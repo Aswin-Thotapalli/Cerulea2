@@ -1,87 +1,86 @@
+// apps/frontend/src/app/api/drafts/[[...slug]]/route.ts
+// Saves and reads one Studio draft by project and bucket.
+// Each draft lives in the draft area of the Studio build state, keyed by the
+// bucket name the screen sends. The key matches the production draft key with
+// the project prefix removed, since the build state already belongs to one
+// project.
+// Without this route an autosaved step is lost when the project reopens.
 import { NextResponse } from 'next/server';
-import { db } from '@/db/client';
-import { drafts, projects } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
-import { getSession } from '@/lib/auth';
+
+import {
+  callOptions,
+  ceruleaActor,
+  failureReply,
+  failureResponse,
+  signInRequired,
+} from '@/lib/cerulea-server';
+import {
+  DRAFT_KEY_LIMIT,
+  objectBody,
+  readHeldBuildState,
+  writeDraft,
+} from '@/app/api/projects/_shared/project-record';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-// Verify the project belongs to the current user before reading/writing its drafts
-async function verifyProjectOwnership(projectId: string, userId: string) {
-  const [row] = await db
-    .select({ id: projects.id })
-    .from(projects)
-    .where(and(eq(projects.id as any, projectId), eq(projects.userId as any, userId)))
-    .limit(1);
-  return !!row;
+function unnamed(): NextResponse {
+  return failureResponse(
+    {
+      code: 'draft.bucket_unnamed',
+      message: 'A draft names its project and its bucket.',
+      fix: `Send projectId and a bucket of at most ${DRAFT_KEY_LIMIT} characters, then save again.`,
+      details: {},
+    },
+    400,
+  );
 }
 
-// POST /api/drafts  — create / upsert draft
-export async function POST(req: Request) {
+function validBucket(bucket: unknown): bucket is string {
+  return typeof bucket === 'string' && bucket.length > 0 && bucket.length <= DRAFT_KEY_LIMIT;
+}
+
+// POST /api/drafts  body: { projectId, bucket, data }  saves or replaces one draft
+export async function POST(request: Request) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const body = await objectBody(request);
+  const projectId = body?.projectId;
+  const bucket = body?.bucket;
+  if (typeof projectId !== 'string' || !projectId || !validBucket(bucket)) return unnamed();
   try {
-    const session = await getSession();
-    if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-
-    const body = await req.json().catch(() => null);
-    const { projectId, bucket, data } = body || {};
-
-    if (!projectId || !bucket) {
-      return NextResponse.json({ ok: false, error: 'projectId and bucket are required' }, { status: 400 });
-    }
-
-    if (!(await verifyProjectOwnership(projectId, session.user.id))) {
-      return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
-    }
-
-    const id = `${projectId}::${bucket}`;
-    const stored = JSON.stringify(data);
-
-    // Upsert: check if exists then insert or update
-    const [existing] = await db.select({ id: drafts.id }).from(drafts).where(eq(drafts.id as any, id)).limit(1);
-    if (existing) {
-      await db.update(drafts).set({ data: stored as any }).where(eq(drafts.id as any, id));
-    } else {
-      await db.insert(drafts).values({ id, projectId, data: stored as any });
-    }
-
+    await writeDraft(projectId, bucket, body?.data ?? null, callOptions(actor));
     return NextResponse.json({ ok: true, updatedAt: Date.now() });
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+  } catch (cause) {
+    return failureReply(cause);
   }
 }
 
 export const PUT = POST;
 
 // GET /api/drafts?projectId=&bucket=
-export async function GET(req: Request) {
+export async function GET(request: Request) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const search = new URL(request.url).searchParams;
+  const projectId = search.get('projectId');
+  const bucket = search.get('bucket');
+  if (!projectId || !validBucket(bucket)) return unnamed();
   try {
-    const session = await getSession();
-    if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-
-    const url = new URL(req.url);
-    const projectId = url.searchParams.get('projectId');
-    const bucket = url.searchParams.get('bucket');
-
-    if (!projectId || !bucket) {
-      return NextResponse.json({ ok: false, error: 'projectId and bucket are required' }, { status: 400 });
+    const held = await readHeldBuildState(projectId, callOptions(actor));
+    if (!Object.prototype.hasOwnProperty.call(held.drafts, bucket)) {
+      return failureResponse(
+        {
+          code: 'draft.absent',
+          message: `The project holds no draft in the bucket ${bucket}.`,
+          fix: 'Save the step once, then open it again.',
+          details: { projectId, bucket },
+        },
+        404,
+      );
     }
-
-    if (!(await verifyProjectOwnership(projectId, session.user.id))) {
-      return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
-    }
-
-    const id = `${projectId}::${bucket}`;
-    const [row] = await db.select().from(drafts).where(eq(drafts.id as any, id)).limit(1);
-
-    if (!row) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
-
-    let data: any = (row as any).data;
-    if (typeof data === 'string') {
-      try { data = JSON.parse(data); } catch { /* keep raw */ }
-    }
-
-    return NextResponse.json({ ok: true, data, updatedAt: (row as any).updatedAt });
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: true, data: held.drafts[bucket] });
+  } catch (cause) {
+    return failureReply(cause);
   }
 }

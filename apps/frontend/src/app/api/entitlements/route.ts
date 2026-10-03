@@ -1,32 +1,38 @@
 // apps/frontend/src/app/api/entitlements/route.ts
-//
 // GET /api/entitlements?division=dapp|enterprise|govt
-// Returns the current user's effective entitlement (features + limits) for the
-// division. The client Gate/useEntitlements hook reads this.
+// Answers the features and limits the account holds in one division.
+// The tier and the add-ons come from the subscription Cerulea APIs keeps on the
+// workspace serving the division. The published tier table turns them into
+// features and limits. The Cerulea operator holds every feature.
+// Without this route every Studio gate stays closed.
 
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+
+import { callOptions, ceruleaActor, failureReply, failureResponse, requestDivision, signInRequired } from '@/lib/cerulea-server';
 import { getEntitlement } from '@/lib/entitlements-server';
-import { DIVISIONS, type Division } from '@/config/divisions';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-export async function GET(req: Request) {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ features: [], limits: {} }, { status: 200 });
+export async function GET(request: Request) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const division = await requestDivision(request);
+  if (!division) {
+    return failureResponse(
+      {
+        code: 'entitlement.division_unnamed',
+        message: 'Cerulea reads the division on this request.',
+        fix: 'Name the division as dapp, enterprise or govt, then read the entitlement again.',
+        details: {},
+      },
+      400,
+    );
   }
-
-  const url = new URL(req.url);
-  const q = url.searchParams.get('division');
-  const cookieDiv = (req.headers.get('cookie') || '').match(/(?:^|;\s*)cerulea\.division=([^;]+)/)?.[1];
-  const division = (q ?? cookieDiv) as Division | null;
-
-  if (!division || !DIVISIONS.includes(division)) {
-    return NextResponse.json({ features: [], limits: {}, error: 'unknown_division' }, { status: 200 });
+  try {
+    const entitlement = await getEntitlement(callOptions(actor), division);
+    return NextResponse.json({ division, ...entitlement });
+  } catch (cause) {
+    return failureReply(cause);
   }
-
-  const isAdmin = (session.user as any).isAdmin === true || (session.user as any).isTestAccount === true;
-  const ent = await getEntitlement(session.user.id, division, isAdmin);
-  return NextResponse.json({ division, ...ent });
 }

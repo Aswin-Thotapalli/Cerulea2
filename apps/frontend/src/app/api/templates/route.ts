@@ -1,13 +1,22 @@
-//apps\frontend\src\app\api\templates\route.ts
+// apps/frontend/src/app/api/templates/route.ts
+// Serves the template catalogue to the Foundation step.
+// The catalogue is the seed file src/data/templates.seed.json, imported so the
+// route works from a built output as well as from the source tree.
+// A division sees its own templates first, then the shared ones, never the
+// templates of another division.
+// Without this route the template gallery is empty.
 import { NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import { join } from 'path';
 
-export const dynamic = 'force-dynamic'; // read fresh from disk in dev
+import catalogueJson from '@/data/templates.seed.json';
+import { failureReply } from '@/lib/cerulea-server';
+import { asDivision } from '@/config/divisions';
 
-type Edge = { from: string; to: string; rel: string };
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-type Template = {
+type TemplateEdge = { from: string; to: string; rel: string };
+
+type CatalogueTemplate = {
   id: string;
   projectType: 'dapp' | 'blockchain';
   division?: 'dapp' | 'enterprise' | 'govt';
@@ -16,82 +25,48 @@ type Template = {
   tags?: string[];
   preinstalledModules?: string[];
   modules?: string[];
-  edges?: Edge[];
+  edges?: TemplateEdge[];
   ui?: { pages?: string[] };
 };
 
-type Catalog = {
-  version: number;
-  updatedAt: string;
-  templates: Template[];
-};
+type Catalogue = { version: number; updatedAt: string; templates: CatalogueTemplate[] };
 
-async function readCatalog(): Promise<Catalog> {
-  const candidates = [
-    join(process.cwd(), 'src', 'data', 'templates.seed.json'),
-    join(process.cwd(), 'apps', 'frontend', 'src', 'data', 'templates.seed.json'),
-  ];
-  let lastErr: unknown = null;
-  for (const p of candidates) {
-    try {
-      const raw = await fs.readFile(p, 'utf8');
-      return JSON.parse(raw) as Catalog;
-    } catch (err) {
-      lastErr = err;
-    }
-  }
-  throw lastErr ?? new Error('templates.seed.json not found');
-}
+const CATALOGUE = catalogueJson as unknown as Catalogue;
 
-// GET /api/templates?projectType=&q=&ids=a,b,c
-export async function GET(req: Request) {
+// GET /api/templates?projectType=&division=&q=&ids=a,b,c
+export async function GET(request: Request) {
   try {
-    const url = new URL(req.url);
-    const projectType = url.searchParams.get('projectType') as
-      | 'dapp'
-      | 'blockchain'
-      | null;
-    const division = url.searchParams.get('division') as
-      | 'dapp'
-      | 'enterprise'
-      | 'govt'
-      | null;
-    const q = (url.searchParams.get('q') || '').toLowerCase();
-    const ids = (url.searchParams.get('ids') || '')
+    const search = new URL(request.url).searchParams;
+    const projectType = search.get('projectType');
+    const division = asDivision(search.get('division'));
+    const q = (search.get('q') ?? '').toLowerCase();
+    const ids = (search.get('ids') ?? '')
       .split(',')
-      .map(s => s.trim())
+      .map((value) => value.trim())
       .filter(Boolean);
 
-    const catalog = await readCatalog();
-    let list = catalog.templates.slice();
-
-    if (projectType) list = list.filter(t => t.projectType === projectType);
-    // Division scoping: a division sees its own templates PLUS shared (undivided)
-    // ones, but never another division's. Division-specific templates sort first.
+    let list = CATALOGUE.templates.slice();
+    if (projectType === 'dapp' || projectType === 'blockchain') {
+      list = list.filter((entry) => entry.projectType === projectType);
+    }
     if (division) {
-      list = list.filter(t => !t.division || t.division === division);
-      list.sort((a, b) => (a.division === division ? 0 : 1) - (b.division === division ? 0 : 1));
+      list = list.filter((entry) => !entry.division || entry.division === division);
+      list.sort(
+        (left, right) =>
+          (left.division === division ? 0 : 1) - (right.division === division ? 0 : 1),
+      );
     }
-    if (ids.length) list = list.filter(t => ids.includes(t.id));
+    if (ids.length > 0) list = list.filter((entry) => ids.includes(entry.id));
     if (q) {
-      list = list.filter(t => {
-        const hay = [
-          t.title,
-          t.description || '',
-          ...(t.tags || []),
-          ...(t.ui?.pages || []),
-        ]
+      list = list.filter((entry) =>
+        [entry.title, entry.description ?? '', ...(entry.tags ?? []), ...(entry.ui?.pages ?? [])]
           .join(' ')
-          .toLowerCase();
-        return hay.includes(q);
-      });
+          .toLowerCase()
+          .includes(q),
+      );
     }
-
     return NextResponse.json(list, { status: 200 });
-  } catch (err: any) {
-    return NextResponse.json(
-      { ok: false, error: err?.message ?? 'Unknown error' },
-      { status: 500 },
-    );
+  } catch (cause) {
+    return failureReply(cause);
   }
 }

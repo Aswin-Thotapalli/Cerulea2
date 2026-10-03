@@ -1,50 +1,60 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db/client';
-import { projects } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
-import { getSession } from '@/lib/auth';
+// apps/frontend/src/app/api/projects/[id]/schema/route.ts
+// The data model the model step builds for one project: entities,
+// relationships and the track.
+// The model lives in the draft area of the Studio build state under
+// `step2::schema`.
+// Without this route the model step starts empty on every visit.
+import { NextResponse } from 'next/server';
+
+import {
+  callOptions,
+  ceruleaActor,
+  failureReply,
+  signInRequired,
+} from '@/lib/cerulea-server';
+import {
+  DRAFT_KEYS,
+  objectBody,
+  readHeldBuildState,
+  writeDraft,
+} from '@/app/api/projects/_shared/project-record';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-async function getOwnedProject(projectId: string, userId: string) {
-  const [row] = await db
-    .select()
-    .from(projects)
-    .where(and(eq(projects.id as any, projectId), eq(projects.userId as any, userId)))
-    .limit(1);
-  return row ?? null;
-}
-
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getSession();
-  if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-
-  const row = await getOwnedProject(params.id, session.user.id);
-  if (!row) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
-
-  let schemaData: any = (row as any).schemaJson ?? null;
-  if (typeof schemaData === 'string') {
-    try { schemaData = JSON.parse(schemaData); } catch { /* keep raw */ }
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  try {
+    const held = await readHeldBuildState(id, callOptions(actor));
+    const saved = held.drafts[DRAFT_KEYS.schema];
+    // A project with no saved model answers the empty model on its own track.
+    return NextResponse.json(
+      saved ?? { entities: [], relationships: [], track: held.buildState.foundation.track },
+    );
+  } catch (cause) {
+    return failureReply(cause);
   }
-  return NextResponse.json(schemaData ?? { entities: [], relationships: [], track: 'dapp' });
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getSession();
-  if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-
-  const row = await getOwnedProject(params.id, session.user.id);
-  if (!row) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
-
-  const body = await req.json();
+// PUT /api/projects/[id]/schema  body: { entities, relationships, track }
+export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const body = (await objectBody(request)) ?? {};
   const clean = {
     entities: Array.isArray(body.entities) ? body.entities : [],
     relationships: Array.isArray(body.relationships) ? body.relationships : [],
     track: body.track === 'blockchain' ? 'blockchain' : 'dapp',
   };
-
-  await db.update(projects).set({ schemaJson: JSON.stringify(clean) as any }).where(eq(projects.id as any, params.id));
-  return NextResponse.json({ ok: true });
+  try {
+    await writeDraft(id, DRAFT_KEYS.schema, clean, callOptions(actor));
+    return NextResponse.json({ ok: true });
+  } catch (cause) {
+    return failureReply(cause);
+  }
 }
 
 export const PATCH = PUT;

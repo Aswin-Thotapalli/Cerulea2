@@ -1,139 +1,140 @@
+// apps/frontend/src/app/api/projects/route.ts
+// Lists and opens projects through Cerulea APIs.
+// The list spans every workspace the account belongs to. Each entry carries
+// the division of its workspace and the track held in its build state.
+// A new project opens inside the workspace serving its division, and its
+// Foundation choices go into the build state at the same moment.
+// Without this route Studio and the dashboard list nothing and open nothing.
 import { NextResponse } from 'next/server';
-import { db } from '@/db/client';
-import { projects, workspaces } from '@/db/schema';
-import { eq, and, like, desc } from 'drizzle-orm';
-import slugifyLib from 'slugify';
-import { getSession } from '@/lib/auth';
-import { logAudit } from '@/lib/audit';
-import { divisionForProject } from '@/config/divisions';
+
+import { createProject, listProjects, listWorkspaces } from '@/lib/cerulea-api';
+import {
+  callOptions,
+  ceruleaActor,
+  failureReply,
+  failureResponse,
+  requestDivision,
+  signInRequired,
+} from '@/lib/cerulea-server';
+import { divisionWorkspace } from '@/lib/workspace-home';
+import {
+  applicationForDivision,
+  divisionForProject,
+  lockedProjectType,
+} from '@/config/divisions';
+import {
+  type ProjectRecord,
+  changeBuildState,
+  objectBody,
+  projectRecord,
+  readHeldBuildState,
+} from '@/app/api/projects/_shared/project-record';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-function slugify(input: string) {
-  return slugifyLib(input, { lower: true, strict: true, trim: true });
-}
+const TEMPLATE_ID_LIMIT = 120;
 
 // GET /api/projects?q=&limit=&offset=
-export async function GET(req: Request) {
+export async function GET(request: Request) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const search = new URL(request.url).searchParams;
+  const q = (search.get('q') ?? '').trim().toLowerCase();
+  const limit = Math.min(Math.max(Number.parseInt(search.get('limit') ?? '50', 10) || 50, 1), 200);
+  const offset = Math.max(Number.parseInt(search.get('offset') ?? '0', 10) || 0, 0);
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-    const userId = session.user.id;
-
-    const { searchParams } = new URL(req.url);
-    const q = searchParams.get('q') || '';
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
-    const offset = parseInt(searchParams.get('offset') || '0', 10);
-
-    const nameLike = q ? `%${q}%` : null;
-
-    let rows;
-    if (nameLike) {
-      rows = await db
-        .select()
-        .from(projects)
-        .where(and(eq(projects.userId as any, userId), like(projects.name as any, nameLike)))
-        .limit(limit)
-        .offset(offset)
-        .orderBy(desc(projects.createdAt as any));
-    } else {
-      rows = await db
-        .select()
-        .from(projects)
-        .where(eq(projects.userId as any, userId))
-        .limit(limit)
-        .offset(offset)
-        .orderBy(desc(projects.createdAt as any));
-    }
-
-    const data = rows.map((r: any) => ({
-      id: r.id,
-      name: r.name,
-      slug: r.slug,
-      description: r.description,
-      projectType: r.projectType,
-      workspaceId: r.workspaceId,
-      status: r.status ?? 'draft',
-      division: divisionForProject(r.projectType, r.selectedTemplateIds),
-      legacyMode: r.legacyMode ?? 'none',
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
-    }));
-
-    return NextResponse.json({ ok: true, projects: data });
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    const options = callOptions(actor);
+    const { workspaces } = await listWorkspaces(options);
+    const pages = await Promise.all(
+      workspaces.map(async (workspace) => ({
+        workspace,
+        projects: (await listProjects(workspace.workspaceId, options)).projects,
+      })),
+    );
+    const open = pages.flatMap((page) =>
+      page.projects
+        .filter((project) => project.state !== 'closed')
+        .filter((project) => !q || project.name.toLowerCase().includes(q))
+        .map((project) => ({ project, application: page.workspace.application })),
+    );
+    open.sort((left, right) => right.project.createdAt.localeCompare(left.project.createdAt));
+    const shown = open.slice(offset, offset + limit);
+    const records: ProjectRecord[] = await Promise.all(
+      shown.map(async ({ project, application }) =>
+        projectRecord(project, application, await readHeldBuildState(project.projectId, options)),
+      ),
+    );
+    return NextResponse.json({ ok: true, projects: records });
+  } catch (cause) {
+    return failureReply(cause);
   }
 }
 
 // POST /api/projects
-export async function POST(req: Request) {
+export async function POST(request: Request) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const body = await objectBody(request);
+  const name = typeof body?.name === 'string' ? body.name.trim() : '';
+  if (name.length < 2) {
+    return failureResponse(
+      {
+        code: 'project.name_short',
+        message: 'A project carries a name of at least two characters.',
+        fix: 'Type a longer name, then create the project again.',
+        details: {},
+      },
+      400,
+    );
+  }
+  const projectType = body?.projectType;
+  if (projectType !== 'dapp' && projectType !== 'blockchain') {
+    return failureResponse(
+      {
+        code: 'project.type_unnamed',
+        message: 'A project is a decentralised application or a private Blockchain.',
+        fix: 'Choose dapp or blockchain as the project type, then create the project again.',
+        details: {},
+      },
+      400,
+    );
+  }
+  const templateId =
+    typeof body?.templateId === 'string' && body.templateId !== 'scratch'
+      ? body.templateId.slice(0, TEMPLATE_ID_LIMIT)
+      : '';
+  const summary = typeof body?.description === 'string' ? body.description.slice(0, 800) : '';
+  const namedWorkspace = typeof body?.workspaceId === 'string' ? body.workspaceId : null;
+
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-    const userId = session.user.id;
-
-    const body = await req.json();
-
-    const name: string = (body?.name || '').trim();
-    if (!name) {
-      return NextResponse.json({ ok: false, error: 'name is required' }, { status: 400 });
-    }
-
-    const projectType = String(body?.projectType || '').trim();
-    if (projectType !== 'dapp' && projectType !== 'blockchain') {
-      return NextResponse.json(
-        { ok: false, error: "projectType must be 'dapp' or 'blockchain'" },
-        { status: 400 }
-      );
-    }
-
-    const templateIds: string[] = Array.isArray(body?.templateIds) ? body.templateIds : [];
-
-    let workspaceId: string | null = body?.workspaceId ?? null;
-    if (workspaceId) {
-      const ws = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id as any, workspaceId));
-      if (ws.length === 0) workspaceId = null;
-    }
-
-    let slug: string = (body?.slug && String(body.slug).trim()) || slugify(name);
-    let candidate = slug;
-    let n = 2;
-    while (true) {
-      const existing = await db.select({ id: projects.id }).from(projects).where(eq(projects.slug as any, candidate));
-      if (existing.length === 0) { slug = candidate; break; }
-      candidate = `${slug}-${n++}`;
-    }
-
-    const id =
-      (body?.id && String(body.id)) ||
-      (globalThis.crypto?.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`);
-
-    const createdBlueprint = { modules: [], graph: { nodes: [], edges: [] } };
-
-    await db.insert(projects).values({
-      id,
-      name,
-      slug,
-      description: body?.description ?? null,
-      projectType,
-      workspaceId,
-      userId,
-      selectedTemplateIds: JSON.stringify(templateIds) as any,
-      blueprint: JSON.stringify(createdBlueprint) as any,
-      status: (body?.status ?? 'draft') as any,
-      legacyMode: (body?.legacyMode ?? 'none') as any,
+    const options = callOptions(actor);
+    const division =
+      (await requestDivision(request)) ??
+      divisionForProject(projectType, templateId ? [templateId] : []);
+    const workspace = await divisionWorkspace(actor.displayName, options, division, namedWorkspace);
+    const opened = await createProject(
+      workspace.workspaceId,
+      { name, summary: summary || undefined },
+      options,
+    );
+    const projectId = opened.project.projectId;
+    await changeBuildState(projectId, options, (state) => {
+      state.foundation.projectName = name.slice(0, 160);
+      state.foundation.summary = summary;
+      state.foundation.application = applicationForDivision(division);
+      state.foundation.track = projectType;
+      state.foundation.trackOverridden = lockedProjectType(division) !== projectType;
+      state.foundation.templateId = templateId;
     });
-
-    logAudit({ userId, actorEmail: session.user.email ?? undefined, action: 'project.create', resource: 'project', resourceId: id, status: 'success' });
-
-    return NextResponse.json({ ok: true, id });
-  } catch (err: any) {
-    console.error('POST /api/projects failed:', err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({
+      ok: true,
+      id: projectId,
+      slug: opened.project.slug,
+      workspaceId: workspace.workspaceId,
+      division,
+    });
+  } catch (cause) {
+    return failureReply(cause);
   }
 }

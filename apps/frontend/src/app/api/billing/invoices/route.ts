@@ -1,64 +1,76 @@
 // apps/frontend/src/app/api/billing/invoices/route.ts
-//
-// GET — lists Stripe invoices for the current customer. Supports cursor-
-// based pagination via ?starting_after=<invoiceId>. Returns 12 invoices
-// per page. Returns an empty list (not an error) in dev-mode / no customer.
+// Lists the invoices of the workspace serving the division, twelve at a time.
+// Cerulea APIs keeps every invoice the payments driver issued for the
+// workspace, newest first. The cursor `starting_after` names the last invoice
+// the screen already shows.
+// Without this route the billing screen shows no invoice history.
 
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
-import { getCurrentSubscription } from "@/lib/billing/current-subscription";
-import { db } from '@/db/client';
-import { subscriptions } from '@/db/schema';
-import { eq } from 'drizzle-orm';
-import { getStripe, isStripeConfigured } from '@/lib/billing/stripe';
+
+import { ceruleaRequest } from '@/lib/cerulea-api';
+import { callOptions, ceruleaActor, failureReply, signInRequired } from '@/lib/cerulea-server';
+import { billingHome } from '@/lib/entitlements-server';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-export async function GET(req: Request) {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
+const PAGE_SIZE = 12;
 
-  if (!isStripeConfigured()) {
-    return NextResponse.json({ ok: true, invoices: [], hasMore: false, devMode: true });
-  }
+/** One invoice as Cerulea APIs records it for a workspace. */
+type WorkspaceInvoice = {
+  invoiceId: string;
+  invoiceReference: string;
+  state: string;
+  currency: string;
+  totalMinor: number;
+  periodStart: string;
+  periodEnd: string;
+  issuedAt: string;
+  dueAt: string;
+  paidAt: string | null;
+  lines: { description: string }[];
+};
 
-  const sub = await getCurrentSubscription(session.user.id);
-
-  if (!sub?.stripeCustomerId) {
-    return NextResponse.json({ ok: true, invoices: [], hasMore: false });
-  }
-
-  const { searchParams } = new URL(req.url);
-  const startingAfter = searchParams.get('starting_after') ?? undefined;
-
+export async function GET(request: Request) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const search = new URL(request.url).searchParams;
+  const startingAfter = search.get('starting_after');
   try {
-    const stripe = getStripe();
-    const result = await stripe.invoices.list({
-      customer: sub.stripeCustomerId,
-      limit: 12,
-      ...(startingAfter ? { starting_after: startingAfter } : {}),
-    });
-
+    const options = callOptions(actor);
+    const home = await billingHome(actor, request, { workspaceId: search.get('workspaceId') });
+    const listed = await ceruleaRequest<{ invoices: WorkspaceInvoice[] }>(
+      `/v1/workspaces/${encodeURIComponent(home.workspace.workspaceId)}/invoices`,
+      { method: 'GET' },
+      options,
+    );
+    // A cursor naming no listed invoice reads past the end of the list.
+    const cursor = startingAfter
+      ? listed.invoices.findIndex((entry) => entry.invoiceId === startingAfter)
+      : -1;
+    const after = startingAfter && cursor < 0 ? listed.invoices.length : cursor + 1;
+    const page = listed.invoices.slice(after, after + PAGE_SIZE);
     return NextResponse.json({
       ok: true,
-      hasMore: result.has_more,
-      invoices: result.data.map((inv) => ({
-        id: inv.id,
-        number: inv.number ?? null,
-        date: inv.created,
-        amountPaid: inv.amount_paid,
-        amountDue: inv.amount_due,
-        currency: inv.currency,
-        status: inv.status ?? 'unknown',
-        pdfUrl: inv.invoice_pdf ?? null,
-        viewUrl: inv.hosted_invoice_url ?? null,
-        description: inv.description ?? null,
+      division: home.division,
+      workspaceId: home.workspace.workspaceId,
+      hasMore: after + PAGE_SIZE < listed.invoices.length,
+      invoices: page.map((entry) => ({
+        id: entry.invoiceId,
+        number: entry.invoiceReference,
+        date: Math.floor(new Date(entry.issuedAt).getTime() / 1000),
+        amountPaid: entry.paidAt ? entry.totalMinor : 0,
+        amountDue: entry.paidAt ? 0 : entry.totalMinor,
+        currency: entry.currency,
+        status: entry.state,
+        description: entry.lines.map((line) => line.description).join('; ') || null,
+        periodStart: entry.periodStart,
+        periodEnd: entry.periodEnd,
+        dueAt: entry.dueAt,
+        paidAt: entry.paidAt,
       })),
     });
-  } catch (err: any) {
-    console.error('Invoices fetch error:', err);
-    return NextResponse.json({ ok: false, error: err.message || 'Could not load invoices.' }, { status: 500 });
+  } catch (cause) {
+    return failureReply(cause);
   }
 }

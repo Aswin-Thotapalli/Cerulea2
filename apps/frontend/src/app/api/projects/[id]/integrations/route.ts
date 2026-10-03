@@ -1,86 +1,61 @@
+// apps/frontend/src/app/api/projects/[id]/integrations/route.ts
+// The outside service choices the integrations step and the dashboard hold
+// for one project.
+// The choices live in the draft area of the Studio build state under
+// `step4::integrations`, the same key the production draft carried.
+// Without this route every integration choice is lost when the project reopens.
 import { NextResponse } from 'next/server';
-import { db } from '@/db/client';
-import { projects, drafts } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
-import { getSession } from '@/lib/auth';
-import { randomUUID } from 'crypto';
+
+import {
+  callOptions,
+  ceruleaActor,
+  failureReply,
+  signInRequired,
+} from '@/lib/cerulea-server';
+import {
+  DRAFT_KEYS,
+  objectBody,
+  readHeldBuildState,
+  writeDraft,
+} from '@/app/api/projects/_shared/project-record';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-function draftId(projectId: string) {
-  return `${projectId}::step4::integrations`;
+function configsOf(saved: unknown): Record<string, unknown> {
+  if (!saved || typeof saved !== 'object') return {};
+  const held = (saved as { configs?: unknown }).configs;
+  return held && typeof held === 'object' && !Array.isArray(held)
+    ? (held as Record<string, unknown>)
+    : {};
 }
 
-async function verifyOwnership(projectId: string, userId: string) {
-  const [p] = await db
-    .select({ id: projects.id })
-    .from(projects)
-    .where(and(eq(projects.id as any, projectId), eq(projects.userId as any, userId)))
-    .limit(1);
-  return !!p;
-}
-
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const projectId = params.id;
-  if (!(await verifyOwnership(projectId, (session.user as any).id))) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  }
-
-  const [draft] = await db
-    .select()
-    .from(drafts)
-    .where(eq(drafts.id as any, draftId(projectId)))
-    .limit(1);
-
-  if (!draft?.data) {
-    return NextResponse.json({ ok: true, configs: {} });
-  }
-
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
   try {
-    const parsed = JSON.parse(draft.data as string);
-    return NextResponse.json({ ok: true, configs: parsed?.payload?.configs ?? parsed?.configs ?? {} });
-  } catch {
-    return NextResponse.json({ ok: true, configs: {} });
+    const held = await readHeldBuildState(id, callOptions(actor));
+    return NextResponse.json({ ok: true, configs: configsOf(held.drafts[DRAFT_KEYS.integrations]) });
+  } catch (cause) {
+    return failureReply(cause);
   }
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+// PATCH /api/projects/[id]/integrations  body: { configs }
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const body = (await objectBody(request)) ?? {};
+  const configs =
+    body.configs && typeof body.configs === 'object' && !Array.isArray(body.configs)
+      ? body.configs
+      : body;
+  try {
+    await writeDraft(id, DRAFT_KEYS.integrations, { configs }, callOptions(actor));
+    return NextResponse.json({ ok: true });
+  } catch (cause) {
+    return failureReply(cause);
   }
-
-  const projectId = params.id;
-  if (!(await verifyOwnership(projectId, (session.user as any).id))) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  }
-
-  const body = await req.json().catch(() => ({}));
-  const configs = body?.configs ?? body ?? {};
-
-  const id = draftId(projectId);
-  const now = new Date().toISOString();
-  const data = JSON.stringify({ step: 4, payload: { configs } });
-
-  const [existing] = await db
-    .select({ id: drafts.id })
-    .from(drafts)
-    .where(eq(drafts.id as any, id))
-    .limit(1);
-
-  if (existing) {
-    await db
-      .update(drafts)
-      .set({ data, updatedAt: now } as any)
-      .where(eq(drafts.id as any, id));
-  } else {
-    await db.insert(drafts).values({ id, projectId, data, createdAt: now, updatedAt: now } as any);
-  }
-
-  return NextResponse.json({ ok: true });
 }

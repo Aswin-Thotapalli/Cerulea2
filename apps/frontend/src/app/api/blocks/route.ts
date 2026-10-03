@@ -1,39 +1,47 @@
 // apps/frontend/src/app/api/blocks/route.ts
+// Serves the logic block catalogue.
+// The catalogue is the seed file src/data/blocks.seed.json, imported so the
+// route works from a built output as well as from the source tree.
+// A track sees its own blocks and the blocks the seed marks for every track.
+// Without this route the logic block palette is empty.
 import { NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
 
-async function loadJson(relPath: string) {
-  const roots = [
-    path.join(process.cwd(), 'src', 'data', relPath),
-    path.join(process.cwd(), 'apps', 'frontend', 'src', 'data', relPath),
-  ];
-  for (const p of roots) {
-    try {
-      const buf = await fs.readFile(p, 'utf8');
-      return JSON.parse(buf);
-    } catch (_) {}
-  }
-  throw new Error(`Not found: ${relPath}`);
-}
+import blocksJson from '@/data/blocks.seed.json';
+import { failureReply } from '@/lib/cerulea-server';
 
-export async function GET(req: Request) {
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+type CatalogueBlock = { id: string; track?: string } & Record<string, unknown>;
+
+type BlockCatalogue = {
+  groups?: unknown[];
+  blocks?: CatalogueBlock[];
+  edgeDefaults?: Record<string, unknown>;
+};
+
+const CATALOGUE = blocksJson as unknown as BlockCatalogue;
+
+/** The track values the seed uses for a block every track shares. */
+const SHARED_TRACKS = new Set(['any', 'common']);
+
+// GET /api/blocks?track=dapp|blockchain
+export async function GET(request: Request) {
   try {
-    const url = new URL(req.url);
-    const track = (url.searchParams.get('track') || '').toLowerCase(); // 'dapp'|'blockchain'|''
-    const all = await loadJson('blocks.seed.json'); // { groups: [...], blocks: [...] }
-
-    let blocks = all.blocks || [];
+    const track = (new URL(request.url).searchParams.get('track') ?? '').toLowerCase();
+    let blocks = CATALOGUE.blocks ?? [];
     if (track) {
-      blocks = blocks.filter((b: any) => !b.track || b.track === track || b.track === 'common');
+      blocks = blocks.filter(
+        (block) => !block.track || block.track === track || SHARED_TRACKS.has(block.track),
+      );
     }
     return NextResponse.json({
       ok: true,
-      groups: all.groups || [],
+      groups: CATALOGUE.groups ?? [],
       blocks,
-      edgeDefaults: all.edgeDefaults || {},
+      edgeDefaults: CATALOGUE.edgeDefaults ?? {},
     });
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
+  } catch (cause) {
+    return failureReply(cause);
   }
 }

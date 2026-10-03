@@ -1,48 +1,71 @@
 // apps/frontend/src/app/api/billing/subscription/cancel/route.ts
-//
-// POST — cancel the caller's subscription. Body: { atPeriodEnd?: boolean }
-// (default true). atPeriodEnd keeps access until the period ends and can
-// be undone via POST /api/billing/subscription/resume; immediate
-// cancellation cannot be undone.
+// Ends the subscription of the workspace serving the division.
+// Cerulea APIs closes the subscription record, and the payments driver stops
+// the subscription at the end of the paid period. Every record stays readable
+// and exportable afterwards.
+// Without this route the billing screen has no way to end a plan.
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getSession } from '@/lib/auth';
-import { db } from '@/db/client';
-import { subscriptions } from '@/db/schema';
-import { eq } from 'drizzle-orm';
-import { cancelSubscription } from '@/lib/billing/lifecycle';
+
+import { ceruleaRequest } from '@/lib/cerulea-api';
+import {
+  callOptions,
+  ceruleaActor,
+  failureReply,
+  failureResponse,
+  signInRequired,
+} from '@/lib/cerulea-server';
+import { billingHome, subscriptionAbsent } from '@/lib/entitlements-server';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-const BodySchema = z.object({ atPeriodEnd: z.boolean().default(true) });
+const cancelBody = z.object({ atPeriodEnd: z.boolean().default(true) });
 
-export async function POST(req: Request) {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const parsed = BodySchema.safeParse(await req.json().catch(() => ({})));
+export async function POST(request: Request) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const parsed = cancelBody.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) {
-    return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
+    return failureResponse(
+      {
+        code: 'billing.cancel_unreadable',
+        message: 'Cerulea reads atPeriodEnd as true or false on this request.',
+        fix: 'Send the cancellation again from the billing screen.',
+        details: { issues: parsed.error.flatten() },
+      },
+      400,
+    );
   }
-
-  const [sub] = await db
-    .select()
-    .from(subscriptions)
-    .where(eq(subscriptions.userId, session.user.id))
-    .limit(1);
-
-  if (!sub || sub.status !== 'active') {
-    return NextResponse.json({ ok: false, error: 'No active subscription' }, { status: 404 });
+  // Cerulea APIs ends every subscription at the close of the paid period.
+  if (!parsed.data.atPeriodEnd) {
+    return failureResponse(
+      {
+        code: 'billing.cancel_immediate_absent',
+        message: 'Cerulea ends a subscription at the close of the paid period.',
+        fix: 'Send the cancellation with atPeriodEnd set to true.',
+        details: {},
+      },
+      400,
+    );
   }
-
   try {
-    await cancelSubscription(sub.id, parsed.data.atPeriodEnd);
-    return NextResponse.json({ ok: true, atPeriodEnd: parsed.data.atPeriodEnd });
-  } catch (err: any) {
-    console.error('Cancel subscription error:', err);
-    return NextResponse.json({ ok: false, error: err.message || 'Could not cancel subscription' }, { status: 500 });
+    const options = callOptions(actor);
+    const home = await billingHome(actor, request);
+    if (!home.subscription) return subscriptionAbsent(home);
+    const outcome = await ceruleaRequest<Record<string, unknown>>(
+      `/studio/workspaces/${encodeURIComponent(home.workspace.workspaceId)}/subscription`,
+      { method: 'DELETE' },
+      options,
+    );
+    return NextResponse.json({
+      ok: true,
+      atPeriodEnd: true,
+      division: home.division,
+      ...outcome,
+    });
+  } catch (cause) {
+    return failureReply(cause);
   }
 }

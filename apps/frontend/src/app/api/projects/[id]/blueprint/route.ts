@@ -1,53 +1,73 @@
+// apps/frontend/src/app/api/projects/[id]/blueprint/route.ts
+// The module graph the canvas draws for one project.
+// The graph lives in the draft area of the Studio build state under
+// `blueprint::graph`. The chosen module identifiers also go into the compose
+// list of the build state, which the later steps read.
+// The typed twelve section Blueprint has its own routes under
+// /api/projects/[id]/blueprint/versions and /api/projects/[id]/checkpoints.
+// Without this route the canvas starts empty on every visit.
+import { NextResponse } from 'next/server';
+
+import {
+  callOptions,
+  ceruleaActor,
+  failureReply,
+  failureResponse,
+  signInRequired,
+} from '@/lib/cerulea-server';
+import {
+  DRAFT_KEYS,
+  changeBuildState,
+  moduleIdsOf,
+  objectBody,
+  readHeldBuildState,
+} from '@/app/api/projects/_shared/project-record';
+
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-import { NextResponse } from 'next/server';
-import { db } from '@/db/client';
-import { projects } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
-import { getSession } from '@/lib/auth';
-
-async function getOwnedProject(projectId: string, userId: string) {
-  const [row] = await db
-    .select()
-    .from(projects)
-    .where(and(eq(projects.id as any, projectId), eq(projects.userId as any, userId)))
-    .limit(1);
-  return row ?? null;
-}
-
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
   try {
-    const session = await getSession();
-    if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-
-    const row = await getOwnedProject(params.id, session.user.id);
-    if (!row) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
-
-    let blueprint: any = (row as any).blueprint ?? null;
-    if (typeof blueprint === 'string') {
-      try { blueprint = JSON.parse(blueprint); } catch { /* keep raw */ }
-    }
-
-    return NextResponse.json({ ok: true, blueprint });
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    const held = await readHeldBuildState(id, callOptions(actor));
+    return NextResponse.json({ ok: true, blueprint: held.drafts[DRAFT_KEYS.graph] ?? null });
+  } catch (cause) {
+    return failureReply(cause);
   }
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+// PATCH /api/projects/[id]/blueprint  body: { modules, graph: { nodes, edges } }
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const body = await objectBody(request);
+  if (!body) {
+    return failureResponse(
+      {
+        code: 'canvas.graph_absent',
+        message: 'Cerulea reads the module list and the canvas graph on this save.',
+        fix: 'Send the modules and the graph with its nodes and edges, then save again.',
+        details: {},
+      },
+      400,
+    );
+  }
   try {
-    const session = await getSession();
-    if (!session?.user?.id) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-
-    const row = await getOwnedProject(params.id, session.user.id);
-    if (!row) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
-
-    const body = await req.json();
-    await db.update(projects).set({ blueprint: JSON.stringify(body) as any }).where(eq(projects.id as any, params.id));
-
-    return NextResponse.json({ ok: true });
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    const moduleIds = moduleIdsOf(body);
+    await changeBuildState(
+      id,
+      callOptions(actor),
+      (state, drafts) => {
+        drafts[DRAFT_KEYS.graph] = body;
+        state.compose.moduleIds = moduleIds;
+      },
+      [DRAFT_KEYS.graph],
+    );
+    return NextResponse.json({ ok: true, moduleIds });
+  } catch (cause) {
+    return failureReply(cause);
   }
 }

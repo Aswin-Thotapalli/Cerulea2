@@ -1,65 +1,90 @@
+// apps/frontend/src/app/api/workspaces/route.ts
+// Reads and opens workspaces through Cerulea APIs.
+// A workspace holds the projects a team builds together. Cerulea APIs fixes
+// the application of a workspace when it opens, and the application names the
+// division the workspace serves. Inside a division this route lists and opens
+// workspaces for that division alone.
+// Without this route Studio cannot place a project anywhere.
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
-import { db } from '@/db/client';
-import { workspaces } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
-import { randomUUID } from 'crypto';
+import { z } from 'zod';
+
+import { type CeruleaWorkspace, createWorkspace, listWorkspaces } from '@/lib/cerulea-api';
+import {
+  callOptions,
+  ceruleaActor,
+  failureReply,
+  failureResponse,
+  requestDivision,
+  signInRequired,
+} from '@/lib/cerulea-server';
+import { applicationForDivision, divisionForApplication } from '@/config/divisions';
+import { divisionWorkspace, workspacesWithHome } from '@/lib/workspace-home';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-// Virtual personal workspace — always present, never stored in DB.
-const PERSONAL = (userId: string) => ({
-  id: 'personal',
-  userId,
-  name: 'Personal Workspace',
-  slug: 'personal',
-  createdAt: new Date(0).toISOString(),
+const createBody = z.object({
+  name: z.string().trim().min(2).max(120),
+  application: z.enum(['dapps', 'enterprise', 'government']).optional(),
 });
 
-export async function GET() {
-  const session = await getSession();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  try {
-    const rows = await db.select().from(workspaces).where(eq(workspaces.userId, session.user.id));
-    return NextResponse.json([PERSONAL(session.user.id), ...rows]);
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
-  }
+/** The workspace as the Studio chooser reads it, with the Cerulea fields beside it. */
+function screenWorkspace(workspace: CeruleaWorkspace) {
+  return {
+    ...workspace,
+    id: workspace.workspaceId,
+    division: divisionForApplication(workspace.application),
+  };
 }
 
-export async function POST(req: Request) {
-  const session = await getSession();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
+export async function GET(request: Request) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
   try {
-    const { name } = await req.json();
-    if (!name || String(name).trim().length < 2) {
-      return NextResponse.json({ error: 'Name too short' }, { status: 400 });
+    const options = callOptions(actor);
+    const division = await requestDivision(request);
+    if (!division) {
+      const workspaces = await workspacesWithHome(actor.displayName, options);
+      return NextResponse.json(workspaces.map(screenWorkspace));
     }
-    const trimmed = String(name).trim();
-    const slug = trimmed.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 40);
-    const item = { id: randomUUID(), userId: session.user.id, name: trimmed, slug, createdAt: new Date().toISOString() };
-    await db.insert(workspaces).values(item);
-    return NextResponse.json(item, { status: 201 });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    // A person entering a division without a workspace for it receives one, named after the division.
+    const opened = await divisionWorkspace(actor.displayName, options, division);
+    const application = applicationForDivision(division);
+    const { workspaces } = await listWorkspaces(options);
+    const serving = workspaces.filter((entry) => entry.application === application);
+    const ordered = [opened, ...serving.filter((entry) => entry.workspaceId !== opened.workspaceId)];
+    return NextResponse.json(ordered.map(screenWorkspace));
+  } catch (cause) {
+    return failureReply(cause);
   }
 }
 
-export async function DELETE(req: Request) {
-  const session = await getSession();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
+export async function POST(request: Request) {
+  const actor = await ceruleaActor();
+  if (!actor) return signInRequired();
+  const parsed = createBody.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return failureResponse(
+      {
+        code: 'workspace.name_short',
+        message: 'A workspace carries a name of at least two characters.',
+        fix: 'Type a longer name, then open the workspace again.',
+        details: {},
+      },
+      400,
+    );
+  }
   try {
-    const url = new URL(req.url);
-    const id = url.searchParams.get('id');
-    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
-    if (id === 'personal') return NextResponse.json({ error: 'Cannot delete Personal Workspace' }, { status: 400 });
-
-    await db.delete(workspaces).where(and(eq(workspaces.id, id), eq(workspaces.userId, session.user.id)));
-    return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const division = await requestDivision(request);
+    // A named application wins. Inside a division the workspace serves that division.
+    const application =
+      parsed.data.application ?? (division ? applicationForDivision(division) : undefined);
+    const outcome = await createWorkspace(
+      { name: parsed.data.name, application },
+      callOptions(actor),
+    );
+    return NextResponse.json(screenWorkspace(outcome.workspace), { status: 201 });
+  } catch (cause) {
+    return failureReply(cause);
   }
 }
