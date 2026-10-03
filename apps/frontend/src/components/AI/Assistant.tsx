@@ -83,7 +83,7 @@ function getGreeting(isAuthenticated: boolean, projectName?: string) {
     return "Hi! I'm CeruleAI, Cerulea's Proprietary AI.\n\nI can help you figure out what to build and guide you step-by-step through Cerulea Studio — even before you sign up.\n\nTell me about the application you have in mind. What should it do?";
   }
   if (projectName) {
-    return `Hi! I'm CeruleAI.\n\nI have full context on your project **${projectName}** — including your modules, schema, economics, and what's been configured so far.\n\nWhat do you need help with?`;
+    return `Cerulea AI reads the project **${projectName}**: the modules, the data schema, the economics and every choice made so far.\n\nAsk a question about the project to begin.`;
   }
   return "Hi! I'm CeruleAI, Cerulea's Proprietary AI.\n\nI'm aware of your account and can see your project details when you're inside a project.\n\nWhat would you like to work on?";
 }
@@ -366,7 +366,7 @@ export default function Assistant() {
         `Error message: ${detail.errorMessage}`,
         `Phase: ${detail.phase}`,
         `Project type: ${detail.projectType ?? 'unknown'}`,
-        `Modules configured: ${(detail.modules ?? []).join(', ') || 'none'}`,
+        `Modules chosen: ${(detail.modules ?? []).join(', ') || 'none'}`,
         ``,
         `Recent deployment logs:`,
         logsSnippet,
@@ -1021,7 +1021,7 @@ export default function Assistant() {
                         Get full project-aware assistance
                       </Typography>
                       <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.55 }}>
-                        Sign in so I can read your live project — exact modules selected, schema configured, economics set — and give you specific, accurate guidance instead of generic steps.
+                        Sign in so Cerulea AI reads the live project: the modules chosen, the data schema and the economics. The guidance then names the exact next step.
                       </Typography>
                     </Box>
                   </Stack>

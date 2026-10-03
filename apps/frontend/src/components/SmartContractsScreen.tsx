@@ -197,7 +197,7 @@ export default function SmartContractsScreen({ onClose, fullPage, onGoToBlueprin
             Smart Contracts
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            {contracts.length} contract{contracts.length !== 1 ? 's' : ''} derived from your project configuration ·{' '}
+            {contracts.length} contract{contracts.length !== 1 ? 's' : ''} derived from the choices in the project ·{' '}
             {contracts.filter((c) => c.enabled).length} enabled
           </Typography>
         </Box>

@@ -59,7 +59,7 @@ function computeProgress(): Record<string, SectionStatus> {
     const econ = localStorage.getItem('cerulea.step3.economics') || localStorage.getItem('draft:local:4');
     result.economics = econ ? 'done' : 'empty';
 
-    // Integrations: any integration configured
+    // Integrations: any integration chosen
     const intg = localStorage.getItem('cerulea.step4.integrations') || localStorage.getItem('draft:local:5');
     result.integrations = intg ? 'done' : 'empty';
 
