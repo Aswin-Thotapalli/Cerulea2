@@ -263,7 +263,7 @@ export default function EntityFieldEditor({
 
           {selectedEntity.fields.length === 0 && (
             <Box sx={{ py: 5, textAlign: 'center', color: 'text.disabled' }}>
-              <Typography variant="body2">No fields yet. Click "Add Field" to start.</Typography>
+              <Typography variant="body2">No fields yet. Click &quot;Add Field&quot; to start.</Typography>
             </Box>
           )}
         </Box>

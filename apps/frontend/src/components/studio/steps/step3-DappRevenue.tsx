@@ -135,7 +135,7 @@ export default function DappRevenuePanel({ dappRevenue, setDappRevenue, dappVisi
           ))}
           {dappRevenue.tiers.length === 0 && (
             <Box sx={{ py: 4, textAlign: 'center' }}>
-              <Typography variant="caption" color="text.disabled">No tiers yet. Click "Add Tier" above to create one.</Typography>
+              <Typography variant="caption" color="text.disabled">No tiers yet. Click &quot;Add Tier&quot; above to create one.</Typography>
             </Box>
           )}
         </Box>

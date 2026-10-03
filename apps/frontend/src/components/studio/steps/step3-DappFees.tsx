@@ -116,7 +116,7 @@ export default function DappFeesPanel({ dappFees, setDappFees }: Props) {
           ))}
           {dappFees.splits.length === 0 && (
             <Box sx={{ py: 4, textAlign: 'center' }}>
-              <Typography variant="caption" color="text.disabled">No recipients. Click "Add" to create one.</Typography>
+              <Typography variant="caption" color="text.disabled">No recipients. Click &quot;Add&quot; to create one.</Typography>
             </Box>
           )}
         </Box>

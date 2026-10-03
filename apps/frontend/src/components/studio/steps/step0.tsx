@@ -627,7 +627,7 @@ export default function Step0({
                   Who can access your dApp?
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7, maxWidth: 400 }}>
-                  Public dApps deploy on Cerulea's shared public network and are accessible to any wallet — requires the Public Dapps plan. Private dApps run on your own isolated environment with permissioned access — requires the Private Dapps plan.
+                  Public dApps deploy on Cerulea&apos;s shared public network and are accessible to any wallet — requires the Public Dapps plan. Private dApps run on your own isolated environment with permissioned access — requires the Private Dapps plan.
                 </Typography>
               </Stack>
 
@@ -662,7 +662,7 @@ export default function Step0({
                       )}
                     </Stack>
                     <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.7, display: 'block', mb: 1.5 }}>
-                      Open to all users on Cerulea's public network. Anyone with a wallet can interact.
+                      Open to all users on Cerulea&apos;s public network. Anyone with a wallet can interact.
                     </Typography>
                     <Stack direction="row" gap={0.5} flexWrap="wrap">
                       {['NFT', 'DeFi', 'DAO', 'Marketplace'].map(tag => (

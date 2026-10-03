@@ -263,7 +263,7 @@ export default function StatePage() {
           <Box sx={{ py: 6, textAlign: 'center' }}>
             <CameraAltIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
             <Typography variant="body2" color="text.secondary">No snapshots yet.</Typography>
-            <Typography variant="caption" color="text.disabled">Click "Create Snapshot" to save your first one.</Typography>
+            <Typography variant="caption" color="text.disabled">Click &quot;Create Snapshot&quot; to save your first one.</Typography>
           </Box>
         ) : (
           <Box>

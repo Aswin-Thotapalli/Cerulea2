@@ -86,7 +86,6 @@ export default function FlowCanvasCompat({
   }
 
   // Import CSS only once we know "reactflow" resolved (prevents bad export paths).
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   try { require("reactflow/dist/style.css"); } catch {}
 
   const children: React.ReactNode[] = [];
@@ -101,7 +100,6 @@ export default function FlowCanvasCompat({
     onNodeDragStop,
     onNodeDoubleClick,
     fitView,
-    children,
     style,
-  });
+  }, ...children);
 }

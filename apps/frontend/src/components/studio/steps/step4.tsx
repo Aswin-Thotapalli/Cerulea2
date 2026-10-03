@@ -1118,9 +1118,9 @@ export default function Step4({ goPrev, goNext, projectId }: { goPrev?: () => vo
             Connect your application to external services.
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            • <b>Dev vs Prod:</b> Use 'Test Mode' keys for local development. Switch to 'Live Mode' before deploying.<br/>
+            • <b>Dev vs Prod:</b> Use &apos;Test Mode&apos; keys for local development. Switch to &apos;Live Mode&apos; before deploying.<br/>
             • <b>Webhooks:</b> Ensure your webhook secret matches what is in your provider dashboard to verify signatures.<br/>
-            • <b>Validation:</b> Use the 'Test Connection' button to verify your API keys are active and have correct permissions.
+            • <b>Validation:</b> Use the &apos;Test Connection&apos; button to verify your API keys are active and have correct permissions.
           </Typography>
         </DialogContent>
       </Dialog>

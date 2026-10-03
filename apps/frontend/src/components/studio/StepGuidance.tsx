@@ -162,7 +162,7 @@ export default function StepGuidance({ stepKey, title, subtitle, description, st
           endIcon={<CheckCircleOutlineIcon sx={{ fontSize: 16 }} />}
           sx={{ borderRadius: 1, fontWeight: 500, px: 3, boxShadow: 'none' }}
         >
-          Got it, let's go
+          Got it, let&apos;s go
         </Button>
       </DialogActions>
     </Dialog>

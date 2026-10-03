@@ -829,7 +829,7 @@ export default function Assistant() {
               <Box sx={{ textAlign: 'center', py: 6, px: 2 }}>
                 <LockPersonIcon sx={{ fontSize: 44, color: 'text.disabled', mb: 1.5 }} />
                 <Typography variant="body2" color="text.secondary" fontWeight={600} sx={{ mb: 0.75 }}>
-                  Conversations aren't saved for guests
+                  Conversations aren&apos;t saved for guests
                 </Typography>
                 <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 2.5, lineHeight: 1.5 }}>
                   Sign in to save your chats, access past conversations, and unlock project-aware assistance.
