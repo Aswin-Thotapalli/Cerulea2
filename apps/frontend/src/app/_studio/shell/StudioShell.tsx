@@ -174,10 +174,27 @@ export default function StudioShell({
     [studio]
   );
 
+  // The snapshot autosaves to this browser and to the drafts area of the Studio
+  // build state in Cerulea APIs, so a project reopens where the person left it
+  // on any machine. A project without an identifier stays in this browser.
+  const remoteDraft = useMemo(
+    () =>
+      projectId
+        ? {
+            url: '/api/drafts',
+            method: 'POST' as const,
+            body: (data: typeof projectSnapshot) => ({ projectId, bucket: 'shell::project', data }),
+          }
+        : null,
+    [projectId]
+  );
+
   const { status } = useAutoSave({
     projectId: projectId ?? 'local',
     stepCode: 'project',
     data: projectSnapshot,
+    debounceMs: 1200,
+    remote: remoteDraft,
   });
 
   const statusText =

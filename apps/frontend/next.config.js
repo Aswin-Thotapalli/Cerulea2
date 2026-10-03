@@ -44,6 +44,8 @@ const securityHeaders = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // The pnpm workspace root holds the lockfile, so file tracing starts there.
+  outputFileTracingRoot: require('node:path').join(__dirname, '..', '..'),
   transpilePackages: ['@cerulea/types', '@cerulea/ui', '@cerulea/utils'],
 
   typescript: { ignoreBuildErrors: true },
