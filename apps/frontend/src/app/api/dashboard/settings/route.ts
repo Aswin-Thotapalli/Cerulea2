@@ -1,15 +1,16 @@
 // apps/frontend/src/app/api/dashboard/settings/route.ts
-// The account and workspace screen reads this route.
-// The account, the open sessions, the workspace, its members and the role
-// matrix all come from Cerulea APIs.
-// Without this route nobody can see where an account is signed in.
+// The account screen under the dashboard reads this route.
+// The account, the open sessions, the plan of the current division, the
+// workspace that plan applies to, its members, the role matrix and the project
+// count all come from Cerulea APIs. POST sends a workspace invitation.
+// Without this route the account screen shows no plan, no member and no session.
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import {
-  closeSession,
   inviteMember,
   listMembers,
+  listProjects,
   listSessions,
   listWorkspaceRoles,
   readAccount,
@@ -23,6 +24,7 @@ import {
   withActor,
 } from '@/lib/cerulea-server';
 import { homeWorkspace, workspacesWithHome } from '@/lib/workspace-home';
+import { planWorkspace, readPlan } from '@/app/api/profile/_shared/plan';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -33,17 +35,25 @@ const inviteBody = z.object({
   workspaceId: z.string().min(1).optional(),
 });
 
+// GET /api/dashboard/settings?workspaceId=
 export async function GET(request: Request) {
   const named = new URL(request.url).searchParams.get('workspaceId');
   return withActor(async (actor) => {
     const options = callOptions(actor);
-    const workspaces = await workspacesWithHome(actor.displayName, options);
-    const workspace = await homeWorkspace(actor.displayName, options, named);
-    const [account, sessions, members, roles] = await Promise.all([
+    const [workspaces, plan, account, sessions, roles] = await Promise.all([
+      workspacesWithHome(actor.displayName, options),
+      readPlan(request, options),
       readAccount(options),
       listSessions(options),
-      listMembers(workspace.workspaceId, options),
       listWorkspaceRoles(options),
+    ]);
+    // A named workspace wins. Otherwise the screen works inside the workspace
+    // the plan of the current division applies to.
+    const chosen = named ? workspaces.find((entry) => entry.workspaceId === named) : undefined;
+    const workspace = chosen ?? planWorkspace(plan, workspaces) ?? workspaces[0];
+    const [members, projects] = await Promise.all([
+      listMembers(workspace.workspaceId, options),
+      listProjects(workspace.workspaceId, options),
     ]);
     return {
       account: account.account,
@@ -52,10 +62,13 @@ export async function GET(request: Request) {
       workspaces,
       members: members.members,
       roles: roles.roles,
+      plan,
+      projectCount: projects.projects.filter((project) => project.state !== 'closed').length,
     };
   });
 }
 
+// POST /api/dashboard/settings {email, role, workspaceId?}
 export async function POST(request: Request) {
   const actor = await ceruleaActor();
   if (!actor) return signInRequired();
@@ -85,20 +98,4 @@ export async function POST(request: Request) {
   } catch (cause) {
     return failureReply(cause);
   }
-}
-
-export async function DELETE(request: Request) {
-  const sessionId = new URL(request.url).searchParams.get('sessionId');
-  if (!sessionId) {
-    return failureResponse(
-      {
-        code: 'session.unnamed',
-        message: 'Cerulea reads the session to close on this request.',
-        fix: 'Choose a session from the list, then close it again.',
-        details: {},
-      },
-      400,
-    );
-  }
-  return withActor((actor) => closeSession(sessionId, callOptions(actor)));
 }
