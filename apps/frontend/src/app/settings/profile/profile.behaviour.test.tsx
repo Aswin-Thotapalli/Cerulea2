@@ -10,7 +10,7 @@ import userEvent from '@testing-library/user-event';
  * every control sends the call the route expects.
  */
 
-const navigation = vi.hoisted(() => ({ push: vi.fn(), back: vi.fn() }));
+const navigation = vi.hoisted(() => ({ push: vi.fn(), back: vi.fn(), assign: vi.fn() }));
 const session = vi.hoisted(() => ({
   status: 'authenticated' as 'authenticated' | 'loading' | 'unauthenticated',
   update: vi.fn(),
@@ -19,6 +19,8 @@ const session = vi.hoisted(() => ({
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: navigation.push, back: navigation.back, replace: vi.fn(), refresh: vi.fn() }),
 }));
+
+vi.mock('./leave', () => ({ leaveTo: navigation.assign }));
 
 vi.mock('next-auth/react', () => ({
   useSession: () => ({
@@ -105,18 +107,13 @@ function answerReads(call: Call): Reply {
   return { status: 404, body: { error: `No answer for ${call.url}` } };
 }
 
-const assign = vi.fn();
 
 beforeEach(() => {
   session.status = 'authenticated';
   session.update.mockReset();
   navigation.push.mockReset();
   navigation.back.mockReset();
-  assign.mockReset();
-  Object.defineProperty(window, 'location', {
-    configurable: true,
-    value: { ...window.location, assign },
-  });
+  navigation.assign.mockReset();
 });
 
 afterEach(() => {
@@ -150,7 +147,7 @@ describe('the profile screen', { timeout: 60000 }, () => {
     await person.click(screen.getByRole('button', { name: 'Back' }));
     expect(navigation.back).toHaveBeenCalled();
     await person.click(screen.getByRole('button', { name: 'Sign out' }));
-    expect(assign).toHaveBeenCalledWith('/api/auth/force-signout?next=/');
+    expect(navigation.assign).toHaveBeenCalledWith('/api/auth/force-signout?next=/');
   });
 
   it('renames the account through PUT /api/auth/me and refreshes the session', async () => {
@@ -248,7 +245,7 @@ describe('the profile screen', { timeout: 60000 }, () => {
     render(<ProfilePage />);
     await screen.findByText('3 devices');
     await person.click(screen.getByRole('button', { name: 'Sign out all' }));
-    await waitFor(() => expect(assign).toHaveBeenCalledWith('/api/auth/force-signout?next=/auth/login'));
+    await waitFor(() => expect(navigation.assign).toHaveBeenCalledWith('/api/auth/force-signout?next=/auth/login'));
     expect(calls.find((call) => call.url === '/api/dashboard/sessions/revocations')?.method).toBe('POST');
   });
 

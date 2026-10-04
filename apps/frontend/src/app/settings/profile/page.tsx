@@ -26,6 +26,8 @@ import SecurityIcon from '@mui/icons-material/Security';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import PersonIcon from '@mui/icons-material/Person';
 
+import { leaveTo } from './leave';
+
 const PLAN_COLOR: Record<string, string> = {
   public_dapps: '#4F46E5',
   private_dapps: '#9c27b0',
@@ -200,7 +202,7 @@ export default function ProfilePage() {
   };
 
   const signOut = () => {
-    window.location.assign('/api/auth/force-signout?next=/');
+    leaveTo('/api/auth/force-signout?next=/');
   };
 
   const handleSignOutAll = async () => {
@@ -213,7 +215,7 @@ export default function ProfilePage() {
         return;
       }
       const outcome = (await res.json()) as { signOutPath?: string };
-      window.location.assign(outcome.signOutPath ?? '/api/auth/force-signout?next=/auth/login');
+      leaveTo(outcome.signOutPath ?? '/api/auth/force-signout?next=/auth/login');
     } catch {
       setSaveFailed(true);
       setSaveMsg('Cerulea APIs did not answer. Try again.');
