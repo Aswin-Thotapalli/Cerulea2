@@ -110,7 +110,7 @@ describe('the catalogue provider', () => {
     );
     await waitFor(() => expect(screen.getAllByText('tiers: Public Dapps, Private Dapps, Government Standard')).toHaveLength(2));
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(String(fetchMock.mock.calls[0][0])).toBe('/api/billing/catalogue');
+    expect(String((fetchMock.mock.calls as unknown[][])[0][0])).toBe('/api/billing/catalogue');
   });
 
   it('names the failure when Cerulea APIs refuses the catalogue', async () => {
