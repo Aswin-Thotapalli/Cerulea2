@@ -28,6 +28,9 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 
+import { planLabel } from '@/components/dashboard/plan';
+import { newProjectUrl } from '@/components/dashboard/studio-links';
+
 const DRAWER_WIDTH = 248;
 const DRAWER_COLLAPSED = 68;
 
@@ -54,9 +57,9 @@ const NAV_GROUPS = [
   { label: 'ACCOUNT', items: NAV_ITEMS.slice(10) },
 ];
 
+// The Dashboard and Studio share one host, so a new project starts on the current origin.
 function getNewProjectUrl() {
-  if (typeof window === 'undefined') return 'https://studio.cerulea.io';
-  return window.location.hostname.includes('localhost') ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
+  return newProjectUrl();
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -68,9 +71,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const drawerWidth = collapsed ? DRAWER_COLLAPSED : DRAWER_WIDTH;
   const isDark = theme.palette.mode === 'dark';
 
-  const user = session?.user as any;
+  const user = session?.user as { name?: string | null; plan?: string } | undefined;
   const firstName = (user?.name || 'Builder')?.split(' ')[0];
   const initials = (user?.name || 'B').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
+  // The chip names the tier the account holds, read from the session.
+  const plan = planLabel(user?.plan);
 
   return (
     <Box sx={{ display: 'flex', minHeight: 'calc(100vh - 64px)', bgcolor: 'background.default', position: 'relative' }}>
@@ -329,12 +334,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Typography variant="caption" fontWeight={700} noWrap display="block" sx={{ lineHeight: 1.2 }}>
                   {firstName}
                 </Typography>
-                {user?.plan && (
-                  <Chip label={user.plan.toUpperCase()} size="small" sx={{
-                    height: 16, fontSize: '0.55rem', fontWeight: 800, mt: 0.25,
-                    bgcolor: alpha('#4F46E5', 0.1), color: 'primary.main', border: 'none',
-                  }} />
-                )}
+                <Chip label={plan.toUpperCase()} size="small" sx={{
+                  height: 16, fontSize: '0.55rem', fontWeight: 800, mt: 0.25,
+                  bgcolor: alpha('#4F46E5', 0.1), color: 'primary.main', border: 'none',
+                }} />
               </Box>
               <SettingsIcon sx={{ fontSize: 14, color: 'text.disabled', flexShrink: 0 }} />
             </Stack>
