@@ -10,21 +10,21 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { useTheme, alpha, type Theme } from '@mui/material/styles';
 import { useSession } from 'next-auth/react';
-import {
-  TIERS,
-  getTiersForDivision,
-  reconcileSelectionsForTier,
-  type TierId,
-  type AddonSelection,
-} from '@/config/billing-catalog';
+import { useSearchParams } from 'next/navigation';
+import { asDivision, type Division } from '@/config/divisions';
 import { useDivision } from '@/lib/division-client';
 import AddonSelector from '@/components/billing/AddonSelector';
+import { openAddress } from '@/components/billing/open-address';
 import PriceSummary from '@/components/billing/PriceSummary';
+import {
+  CatalogueProvider,
+  type AddonSelection,
+  useCatalogue,
+} from '@/components/billing/CatalogueProvider';
 
 const CONTACT_SALES_URL = 'https://cerulea.io/company/contact-sales';
 
-type SelfServeTierId = TierId;
-type StaticPlanId = 'sandbox' | 'enterprise';
+type StaticPlanId = 'enterprise';
 
 interface StaticPlan {
   id: StaticPlanId;
@@ -40,46 +40,25 @@ interface StaticPlan {
   features: string[];
 }
 
-const SANDBOX: StaticPlan = {
-  id: 'sandbox',
-  accentColor: '#10b981',
-  label: 'FREE',
-  planName: 'Sandbox',
-  price: 'Free',
-  period: 'forever · no credit card',
-  tagline:
-    'Explore the full Cerulea platform on the testnet. Build, test, and validate your entire architecture with zero cost and zero commitment.',
-  cta: 'Start Building',
-  isFree: true,
-  footerNote: 'Testnet only — no mainnet or live deployments.',
-  features: [
-    'Full Cerulea Studio access',
-    'Cerulea Intelligence (AI)',
-    'Testnet deployments (unlimited)',
-    'Dashboard (testnet view)',
-    'Community support',
-  ],
-};
-
 const ENTERPRISE: StaticPlan = {
   id: 'enterprise',
   accentColor: '#8b5cf6',
   planName: 'Enterprise',
   period: 'annual licensing',
   tagline:
-    'For organisations deploying sovereign Private Chains with complete governance control, compliance requirements, and dedicated engineering support.',
+    'For organisations deploying sovereign private Blockchain networks with complete governance control, compliance requirements and dedicated engineering support.',
   cta: 'Contact Sales',
   isFree: false,
   features: [
-    'Sovereign Private Chain deployment',
-    'Bring your own cloud (AWS, GCP)',
-    'Custom compliance and RBAC modules',
+    'Sovereign private Blockchain deployment',
+    'Deployment on the cloud the organisation already runs',
+    'Custom compliance and role-based access modules',
     'Node architecture review',
-    '24/7 dedicated engineering SLA',
+    'Dedicated engineering support around the clock',
   ],
 };
 
-const TIER_ACCENT: Record<SelfServeTierId, string> = {
+const TIER_ACCENT: Record<string, string> = {
   public_dapps: '#3b82f6',
   private_dapps: '#6366f1',
   private_dapps_pro: '#0ea5e9',
@@ -91,18 +70,45 @@ const TIER_ACCENT: Record<SelfServeTierId, string> = {
   govt_standard: '#0891b2',
 };
 
+/** The accent colour of a tier card. A tier the table does not name takes the shared blue. */
+export function tierAccent(tierId: string): string {
+  return TIER_ACCENT[tierId] ?? '#004AAD';
+}
+
+/**
+ * The division the pricing screen shows.
+ * The address names it first (the plan gate sends a person to
+ * /pricing?division=<division>), then the division path or cookie, then the
+ * dApps ladder on the main host.
+ */
+export function pricingDivision(fromQuery: string | null, fromClient: Division | null): Division {
+  return asDivision(fromQuery) ?? fromClient ?? 'dapp';
+}
+
 export default function PricingPage() {
+  return (
+    <CatalogueProvider>
+      <PricingScreen />
+    </CatalogueProvider>
+  );
+}
+
+function PricingScreen() {
   const theme = useTheme();
   const { data: session } = useSession();
   const isDark = theme.palette.mode === 'dark';
+  const searchParams = useSearchParams();
+  const catalogue = useCatalogue();
 
-  // Show only the active division's tiers. On the main host (no division) fall
-  // back to the dapp ladder — the legacy default.
+  // Only the tiers of the active division show.
   const division = useDivision();
-  const activeDivision = division ?? 'dapp';
-  const divisionTiers = React.useMemo(() => getTiersForDivision(activeDivision), [activeDivision]);
+  const activeDivision = pricingDivision(searchParams.get('division'), division);
+  const divisionTiers = React.useMemo(
+    () => catalogue.tiersForDivision(activeDivision),
+    [catalogue, activeDivision],
+  );
 
-  const [selectedTierId, setSelectedTierId] = React.useState<SelfServeTierId | null>(null);
+  const [selectedTierId, setSelectedTierId] = React.useState<string | null>(null);
   const [selections, setSelections] = React.useState<AddonSelection[]>([]);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [checkingOut, setCheckingOut] = React.useState(false);
@@ -111,36 +117,35 @@ export default function PricingPage() {
 
   const selectorRef = React.useRef<HTMLDivElement>(null);
 
-  // An existing subscriber must manage their plan from the dashboard
-  // (change tier / cancel / add-ons) — sending them through checkout
-  // again would create a second, duplicate Stripe subscription.
+  // An account already paying in this division changes its plan from the
+  // billing screen. A second checkout would open a second subscription.
   React.useEffect(() => {
     if (!session?.user) {
       setCheckingExisting(false);
       return;
     }
-    fetch('/api/billing/subscription')
+    fetch(`/api/billing/subscription?division=${activeDivision}`)
       .then((r) => r.json())
       .then((json) => {
         if (json?.ok && json.subscription && json.tier) {
-          window.location.href = '/dashboard/billing';
+          openAddress(`/dashboard/billing?division=${activeDivision}`);
         } else {
           setCheckingExisting(false);
         }
       })
       .catch(() => setCheckingExisting(false));
-  }, [session]);
+  }, [session, activeDivision]);
 
-  const handleSelectTier = (tierId: SelfServeTierId) => {
+  const handleSelectTier = (tierId: string) => {
     if (selectedTierId === tierId) return;
 
     setSelectedTierId(tierId);
 
     if (selections.length > 0) {
-      const { kept, removedNames } = reconcileSelectionsForTier(selections, tierId);
+      const { kept, removedNames } = catalogue.reconcile(selections, tierId);
       setSelections(kept);
       if (removedNames.length > 0) {
-        setNotice(`Removed ${removedNames.join(', ')} — not available on this tier.`);
+        setNotice(`Removed ${removedNames.join(', ')}. This tier offers none of them.`);
       }
     }
 
@@ -149,7 +154,7 @@ export default function PricingPage() {
 
   const handleStaticSelect = (plan: StaticPlan) => {
     if (plan.isFree) {
-      window.location.href = '/dashboard';
+      openAddress('/dashboard');
       return;
     }
     window.open(CONTACT_SALES_URL, '_blank', 'noopener,noreferrer');
@@ -163,25 +168,39 @@ export default function PricingPage() {
       const res = await fetch('/api/billing/checkout', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ tierId: selectedTierId, addons: selections }),
+        body: JSON.stringify({ tierId: selectedTierId, addons: selections, division: activeDivision }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        setError(data.error || 'Checkout failed. Please try again.');
+        setError(data.error || 'The checkout did not start. Try again.');
         setCheckingOut(false);
         return;
       }
-      window.location.href = data.url;
+      openAddress(data.url);
     } catch {
-      setError('Checkout failed. Please try again.');
+      setError('The checkout did not start. Try again.');
       setCheckingOut(false);
     }
   };
 
-  if (checkingExisting) {
+  if (checkingExisting || !catalogue.ready) {
     return (
       <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
         <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (catalogue.error) {
+    return (
+      <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', px: 2 }}>
+        <Alert
+          severity="error"
+          action={<Button color="inherit" size="small" onClick={catalogue.reload}>Read again</Button>}
+          sx={{ borderRadius: 2, maxWidth: 560 }}
+        >
+          {catalogue.error}
+        </Alert>
       </Box>
     );
   }
@@ -206,14 +225,14 @@ export default function PricingPage() {
           CERULEA PRICING
         </Typography>
         <Typography variant="h3" sx={{ fontWeight: 800, mb: 2, lineHeight: 1.2 }}>
-          Choose your plan
+          Choose a plan
         </Typography>
         <Typography variant="body1" sx={{ opacity: 0.7, fontSize: '1.05rem' }}>
-          Pick the plan that fits your scale. All plans include access to Cerulea AI and the full module library.
+          Pick the plan that fits the scale of the work. Every plan includes Cerulea Intelligence and the full module library. Prices are in US dollars.
         </Typography>
         {session?.user && (
           <Typography variant="body2" sx={{ mt: 2, opacity: 0.6 }}>
-            Logged in as <strong>{session.user.email}</strong>
+            Signed in as <strong>{session.user.email}</strong>
           </Typography>
         )}
       </Box>
@@ -232,7 +251,7 @@ export default function PricingPage() {
             selected={selectedTierId === tier.id}
             plan={{
               id: tier.id,
-              accentColor: TIER_ACCENT[tier.id],
+              accentColor: tierAccent(tier.id),
               planName: tier.name,
               price: `$${(tier.priceCents / 100).toLocaleString()}`,
               period: tier.billing === 'one_time' ? 'one-time' : 'per month',
@@ -245,8 +264,8 @@ export default function PricingPage() {
           />
         ))}
 
-        {/* Contact-sales upsell only makes sense for the dapp ladder now that
-            enterprise/govt have real self-serve tiers. */}
+        {/* The sales contact card joins the dApps ladder alone. Enterprise and
+            Government sell their own tiers. */}
         {activeDivision === 'dapp' && (
           <PlanCard plan={ENTERPRISE} isDark={isDark} theme={theme} onSelect={() => handleStaticSelect(ENTERPRISE)} />
         )}
@@ -257,10 +276,10 @@ export default function PricingPage() {
         <Box ref={selectorRef} sx={{ width: '100%', maxWidth: 900, mt: 6 }}>
           <Divider sx={{ mb: 4 }} />
           <Typography variant="h5" fontWeight={800} sx={{ mb: 0.5 }}>
-            Add-ons for {TIERS.find((t) => t.id === selectedTierId)?.name}
+            Add-ons for {catalogue.tierById(selectedTierId)?.name}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Fully optional — skip this and check out with the plan alone, or add what you need now. You can change these any time later.
+            Add-ons are optional. Check out with the plan alone, or add what the project needs now. Every add-on changes later from the billing screen.
           </Typography>
 
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems="flex-start">
@@ -303,8 +322,11 @@ export default function PricingPage() {
 
       {/* Footer note */}
       <Typography variant="caption" sx={{ mt: 5, opacity: 0.45, textAlign: 'center', maxWidth: 700 }}>
-        Public Dapps, Private Dapps, and Private Dapps Pro are billed monthly and can be canceled any
-        time. Contact our sales team for Enterprise agreements and volume discounts.
+        {activeDivision === 'dapp'
+          ? 'Public Dapps, Private Dapps and Private Dapps Pro are billed monthly and end at any time. Contact our sales team for Enterprise agreements and volume discounts.'
+          : 'Each tier is a one time licence. Recurring add-ons are billed monthly and end at any time. Contact our sales team for volume agreements.'}
+        {' '}
+        {catalogue.catalogue.complianceSentence}
       </Typography>
 
       <Snackbar open={!!notice} autoHideDuration={5000} onClose={() => setNotice(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>

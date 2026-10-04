@@ -1,21 +1,11 @@
 // apps/frontend/src/components/billing/AddonSelector.tsx
-//
-// ONE add-on selector, driven entirely by the billing catalog and
-// filtered by the currently selected tier. Rendered in two places:
-//   - inline on the signup/checkout screen (mode="signup"), feeding the
-//     initial Checkout Session
-//   - on the dashboard billing page (mode="dashboard"), pre-filled with
-//     the customer's current active add-ons, feeding the update flow
-//
-// Add-ons with a one-time price component (Custom domain, Dedicated
-// branded block explorer) behave differently by mode:
-//   - signup: just added to the local selection — they ride along in the
-//     same Checkout Session as everything else.
-//   - dashboard: turning one ON for the first time requires an actual
-//     card charge, so instead of mutating local state we call
-//     onRequestOneTimeCheckout(addonId) and let the parent redirect to
-//     Stripe Checkout. Already-purchased/active ones can be toggled off
-//     normally (no charge for removal).
+// One add-on selector, driven by the priced catalogue Cerulea APIs publishes
+// and filtered by the chosen tier. The pricing screen renders it in signup
+// mode, where every add-on rides along in the same checkout. The billing
+// screen renders it in dashboard mode, filled with the add-ons the account
+// holds. There an add-on with a one time part needs a payment before it joins
+// the subscription, so the selector asks the parent to start that purchase
+// instead of changing the selection. Switching an add-on off needs no payment.
 
 'use client';
 
@@ -27,15 +17,14 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import { alpha, useTheme } from '@mui/material/styles';
 import {
-  getEligibleAddons,
-  formatCents,
-  type TierId,
-  type Addon,
+  type CatalogueAddon as Addon,
   type AddonSelection,
-} from '@/config/billing-catalog';
+  formatCents,
+  useCatalogue,
+} from '@/components/billing/CatalogueProvider';
 
 export interface AddonSelectorProps {
-  tierId: TierId | null;
+  tierId: string | null;
   selections: AddonSelection[];
   onChange: (selections: AddonSelection[]) => void;
   mode: 'signup' | 'dashboard';
@@ -75,7 +64,8 @@ export default function AddonSelector({
   disabled = false,
 }: AddonSelectorProps) {
   const theme = useTheme();
-  const eligible = getEligibleAddons(tierId);
+  const { eligibleAddons } = useCatalogue();
+  const eligible = eligibleAddons(tierId);
   const selectedMap = React.useMemo(() => new Map(selections.map((s) => [s.addonId, s.quantity])), [selections]);
 
   if (!tierId) return null;
@@ -84,7 +74,7 @@ export default function AddonSelector({
     return (
       <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, textAlign: 'center' }}>
         <Typography variant="body2" color="text.secondary">
-          No add-ons are available for this tier.
+          This tier carries no add-ons.
         </Typography>
       </Paper>
     );
@@ -105,7 +95,8 @@ export default function AddonSelector({
       const wasActive = selectedMap.has(addon.id);
       removeAddon(addon.id);
       if (mode === 'dashboard' && wasActive) {
-        onInstantRemove?.(addon.id); // cancel this one add-on immediately, not batched with Save
+        // The parent ends this add-on at once rather than waiting for Save.
+        onInstantRemove?.(addon.id);
       }
       return;
     }
@@ -117,7 +108,8 @@ export default function AddonSelector({
 
     if (needsCheckoutFirst) {
       onRequestOneTimeCheckout?.(addon.id);
-      return; // don't mutate local selection — wait for checkout to complete
+      // The selection changes once the purchase settles.
+      return;
     }
 
     setQuantity(addon.id, 1);

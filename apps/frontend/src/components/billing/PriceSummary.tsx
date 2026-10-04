@@ -1,39 +1,37 @@
 // apps/frontend/src/components/billing/PriceSummary.tsx
-//
-// Shared live running-total component: tier price + sum of selected
-// add-on prices, split into "due now" (one-time charges + first month)
-// and "then, monthly" (ongoing recurring total). Used by both the
-// signup checkout screen and the dashboard billing page.
+// The running total of a tier with its chosen add-ons, read from the priced
+// catalogue: the amount due now (every one time part and the first period)
+// and the amount due every period after. The pricing screen and the billing
+// screen both render it.
 
 'use client';
 
 import * as React from 'react';
 import { Box, Paper, Stack, Typography, Divider } from '@mui/material';
 import {
-  computePriceBreakdown,
-  getTierById,
-  getAddonById,
-  formatCents,
-  type TierId,
   type AddonSelection,
-} from '@/config/billing-catalog';
+  type CatalogueAddon,
+  formatCents,
+  useCatalogue,
+} from '@/components/billing/CatalogueProvider';
 
 export interface PriceSummaryProps {
-  tierId: TierId | null;
+  tierId: string | null;
   selections: AddonSelection[];
   /** Label for the primary action button area below the summary, e.g. "Due today" */
   dueNowLabel?: string;
 }
 
 export default function PriceSummary({ tierId, selections, dueNowLabel = 'Due today' }: PriceSummaryProps) {
-  const tier = tierId ? getTierById(tierId) : undefined;
-  const breakdown = computePriceBreakdown(tierId, selections);
+  const { tierById, addonById, breakdown: priceBreakdown } = useCatalogue();
+  const tier = tierById(tierId);
+  const breakdown = priceBreakdown(tierId, selections);
 
   if (!tier) return null;
 
   const lineItems = selections
-    .map((s) => ({ addon: getAddonById(s.addonId), quantity: s.quantity }))
-    .filter((x) => !!x.addon) as { addon: NonNullable<ReturnType<typeof getAddonById>>; quantity: number }[];
+    .map((s) => ({ addon: addonById(s.addonId), quantity: s.quantity }))
+    .filter((x) => !!x.addon) as { addon: CatalogueAddon; quantity: number }[];
 
   return (
     <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
@@ -44,7 +42,7 @@ export default function PriceSummary({ tierId, selections, dueNowLabel = 'Due to
       <Stack spacing={1} sx={{ mt: 1.5 }}>
         <Stack direction="row" justifyContent="space-between">
           <Typography variant="body2">{tier.name}</Typography>
-          <Typography variant="body2" fontWeight={700}>{formatCents(tier.priceCents)}/mo</Typography>
+          <Typography variant="body2" fontWeight={700}>{formatCents(tier.priceCents)}{tier.billing === 'one_time' ? ' one-time' : '/mo'}</Typography>
         </Stack>
 
         {lineItems.map(({ addon, quantity }) => (
@@ -75,7 +73,9 @@ export default function PriceSummary({ tierId, selections, dueNowLabel = 'Due to
           </Typography>
         )}
         <Typography variant="caption" color="text.secondary">
-          Then {formatCents(breakdown.monthlyCents)}/month.
+          {tier.billing === 'one_time'
+            ? `Then ${formatCents(breakdown.addonsRecurringCents)}/month for the recurring add-ons.`
+            : `Then ${formatCents(breakdown.monthlyCents)}/month.`}
         </Typography>
       </Stack>
     </Paper>

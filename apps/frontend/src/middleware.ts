@@ -148,9 +148,11 @@ export async function middleware(req: NextRequest) {
   if (division) {
     const subs = token.divisionSubs as DivisionSubs | undefined;
     if (!isOperator && !hasDivisionAccess(subs, division)) {
+      // The pricing screen opens on the tiers of the division the person asked for.
       const pricingUrl = req.nextUrl.clone();
       pricingUrl.pathname = '/pricing';
       pricingUrl.search = '';
+      pricingUrl.searchParams.set('division', division);
       return redirectTo(pricingUrl);
     }
     const url = req.nextUrl.clone();

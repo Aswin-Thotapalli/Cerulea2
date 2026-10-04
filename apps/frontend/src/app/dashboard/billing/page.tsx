@@ -1,6 +1,12 @@
 'use client';
 
 // apps/frontend/src/app/dashboard/billing/page.tsx
+// The billing screen of one division: the plan, the add-ons, the chain data
+// export, the payment method, the billing address, the tax identifiers and
+// the invoices. Every read and every change goes through the Studio billing
+// routes onto Cerulea APIs, which keeps the subscription with the payments
+// driver. The tiers, add-ons and prices come from the priced catalogue.
+// An account paying in more than one division switches between them here.
 
 import * as React from 'react';
 import {
@@ -19,19 +25,33 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { alpha, useTheme } from '@mui/material/styles';
-import {
-  TIERS, getTierById, getAddonById, isAddonEligibleForTier, formatCents, type TierId, type AddonSelection,
-} from '@/config/billing-catalog';
+import { useSearchParams } from 'next/navigation';
+
+import { DIVISION_LABELS, asDivision, type Division } from '@/config/divisions';
+import { getClientDivision } from '@/lib/division-client';
 import AddonSelector from '@/components/billing/AddonSelector';
+import { openAddress } from '@/components/billing/open-address';
 import PriceSummary from '@/components/billing/PriceSummary';
+import {
+  CatalogueProvider,
+  type AddonSelection,
+  type CatalogueTier,
+  formatCents,
+  useCatalogue,
+} from '@/components/billing/CatalogueProvider';
+import {
+  type AccessAnswer,
+  billingDivisionChoice,
+  paidDivisions,
+} from '@/components/billing/plan-standing';
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
 interface SubscriptionState {
   subscription: {
-    id: string; tierId: TierId; status: string; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean;
+    id: string; tierId: string; status: string; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean;
   } | null;
-  tier: ReturnType<typeof getTierById> | null;
+  tier: CatalogueTier | null;
   addons: AddonSelection[];
   oneTimePurchases: { addonId: string | null; kind: string; createdAt: string }[];
 }
@@ -44,8 +64,8 @@ function selectionsEqual(a: AddonSelection[], b: AddonSelection[]): boolean {
   return b.every((x) => am.get(x.addonId) === x.quantity);
 }
 
-function formatStripeAmount(amount: number, currency: string): string {
-  return new Intl.NumberFormat('en-IN', {
+function formatInvoiceAmount(amount: number, currency: string): string {
+  return new Intl.NumberFormat(undefined, {
     style: 'currency',
     currency: currency.toUpperCase(),
     minimumFractionDigits: 2,
@@ -53,44 +73,115 @@ function formatStripeAmount(amount: number, currency: string): string {
   }).format(amount / 100);
 }
 
+/** The period word beside a tier price. */
+function tierPeriod(tier: CatalogueTier): string {
+  return tier.billing === 'one_time' ? 'one time licence' : 'per month';
+}
+
+/** Sends one billing change with the division in the body. */
+async function postBilling(path: string, division: Division, body: Record<string, unknown> = {}, method = 'POST') {
+  const res = await fetch(path, {
+    method,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ...body, division }),
+  });
+  const json = await res.json().catch(() => ({}));
+  return { ok: res.ok && json?.ok === true, json };
+}
+
 // ─── main billing page ────────────────────────────────────────────────────────
 
 export default function DashboardBillingPage() {
+  return (
+    <CatalogueProvider>
+      <React.Suspense fallback={<BillingSkeleton />}>
+        <BillingScreen />
+      </React.Suspense>
+    </CatalogueProvider>
+  );
+}
+
+function BillingSkeleton() {
+  return (
+    <Box sx={{ maxWidth: 1000, mx: 'auto', p: 4 }}>
+      <Skeleton variant="text" width={240} height={40} />
+      <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 3, mt: 2 }} />
+      <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 3, mt: 2 }} />
+    </Box>
+  );
+}
+
+function BillingScreen() {
   const theme = useTheme();
+  const catalogue = useCatalogue();
+  const searchParams = useSearchParams();
+  const namedDivision = asDivision(searchParams.get('division'));
+
+  const [access, setAccess] = React.useState<AccessAnswer | null>(null);
+  const [division, setDivision] = React.useState<Division | null>(null);
   const [data, setData] = React.useState<SubscriptionState | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
   const [selections, setSelections] = React.useState<AddonSelection[]>([]);
   const [saving, setSaving] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
-  const [changingTier, setChangingTier] = React.useState<TierId | null>(null);
+  const [changingTier, setChangingTier] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
 
   const [cancelDialogOpen, setCancelDialogOpen] = React.useState(false);
   const [canceling, setCanceling] = React.useState(false);
   const [resuming, setResuming] = React.useState(false);
-  const [pendingTierChange, setPendingTierChange] = React.useState<TierId | null>(null);
+  const [pendingTierChange, setPendingTierChange] = React.useState<string | null>(null);
+
+  // The standing names the divisions the account pays in and picks the first one to show.
+  React.useEffect(() => {
+    let cancelled = false;
+    fetch('/api/billing/access')
+      .then((res) => res.json())
+      .then((json: AccessAnswer) => {
+        if (cancelled) return;
+        setAccess(json);
+        setDivision(billingDivisionChoice(json, namedDivision, getClientDivision()));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDivision(namedDivision ?? getClientDivision() ?? 'dapp');
+      });
+    return () => { cancelled = true; };
+  }, [namedDivision]);
 
   const load = React.useCallback(async () => {
+    if (!division) return;
     setLoading(true);
+    setLoadError(null);
     try {
-      const res = await fetch('/api/billing/subscription');
-      const json: SubscriptionState & { ok: boolean } = await res.json();
+      const res = await fetch(`/api/billing/subscription?division=${division}`);
+      const json: SubscriptionState & { ok: boolean; error?: string } = await res.json();
       if (json.ok) {
         setData(json);
         setSelections(json.addons);
+      } else {
+        setData(null);
+        setLoadError(json.error || 'Cerulea APIs gave no answer for the subscription. Open the screen again.');
       }
+    } catch {
+      setData(null);
+      setLoadError('Cerulea APIs gave no answer for the subscription. Open the screen again.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [division]);
 
   React.useEffect(() => {
     load();
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('purchase') === 'success') setNotice('Add-on purchased — applying changes now.');
-    if (params.get('export') === 'success') setNotice('Export started — check your downloads shortly.');
   }, [load]);
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('purchase') === 'success') setNotice('Add-on purchased. The change applies now.');
+    if (params.get('export') === 'success') setNotice('Export started. The file arrives in the downloads shortly.');
+  }, []);
 
   const purchasedOneTimeAddonIds = React.useMemo(
     () => (data?.oneTimePurchases ?? []).filter((p) => p.kind === 'addon_one_time' && p.addonId).map((p) => p.addonId as string),
@@ -104,126 +195,112 @@ export default function DashboardBillingPage() {
     const willContinue: { id: string; name: string }[] = [];
     const willBeRemoved: { id: string; name: string }[] = [];
     for (const sel of data.addons) {
-      const addon = getAddonById(sel.addonId);
+      const addon = catalogue.addonById(sel.addonId);
       if (!addon) continue;
-      (isAddonEligibleForTier(addon.id, pendingTierChange) ? willContinue : willBeRemoved).push({
+      (catalogue.isAddonEligible(addon.id, pendingTierChange) ? willContinue : willBeRemoved).push({
         id: addon.id,
         name: addon.name,
       });
     }
     return { willContinue, willBeRemoved };
-  }, [pendingTierChange, data]);
+  }, [pendingTierChange, data, catalogue]);
 
   const handleRequestOneTimeCheckout = async (addonId: string) => {
+    if (!division) return;
     setError(null);
     try {
-      const res = await fetch('/api/billing/addons/checkout', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ addonId }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        setError(json.error || 'Could not start checkout for this add-on.');
+      const { ok, json } = await postBilling('/api/billing/addons/checkout', division, { addonId });
+      if (!ok) {
+        setError(json.error || 'The add-on purchase did not start. Try again.');
         return;
       }
-      window.location.href = json.url;
+      openAddress(json.url);
     } catch {
-      setError('Could not start checkout for this add-on.');
+      setError('The add-on purchase did not start. Try again.');
     }
   };
 
   const handleInstantRemove = async (addonId: string) => {
+    if (!division) return;
     setError(null);
     try {
-      const res = await fetch('/api/billing/subscription/addons/remove', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ addonId }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        setError(json.error || 'Could not cancel this add-on.');
+      const { ok, json } = await postBilling('/api/billing/subscription/addons/remove', division, { addonId });
+      if (!ok) {
+        setError(json.error || 'The add-on is still on the subscription. Try again.');
         await load();
         return;
       }
-      setNotice('Add-on canceled.');
+      setNotice('Add-on ended.');
       await load();
     } catch {
-      setError('Could not cancel this add-on.');
+      setError('The add-on is still on the subscription. Try again.');
       await load();
     }
   };
 
   const handleSave = async () => {
-    if (!data?.subscription) return;
+    if (!data?.subscription || !division) return;
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/billing/subscription/addons', {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ selections }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        setError(json.error || 'Could not update add-ons.');
+      const { ok, json } = await postBilling('/api/billing/subscription/addons', division, { selections }, 'PATCH');
+      if (!ok) {
+        setError(json.error || 'The add-ons stayed as they were. Try again.');
+        return;
+      }
+      if (typeof json.url === 'string' && json.devMode !== true) {
+        openAddress(json.url);
         return;
       }
       setNotice('Subscription updated.');
       await load();
     } catch {
-      setError('Could not update add-ons.');
+      setError('The add-ons stayed as they were. Try again.');
     } finally {
       setSaving(false);
     }
   };
 
   const handleExport = async (format: 'csv' | 'pdf') => {
+    if (!division) return;
     setExporting(true);
     setError(null);
     try {
-      const res = await fetch('/api/billing/export', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ format }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        setError(json.error || 'Export failed.');
+      const { ok, json } = await postBilling('/api/billing/export', division, { format });
+      if (!ok) {
+        setError(json.error || 'The export did not start. Try again.');
         setExporting(false);
         return;
       }
-      window.location.href = json.url;
+      openAddress(json.url);
     } catch {
-      setError('Export failed.');
+      setError('The export did not start. Try again.');
       setExporting(false);
     }
   };
 
   const confirmChangeTier = async () => {
-    if (!pendingTierChange) return;
+    if (!pendingTierChange || !division) return;
     setChangingTier(pendingTierChange);
     setError(null);
     try {
-      const res = await fetch('/api/billing/subscription/change-tier', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ tierId: pendingTierChange }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        setError(json.error || 'Could not change plan.');
+      const { ok, json } = await postBilling('/api/billing/subscription/change-tier', division, { tierId: pendingTierChange });
+      if (!ok) {
+        setError(json.error || 'The plan stayed as it was. Try again.');
+        return;
+      }
+      if (typeof json.url === 'string' && json.devMode !== true) {
+        openAddress(json.url);
         return;
       }
       const continuedNames = tierChangeImpact?.willContinue.map((a) => a.name) ?? [];
-      const parts = [`Switched to ${getTierById(pendingTierChange)?.name}.`];
+      const parts = [`Switched to ${catalogue.tierById(pendingTierChange)?.name ?? pendingTierChange}.`];
       if (json.removedAddons?.length) parts.push(`Removed: ${json.removedAddons.join(', ')}.`);
       if (continuedNames.length) parts.push(`Continued unchanged: ${continuedNames.join(', ')}.`);
       setNotice(parts.join(' '));
       await load();
     } catch {
-      setError('Could not change plan.');
+      setError('The plan stayed as it was. Try again.');
     } finally {
       setChangingTier(null);
       setPendingTierChange(null);
@@ -231,23 +308,19 @@ export default function DashboardBillingPage() {
   };
 
   const handleCancel = async () => {
+    if (!division) return;
     setCanceling(true);
     setError(null);
     try {
-      const res = await fetch('/api/billing/subscription/cancel', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ atPeriodEnd: true }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        setError(json.error || 'Could not cancel subscription.');
+      const { ok, json } = await postBilling('/api/billing/subscription/cancel', division, { atPeriodEnd: true });
+      if (!ok) {
+        setError(json.error || 'The subscription is still open. Try again.');
         return;
       }
-      setNotice('Subscription will end at the close of your current billing period.');
+      setNotice('The subscription ends at the close of the current billing period.');
       await load();
     } catch {
-      setError('Could not cancel subscription.');
+      setError('The subscription is still open. Try again.');
     } finally {
       setCanceling(false);
       setCancelDialogOpen(false);
@@ -255,30 +328,56 @@ export default function DashboardBillingPage() {
   };
 
   const handleResume = async () => {
+    if (!division) return;
     setResuming(true);
     setError(null);
     try {
-      const res = await fetch('/api/billing/subscription/resume', { method: 'POST' });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        setError(json.error || 'Could not resume subscription.');
+      const { ok, json } = await postBilling('/api/billing/subscription/resume', division);
+      if (!ok) {
+        setError(json.error || 'The subscription still ends at the close of the period. Try again.');
         return;
       }
       setNotice('Subscription resumed.');
       await load();
     } catch {
-      setError('Could not resume subscription.');
+      setError('The subscription still ends at the close of the period. Try again.');
     } finally {
       setResuming(false);
     }
   };
 
-  if (loading) {
+  const paid = paidDivisions(access);
+  const divisionSwitcher = division && paid.length > 1 && (
+    <Stack direction="row" spacing={1} sx={{ mb: 3 }} role="tablist" aria-label="Division">
+      {paid.map((entry) => (
+        <Chip
+          key={entry}
+          label={DIVISION_LABELS[entry].title}
+          color={entry === division ? 'primary' : 'default'}
+          variant={entry === division ? 'filled' : 'outlined'}
+          onClick={() => setDivision(entry)}
+          sx={{ fontWeight: 700 }}
+        />
+      ))}
+    </Stack>
+  );
+
+  if (loading || !division || !catalogue.ready) {
+    return <BillingSkeleton />;
+  }
+
+  if (loadError || catalogue.error) {
     return (
       <Box sx={{ maxWidth: 1000, mx: 'auto', p: 4 }}>
-        <Skeleton variant="text" width={240} height={40} />
-        <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 3, mt: 2 }} />
-        <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 3, mt: 2 }} />
+        <Typography variant="h5" fontWeight={800} sx={{ mb: 2 }}>Billing</Typography>
+        {divisionSwitcher}
+        <Alert
+          severity="error"
+          sx={{ borderRadius: 2 }}
+          action={<Button color="inherit" size="small" onClick={() => { catalogue.reload(); load(); }}>Read again</Button>}
+        >
+          {loadError ?? catalogue.error}
+        </Alert>
       </Box>
     );
   }
@@ -287,23 +386,29 @@ export default function DashboardBillingPage() {
     return (
       <Box sx={{ maxWidth: 1000, mx: 'auto', p: 4 }}>
         <Typography variant="h5" fontWeight={800} sx={{ mb: 2 }}>Billing</Typography>
+        {divisionSwitcher}
         <Alert severity="info" sx={{ borderRadius: 2 }}>
-          You don&apos;t have an active subscription yet. <a href="/pricing">Choose a plan</a> to get started.
+          {data?.subscription
+            ? <>The {DIVISION_LABELS[division].title} subscription runs on a plan outside the current catalogue. <a href={`/pricing?division=${division}`}>Choose a plan</a> to move it onto a current tier.</>
+            : <>The account holds no active {DIVISION_LABELS[division].title} subscription yet. <a href={`/pricing?division=${division}`}>Choose a plan</a> to get started.</>}
         </Alert>
       </Box>
     );
   }
 
   const { tier, subscription } = data;
-  const exportEligible = tier ? ['private_dapps', 'private_dapps_pro'].includes(tier.id) : false;
+  const exportAction = catalogue.exportActionFor(division);
+  const exportEligible = exportAction ? exportAction.eligibleTierIds.includes(tier.id) : false;
   const pendingCancellation = subscription.cancelAtPeriodEnd;
+  const divisionTiers = catalogue.tiersForDivision(division);
 
   return (
     <Box sx={{ maxWidth: 1000, mx: 'auto', p: 4 }}>
       <Typography variant="h5" fontWeight={800} sx={{ mb: 0.5 }}>Billing</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Manage your plan, add-ons, payment method, and billing details.
+        The plan, the add-ons, the payment method and the billing details of the {DIVISION_LABELS[division].title} division. Prices are in US dollars.
       </Typography>
+      {divisionSwitcher}
 
       {notice && <Alert severity="success" onClose={() => setNotice(null)} sx={{ mb: 2, borderRadius: 2 }}>{notice}</Alert>}
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
@@ -317,7 +422,7 @@ export default function DashboardBillingPage() {
             </Button>
           }
         >
-          Your subscription is set to cancel at the end of the current billing period
+          The subscription ends at the close of the current billing period
           {subscription.currentPeriodEnd ? ` (${new Date(subscription.currentPeriodEnd).toLocaleDateString()})` : ''}.
         </Alert>
       )}
@@ -336,7 +441,7 @@ export default function DashboardBillingPage() {
               />
             </Stack>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {formatCents(tier.priceCents)}/month base plan
+              {formatCents(tier.priceCents)} {tierPeriod(tier)}, base plan
             </Typography>
           </Box>
           {!pendingCancellation && (
@@ -366,7 +471,7 @@ export default function DashboardBillingPage() {
       {/* Tier switcher */}
       <Typography variant="h6" fontWeight={800} sx={{ mb: 1.5 }}>Plan</Typography>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
-        {TIERS.map((t) => {
+        {divisionTiers.map((t) => {
           const isCurrent = t.id === tier.id;
           return (
             <Paper
@@ -383,7 +488,7 @@ export default function DashboardBillingPage() {
                 {isCurrent && <Chip label="Current" size="small" color="primary" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700 }} />}
               </Stack>
               <Typography variant="h6" fontWeight={800} color={isCurrent ? 'primary.main' : 'text.primary'} sx={{ mb: 1.5 }}>
-                {formatCents(t.priceCents)}<Typography component="span" variant="caption" color="text.secondary">/mo</Typography>
+                {formatCents(t.priceCents)}<Typography component="span" variant="caption" color="text.secondary">{t.billing === 'one_time' ? ' one time' : '/mo'}</Typography>
               </Typography>
               <Button
                 fullWidth
@@ -401,13 +506,13 @@ export default function DashboardBillingPage() {
       </Stack>
 
       {/* Pay-per-use export */}
-      {exportEligible && (
+      {exportEligible && exportAction && (
         <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, mb: 3, bgcolor: alpha(theme.palette.info.main, 0.04) }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
             <Box>
               <Typography variant="subtitle1" fontWeight={700}>Chain data export</Typography>
               <Typography variant="body2" color="text.secondary">
-                Export your chain data as CSV or PDF. Charged once per export, not added to your subscription.
+                Export the chain data of this division as a CSV or PDF file. Each export is charged once at {formatCents(exportAction.priceCents)}, outside the subscription.
               </Typography>
             </Box>
             <Stack direction="row" spacing={1}>
@@ -437,7 +542,7 @@ export default function DashboardBillingPage() {
       {/* Add-on management */}
       <Typography variant="h6" fontWeight={800} sx={{ mb: 0.5 }}>Add-ons</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-        Turn an add-on off to cancel it immediately. Turning one on, or changing a quantity, applies when you save.
+        Switching an add-on off ends it at once. Switching one on, or changing a quantity, applies on Save.
       </Typography>
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems="flex-start" sx={{ mb: 3 }}>
         <Box sx={{ flex: 1.4, width: '100%' }}>
@@ -467,23 +572,22 @@ export default function DashboardBillingPage() {
         </Box>
       </Stack>
 
-      {/* ── New sections ─────────────────────────────────────────────────── */}
-      <PaymentMethodSection />
-      <BillingDetailsSection />
-      <InvoicesSection />
+      <PaymentMethodSection division={division} />
+      <BillingDetailsSection division={division} />
+      <InvoicesSection division={division} />
 
       {/* Cancel subscription confirm dialog */}
       <Dialog open={cancelDialogOpen} onClose={() => setCancelDialogOpen(false)} PaperProps={{ sx: { borderRadius: 3 } }}>
         <DialogTitle sx={{ fontWeight: 800 }}>Cancel subscription?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            You&apos;ll keep access to {tier.name} and all your add-ons until the end of the current
+            Access to {tier.name} and every add-on stays until the end of the current
             billing period{subscription.currentPeriodEnd ? ` on ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}` : ''}.
-            You can resume any time before then.
+            The subscription resumes at any time before then.
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setCancelDialogOpen(false)} disabled={canceling}>Keep my plan</Button>
+          <Button onClick={() => setCancelDialogOpen(false)} disabled={canceling}>Keep the plan</Button>
           <Button
             color="error"
             variant="contained"
@@ -500,21 +604,21 @@ export default function DashboardBillingPage() {
       {/* Change tier confirm dialog */}
       <Dialog open={!!pendingTierChange} onClose={() => setPendingTierChange(null)} PaperProps={{ sx: { borderRadius: 3 } }}>
         <DialogTitle sx={{ fontWeight: 800 }}>
-          Switch to {pendingTierChange ? getTierById(pendingTierChange)?.name : ''}?
+          Switch to {pendingTierChange ? catalogue.tierById(pendingTierChange)?.name : ''}?
         </DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: tierChangeImpact && (tierChangeImpact.willContinue.length || tierChangeImpact.willBeRemoved.length) ? 2 : 0 }}>
-            Your billing updates immediately, prorated for the rest of this period.
+            Billing changes at once, prorated for the rest of this period.
           </DialogContentText>
 
           {tierChangeImpact && tierChangeImpact.willContinue.length === 0 && tierChangeImpact.willBeRemoved.length === 0 && (
-            <DialogContentText>You have no active add-ons, so nothing else changes.</DialogContentText>
+            <DialogContentText>The subscription carries no add-on, so nothing else changes.</DialogContentText>
           )}
 
           {tierChangeImpact && tierChangeImpact.willBeRemoved.length > 0 && (
             <Box sx={{ mb: tierChangeImpact.willContinue.length > 0 ? 2 : 0 }}>
               <Typography variant="subtitle2" fontWeight={800} color="error.main" sx={{ mb: 0.75 }}>
-                Will be removed — not available on this plan
+                Removed, since this plan offers none of these
               </Typography>
               <Stack spacing={0.5}>
                 {tierChangeImpact.willBeRemoved.map((a) => (
@@ -530,7 +634,7 @@ export default function DashboardBillingPage() {
           {tierChangeImpact && tierChangeImpact.willContinue.length > 0 && (
             <Box>
               <Typography variant="subtitle2" fontWeight={800} color="success.main" sx={{ mb: 0.75 }}>
-                Will continue, unchanged
+                Continued, unchanged
               </Typography>
               <Stack spacing={0.5}>
                 {tierChangeImpact.willContinue.map((a) => (
@@ -562,7 +666,7 @@ export default function DashboardBillingPage() {
 
 // ─── Payment Method Section ───────────────────────────────────────────────────
 
-function PaymentMethodSection() {
+function PaymentMethodSection({ division }: { division: Division }) {
   const [redirecting, setRedirecting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -570,16 +674,15 @@ function PaymentMethodSection() {
     setRedirecting(true);
     setError(null);
     try {
-      const res = await fetch('/api/billing/payment-method', { method: 'POST' });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        setError(json.error || 'Could not open payment method update page.');
+      const { ok, json } = await postBilling('/api/billing/payment-method', division);
+      if (!ok) {
+        setError(json.error || 'The payment method page did not open. Try again.');
         setRedirecting(false);
         return;
       }
-      window.location.href = json.url;
+      openAddress(json.url);
     } catch {
-      setError('Could not open payment method update page.');
+      setError('The payment method page did not open. Try again.');
       setRedirecting(false);
     }
   };
@@ -593,7 +696,7 @@ function PaymentMethodSection() {
             <Typography variant="subtitle1" fontWeight={700}>Payment Method</Typography>
           </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Update your saved card or other payment details.
+            Replace the saved card or other payment details.
           </Typography>
         </Box>
         <Button
@@ -639,7 +742,7 @@ interface CustomerData {
   taxIds: { id: string; type: string; value: string; verification?: string | null }[];
 }
 
-function BillingDetailsSection() {
+function BillingDetailsSection({ division }: { division: Division }) {
   const [customerData, setCustomerData] = React.useState<CustomerData | null>(null);
   const [sectionLoading, setSectionLoading] = React.useState(true);
   const [editingAddress, setEditingAddress] = React.useState(false);
@@ -655,13 +758,16 @@ function BillingDetailsSection() {
   const load = React.useCallback(async () => {
     setSectionLoading(true);
     try {
-      const res = await fetch('/api/billing/customer');
+      const res = await fetch(`/api/billing/customer?division=${division}`);
       const json = await res.json();
       if (json.ok) setCustomerData(json as CustomerData);
+      else setError(json.error || 'Cerulea APIs gave no answer for the billing details.');
+    } catch {
+      setError('Cerulea APIs gave no answer for the billing details.');
     } finally {
       setSectionLoading(false);
     }
-  }, []);
+  }, [division]);
 
   React.useEffect(() => { load(); }, [load]);
 
@@ -681,21 +787,16 @@ function BillingDetailsSection() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/billing/customer', {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ address: form }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        setError(json.error || 'Could not update address.');
+      const { ok, json } = await postBilling('/api/billing/customer', division, { address: form }, 'PATCH');
+      if (!ok) {
+        setError(json.error || 'The address stayed as it was. Try again.');
         return;
       }
       setNotice('Billing address updated.');
       setEditingAddress(false);
       await load();
     } catch {
-      setError('Could not update address.');
+      setError('The address stayed as it was. Try again.');
     } finally {
       setSaving(false);
     }
@@ -706,21 +807,16 @@ function BillingDetailsSection() {
     setAddingTax(true);
     setError(null);
     try {
-      const res = await fetch('/api/billing/customer', {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ addTaxId: { type: newTaxType, value: newTaxValue.trim() } }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        setError(json.error || 'Could not add tax ID.');
+      const { ok, json } = await postBilling('/api/billing/customer', division, { addTaxId: { type: newTaxType, value: newTaxValue.trim() } }, 'PATCH');
+      if (!ok) {
+        setError(json.error || 'The tax ID was left off. Try again.');
         return;
       }
       setNotice('Tax ID added.');
       setNewTaxValue('');
       await load();
     } catch {
-      setError('Could not add tax ID.');
+      setError('The tax ID was left off. Try again.');
     } finally {
       setAddingTax(false);
     }
@@ -730,20 +826,15 @@ function BillingDetailsSection() {
     setRemovingTaxId(taxId);
     setError(null);
     try {
-      const res = await fetch('/api/billing/customer', {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ removeTaxId: taxId }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        setError(json.error || 'Could not remove tax ID.');
+      const { ok, json } = await postBilling('/api/billing/customer', division, { removeTaxId: taxId }, 'PATCH');
+      if (!ok) {
+        setError(json.error || 'The tax ID stayed on file. Try again.');
         return;
       }
       setNotice('Tax ID removed.');
       await load();
     } catch {
-      setError('Could not remove tax ID.');
+      setError('The tax ID stayed on file. Try again.');
     } finally {
       setRemovingTaxId(null);
     }
@@ -783,7 +874,7 @@ function BillingDetailsSection() {
             {addrDisplay ?? 'No billing address on file.'}
           </Typography>
           <Tooltip title="Edit address">
-            <IconButton size="small" onClick={startEdit} sx={{ ml: 1, mt: -0.5 }}>
+            <IconButton size="small" onClick={startEdit} sx={{ ml: 1, mt: -0.5 }} aria-label="Edit address">
               <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -882,6 +973,7 @@ function BillingDetailsSection() {
                     size="small"
                     onClick={() => handleRemoveTaxId(t.id)}
                     disabled={removingTaxId === t.id}
+                    aria-label={`Remove tax ID ${t.value}`}
                   >
                     {removingTaxId === t.id
                       ? <CircularProgress size={14} />
@@ -942,6 +1034,7 @@ interface InvoiceRow {
   number: string | null;
   date: number;
   amountPaid: number;
+  amountDue: number;
   currency: string;
   status: string;
   pdfUrl: string | null;
@@ -956,7 +1049,7 @@ const INVOICE_STATUS_COLOR: Record<string, 'success' | 'warning' | 'error' | 'de
   draft: 'default',
 };
 
-function InvoicesSection() {
+function InvoicesSection({ division }: { division: Division }) {
   const [invoices, setInvoices] = React.useState<InvoiceRow[]>([]);
   const [sectionLoading, setSectionLoading] = React.useState(true);
   const [hasMore, setHasMore] = React.useState(false);
@@ -964,10 +1057,10 @@ function InvoicesSection() {
   const [error, setError] = React.useState<string | null>(null);
 
   const fetchPage = React.useCallback(async (startingAfter?: string) => {
-    const qs = startingAfter ? `?starting_after=${startingAfter}` : '';
-    const res = await fetch(`/api/billing/invoices${qs}`);
+    const qs = startingAfter ? `&starting_after=${encodeURIComponent(startingAfter)}` : '';
+    const res = await fetch(`/api/billing/invoices?division=${division}${qs}`);
     return res.json();
-  }, []);
+  }, [division]);
 
   React.useEffect(() => {
     setSectionLoading(true);
@@ -977,10 +1070,10 @@ function InvoicesSection() {
           setInvoices(json.invoices);
           setHasMore(json.hasMore ?? false);
         } else {
-          setError(json.error || 'Could not load invoices.');
+          setError(json.error || 'Cerulea APIs gave no answer for the invoices.');
         }
       })
-      .catch(() => setError('Could not load invoices.'))
+      .catch(() => setError('Cerulea APIs gave no answer for the invoices.'))
       .finally(() => setSectionLoading(false));
   }, [fetchPage]);
 
@@ -1013,7 +1106,7 @@ function InvoicesSection() {
         </Stack>
       ) : invoices.length === 0 ? (
         <Typography variant="body2" color="text.secondary">
-          No invoices yet. They&apos;ll appear here after your first billing cycle.
+          No invoice yet. The first one appears here after the first billing cycle.
         </Typography>
       ) : (
         <>
@@ -1038,12 +1131,12 @@ function InvoicesSection() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
-                        {new Date(inv.date * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {new Date(inv.date * 1000).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" fontWeight={600}>
-                        {formatStripeAmount(inv.amountPaid, inv.currency)}
+                        {formatInvoiceAmount(inv.status === 'paid' ? inv.amountPaid : inv.amountDue, inv.currency)}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -1064,6 +1157,7 @@ function InvoicesSection() {
                               href={inv.viewUrl}
                               target="_blank"
                               rel="noopener noreferrer"
+                              aria-label={`View invoice ${inv.number ?? inv.id}`}
                             >
                               <OpenInNewIcon fontSize="small" />
                             </IconButton>
@@ -1077,6 +1171,7 @@ function InvoicesSection() {
                               href={inv.pdfUrl}
                               target="_blank"
                               rel="noopener noreferrer"
+                              aria-label={`Download invoice ${inv.number ?? inv.id} as PDF`}
                             >
                               <DownloadIcon fontSize="small" />
                             </IconButton>

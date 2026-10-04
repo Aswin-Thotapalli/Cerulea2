@@ -1,32 +1,16 @@
 // apps/frontend/src/app/api/billing/checkout/route.ts
-// Starts the subscription the pricing screen chose, with its add-ons.
-// The tier id goes to Cerulea APIs as the plan, on the workspace serving the
-// division of the tier. Cerulea APIs checks the plan against the plans its
-// payments driver publishes and refuses a plan it does not serve. Each chosen
-// add-on then goes onto the subscription Cerulea APIs started.
+// Starts the tier the pricing screen chose, with its add-ons.
+// Cerulea APIs checks the tier against the priced catalogue of the division,
+// refuses a tier from another division and an add-on closed to the tier, opens
+// the workspace serving the division when the account holds none, and answers
+// the address the browser continues to. In local mode the purchase settles at
+// once and the address is the success screen of Studio.
 // Without this route the pricing screen has no way to start a plan.
 
-import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { ceruleaRequest } from '@/lib/cerulea-api';
-import {
-  callOptions,
-  ceruleaActor,
-  failureReply,
-  failureResponse,
-  signInRequired,
-} from '@/lib/cerulea-server';
-import { billingDivision, billingHome } from '@/lib/entitlements-server';
-import {
-  type TierId,
-  divisionForTierId,
-  getAddonById,
-  getTierById,
-  isAddonEligibleForTier,
-  isTierInDivision,
-} from '@/config/billing-catalog';
-import { DIVISION_LABELS } from '@/config/divisions';
+import { failureResponse } from '@/lib/cerulea-server';
+import { commerceCall, readBody, withDivision } from '../_shared/commerce';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -34,22 +18,20 @@ export const runtime = 'nodejs';
 const checkoutBody = z.object({
   tierId: z.string().min(1).max(80),
   addons: z
-    .array(z.object({ addonId: z.string().min(1).max(80), quantity: z.number().int().min(1) }))
+    .array(
+      z.object({
+        addonId: z.string().min(1).max(80),
+        quantity: z.number().int().min(1).max(1000),
+      }),
+    )
     .default([]),
-  returnUrl: z.string().optional(),
+  returnUrl: z.string().max(400).optional(),
   division: z.string().optional(),
+  workspaceId: z.string().min(1).max(80).optional(),
 });
 
-/** The plans Cerulea APIs publishes and the add-ons it sells beside them. */
-type AddOnCatalogue = {
-  plans: { planId: string }[];
-  addOns: { addOnId: string; displayName: string }[];
-};
-
 export async function POST(request: Request) {
-  const actor = await ceruleaActor();
-  if (!actor) return signInRequired();
-  const parsed = checkoutBody.safeParse(await request.json().catch(() => null));
+  const parsed = checkoutBody.safeParse(await readBody(request));
   if (!parsed.success) {
     return failureResponse(
       {
@@ -61,105 +43,18 @@ export async function POST(request: Request) {
       400,
     );
   }
-  const { tierId, addons } = parsed.data;
-  const rawReturn = parsed.data.returnUrl;
-  const returnUrl =
-    rawReturn && rawReturn.startsWith('/') && !rawReturn.startsWith('//') ? rawReturn : null;
-
-  // The tier names its own division. A tier from another division stays closed.
-  const asked = await billingDivision(request, parsed.data.division);
-  const catalogueTier = getTierById(tierId);
-  if (catalogueTier && asked && !isTierInDivision(tierId, asked)) {
-    return failureResponse(
-      {
-        code: 'billing.tier_outside_division',
-        message: `The ${catalogueTier.name} tier belongs to the ${DIVISION_LABELS[catalogueTier.division].title} division.`,
-        fix: `Open the ${DIVISION_LABELS[asked].title} pricing screen and choose one of its tiers.`,
-        details: { tierId, division: asked },
-      },
-      403,
-    );
-  }
-  if (catalogueTier) {
-    const closed = addons.find(
-      (entry) =>
-        getAddonById(entry.addonId) !== undefined &&
-        !isAddonEligibleForTier(entry.addonId, tierId as TierId),
-    );
-    if (closed) {
-      return failureResponse(
-        {
-          code: 'billing.add_on_outside_tier',
-          message: `The ${getAddonById(closed.addonId)?.name ?? closed.addonId} add-on is closed to the ${catalogueTier.name} tier.`,
-          fix: 'Remove the add-on, or choose a tier that offers it.',
-          details: { tierId, addonId: closed.addonId },
-        },
-        400,
-      );
-    }
-  }
-
-  try {
-    const options = callOptions(actor);
-
-    // Every chosen add-on must be on sale before the plan starts, so a checkout
-    // never stops halfway. A plan Cerulea APIs does not publish goes straight
-    // to Cerulea APIs, which names the plans it serves.
-    if (addons.length > 0) {
-      const catalogue = await ceruleaRequest<AddOnCatalogue>(
-        '/v1/billing/plans',
-        { method: 'GET' },
-        options,
-      );
-      const published = catalogue.plans.some((entry) => entry.planId === tierId);
-      const sold = new Set(catalogue.addOns.map((entry) => entry.addOnId));
-      const absent = addons.filter((entry) => !sold.has(entry.addonId));
-      if (published && absent.length > 0) {
-        return failureResponse(
-          {
-            code: 'billing.add_on_absent',
-            message: `Cerulea sells no add-on named ${absent.map((entry) => entry.addonId).join(', ')}.`,
-            fix: `Choose from the add-ons Cerulea sells: ${catalogue.addOns
-              .map((entry) => entry.displayName)
-              .join(', ')}.`,
-            details: { addonIds: absent.map((entry) => entry.addonId) },
-          },
-          400,
-        );
-      }
-    }
-
-    const home = await billingHome(actor, request, {
-      division: divisionForTierId(tierId) ?? asked,
-    });
-    const workspacePath = `/workspaces/${encodeURIComponent(home.workspace.workspaceId)}`;
-    const started = await ceruleaRequest<Record<string, unknown>>(
-      `/studio${workspacePath}/subscription`,
-      { method: 'POST', body: JSON.stringify({ planId: tierId }) },
-      options,
-    );
-    for (const entry of addons) {
-      await ceruleaRequest(
-        `/v1${workspacePath}/subscription/add-ons`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ addOnId: entry.addonId, quantity: entry.quantity }),
-        },
-        options,
-      );
-    }
-
-    const url = returnUrl
-      ? `/pricing/success?return=${encodeURIComponent(returnUrl)}`
-      : '/pricing/success';
-    return NextResponse.json({
-      ok: true,
-      url,
-      division: home.division,
-      workspace: home.workspace,
-      ...started,
-    });
-  } catch (cause) {
-    return failureReply(cause);
-  }
+  const { returnUrl, ...body } = parsed.data;
+  const safeReturn =
+    returnUrl && returnUrl.startsWith('/') && !returnUrl.startsWith('//') ? returnUrl : undefined;
+  return commerceCall(request, {
+    method: 'POST',
+    path: '/checkout',
+    body: { ...body, ...(safeReturn ? { returnUrl: safeReturn } : {}) },
+    // The success screen reads the division from its address, so the poll
+    // for the new subscription asks the right division.
+    reshape: (answer, context) => ({
+      ...answer,
+      url: withDivision(answer.url, context.division),
+    }),
+  });
 }
