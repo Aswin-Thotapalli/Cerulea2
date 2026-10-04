@@ -1,1348 +1,975 @@
-"use client";
+'use client';
 
-import React, { useEffect, useMemo, useState, useCallback } from "react";
-import StepGuidance from '@/components/studio/StepGuidance';
+// apps/frontend/src/components/studio/steps/step5.tsx
+// Deploy & UI, first sub-step: Interface.
+// On entry Cerulea generates the application from the model through the
+// frontend engine inside Cerulea APIs: a list screen, a detail screen, the add
+// and change forms for every collection, and an approval screen where a
+// workflow asks for one. The production drag and drop builder opens over that
+// generated application. A person rearranges, hides, renames, binds controls to
+// fields through the binding picker, adds components from the engine component
+// set and adds screens. Every edit lands in the Views section of the Blueprint
+// through Cerulea APIs and reads back on the next open.
+// The preview frame shows the real application the engine renders. The
+// accessibility check runs on the screens and blocks publication on a failure,
+// naming what to fix in plain words.
+// Without this screen a person would write an interface by hand.
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  AlertTitle,
   Box,
   Button,
   Chip,
+  CircularProgress,
   Divider,
+  FormControlLabel,
   IconButton,
+  List,
+  ListItem,
+  ListItemText,
   MenuItem,
   Paper,
+  Select,
   Snackbar,
   Stack,
-  Tabs,
+  Switch,
   Tab,
+  Tabs,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
-  FormControl,
-  InputLabel,
-  Select,
-  Switch,
-  FormControlLabel,
-} from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import SaveIcon from "@mui/icons-material/Save";
-import SearchIcon from "@mui/icons-material/Search";
-import DeleteIcon from "@mui/icons-material/Delete";
-import AddIcon from "@mui/icons-material/Add";
+} from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import SaveIcon from '@mui/icons-material/Save';
+import SearchIcon from '@mui/icons-material/Search';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
+import GridLayout, { type Layout, WidthProvider } from 'react-grid-layout';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
 
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-
-import GridLayout, { Layout } from "react-grid-layout";
-import { WidthProvider } from "react-grid-layout";
-import "react-grid-layout/css/styles.css";
-import "react-resizable/css/styles.css";
+import StepGuidance from '@/components/studio/StepGuidance';
+import { useStudio } from '@/context/StudioContext';
+import { StudioRouteError } from '@/lib/apiClient';
+import {
+  GROUP_WORDS,
+  componentsByGroup,
+  openingSentence,
+  translationCoverage,
+  widthWords,
+} from '@/lib/interface/authoring';
+import {
+  DEFAULT_BREAKPOINT,
+  addComponent,
+  addScreen,
+  applyGrid,
+  breakpointNamed,
+  bodyOf,
+  findNode,
+  gridFor,
+  hiddenBody,
+  kindWords,
+  placementAt,
+  removeNode,
+  removeScreen,
+  renameNode,
+  renameScreen,
+  sameSection,
+  sentenceFor,
+  setBinding,
+  setProperty,
+  setSpan,
+  setThemeToken,
+  setVisible,
+  withScreen,
+} from '@/lib/interface/edit';
+import {
+  type InterfaceWorkspace,
+  checkSectionAccessibility,
+  readInterfacePreview,
+  readInterfaceWorkspace,
+  resetInterfaceSection,
+  saveInterfaceSection,
+} from '@/lib/interface/studio';
+import type {
+  AccessibilityOutcome,
+  Binding,
+  BindingChoice,
+  ComponentEntry,
+  ComponentNode,
+  EngineFault,
+  InterfaceSection,
+  PreviewOutcome,
+  Screen,
+  ThemeTokens,
+} from '@/lib/interface/types';
+import AccessibilityReport from './step5-AccessibilityReport';
+import BindingPicker from './step5-BindingPicker';
+import PreviewFrame from './step5-PreviewFrame';
 
 const RGL = WidthProvider(GridLayout);
 
-type ProjectType = "dapp" | "blockchain";
-type AnyObj = Record<string, any>;
+type Panel = 'canvas' | 'preview' | 'theme' | 'accessibility' | 'endpoints' | 'translation';
 
-type UiElementType =
-  | "Heading"
-  | "Text"
-  | "Button"
-  | "TextField"
-  | "Textarea"
-  | "Checkbox"
-  | "Switch"
-  | "Select"
-  | "Card"
-  | "Divider"
-  | "Chip"
-  | "Alert"
-  | "Stat"
-  | "Table"
-  | "Form"
-  | "LoginBox"
-  | "Hero"
-  | "Navbar"
-  | "Footer"
-  | "PricingCard"
-  | "FeatureList";
+const PANELS: { id: Panel; label: string }[] = [
+  { id: 'canvas', label: 'Canvas' },
+  { id: 'preview', label: 'Preview' },
+  { id: 'theme', label: 'Theme' },
+  { id: 'accessibility', label: 'Accessibility' },
+  { id: 'endpoints', label: 'Endpoints' },
+  { id: 'translation', label: 'Translation' },
+];
 
-type UiElement = {
-  id: string;
-  type: UiElementType;
-  props: AnyObj;
-};
+const THEME_GROUPS: { group: keyof ThemeTokens; label: string }[] = [
+  { group: 'colour_light', label: 'Colour, light theme' },
+  { group: 'colour_dark', label: 'Colour, dark mode' },
+  { group: 'type_scale', label: 'Type' },
+  { group: 'spacing', label: 'Spacing' },
+];
 
-type UiBinding = {
-  kind: "text" | "value" | "action" | "list";
-  ref: string;
-};
+/** The time the builder waits after the last edit before it saves. */
+export const AUTOSAVE_DELAY_MS = 1500;
 
-type UiState = {
-  pages: { id: string; name: string }[];
-  activePageId: string;
-  elementsByPage: Record<string, UiElement[]>;
-  layoutByPage: Record<string, Layout[]>;
-  bindings: Record<string, UiBinding | undefined>;
-};
-
-function uid(prefix = "id") {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
-}
-
-function safeJsonParse<T>(v: string, fallback: T): T {
-  try {
-    return JSON.parse(v) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-function countEntities(schema: any): { entities: string[]; fieldsByEntity: Record<string, string[]> } {
-  const entities: string[] = [];
-  const fieldsByEntity: Record<string, string[]> = {};
-
-  const rawEntities = schema?.entities ?? schema?.tables ?? schema?.models ?? schema?.schema ?? null;
-
-  if (Array.isArray(rawEntities)) {
-    for (const e of rawEntities) {
-      const name = String(e?.name ?? e?.title ?? e?.id ?? "Entity");
-      entities.push(name);
-      const f = Array.isArray(e?.fields) ? e.fields : Array.isArray(e?.columns) ? e.columns : [];
-      fieldsByEntity[name] = f.map((x: any) => String(x?.name ?? x?.key ?? x?.id ?? "field"));
-    }
-  } else if (Array.isArray(schema)) {
-    for (const e of schema) {
-      const name = String(e?.name ?? e?.id ?? "Entity");
-      entities.push(name);
-      const f = Array.isArray(e?.fields) ? e.fields : [];
-      fieldsByEntity[name] = f.map((x: any) => String(x?.name ?? x?.id ?? "field"));
-    }
-  }
-
-  return { entities, fieldsByEntity };
-}
-
-type PaletteKind = "component" | "template";
-
-type PaletteItem = {
-  id: string;
-  kind: PaletteKind;
-  label: string;
-  category: "Components" | "Templates";
-  type?: UiElementType; // only for component
-  preview?: AnyObj; // props used for preview + initial props
-  templateId?: string; // only for template
-};
-
-function buildPalette(track: ProjectType): PaletteItem[] {
-  const commonComponents: PaletteItem[] = [
-    { id: "c_heading", kind: "component", label: "Heading", category: "Components", type: "Heading", preview: { text: "Heading", variant: "h5", align: "left" } },
-    { id: "c_text", kind: "component", label: "Text", category: "Components", type: "Text", preview: { text: "Body text", variant: "body2", align: "left" } },
-    { id: "c_button", kind: "component", label: "Button", category: "Components", type: "Button", preview: { label: "Button", variant: "contained", size: "medium", fullWidth: false } },
-    { id: "c_textfield", kind: "component", label: "Text Field", category: "Components", type: "TextField", preview: { label: "Field", placeholder: "", size: "medium" } },
-    { id: "c_textarea", kind: "component", label: "Textarea", category: "Components", type: "Textarea", preview: { label: "Textarea", placeholder: "", rows: 4 } },
-    { id: "c_switch", kind: "component", label: "Switch", category: "Components", type: "Switch", preview: { label: "Switch", checked: false } },
-    { id: "c_select", kind: "component", label: "Select", category: "Components", type: "Select", preview: { label: "Select", options: ["Option A", "Option B"], value: "Option A" } },
-    { id: "c_card", kind: "component", label: "Card", category: "Components", type: "Card", preview: { title: "Card Title", subtitle: "Card subtitle", body: "Card content" } },
-    { id: "c_divider", kind: "component", label: "Divider", category: "Components", type: "Divider", preview: {} },
-    { id: "c_chip", kind: "component", label: "Chip", category: "Components", type: "Chip", preview: { label: "Chip" } },
-    { id: "c_alert", kind: "component", label: "Alert", category: "Components", type: "Alert", preview: { severity: "info", text: "Alert message" } },
-    { id: "c_stat", kind: "component", label: "Stat", category: "Components", type: "Stat", preview: { label: "Metric", value: "N/A", helper: "Click to bind" } },
-    { id: "c_table", kind: "component", label: "Table", category: "Components", type: "Table", preview: { title: "Table", columns: ["id", "name", "status"], rows: 5 } },
-    { id: "c_form", kind: "component", label: "Form", category: "Components", type: "Form", preview: { title: "Create Record", fields: ["name", "email"], submitLabel: "Submit" } },
-  ];
-
-  const dappOnly: PaletteItem[] = [
-    { id: "c_login", kind: "component", label: "Login Box", category: "Components", type: "LoginBox", preview: { title: "Sign in", subtitle: "Access your app" } },
-    { id: "c_hero", kind: "component", label: "Hero", category: "Components", type: "Hero", preview: { title: "Your headline", subtitle: "A clear value prop", cta: "Get Started" } },
-    { id: "c_navbar", kind: "component", label: "Navbar", category: "Components", type: "Navbar", preview: { brand: "App", links: ["Home", "Pricing", "Docs"], cta: "Sign In" } },
-    { id: "c_footer", kind: "component", label: "Footer", category: "Components", type: "Footer", preview: { text: "© Your Company" } },
-    { id: "c_pricing", kind: "component", label: "Pricing Card", category: "Components", type: "PricingCard", preview: { plan: "Starter", price: "₹0", features: ["Feature A", "Feature B"], cta: "Choose" } },
-    { id: "c_features", kind: "component", label: "Feature List", category: "Components", type: "FeatureList", preview: { title: "Features", items: ["Fast", "Secure", "Customizable"] } },
-  ];
-
-  // IMPORTANT: Templates are the “Presets” you wanted but fully working.
-  const commonTemplates: PaletteItem[] = [
-    { id: "t_crud_list", kind: "template", label: "Template: List + Details", category: "Templates", templateId: "crud_list_details" },
-    { id: "t_crud_form", kind: "template", label: "Template: Create/Edit Form", category: "Templates", templateId: "crud_form" },
-  ];
-
-  const dappTemplates: PaletteItem[] = [
-    { id: "t_landing", kind: "template", label: "Template: Landing Page", category: "Templates", templateId: "dapp_landing" },
-    { id: "t_auth", kind: "template", label: "Template: Login Page", category: "Templates", templateId: "dapp_login" },
-    { id: "t_pricing", kind: "template", label: "Template: Pricing Page", category: "Templates", templateId: "dapp_pricing" },
-  ];
-
-  const chainTemplates: PaletteItem[] = [
-    { id: "t_chain_dash", kind: "template", label: "Template: Chain Dashboard", category: "Templates", templateId: "chain_dashboard" },
-    { id: "t_validators", kind: "template", label: "Template: Validators Table", category: "Templates", templateId: "chain_validators" },
-  ];
-
-  const components = track === "dapp" ? [...commonComponents, ...dappOnly] : [...commonComponents];
-  const templates = track === "dapp" ? [...commonTemplates, ...dappTemplates] : [...commonTemplates, ...chainTemplates];
-
-  return [...templates, ...components];
-}
-
-function renderElement(el: UiElement, binding?: UiBinding) {
-  const p = el.props ?? {};
-  const boundHint = binding ? ` (bound: ${binding.ref})` : "";
-
-  switch (el.type) {
-    case "Heading":
-      return (
-        <Typography variant={p.variant ?? "h5"} sx={{ fontWeight: 700 }} align={p.align ?? "left"}>
-          {String(p.text ?? "Heading")}
-          {binding ? (
-            <Typography component="span" variant="caption" sx={{ opacity: 0.6, ml: 1 }}>
-              {boundHint}
-            </Typography>
-          ) : null}
-        </Typography>
-      );
-    case "Text":
-      return (
-        <Typography variant={p.variant ?? "body2"} align={p.align ?? "left"}>
-          {String(p.text ?? "Text")}
-          {binding ? (
-            <Typography component="span" variant="caption" sx={{ opacity: 0.6, ml: 1 }}>
-              {boundHint}
-            </Typography>
-          ) : null}
-        </Typography>
-      );
-    case "Button":
-      return (
-        <Button variant={p.variant ?? "contained"} size={p.size ?? "medium"} fullWidth={!!p.fullWidth}>
-          {String(p.label ?? "Button")}
-        </Button>
-      );
-    case "TextField":
-      return <TextField label={p.label ?? "Field"} placeholder={p.placeholder ?? ""} size={p.size ?? "medium"} fullWidth />;
-    case "Textarea":
-      return <TextField label={p.label ?? "Textarea"} placeholder={p.placeholder ?? ""} fullWidth multiline rows={Number(p.rows ?? 4)} />;
-    case "Checkbox":
-      // Keep checkbox as switch-style placeholder (fine for builder)
-      return <FormControlLabel control={<Switch checked={!!p.checked} />} label={p.label ?? "Checkbox"} />;
-    case "Switch":
-      return <FormControlLabel control={<Switch checked={!!p.checked} />} label={p.label ?? "Switch"} />;
-    case "Select":
-      return (
-        <FormControl fullWidth>
-          <InputLabel>{p.label ?? "Select"}</InputLabel>
-          <Select label={p.label ?? "Select"} value={p.value ?? ""} onChange={() => {}}>
-            {(Array.isArray(p.options) ? p.options : []).map((o: any, i: number) => (
-              <MenuItem key={i} value={String(o)}>
-                {String(o)}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      );
-    case "Card":
-      return (
-        <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.03)" }}>
-          <Typography sx={{ fontWeight: 700, pl: 1.25 }}>{p.title ?? "Card Title"}</Typography>
-          <Typography variant="body2" sx={{ opacity: 0.75, mb: 1 }}>
-            {p.subtitle ?? "Card subtitle"}
-          </Typography>
-          <Typography variant="body2">{p.body ?? "Card body content"}</Typography>
-        </Paper>
-      );
-    case "Divider":
-      return <Divider />;
-    case "Chip":
-      return <Chip label={p.label ?? "Chip"} />;
-    case "Alert":
-      return <Alert severity={p.severity ?? "info"}>{p.text ?? "Alert message"}</Alert>;
-    case "Stat":
-      return (
-        <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.03)" }}>
-          <Typography variant="body2" sx={{ opacity: 0.75 }}>
-            {p.label ?? "Stat"}
-          </Typography>
-          <Typography variant="h6" sx={{ fontWeight: 800 }}>
-            {p.value ?? "N/A"}
-          </Typography>
-          <Typography variant="caption" sx={{ opacity: 0.7 }}>
-            {p.helper ?? ""}
-          </Typography>
-        </Paper>
-      );
-    case "Table": {
-      const cols = Array.isArray(p.columns) ? p.columns : ["id", "name"];
-      const rows = Number(p.rows ?? 5);
-      return (
-        <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.03)" }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-            <Typography sx={{ fontWeight: 700, pl: 1.25 }}>{p.title ?? "Table"}</Typography>
-            {binding ? <Chip size="small" label={`list: ${binding.ref}`} /> : <Chip size="small" label="not bound" variant="outlined" />}
-          </Stack>
-          <Box sx={{ overflowX: "auto" }}>
-            <Box component="table" sx={{ width: "100%", borderCollapse: "collapse" }}>
-              <Box component="thead">
-                <Box component="tr">
-                  {cols.map((c: any, i: number) => (
-                    <Box
-                      key={i}
-                      component="th"
-                      sx={{
-                        textAlign: "left",
-                        fontSize: 12,
-                        padding: "8px",
-                        borderBottom: "1px solid rgba(255,255,255,0.12)",
-                        opacity: 0.8,
-                      }}
-                    >
-                      {String(c)}
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-              <Box component="tbody">
-                {Array.from({ length: rows }).map((_, r) => (
-                  <Box component="tr" key={r}>
-                    {cols.map((_: any, i: number) => (
-                      <Box key={i} component="td" sx={{ padding: "8px", fontSize: 12, borderBottom: "1px solid rgba(255,255,255,0.06)", opacity: 0.8 }}>
-                        —
-                      </Box>
-                    ))}
-                  </Box>
-                ))}
-              </Box>
-            </Box>
-          </Box>
-        </Paper>
-      );
-    }
-    case "Form": {
-      const fields = Array.isArray(p.fields) ? p.fields : ["name"];
-      return (
-        <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.03)" }}>
-          <Typography sx={{ fontWeight: 700, mb: 1 }}>{p.title ?? "Form"}</Typography>
-          <Stack spacing={1.2}>
-            {fields.map((f: any, i: number) => (
-              <TextField key={i} label={String(f)} size="small" fullWidth />
-            ))}
-            <Button variant="contained">{p.submitLabel ?? "Submit"}</Button>
-          </Stack>
-        </Paper>
-      );
-    }
-    case "LoginBox":
-      return (
-        <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.03)" }}>
-          <Typography sx={{ fontWeight: 800, mb: 0.5 }}>{p.title ?? "Sign in"}</Typography>
-          <Typography variant="body2" sx={{ opacity: 0.75, mb: 1.5 }}>
-            {p.subtitle ?? "Access your app"}
-          </Typography>
-          <Stack spacing={1}>
-            <TextField label="Email" size="small" fullWidth />
-            <TextField label="Password" size="small" type="password" fullWidth />
-            <Button variant="contained">Sign in</Button>
-          </Stack>
-        </Paper>
-      );
-    case "Hero":
-      return (
-        <Paper sx={{ p: 2.5, borderRadius: 3, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.03)" }}>
-          <Typography variant="h5" sx={{ fontWeight: 900 }}>
-            {p.title ?? "Your headline"}
-          </Typography>
-          <Typography variant="body2" sx={{ opacity: 0.75, my: 1 }}>
-            {p.subtitle ?? "A clear value prop"}
-          </Typography>
-          <Button variant="contained">{p.cta ?? "Get Started"}</Button>
-        </Paper>
-      );
-    case "Navbar":
-      return (
-        <Paper sx={{ p: 1.5, borderRadius: 3, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.03)" }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography sx={{ fontWeight: 900, pl: 1.25 }}>{p.brand ?? "App"}</Typography>
-            <Stack direction="row" spacing={1} alignItems="center">
-              {(Array.isArray(p.links) ? p.links : []).slice(0, 4).map((x: any, i: number) => (
-                <Typography key={i} variant="body2" sx={{ opacity: 0.8 }}>
-                  {String(x)}
-                </Typography>
-              ))}
-              <Button size="small" variant="outlined">
-                {p.cta ?? "Sign In"}
-              </Button>
-            </Stack>
-          </Stack>
-        </Paper>
-      );
-    case "Footer":
-      return (
-        <Paper sx={{ p: 1.5, borderRadius: 3, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.03)" }}>
-          <Typography variant="body2" sx={{ opacity: 0.75 }}>
-            {p.text ?? "© Your Company"}
-          </Typography>
-        </Paper>
-      );
-    case "PricingCard":
-      return (
-        <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.03)" }}>
-          <Typography sx={{ fontWeight: 800, pl: 1.25 }}>{p.plan ?? "Starter"}</Typography>
-          <Typography variant="h6" sx={{ fontWeight: 900, my: 1 }}>
-            {p.price ?? "₹0"}
-          </Typography>
-          <Stack spacing={0.5} sx={{ mb: 1 }}>
-            {(Array.isArray(p.features) ? p.features : []).slice(0, 6).map((f: any, i: number) => (
-              <Typography key={i} variant="body2" sx={{ opacity: 0.8 }}>
-                • {String(f)}
-              </Typography>
-            ))}
-          </Stack>
-          <Button variant="contained" fullWidth>
-            {p.cta ?? "Choose"}
-          </Button>
-        </Paper>
-      );
-    case "FeatureList":
-      return (
-        <Paper sx={{ p: 2, borderRadius: 3, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.03)" }}>
-          <Typography sx={{ fontWeight: 900, mb: 1 }}>{p.title ?? "Features"}</Typography>
-          <Stack spacing={0.5}>
-            {(Array.isArray(p.items) ? p.items : []).slice(0, 10).map((f: any, i: number) => (
-              <Typography key={i} variant="body2" sx={{ opacity: 0.8 }}>
-                • {String(f)}
-              </Typography>
-            ))}
-          </Stack>
-        </Paper>
-      );
-    default:
-      return <Typography>Unknown component</Typography>;
-  }
-}
-
-export default function Step5({
-  goPrev,
-  goNext,
-  projectId,
-}: {
+export type Step5Props = {
   goPrev?: () => void;
   goNext?: () => void;
   projectId: string | null;
-}) {
-  const [project, setProject] = useState<any | null>(null);
-  const [projectType, setProjectType] = useState<ProjectType>("dapp");
+  /** True when the sub-step sits inside Deploy & UI, which owns the dock. */
+  embedded?: boolean;
+  /** Called after every save, with the Blueprint version the save produced. */
+  onSaved?: (version: number) => void;
+};
 
-  const [toast, setToast] = useState<{ open: boolean; msg: string; kind: "success" | "error" | "info" }>({
-    open: false,
-    msg: "",
-    kind: "info",
-  });
+/** Writes one binding as the words a person reads. */
+export function bindingWords(binding: Binding | undefined): string {
+  if (binding === undefined) return 'Bound to nothing yet';
+  const held = binding as Record<string, unknown>;
+  switch (binding.kind) {
+    case 'Collection':
+      return `Collection ${String(held.collection)}`;
+    case 'Field':
+      return `Field ${String(held.collection)}.${String(held.field)}`;
+    case 'Parameter':
+      return `Parameter ${String(held.action)}.${String(held.parameter)}`;
+    case 'Action':
+      return `Action ${String(held.action)}`;
+    case 'Workflow':
+      return `Workflow ${String(held.workflow)}`;
+    case 'View':
+      return `View ${String(held.view)}`;
+    case 'Event':
+      return `Event ${String(held.event)}`;
+    default:
+      return String(binding.kind);
+  }
+}
 
-  // Track-aware palette (Fix #8)
-  const palette = useMemo(() => buildPalette(projectType), [projectType]);
-  const [paletteQuery, setPaletteQuery] = useState("");
-  const [paletteTab, setPaletteTab] = useState<"All" | "Templates" | "Components">("All");
+/**
+ * The corrections the builder finds before the engine sees the section.
+ * A component that reads the model needs a binding before it saves.
+ */
+export function localFaults(
+  section: InterfaceSection,
+  catalogue: readonly ComponentEntry[],
+): EngineFault[] {
+  const needs = new Map(catalogue.map((entry) => [entry.kind, entry.binds] as const));
+  const faults: EngineFault[] = [];
+  for (const screen of section.screens) {
+    for (const node of bodyOf(screen)) {
+      const binds = needs.get(node.component) ?? 'nothing';
+      if (binds !== 'nothing' && node.binding === undefined) {
+        faults.push({
+          area: 'binding',
+          screen: screen.id,
+          component: node.id,
+          problem: `The ${kindWords(node.component).toLowerCase()} reads a ${binds} and holds no binding.`,
+          fix: 'Choose a binding in the inspector, or remove the component.',
+        });
+      }
+    }
+  }
+  return faults;
+}
 
-  const [ui, setUi] = useState<UiState>(() => {
-    const homeId = "page_home";
-    return {
-      pages: [{ id: homeId, name: "Home" }],
-      activePageId: homeId,
-      elementsByPage: { [homeId]: [] },
-      layoutByPage: { [homeId]: [] },
-      bindings: {},
-    };
-  });
+/** The failure shape every panel reads. */
+function failureOf(error: unknown, fallbackFix: string): { message: string; fix: string } {
+  if (error instanceof StudioRouteError) {
+    return { message: error.message.replace(` ${error.fix}`, ''), fix: error.fix };
+  }
+  return { message: error instanceof Error ? error.message : 'Cerulea did not answer.', fix: fallbackFix };
+}
 
-  const activeElements = ui.elementsByPage[ui.activePageId] ?? [];
-  const activeLayout = ui.layoutByPage[ui.activePageId] ?? [];
+/** Reads the project identifier the shell, the context or the browser holds. */
+function useResolvedProjectId(projectId: string | null): string | null {
+  const { projectId: contextId } = useStudio();
+  const [held, setHeld] = useState<string | null>(projectId ?? contextId ?? null);
+  useEffect(() => {
+    if (projectId) setHeld(projectId);
+    else if (contextId) setHeld(contextId);
+    else if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('cerulea.projectId');
+      if (stored) setHeld(stored);
+    }
+  }, [projectId, contextId]);
+  return held;
+}
 
+/** Keeps the arrow keys inside a text field from moving the shell between steps. */
+function holdArrowKeys(event: React.KeyboardEvent): void {
+  const target = event.target as HTMLElement | null;
+  const typing =
+    target !== null &&
+    (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+  if (typing && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) event.stopPropagation();
+}
+
+export default function Step5({ goPrev, goNext, projectId, embedded = false, onSaved }: Step5Props) {
+  const resolvedId = useResolvedProjectId(projectId);
+  const [workspace, setWorkspace] = useState<InterfaceWorkspace | null>(null);
+  const [failure, setFailure] = useState<{ message: string; fix: string } | null>(null);
+  const [section, setSection] = useState<InterfaceSection | null>(null);
+  const [savedSection, setSavedSection] = useState<InterfaceSection | null>(null);
+  const [version, setVersion] = useState<number>(0);
+  const [engineFaults, setEngineFaults] = useState<EngineFault[]>([]);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
+  const [chosenScreenId, setChosenScreenId] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [breakpointId, setBreakpointId] = useState(DEFAULT_BREAKPOINT);
+  const [panel, setPanel] = useState<Panel>('canvas');
+  const [role, setRole] = useState('');
+  const [mode, setMode] = useState<'light' | 'dark'>('light');
+  const [preview, setPreview] = useState<PreviewOutcome | null>(null);
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const [accessibility, setAccessibility] = useState<AccessibilityOutcome | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [paletteQuery, setPaletteQuery] = useState('');
+  const [paletteGroup, setPaletteGroup] = useState('all');
+  const [toast, setToast] = useState<{ open: boolean; text: string; kind: 'success' | 'error' | 'info' }>({
+    open: false,
+    text: '',
+    kind: 'info',
+  });
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saving = useRef(false);
 
-  const schemaInfo = useMemo(() => {
-    const schema = project?.schema ?? null;
-    return countEntities(schema);
-  }, [project]);
-
-  const allBindingOptions = useMemo(() => {
-    const out: { label: string; value: string }[] = [];
-    for (const e of schemaInfo.entities) {
-      const fields = schemaInfo.fieldsByEntity[e] ?? [];
-      for (const f of fields) out.push({ label: `${e}.${f}`, value: `${e}.${f}` });
-      out.push({ label: `${e}[]`, value: `${e}[]` });
+  const load = useCallback(async () => {
+    if (!resolvedId) return;
+    setWorkspace(null);
+    setFailure(null);
+    try {
+      const held = await readInterfaceWorkspace(resolvedId);
+      setWorkspace(held);
+      setSection(held.generated.section);
+      setSavedSection(held.generated.section);
+      setVersion(held.version);
+      setEngineFaults(held.generated.faults);
+      setChosenScreenId((current) =>
+        held.generated.section.screens.some((screen) => screen.id === current)
+          ? current
+          : (held.generated.section.screens[0]?.id ?? ''),
+      );
+      setRole((current) => (current.length > 0 ? current : (held.roles[0]?.role ?? '')));
+      setAccessibility(null);
+      setPreview(null);
+    } catch (error) {
+      setFailure(failureOf(error, 'Open the Interface sub-step again once Cerulea APIs answers.'));
     }
-    if (!out.length) out.push({ label: "No schema found", value: "" });
-    return out;
-  }, [schemaInfo]);
+  }, [resolvedId]);
 
-  // Track fallback from Step 0 localStorage (Fix #8)
   useEffect(() => {
-    const q =
-      typeof window !== "undefined"
-        ? ((window.localStorage.getItem("cerulea.projectType") ||
-            window.localStorage.getItem("cbc.projectType")) as ProjectType | null)
-        : null;
+    void load();
+  }, [load]);
 
-    if (q === "dapp" || q === "blockchain") setProjectType(q);
+  const screen = useMemo(
+    () => section?.screens.find((held) => held.id === chosenScreenId) ?? section?.screens[0],
+    [section, chosenScreenId],
+  );
+  const breakpoint = useMemo(
+    () => (section ? breakpointNamed(section, breakpointId) : null),
+    [section, breakpointId],
+  );
+  const catalogue = workspace?.catalogue.components ?? [];
+  const roleNames = useMemo(
+    () => Object.fromEntries((workspace?.roles ?? []).map((held) => [held.role, held.name])),
+    [workspace],
+  );
+  const dirty = section !== null && savedSection !== null && !sameSection(section, savedSection);
+  const faults = useMemo(
+    () => (section ? [...localFaults(section, catalogue), ...engineFaults] : []),
+    [section, catalogue, engineFaults],
+  );
+  const blocking = useMemo(() => (section ? localFaults(section, catalogue) : []), [section, catalogue]);
+
+  /** Applies one change to the working section and clears the engine faults it may have fixed. */
+  const change = useCallback((next: (held: InterfaceSection) => InterfaceSection) => {
+    setSection((held) => (held === null ? held : next(held)));
+    setEngineFaults([]);
   }, []);
 
-  // Load project + hydrate UI from DB (also sets track if project has it)
-  useEffect(() => {
-    let alive = true;
-    async function run() {
-      if (!projectId) {
-        setProject(null);
-        // Fix #7: Remove "no project loaded" banner (we simply don’t show anything here)
-        return;
-      }
-      try {
-        const r = await fetch(`/api/projects/${projectId}`, { cache: "no-store" });
-        if (!r.ok) throw new Error(`GET project failed: ${r.status}`);
-        const data = await r.json();
-        if (!alive) return;
-
-        setProject(data);
-
-        const pt = (data?.projectType as ProjectType | undefined) ?? projectType;
-        if (pt === "dapp" || pt === "blockchain") setProjectType(pt);
-
-        const stored = data?.ui ?? null;
-        if (stored?.pages && stored?.activePageId && stored?.elementsByPage && stored?.layoutByPage) {
-          setUi((prev) => ({ ...prev, ...stored }));
-        }
-      } catch (e: any) {
-        setToast({ open: true, msg: e?.message ?? "Failed to load project", kind: "error" });
-      }
-    }
-    run();
-    return () => {
-      alive = false;
-    };
-  }, [projectId]); // intentionally not depending on projectType
-
-  const filteredPalette = useMemo(() => {
-    const q = paletteQuery.trim().toLowerCase();
-    return palette.filter((it) => {
-      const matchTab =
-        paletteTab === "All" ? true : paletteTab === "Templates" ? it.category === "Templates" : it.category === "Components";
-      const matchQ = !q ? true : `${it.label} ${it.category}`.toLowerCase().includes(q);
-      return matchTab && matchQ;
-    });
-  }, [palette, paletteQuery, paletteTab]);
-
-  const createElementFromPalette = useCallback((item: PaletteItem): UiElement => {
-    const baseProps = item.preview ?? {};
-    return { id: uid("ui"), type: item.type as UiElementType, props: { ...baseProps } };
-  }, []);
-
-  // Templates: when dropped, they add MULTIPLE items + layout (Fix #6)
-  const applyTemplate = useCallback(
-    (templateId: string) => {
-      const make = (type: UiElementType, props: AnyObj) => ({ id: uid("ui"), type, props });
-
-      if (templateId === "crud_list_details") {
-        const h = make("Heading", { text: "Records", variant: "h5" });
-        const t = make("Table", { title: "Records", columns: ["id", "name", "status"], rows: 8 });
-        const d = make("Card", { title: "Details", subtitle: "Select a row", body: "Details will appear here." });
-        const b = make("Button", { label: "Create New", variant: "contained", size: "medium" });
-
-        return {
-          elements: [h, b, t, d],
-          layout: [
-            { i: h.id, x: 0, y: Infinity, w: 6, h: 3, minW: 2, minH: 2 },
-            { i: b.id, x: 6, y: Infinity, w: 3, h: 3, minW: 2, minH: 2 },
-            { i: t.id, x: 0, y: Infinity, w: 8, h: 12, minW: 4, minH: 6 },
-            { i: d.id, x: 8, y: Infinity, w: 4, h: 12, minW: 3, minH: 6 },
-          ],
-        };
-      }
-
-      if (templateId === "crud_form") {
-        const h = make("Heading", { text: "Create / Edit", variant: "h5" });
-        const f = make("Form", { title: "Record", fields: ["name", "email", "status"], submitLabel: "Save" });
-        const a = make("Alert", { severity: "info", text: "Tip: bind fields to schema on the right." });
-        return {
-          elements: [h, a, f],
-          layout: [
-            { i: h.id, x: 0, y: Infinity, w: 12, h: 3, minW: 2, minH: 2 },
-            { i: a.id, x: 0, y: Infinity, w: 12, h: 3, minW: 2, minH: 2 },
-            { i: f.id, x: 0, y: Infinity, w: 6, h: 12, minW: 4, minH: 8 },
-          ],
-        };
-      }
-
-      if (templateId === "dapp_landing") {
-        const nav = make("Navbar", { brand: "Your App", links: ["Home", "Pricing", "Docs"], cta: "Sign In" });
-        const hero = make("Hero", { title: "Build your dApp faster", subtitle: "Drag, bind, deploy.", cta: "Get Started" });
-        const feat = make("FeatureList", { title: "Why it works", items: ["Fast", "Secure", "Composable", "Beautiful UI"] });
-        const price = make("PricingCard", { plan: "Starter", price: "₹0", features: ["1 project", "Basic analytics", "Email support"], cta: "Choose" });
-        const foot = make("Footer", { text: "© Caerulean Bytechains Pvt Ltd" });
-        return {
-          elements: [nav, hero, feat, price, foot],
-          layout: [
-            { i: nav.id, x: 0, y: Infinity, w: 12, h: 3, minW: 6, minH: 2 },
-            { i: hero.id, x: 0, y: Infinity, w: 12, h: 8, minW: 6, minH: 6 },
-            { i: feat.id, x: 0, y: Infinity, w: 6, h: 8, minW: 4, minH: 6 },
-            { i: price.id, x: 6, y: Infinity, w: 6, h: 8, minW: 4, minH: 6 },
-            { i: foot.id, x: 0, y: Infinity, w: 12, h: 3, minW: 6, minH: 2 },
-          ],
-        };
-      }
-
-      if (templateId === "dapp_login") {
-        const h = make("Heading", { text: "Welcome back", variant: "h5" });
-        const login = make("LoginBox", { title: "Sign in", subtitle: "Access your account" });
-        return {
-          elements: [h, login],
-          layout: [
-            { i: h.id, x: 0, y: Infinity, w: 12, h: 3, minW: 2, minH: 2 },
-            { i: login.id, x: 3, y: Infinity, w: 6, h: 12, minW: 4, minH: 8 },
-          ],
-        };
-      }
-
-      if (templateId === "dapp_pricing") {
-        const h = make("Heading", { text: "Pricing", variant: "h5" });
-        const p1 = make("PricingCard", { plan: "Starter", price: "₹0", features: ["Core builder", "1 project"], cta: "Choose" });
-        const p2 = make("PricingCard", { plan: "Pro", price: "₹999/mo", features: ["Unlimited projects", "Team access"], cta: "Upgrade" });
-        const p3 = make("PricingCard", { plan: "Enterprise", price: "Talk to us", features: ["SSO", "Support", "Compliance"], cta: "Contact" });
-        return {
-          elements: [h, p1, p2, p3],
-          layout: [
-            { i: h.id, x: 0, y: Infinity, w: 12, h: 3, minW: 2, minH: 2 },
-            { i: p1.id, x: 0, y: Infinity, w: 4, h: 10, minW: 3, minH: 6 },
-            { i: p2.id, x: 4, y: Infinity, w: 4, h: 10, minW: 3, minH: 6 },
-            { i: p3.id, x: 8, y: Infinity, w: 4, h: 10, minW: 3, minH: 6 },
-          ],
-        };
-      }
-
-      if (templateId === "chain_dashboard") {
-        const h = make("Heading", { text: "Network Dashboard", variant: "h5" });
-        const s1 = make("Stat", { label: "Blocks", value: "N/A", helper: "bind to runtime" });
-        const s2 = make("Stat", { label: "TPS", value: "N/A", helper: "bind to runtime" });
-        const s3 = make("Stat", { label: "Validators", value: "N/A", helper: "bind to runtime" });
-        const t = make("Table", { title: "Recent Activity", columns: ["time", "type", "details"], rows: 8 });
-        return {
-          elements: [h, s1, s2, s3, t],
-          layout: [
-            { i: h.id, x: 0, y: Infinity, w: 12, h: 3, minW: 2, minH: 2 },
-            { i: s1.id, x: 0, y: Infinity, w: 4, h: 6, minW: 3, minH: 4 },
-            { i: s2.id, x: 4, y: Infinity, w: 4, h: 6, minW: 3, minH: 4 },
-            { i: s3.id, x: 8, y: Infinity, w: 4, h: 6, minW: 3, minH: 4 },
-            { i: t.id, x: 0, y: Infinity, w: 12, h: 12, minW: 6, minH: 8 },
-          ],
-        };
-      }
-
-      if (templateId === "chain_validators") {
-        const h = make("Heading", { text: "Validators", variant: "h5" });
-        const t = make("Table", { title: "Validators", columns: ["id", "uptime", "score", "status"], rows: 10 });
-        return {
-          elements: [h, t],
-          layout: [
-            { i: h.id, x: 0, y: Infinity, w: 12, h: 3, minW: 2, minH: 2 },
-            { i: t.id, x: 0, y: Infinity, w: 12, h: 14, minW: 6, minH: 10 },
-          ],
-        };
-      }
-
-      // Fallback: do nothing
-      return { elements: [], layout: [] };
+  const changeScreen = useCallback(
+    (next: (held: Screen) => Screen) => {
+      if (!screen) return;
+      change((held) => withScreen(held, next(screen)));
     },
-    []
+    [screen, change],
   );
 
-  const addPage = useCallback(() => {
-    const id = uid("page");
-    const name = `Page ${ui.pages.length + 1}`;
-    setUi((prev) => ({
-      ...prev,
-      pages: [...prev.pages, { id, name }],
-      activePageId: id,
-      elementsByPage: { ...prev.elementsByPage, [id]: [] },
-      layoutByPage: { ...prev.layoutByPage, [id]: [] },
-    }));
-    setSelectedId(null);
-  }, [ui.pages.length]);
+  const save = useCallback(async () => {
+    if (!resolvedId || !section || saving.current) return;
+    if (blocking.length > 0) {
+      setSaveState('failed');
+      return;
+    }
+    saving.current = true;
+    setSaveState('saving');
+    try {
+      const outcome = await saveInterfaceSection(resolvedId, { section, expectedVersion: version });
+      setSavedSection(section);
+      setVersion(outcome.version);
+      setEngineFaults([]);
+      setSaveState('saved');
+      setAccessibility(null);
+      onSaved?.(outcome.version);
+    } catch (error) {
+      setSaveState('failed');
+      const held = failureOf(error, 'Save again. Report the problem to the Cerulea operator when it repeats.');
+      setToast({ open: true, text: `${held.message} ${held.fix}`, kind: 'error' });
+      if (error instanceof StudioRouteError && error.code === 'interface.version_moved') {
+        setFailure(held);
+      }
+      if (error instanceof StudioRouteError && error.code === 'interface.faults') {
+        const details = (error as { details?: { faults?: unknown } }).details;
+        if (Array.isArray(details?.faults)) setEngineFaults(details.faults as EngineFault[]);
+      }
+    } finally {
+      saving.current = false;
+    }
+  }, [resolvedId, section, version, blocking.length, onSaved]);
 
-  const renameActivePage = useCallback((name: string) => {
-    setUi((prev) => ({
-      ...prev,
-      pages: prev.pages.map((p) => (p.id === prev.activePageId ? { ...p, name } : p)),
-    }));
-  }, []);
+  // Every edit saves on its own after a short pause, so the Blueprint holds what the canvas shows.
+  useEffect(() => {
+    if (!dirty || blocking.length > 0) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => void save(), AUTOSAVE_DELAY_MS);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [dirty, blocking.length, section, save]);
 
-  const deleteActivePage = useCallback(() => {
-    setUi((prev) => {
-      if (prev.pages.length <= 1) return prev;
-      const nextPages = prev.pages.filter((p) => p.id !== prev.activePageId);
-      const nextActive = nextPages[0]?.id ?? prev.activePageId;
+  const regenerate = useCallback(async () => {
+    if (!resolvedId) return;
+    try {
+      const outcome = await resetInterfaceSection(resolvedId);
+      setToast({ open: true, text: `Cerulea generated the screens from the model again as version ${outcome.version}.`, kind: 'success' });
+      onSaved?.(outcome.version);
+      await load();
+    } catch (error) {
+      const held = failureOf(error, 'Generate again once Cerulea APIs answers.');
+      setToast({ open: true, text: `${held.message} ${held.fix}`, kind: 'error' });
+    }
+  }, [resolvedId, load, onSaved]);
 
-      const nextElementsByPage = { ...prev.elementsByPage };
-      const nextLayoutByPage = { ...prev.layoutByPage };
-      delete nextElementsByPage[prev.activePageId];
-      delete nextLayoutByPage[prev.activePageId];
+  const loadPreview = useCallback(async () => {
+    if (!resolvedId || !section || role === '') return;
+    setPreviewBusy(true);
+    try {
+      setPreview(
+        await readInterfacePreview(resolvedId, {
+          role,
+          breakpoint: breakpointId,
+          mode,
+          screen: screen?.id,
+          section,
+        }),
+      );
+    } catch (error) {
+      setFailure(failureOf(error, 'Choose a role the model declares, then read the preview again.'));
+    } finally {
+      setPreviewBusy(false);
+    }
+  }, [resolvedId, section, role, breakpointId, mode, screen?.id]);
 
-      return {
-        ...prev,
-        pages: nextPages,
-        activePageId: nextActive,
-        elementsByPage: nextElementsByPage,
-        layoutByPage: nextLayoutByPage,
-      };
-    });
-    setSelectedId(null);
-  }, []);
+  useEffect(() => {
+    if (panel === 'preview') void loadPreview();
+    // The preview reads again when the panel opens or its choices change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panel, role, breakpointId, mode, screen?.id]);
+
+  const runAccessibility = useCallback(async () => {
+    if (!resolvedId || !section) return;
+    setChecking(true);
+    try {
+      setAccessibility(await checkSectionAccessibility(resolvedId, section));
+    } catch (error) {
+      setFailure(failureOf(error, 'Run the accessibility check again.'));
+    } finally {
+      setChecking(false);
+    }
+  }, [resolvedId, section]);
+
+  useEffect(() => {
+    if (panel === 'accessibility' && accessibility === null) void runAccessibility();
+  }, [panel, accessibility, runAccessibility]);
+
+  const palette = useMemo(() => {
+    const query = paletteQuery.trim().toLowerCase();
+    return componentsByGroup(catalogue)
+      .filter((group) => paletteGroup === 'all' || group.group === paletteGroup)
+      .flatMap((group) => group.entries)
+      .filter((entry) =>
+        query.length === 0
+          ? true
+          : `${entry.kind} ${entry.summary} ${entry.group}`.toLowerCase().includes(query),
+      );
+  }, [catalogue, paletteQuery, paletteGroup]);
 
   const onDragEnd = useCallback(
     (result: DropResult) => {
       const { source, destination, draggableId } = result;
-      if (!destination) return;
-
-      // palette -> canvas
-      if (source.droppableId === "palette" && destination.droppableId === "canvas") {
-        const item = filteredPalette.find((x) => x.id === draggableId) ?? palette.find((x) => x.id === draggableId);
-        if (!item) return;
-
-        // Template drop (Fix #6)
-        if (item.kind === "template" && item.templateId) {
-          const tpl = applyTemplate(item.templateId);
-          if (!tpl.elements.length) return;
-
-          setUi((prev) => {
-            const pageId = prev.activePageId;
-            const els = prev.elementsByPage[pageId] ?? [];
-            const layout = prev.layoutByPage[pageId] ?? [];
-            return {
-              ...prev,
-              elementsByPage: { ...prev.elementsByPage, [pageId]: [...els, ...tpl.elements] },
-              layoutByPage: { ...prev.layoutByPage, [pageId]: [...layout, ...tpl.layout] },
-            };
-          });
-
-          setSelectedId(tpl.elements[0]?.id ?? null);
-          return;
-        }
-
-        // Component drop
-        if (item.kind === "component" && item.type) {
-          const el = createElementFromPalette(item);
-
-          setUi((prev) => {
-            const pageId = prev.activePageId;
-            const els = prev.elementsByPage[pageId] ?? [];
-            const layout = prev.layoutByPage[pageId] ?? [];
-
-            const nextEls = [...els, el];
-            const n = nextEls.length;
-
-            const nextLayout: Layout[] = [
-              ...layout,
-              {
-                i: el.id,
-                x: (n * 2) % 12,
-                y: Infinity,
-                w: item.type === "Hero" || item.type === "Navbar" || item.type === "Footer" ? 12 : item.type === "Table" ? 8 : 4,
-                h: item.type === "Hero" ? 8 : item.type === "Table" ? 10 : item.type === "Form" ? 10 : 4,
-                minW: 2,
-                minH: 2,
-              },
-            ];
-
-            return {
-              ...prev,
-              elementsByPage: { ...prev.elementsByPage, [pageId]: nextEls },
-              layoutByPage: { ...prev.layoutByPage, [pageId]: nextLayout },
-            };
-          });
-
-          setSelectedId(el.id);
-          return;
-        }
-      }
+      if (!destination || !section || !screen) return;
+      if (source.droppableId !== 'palette' || destination.droppableId !== 'canvas') return;
+      const entry = catalogue.find((held) => held.kind === draggableId);
+      if (!entry) return;
+      const placed = addComponent(section, screen, entry, undefined, kindWords(entry.kind));
+      setSection(placed.section);
+      setEngineFaults([]);
+      setSelectedId(placed.nodeId);
+      setPanel('canvas');
     },
-    [filteredPalette, palette, createElementFromPalette, applyTemplate]
+    [section, screen, catalogue],
   );
 
-  const onLayoutChange = useCallback((next: Layout[]) => {
-    setUi((prev) => ({
-      ...prev,
-      layoutByPage: { ...prev.layoutByPage, [prev.activePageId]: next },
-    }));
-  }, []);
-
-  const selectedElement = useMemo(() => activeElements.find((e) => e.id === selectedId) ?? null, [activeElements, selectedId]);
-  const selectedBinding = useMemo(() => (selectedId ? ui.bindings[selectedId] : undefined), [selectedId, ui.bindings]);
-
-  const updateSelectedProps = useCallback(
-    (patch: AnyObj) => {
-      if (!selectedId) return;
-      setUi((prev) => {
-        const pageId = prev.activePageId;
-        const els = prev.elementsByPage[pageId] ?? [];
-        const nextEls = els.map((e) => (e.id === selectedId ? { ...e, props: { ...(e.props ?? {}), ...patch } } : e));
-        return { ...prev, elementsByPage: { ...prev.elementsByPage, [pageId]: nextEls } };
-      });
+  const onLayoutChange = useCallback(
+    (layout: Layout[]) => {
+      if (!screen || !breakpoint || !section) return;
+      const next = applyGrid(screen, breakpoint, layout);
+      const rewritten = withScreen(section, next);
+      if (sameSection(rewritten, section)) return;
+      setSection(rewritten);
+      setEngineFaults([]);
     },
-    [selectedId]
+    [screen, breakpoint, section],
   );
 
-  const setBinding = useCallback(
-    (b: UiBinding | undefined) => {
-      if (!selectedId) return;
-      setUi((prev) => ({
-        ...prev,
-        bindings: { ...prev.bindings, [selectedId]: b },
-      }));
-    },
-    [selectedId]
-  );
+  const selected = screen && selectedId ? findNode(screen, selectedId) : undefined;
+  const selectedEntry = selected ? catalogue.find((held) => held.kind === selected.component) : undefined;
+  const screenRole = screen?.roles.includes(role) ? role : (screen?.roles[0] ?? role);
 
-  const deleteSelected = useCallback(() => {
-    if (!selectedId) return;
-    setUi((prev) => {
-      const pageId = prev.activePageId;
-      const els = prev.elementsByPage[pageId] ?? [];
-      const layout = prev.layoutByPage[pageId] ?? [];
-      const nextEls = els.filter((e) => e.id !== selectedId);
-      const nextLayout = layout.filter((l) => l.i !== selectedId);
-
-      const nextBindings = { ...prev.bindings };
-      delete nextBindings[selectedId];
-
-      return {
-        ...prev,
-        elementsByPage: { ...prev.elementsByPage, [pageId]: nextEls },
-        layoutByPage: { ...prev.layoutByPage, [pageId]: nextLayout },
-        bindings: nextBindings,
-      };
-    });
+  const addPage = () => {
+    if (!section) return;
+    const name = `Screen ${section.screens.length + 1}`;
+    const grown = addScreen(section, name);
+    setSection(grown.section);
+    setEngineFaults([]);
+    setChosenScreenId(grown.screen.id);
     setSelectedId(null);
-  }, [selectedId]);
+  };
 
-  const saveUi = useCallback(async () => {
-    if (!projectId) {
-      setToast({ open: true, msg: "No projectId found. Open the studio with ?projectId=...", kind: "error" });
-      return;
-    }
-    try {
-      const r = await fetch(`/api/projects/${projectId}/ui`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ui }),
-      });
-      if (!r.ok) throw new Error(`Save failed: ${r.status}`);
-      setToast({ open: true, msg: "UI saved", kind: "success" });
-    } catch (e: any) {
-      setToast({ open: true, msg: e?.message ?? "Save failed", kind: "error" });
-    }
-  }, [projectId, ui]);
+  const deletePage = () => {
+    if (!section || !screen || section.screens.length <= 1) return;
+    const next = removeScreen(section, screen.id);
+    setSection(next);
+    setEngineFaults([]);
+    setChosenScreenId(next.screens[0]?.id ?? '');
+    setSelectedId(null);
+  };
 
-  const handleNext = useCallback(() => {
-    if (goNext) goNext();
-  }, [goNext]);
+  if (!resolvedId) {
+    return (
+      <Box sx={{ p: 4 }}>
+        <Alert severity="info">
+          <AlertTitle>Open a project first</AlertTitle>
+          The Interface sub-step generates the application from a saved project. Finish Step 1
+          Foundation, and the screens appear here.
+        </Alert>
+      </Box>
+    );
+  }
 
-  const handleBack = useCallback(() => {
-    if (goPrev) goPrev();
-  }, [goPrev]);
+  if (failure !== null && workspace === null) {
+    return (
+      <Box sx={{ p: 4 }}>
+        <Alert severity="error" data-testid="step5-failure">
+          <AlertTitle>Cerulea generated no application</AlertTitle>
+          {failure.message} {failure.fix}
+        </Alert>
+        <Button sx={{ mt: 2 }} variant="outlined" onClick={() => void load()}>
+          Read again
+        </Button>
+      </Box>
+    );
+  }
 
-  const pageName = useMemo(() => ui.pages.find((p) => p.id === ui.activePageId)?.name ?? "Page", [ui.pages, ui.activePageId]);
+  if (workspace === null || section === null || !screen || !breakpoint) {
+    return (
+      <Stack direction="row" spacing={2} alignItems="center" sx={{ p: 4 }} data-testid="step5-reading">
+        <CircularProgress size={22} />
+        <Typography>Cerulea is generating the application from the model.</Typography>
+      </Stack>
+    );
+  }
 
-  // Inspector fields
-  const [sxDraft, setSxDraft] = useState<string>("{}");
-  useEffect(() => {
-    if (!selectedElement) return;
-    setSxDraft(JSON.stringify(selectedElement.props?.sx ?? {}, null, 2));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedElement?.id]);
-
-  const applySxDraft = useCallback(() => {
-    const parsed = safeJsonParse<Record<string, any>>(sxDraft, {});
-    updateSelectedProps({ sx: parsed });
-  }, [sxDraft, updateSelectedProps]);
-
-  const showTrackHint = useMemo(() => (projectType === "dapp" ? "dApp UI Builder" : "Blockchain UI Builder"), [projectType]);
+  const cells = gridFor(screen, breakpoint);
+  const hidden = hiddenBody(screen, breakpoint);
+  const saveWords =
+    saveState === 'saving'
+      ? 'Saving into the Blueprint'
+      : blocking.length > 0
+        ? 'Waiting for a binding before the save'
+        : dirty
+          ? 'Changes wait to save'
+          : saveState === 'failed'
+            ? 'The last save failed'
+            : `Saved as Blueprint version ${version}`;
 
   return (
-    <Box sx={{ minHeight: "calc(100vh - 64px)", px: 1 }}>
-      <StepGuidance
-        stepKey="step5"
-        title="UI Builder"
-        subtitle="STEP 6 OF 7"
-        description="Design the user interface for your application. Choose from pre-built page templates and customize the layout, colors, and components to match your brand."
-        steps={[
-          { first: 'Choose a page template', next: 'Select from Dashboard, Marketplace, Portfolio, Governance, or a blank canvas.' },
-          { first: 'Drag components onto the canvas', next: 'Add buttons, charts, tables, and cards from the left panel to build your pages.' },
-          { first: 'Configure each component', next: 'Click a component to open its settings: data source, styling, actions, and visibility rules.' },
-        ]}
-        tip="Your entities and modules from previous steps are automatically available as data sources for tables and charts in the UI builder."
-      />
-      {/* Header row */}
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+    <Box sx={{ minHeight: embedded ? 'auto' : 'calc(100vh - 64px)', px: 1, pb: embedded ? 2 : 0 }} onKeyDown={holdArrowKeys} data-testid="step5-interface">
+      {!embedded && (
+        <StepGuidance
+          stepKey="step5"
+          title="Interface"
+          subtitle="Step 6 of 6, Interface"
+          description="Cerulea generated a working application from the model. Rearrange, hide, rename and bind its screens, or add components from the Cerulea component set. Every change saves into the Blueprint."
+          steps={[
+            { first: 'Open a screen', next: 'Each collection has a list, a detail and the add and change forms. A workflow with an approval has an approval screen.' },
+            { first: 'Drag a component onto the canvas', next: 'The component set holds layout, data, input, Blockchain, chrome and feedback components. Choose a binding in the inspector.' },
+            { first: 'Check the application', next: 'The preview shows what each role sees. The accessibility check names what to fix before publication.' },
+          ]}
+          tip="The screens come from the data model. A change in Data schema reaches the generated screens on the next open."
+        />
+      )}
+
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
         <Stack direction="row" alignItems="center" spacing={1.5}>
-          <IconButton onClick={handleBack} aria-label="Back">
-            <ArrowBackIcon />
-          </IconButton>
+          {!embedded && (
+            <IconButton onClick={goPrev} aria-label="Back">
+              <ArrowBackIcon />
+            </IconButton>
+          )}
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 900, lineHeight: 1.1 }}>
-              Design Your Interface
+            <Typography variant="h5" sx={{ fontWeight: 900, lineHeight: 1.1 }}>
+              Design the interface
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Drag components from the left panel onto the canvas. Use Templates for pre-built page layouts. Select an element to edit its properties and data bindings on the right.
+              {openingSentence(section)} Drag components from the left panel onto the canvas. Select a component to edit its name, its place and its binding on the right.
             </Typography>
           </Box>
         </Stack>
-
-        <Stack direction="row" spacing={1}>
-          <Button variant="outlined" startIcon={<SaveIcon />} onClick={saveUi} sx={{ borderRadius: 1 }}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Typography variant="caption" color="text.secondary" data-testid="step5-save-state">
+            {saveWords}
+          </Typography>
+          <Tooltip title="Throw the edits away and generate the screens from the model again">
+            <Button variant="text" startIcon={<RefreshIcon />} onClick={() => void regenerate()} sx={{ borderRadius: 1 }}>
+              Regenerate
+            </Button>
+          </Tooltip>
+          <Button variant="outlined" startIcon={<SaveIcon />} onClick={() => void save()} disabled={!dirty || saveState === 'saving'} sx={{ borderRadius: 1 }}>
             Save
           </Button>
-          <Button variant="contained" onClick={handleNext} sx={{ borderRadius: 1 }} disabled={!goNext}>
-            Next
-          </Button>
+          {!embedded && (
+            <Button variant="contained" onClick={goNext} sx={{ borderRadius: 1 }} disabled={!goNext}>
+              Next
+            </Button>
+          )}
         </Stack>
       </Stack>
 
-      {/* Main builder layout (Fix #3 + #4): 3 columns, canvas biggest */}
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Box sx={{ display: "flex", gap: 2, alignItems: "stretch" }}>
-          {/* Left: Palette (Fix #5) */}
-          <Paper
-            sx={{
-              width: 240,
-              minWidth: 240,
-              borderRadius: 1,
-              p: 1.5,
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(255,255,255,0.03)",
-              overflow: "hidden",
-            }}
-          >
-            <Stack spacing={1.2}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <SearchIcon sx={{ opacity: 0.7 }} />
-                <TextField
-                  value={paletteQuery}
-                  onChange={(e) => setPaletteQuery(e.target.value)}
-                  placeholder="Search"
-                  size="small"
-                  fullWidth
-                  sx={{ "& .MuiInputBase-root": { borderRadius: 3 } }}
-                />
-              </Stack>
+      {failure !== null && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setFailure(null)}>
+          {failure.message} {failure.fix}
+          {failure.message.includes('moved to version') && (
+            <Button size="small" sx={{ ml: 1 }} onClick={() => void load()}>
+              Read the newest version
+            </Button>
+          )}
+        </Alert>
+      )}
 
-              <Tabs
-                value={paletteTab}
-                onChange={(_, v) => setPaletteTab(v)}
-                variant="fullWidth"
-                sx={{
-                  minHeight: 36,
-                  "& .MuiTab-root": { minHeight: 36, textTransform: "none", fontSize: 13 },
-                }}
-              >
-                <Tab value="All" label="All" />
-                <Tab value="Templates" label="Templates" />
-                <Tab value="Components" label="Components" />
-              </Tabs>
+      {workspace.generated.omissions.length > 0 && (
+        <Alert severity="info" sx={{ mb: 2 }} data-testid="step5-omissions">
+          <AlertTitle>What Cerulea left out</AlertTitle>
+          {workspace.generated.omissions.map((held) => (
+            <Typography key={held} variant="body2">
+              {held}
+            </Typography>
+          ))}
+        </Alert>
+      )}
 
-              <Divider sx={{ opacity: 0.25 }} />
+      {faults.length > 0 && (
+        <Alert severity="warning" sx={{ mb: 2 }} data-testid="step5-faults">
+          <AlertTitle>Corrections to make before the screens save</AlertTitle>
+          {faults.map((fault, position) => (
+            <Typography key={`${fault.screen}-${fault.component}-${position}`} variant="body2">
+              {sentenceFor(section, section.screens.find((held) => held.id === fault.screen)?.title_key)} · {fault.component}. {fault.problem} {fault.fix}
+            </Typography>
+          ))}
+        </Alert>
+      )}
 
-              <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                Drag into canvas ({filteredPalette.length})
-              </Typography>
+      <Tabs value={panel} onChange={(_event, next: Panel) => setPanel(next)} variant="scrollable" sx={{ mb: 1.5, minHeight: 36, '& .MuiTab-root': { minHeight: 36, textTransform: 'none' } }} aria-label="Interface panels">
+        {PANELS.map((entry) => (
+          <Tab key={entry.id} value={entry.id} label={entry.label} />
+        ))}
+      </Tabs>
 
-              <Droppable droppableId="palette" isDropDisabled={true}>
-                {(provided) => (
-                  <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ maxHeight: "68vh", overflow: "auto", pr: 0.5 }}>
-                    <Stack spacing={1}>
-                      {filteredPalette.map((it, index) => (
-                        <Draggable key={it.id} draggableId={it.id} index={index}>
-                          {(p, snap) => (
-                            <Paper
-                              ref={p.innerRef}
-                              {...p.draggableProps}
-                              {...p.dragHandleProps}
-                              sx={{
-                                p: 1.2,
-                                borderRadius: 3,
-                                border: "1px solid rgba(255,255,255,0.10)",
-                                background: snap.isDragging ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.02)",
-                                cursor: "grab",
-                              }}
-                            >
-                              <Stack spacing={0.8}>
+      {panel === 'canvas' && (
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'stretch' }}>
+            {/* Left: the component set */}
+            <Paper sx={{ width: 240, minWidth: 240, borderRadius: 1, p: 1.5, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }} data-testid="step5-palette">
+              <Stack spacing={1.2}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <SearchIcon sx={{ opacity: 0.7 }} />
+                  <TextField value={paletteQuery} onChange={(event) => setPaletteQuery(event.target.value)} placeholder="Search" size="small" fullWidth inputProps={{ 'aria-label': 'Search the component set' }} />
+                </Stack>
+                <Select size="small" value={paletteGroup} onChange={(event) => setPaletteGroup(String(event.target.value))} inputProps={{ 'aria-label': 'Component group' }}>
+                  <MenuItem value="all">Every group</MenuItem>
+                  {componentsByGroup(catalogue).map((group) => (
+                    <MenuItem key={group.group} value={group.group}>
+                      {group.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+                <Divider sx={{ opacity: 0.25 }} />
+                <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                  Drag onto the canvas ({palette.length})
+                </Typography>
+                <Droppable droppableId="palette" isDropDisabled={true}>
+                  {(provided) => (
+                    <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ maxHeight: '64vh', overflow: 'auto', pr: 0.5 }}>
+                      <Stack spacing={1}>
+                        {palette.map((entry, index) => (
+                          <Draggable key={entry.kind} draggableId={entry.kind} index={index}>
+                            {(dragged, snapshot) => (
+                              <Paper
+                                ref={dragged.innerRef}
+                                {...dragged.draggableProps}
+                                {...dragged.dragHandleProps}
+                                sx={{ p: 1.2, borderRadius: 2, border: '1px solid', borderColor: snapshot.isDragging ? 'primary.main' : 'divider', cursor: 'grab' }}
+                                data-testid={`palette-${entry.kind}`}
+                              >
                                 <Stack direction="row" alignItems="center" justifyContent="space-between">
-                                  <Typography sx={{ fontWeight: 800, fontSize: 13, pl: 1.25 }}>{it.label}</Typography>
-                                  <Chip size="small" label={it.category} />
+                                  <Typography sx={{ fontWeight: 800, fontSize: 13 }}>{kindWords(entry.kind)}</Typography>
+                                  <Chip size="small" label={GROUP_WORDS[entry.group] ?? entry.group} />
                                 </Stack>
+                                <Typography variant="caption" color="text.secondary">
+                                  {entry.summary}
+                                </Typography>
+                                {entry.binds !== 'nothing' && (
+                                  <Typography variant="caption" display="block" color="text.secondary">
+                                    Reads a {entry.binds}.
+                                  </Typography>
+                                )}
+                              </Paper>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </Stack>
+                    </Box>
+                  )}
+                </Droppable>
+              </Stack>
+            </Paper>
 
-                                <Box sx={{ opacity: 0.95 }}>
-                                  {it.kind === "template" ? (
-                                    <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                                      Drops a working multi-component layout
+            {/* Centre: the canvas over the generated screen */}
+            <Paper sx={{ flex: 1, borderRadius: 1, p: 1.5, border: '1px solid', borderColor: 'divider', overflow: 'hidden', minHeight: '70vh', minWidth: 0 }} data-testid="step5-canvas">
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1, flexWrap: 'wrap', gap: 1 }}>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+                  <Typography sx={{ fontWeight: 900 }}>Canvas</Typography>
+                  <Select size="small" value={screen.id} onChange={(event) => { setChosenScreenId(String(event.target.value)); setSelectedId(null); }} inputProps={{ 'aria-label': 'Screen' }} sx={{ minWidth: 220 }}>
+                    {section.screens.map((held) => (
+                      <MenuItem key={held.id} value={held.id}>
+                        {sentenceFor(section, held.title_key)} · {held.kind}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  <ToggleButtonGroup size="small" exclusive value={breakpointId} onChange={(_event, next: string | null) => next && setBreakpointId(next)} aria-label="Width">
+                    {section.breakpoints.map((held) => (
+                      <ToggleButton key={held.id} value={held.id} sx={{ textTransform: 'none' }}>
+                        {widthWords(held.id)}
+                      </ToggleButton>
+                    ))}
+                  </ToggleButtonGroup>
+                </Stack>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={addPage} sx={{ borderRadius: 1 }}>
+                    Add Page
+                  </Button>
+                  <TextField size="small" value={sentenceFor(section, screen.title_key)} onChange={(event) => change((held) => renameScreen(held, screen, event.target.value))} sx={{ width: 200 }} inputProps={{ 'aria-label': 'Screen title' }} />
+                  <Tooltip title={section.screens.length <= 1 ? 'An application keeps at least one screen' : 'Delete this screen'}>
+                    <span>
+                      <IconButton onClick={deletePage} disabled={section.screens.length <= 1} aria-label="Delete this screen">
+                        <DeleteIcon />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </Stack>
+              </Stack>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                {screen.route} · opens for {screen.roles.map((held) => roleNames[held] ?? held).join(', ')} · {widthWords(breakpoint.id)} shows {breakpoint.columns} columns
+              </Typography>
+              <Divider sx={{ opacity: 0.18, mb: 1.5 }} />
+
+              <Droppable droppableId="canvas">
+                {(provided, snapshot) => (
+                  <Box
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    sx={{ minHeight: 'calc(70vh - 120px)', borderRadius: 1, border: '1px dashed', borderColor: snapshot.isDraggingOver ? 'primary.main' : 'divider', bgcolor: snapshot.isDraggingOver ? 'action.hover' : 'transparent', overflow: 'auto', p: 1.5 }}
+                  >
+                    {cells.length === 0 && (
+                      <Stack alignItems="center" justifyContent="center" sx={{ py: 6, opacity: 0.75 }} spacing={1}>
+                        <Typography sx={{ fontWeight: 900 }}>This screen shows nothing at this width</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Drop a component here, or show one of the hidden components below.
+                        </Typography>
+                      </Stack>
+                    )}
+                    <Box sx={{ width: '100%' }}>
+                      <RGL className="layout" layout={cells} cols={breakpoint.columns} rowHeight={26} onLayoutChange={onLayoutChange} draggableHandle=".cerulea-drag-handle" compactType="vertical" preventCollision={false}>
+                        {cells.map((cell) => {
+                          const node = findNode(screen, cell.i) as ComponentNode;
+                          const chosen = node.id === selectedId;
+                          return (
+                            <Box key={cell.i} sx={{ height: '100%' }}>
+                              <Paper
+                                onClick={() => setSelectedId(node.id)}
+                                data-testid={`canvas-${node.id}`}
+                                sx={{ height: '100%', borderRadius: 1, p: 1.2, border: '1px solid', borderColor: chosen ? 'primary.main' : 'divider', bgcolor: chosen ? 'action.selected' : 'background.paper', overflow: 'hidden', position: 'relative' }}
+                              >
+                                <Box className="cerulea-drag-handle" sx={{ position: 'absolute', left: 10, top: 6, fontSize: 11, opacity: 0.75, cursor: 'move', userSelect: 'none' }}>
+                                  {kindWords(node.component)}
+                                </Box>
+                                <Box sx={{ pt: 2.5 }}>
+                                  <Typography sx={{ fontWeight: 700, fontSize: 13 }} noWrap>
+                                    {sentenceFor(section, node.label_key) || kindWords(node.component)}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                                    {bindingWords(node.binding)}
+                                  </Typography>
+                                  {node.children.length > 0 && (
+                                    <Typography variant="caption" color="text.secondary">
+                                      {node.children.length} component{node.children.length === 1 ? '' : 's'} inside
                                     </Typography>
-                                  ) : (
-                                    renderElement({ id: "preview", type: it.type!, props: it.preview ?? {} }, undefined)
                                   )}
                                 </Box>
-                              </Stack>
-                            </Paper>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </Stack>
+                              </Paper>
+                            </Box>
+                          );
+                        })}
+                      </RGL>
+                    </Box>
+                    {provided.placeholder}
                   </Box>
                 )}
               </Droppable>
-            </Stack>
-          </Paper>
 
-          {/* Center: Canvas (big) */}
-          <Paper
-            sx={{
-              flex: 1,
-              borderRadius: 1,
-              p: 1.5,
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(255,255,255,0.02)",
-              overflow: "hidden",
-              minHeight: "78vh",
-            }}
-          >
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Typography sx={{ fontWeight: 900, pl: 1.25 }}>Canvas</Typography>
-                <Chip size="small" label={pageName} />
-              </Stack>
-
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={addPage} sx={{ borderRadius: 1 }}>
-                  Add Page
-                </Button>
-                <TextField
-                  size="small"
-                  value={pageName}
-                  onChange={(e) => renameActivePage(e.target.value)}
-                  sx={{ width: 180, "& .MuiInputBase-root": { borderRadius: 3 } }}
-                />
-                <Tooltip title={ui.pages.length <= 1 ? "At least one page is required" : "Delete page"}>
-                  <span>
-                    <IconButton onClick={deleteActivePage} disabled={ui.pages.length <= 1}>
-                      <DeleteIcon />
-                    </IconButton>
-                  </span>
-                </Tooltip>
-              </Stack>
-            </Stack>
-
-            <Divider sx={{ opacity: 0.18, mb: 1.5 }} />
-
-            <Droppable droppableId="canvas">
-              {(provided, snap) => (
-                <Box
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  sx={{
-                    height: "calc(78vh - 96px)",
-                    borderRadius: 1,
-                    border: snap.isDraggingOver ? "1px dashed rgba(255,255,255,0.35)" : "1px dashed rgba(255,255,255,0.14)",
-                    background: snap.isDraggingOver ? "rgba(255,255,255,0.03)" : "transparent",
-                    overflow: "auto",
-                    p: 1.5,
-                  }}
-                >
-                  {activeElements.length === 0 ? (
-                    <Stack alignItems="center" justifyContent="center" sx={{ height: "100%", opacity: 0.75 }} spacing={1}>
-                      <Typography sx={{ fontWeight: 900, pl: 1.25 }}>Drop templates/components here</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Templates create a full working layout. Components add single elements.
-                      </Typography>
-                    </Stack>
-                  ) : null}
-
-                  <Box sx={{ width: "100%" }}>
-                    <RGL
-                      className="layout"
-                      layout={activeLayout}
-                      cols={12}
-                      rowHeight={26}
-                      onLayoutChange={onLayoutChange}
-                      draggableHandle=".cerulea-drag-handle"
-                      compactType="vertical"
-                      preventCollision={false}
-                    >
-                      {activeElements.map((el) => {
-                        const binding = ui.bindings[el.id];
-                        const isSel = el.id === selectedId;
-                        const sx = el.props?.sx ?? {};
-                        return (
-                          <Box key={el.id} sx={{ height: "100%" }}>
-                            <Paper
-                              onClick={() => setSelectedId(el.id)}
-                              sx={{
-                                height: "100%",
-                                borderRadius: 1,
-                                p: 1.2,
-                                border: isSel ? "1px solid rgba(120,180,255,0.75)" : "1px solid rgba(255,255,255,0.12)",
-                                background: isSel ? "rgba(120,180,255,0.06)" : "rgba(255,255,255,0.02)",
-                                overflow: "hidden",
-                                position: "relative",
-                                ...sx,
-                              }}
-                            >
-                              <Box
-                                className="cerulea-drag-handle"
-                                sx={{
-                                  position: "absolute",
-                                  left: 10,
-                                  top: 8,
-                                  fontSize: 11,
-                                  opacity: 0.75,
-                                  cursor: "move",
-                                  userSelect: "none",
-                                }}
-                              >
-                                {el.type}
-                              </Box>
-
-                              <Box sx={{ pt: 2 }}>{renderElement(el, binding)}</Box>
-                            </Paper>
-                          </Box>
-                        );
-                      })}
-                    </RGL>
-                  </Box>
-
-                  {provided.placeholder}
+              {hidden.length > 0 && (
+                <Box sx={{ mt: 1.5 }} data-testid="step5-hidden">
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+                    Hidden at {widthWords(breakpoint.id).toLowerCase()}
+                  </Typography>
+                  <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mt: 0.5 }}>
+                    {hidden.map((node) => (
+                      <Chip key={node.id} label={sentenceFor(section, node.label_key) || kindWords(node.component)} onClick={() => setSelectedId(node.id)} onDelete={() => changeScreen((held) => setVisible(held, node.id, breakpoint, true))} deleteIcon={<AddIcon />} variant="outlined" />
+                    ))}
+                  </Stack>
                 </Box>
               )}
-            </Droppable>
-          </Paper>
+            </Paper>
 
-          {/* Right: Inspector */}
-          <Paper
-            sx={{
-              width: 440,
-              minWidth: 440,
-              borderRadius: 1,
-              p: 1.5,
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(255,255,255,0.03)",
-              overflow: "hidden",
-            }}
-          >
-            <Typography sx={{ fontWeight: 900, mb: 1, pl: 2.25 }}>Inspector</Typography>
-            <Divider sx={{ opacity: 0.18, mb: 1.5 }} />
-
-            {!selectedElement ? (
-              <Typography variant="body2" color="text.secondary">
-                Select a component on the canvas to edit properties, styles, and bindings.
-              </Typography>
-            ) : (
-              <Stack spacing={1.4} sx={{ maxHeight: "72vh", overflow: "auto", pr: 0.5 }}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                  <Typography sx={{ fontWeight: 900 }}>{selectedElement.type}</Typography>
-                  <Button size="small" variant="outlined" onClick={deleteSelected} startIcon={<DeleteIcon />} sx={{ borderRadius: 1 }}>
-                    Delete
-                  </Button>
-                </Stack>
-
-                <Divider sx={{ opacity: 0.18 }} />
-
-                {/* Minimal type-specific properties */}
-                {(selectedElement.type === "Heading" || selectedElement.type === "Text") && (
-                  <Stack spacing={1}>
-                    <TextField
-                      label="Text"
-                      value={selectedElement.props?.text ?? ""}
-                      onChange={(e) => updateSelectedProps({ text: e.target.value })}
-                      size="small"
-                      fullWidth
-                      sx={{ "& .MuiInputBase-root": { borderRadius: 3 } }}
-                    />
-                    <TextField
-                      label="Variant"
-                      value={selectedElement.props?.variant ?? (selectedElement.type === "Heading" ? "h5" : "body2")}
-                      onChange={(e) => updateSelectedProps({ variant: e.target.value })}
-                      size="small"
-                      fullWidth
-                      sx={{ "& .MuiInputBase-root": { borderRadius: 3 } }}
-                    />
-                  </Stack>
-                )}
-
-                {selectedElement.type === "Button" && (
-                  <Stack spacing={1}>
-                    <TextField
-                      label="Label"
-                      value={selectedElement.props?.label ?? ""}
-                      onChange={(e) => updateSelectedProps({ label: e.target.value })}
-                      size="small"
-                      fullWidth
-                      sx={{ "& .MuiInputBase-root": { borderRadius: 3 } }}
-                    />
-                    <TextField
-                      label="Variant"
-                      value={selectedElement.props?.variant ?? "contained"}
-                      onChange={(e) => updateSelectedProps({ variant: e.target.value })}
-                      size="small"
-                      fullWidth
-                      sx={{ "& .MuiInputBase-root": { borderRadius: 3 } }}
-                    />
-                    <FormControlLabel
-                      control={<Switch checked={!!selectedElement.props?.fullWidth} onChange={(e) => updateSelectedProps({ fullWidth: e.target.checked })} />}
-                      label="Full width"
-                    />
-                  </Stack>
-                )}
-
-                {(selectedElement.type === "TextField" || selectedElement.type === "Textarea") && (
-                  <Stack spacing={1}>
-                    <TextField
-                      label="Label"
-                      value={selectedElement.props?.label ?? ""}
-                      onChange={(e) => updateSelectedProps({ label: e.target.value })}
-                      size="small"
-                      fullWidth
-                      sx={{ "& .MuiInputBase-root": { borderRadius: 3 } }}
-                    />
-                    <TextField
-                      label="Placeholder"
-                      value={selectedElement.props?.placeholder ?? ""}
-                      onChange={(e) => updateSelectedProps({ placeholder: e.target.value })}
-                      size="small"
-                      fullWidth
-                      sx={{ "& .MuiInputBase-root": { borderRadius: 3 } }}
-                    />
-                    {selectedElement.type === "Textarea" ? (
-                      <TextField
-                        label="Rows"
-                        value={String(selectedElement.props?.rows ?? 4)}
-                        onChange={(e) => updateSelectedProps({ rows: Number(e.target.value || 4) })}
-                        size="small"
-                        fullWidth
-                        sx={{ "& .MuiInputBase-root": { borderRadius: 3 } }}
-                      />
-                    ) : null}
-                  </Stack>
-                )}
-
-                <Divider sx={{ opacity: 0.18 }} />
-                <Typography sx={{ fontWeight: 900 }}>Bindings</Typography>
-
-                {selectedElement.type === "Button" ? (
-                  <TextField
-                    label="Action binding"
-                    value={selectedBinding?.kind === "action" ? selectedBinding.ref : ""}
-                    onChange={(e) => {
-                      const v = e.target.value.trim();
-                      if (!v) return setBinding(undefined);
-                      setBinding({ kind: "action", ref: v });
-                    }}
-                    size="small"
-                    fullWidth
-                    placeholder="e.g., flow:createUser"
-                    sx={{ "& .MuiInputBase-root": { borderRadius: 3 } }}
-                  />
-                ) : selectedElement.type === "Table" ? (
-                  <TextField
-                    select
-                    label="List binding (entity[])"
-                    value={selectedBinding?.kind === "list" ? selectedBinding.ref : ""}
-                    onChange={(e) => {
-                      const v = String(e.target.value || "");
-                      if (!v) return setBinding(undefined);
-                      setBinding({ kind: "list", ref: v });
-                    }}
-                    size="small"
-                    fullWidth
-                    sx={{ "& .MuiInputBase-root": { borderRadius: 3 } }}
-                  >
-                    {allBindingOptions
-                      .filter((x) => x.value.endsWith("[]"))
-                      .map((o) => (
-                        <MenuItem key={o.value} value={o.value}>
-                          {o.label}
-                        </MenuItem>
-                      ))}
-                  </TextField>
-                ) : selectedElement.type === "TextField" || selectedElement.type === "Textarea" ? (
-                  <TextField
-                    select
-                    label="Value binding (entity.field)"
-                    value={selectedBinding?.kind === "value" ? selectedBinding.ref : ""}
-                    onChange={(e) => {
-                      const v = String(e.target.value || "");
-                      if (!v) return setBinding(undefined);
-                      setBinding({ kind: "value", ref: v });
-                    }}
-                    size="small"
-                    fullWidth
-                    sx={{ "& .MuiInputBase-root": { borderRadius: 3 } }}
-                  >
-                    {allBindingOptions
-                      .filter((x) => x.value && !x.value.endsWith("[]"))
-                      .map((o) => (
-                        <MenuItem key={o.value} value={o.value}>
-                          {o.label}
-                        </MenuItem>
-                      ))}
-                  </TextField>
-                ) : selectedElement.type === "Heading" || selectedElement.type === "Text" ? (
-                  <TextField
-                    select
-                    label="Text binding (entity.field)"
-                    value={selectedBinding?.kind === "text" ? selectedBinding.ref : ""}
-                    onChange={(e) => {
-                      const v = String(e.target.value || "");
-                      if (!v) return setBinding(undefined);
-                      setBinding({ kind: "text", ref: v });
-                    }}
-                    size="small"
-                    fullWidth
-                    sx={{ "& .MuiInputBase-root": { borderRadius: 3 } }}
-                  >
-                    {allBindingOptions
-                      .filter((x) => x.value && !x.value.endsWith("[]"))
-                      .map((o) => (
-                        <MenuItem key={o.value} value={o.value}>
-                          {o.label}
-                        </MenuItem>
-                      ))}
-                  </TextField>
-                ) : (
+            {/* Right: the inspector */}
+            <Paper sx={{ width: 380, minWidth: 380, borderRadius: 1, p: 1.5, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }} data-testid="step5-inspector">
+              <Typography sx={{ fontWeight: 900, mb: 1 }}>Inspector</Typography>
+              <Divider sx={{ opacity: 0.18, mb: 1.5 }} />
+              {!selected ? (
+                <Stack spacing={1}>
                   <Typography variant="body2" color="text.secondary">
-                    No bindings for this component yet.
+                    Select a component on the canvas to edit its name, its place at each width, its binding and its properties.
                   </Typography>
-                )}
+                  <Divider sx={{ opacity: 0.18 }} />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+                    This screen
+                  </Typography>
+                  <Typography variant="body2">
+                    {sentenceFor(section, screen.title_key)} is a {screen.kind} screen at {screen.route}.
+                    {screen.collection ? ` It shows the ${screen.collection} collection.` : ''}
+                    {screen.offline_capture ? ' It captures records without a connection.' : ' It reads records when a connection is open.'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {bodyOf(screen).length} components sit in its main band. Hidden ones appear under the canvas.
+                  </Typography>
+                </Stack>
+              ) : (
+                <Stack spacing={1.4} sx={{ maxHeight: '66vh', overflow: 'auto', pr: 0.5 }}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <Typography sx={{ fontWeight: 900 }}>{kindWords(selected.component)}</Typography>
+                    <Button size="small" variant="outlined" color="error" onClick={() => { changeScreen((held) => removeNode(held, selected.id)); setSelectedId(null); }} startIcon={<DeleteIcon />} sx={{ borderRadius: 1 }}>
+                      Delete
+                    </Button>
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary">
+                    {selectedEntry?.summary ?? ''}
+                  </Typography>
+                  <TextField label="Name" size="small" fullWidth value={sentenceFor(section, selected.label_key)} onChange={(event) => change((held) => renameNode(held, screen, selected.id, event.target.value))} helperText="The words a person reads over this component. A translator works on the file beside the application." />
+                  <Divider sx={{ opacity: 0.18 }} />
+                  <Typography sx={{ fontWeight: 800 }}>Place at {widthWords(breakpoint.id).toLowerCase()}</Typography>
+                  <FormControlLabel control={<Switch checked={placementAt(selected, breakpoint).visible} onChange={(event) => changeScreen((held) => setVisible(held, selected.id, breakpoint, event.target.checked))} />} label="Shown at this width" />
+                  <TextField label={`Columns of ${breakpoint.columns}`} size="small" type="number" value={placementAt(selected, breakpoint).span} onChange={(event) => changeScreen((held) => setSpan(held, selected.id, breakpoint, Number(event.target.value)))} inputProps={{ min: 1, max: breakpoint.columns }} helperText="The width of the band this component covers. Drag its right edge on the canvas for the same change." />
+                  <Divider sx={{ opacity: 0.18 }} />
+                  <Typography sx={{ fontWeight: 800 }}>Binding</Typography>
+                  <Typography variant="body2" data-testid="inspector-binding">{bindingWords(selected.binding)}</Typography>
+                  {selectedEntry && selectedEntry.binds !== 'nothing' && (
+                    <>
+                      {screen.roles.length > 1 && (
+                        <Select size="small" value={screenRole} onChange={(event) => setRole(String(event.target.value))} inputProps={{ 'aria-label': 'Role the binding is checked for' }}>
+                          {screen.roles.map((held) => (
+                            <MenuItem key={held} value={held}>
+                              {roleNames[held] ?? held}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      )}
+                      <BindingPicker projectId={resolvedId} role={screenRole} roleName={roleNames[screenRole] ?? screenRole} component={selected.component} binds={selectedEntry.binds} onChoose={(choice: BindingChoice) => changeScreen((held) => setBinding(held, selected.id, choice.binding as Binding))} />
+                    </>
+                  )}
+                  <Divider sx={{ opacity: 0.18 }} />
+                  <Typography sx={{ fontWeight: 800 }}>Properties</Typography>
+                  {selected.properties.length === 0 && (
+                    <Typography variant="caption" color="text.secondary">
+                      This component carries no property beyond its binding.
+                    </Typography>
+                  )}
+                  {selected.properties.map((property) => (
+                    <TextField key={property.name} label={kindWords(property.name)} size="small" fullWidth value={property.value} onChange={(event) => changeScreen((held) => setProperty(held, selected.id, property.name, event.target.value))} />
+                  ))}
+                  {(selectedEntry?.properties ?? []).filter((name) => !selected.properties.some((held) => held.name === name)).map((name) => (
+                    <Button key={name} size="small" variant="text" onClick={() => changeScreen((held) => setProperty(held, selected.id, name, 'true'))} sx={{ justifyContent: 'flex-start', textTransform: 'none' }}>
+                      Add {kindWords(name).toLowerCase()}
+                    </Button>
+                  ))}
+                </Stack>
+              )}
+            </Paper>
+          </Box>
+        </DragDropContext>
+      )}
 
-                <Divider sx={{ opacity: 0.18 }} />
-                <Typography sx={{ fontWeight: 900 }}>Styles</Typography>
-
-                <TextField
-                  label="sx (JSON)"
-                  value={sxDraft}
-                  onChange={(e) => setSxDraft(e.target.value)}
-                  size="small"
-                  fullWidth
-                  multiline
-                  minRows={6}
-                  sx={{
-                    "& .MuiInputBase-root": { borderRadius: 3 },
-                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                  }}
-                />
-                <Button variant="outlined" onClick={applySxDraft} sx={{ borderRadius: 1 }}>
-                  Apply sx
-                </Button>
-              </Stack>
-            )}
-          </Paper>
+      {panel === 'preview' && (
+        <Box data-testid="panel-preview">
+          <Stack direction="row" spacing={2} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
+            <TextField select size="small" label="Role" value={role} onChange={(event) => setRole(event.target.value)} sx={{ minWidth: 220 }} helperText="The preview shows what a person holding this role reaches.">
+              {workspace.roles.map((held) => (
+                <MenuItem key={held.role} value={held.role}>
+                  {held.name} · {held.screens} screens
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField select size="small" label="Width" value={breakpointId} onChange={(event) => setBreakpointId(event.target.value)} sx={{ minWidth: 160 }}>
+              {section.breakpoints.map((held) => (
+                <MenuItem key={held.id} value={held.id}>
+                  {widthWords(held.id)}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField select size="small" label="Mode" value={mode} onChange={(event) => setMode(event.target.value as 'light' | 'dark')} sx={{ minWidth: 160 }}>
+              <MenuItem value="light">Light theme</MenuItem>
+              <MenuItem value="dark">Dark mode</MenuItem>
+            </TextField>
+            <Button onClick={() => void loadPreview()} disabled={previewBusy}>
+              Read the preview again
+            </Button>
+          </Stack>
+          {workspace.roles.length === 0 ? (
+            <Alert severity="info">The model declares no role yet. Add a role in Step 3 Data schema, and the preview shows what the role reaches.</Alert>
+          ) : preview === null || previewBusy ? (
+            <CircularProgress size={22} aria-label="Cerulea is rendering the preview" />
+          ) : (
+            <PreviewFrame preview={preview} screen={screen.id} />
+          )}
         </Box>
-      </DragDropContext>
+      )}
 
-      <Snackbar open={toast.open} autoHideDuration={2500} onClose={() => setToast((p) => ({ ...p, open: false }))}>
-        <Alert severity={toast.kind} variant="filled" sx={{ width: "100%" }}>
-          {toast.msg}
+      {panel === 'theme' && (
+        <Box data-testid="panel-theme">
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            One token set drives every screen. A change to a value reaches every screen at once and saves with the rest.
+          </Typography>
+          <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
+            {THEME_GROUPS.map(({ group, label }) => (
+              <Paper key={group} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                <Typography variant="subtitle2" component="h3" sx={{ mb: 1 }}>
+                  {label}
+                </Typography>
+                <Stack spacing={1}>
+                  {section.theme[group].map((token) => (
+                    <TextField key={token.name} size="small" label={kindWords(token.name)} value={token.value} onChange={(event) => change((held) => setThemeToken(held, group, token.name, event.target.value))} />
+                  ))}
+                </Stack>
+              </Paper>
+            ))}
+          </Box>
+        </Box>
+      )}
+
+      {panel === 'accessibility' && (
+        <Box data-testid="panel-accessibility">
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+            <Button variant="outlined" onClick={() => void runAccessibility()} disabled={checking}>
+              Check again
+            </Button>
+            <Typography variant="body2" color="text.secondary">
+              Cerulea checks contrast, focus order, labelling, keyboard reach and target size against the Web Content Accessibility Guidelines version 2.2 level AA. A failure blocks publication.
+            </Typography>
+          </Stack>
+          {accessibility === null || checking ? <CircularProgress size={22} aria-label="Cerulea is checking the screens" /> : <AccessibilityReport outcome={accessibility} />}
+        </Box>
+      )}
+
+      {panel === 'endpoints' && (
+        <Box data-testid="panel-endpoints">
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            Another system reaches the deployment through these addresses. Each one answers with the records the caller may read, and a call outside the permission matrix meets a refusal.
+          </Typography>
+          {workspace.endpoints.length === 0 ? (
+            <Alert severity="info">{workspace.endpointsNote.length > 0 ? workspace.endpointsNote : 'This deployment publishes no endpoint yet. Add an action or a view in Step 3 Data schema, and the endpoints appear here.'}</Alert>
+          ) : (
+            <List dense aria-label="Endpoints">
+              {workspace.endpoints.map((held) => (
+                <ListItem key={`${held.method} ${held.path}`} disableGutters>
+                  <ListItemText primary={`${held.method} ${held.path}`} secondary={`Takes ${held.parameters.length === 0 ? 'no value' : held.parameters.join(', ')}. Answers with ${held.response}. Reached by ${held.visibility.trim().length === 0 ? 'every role' : held.visibility.split(',').map((entry) => roleNames[entry.trim()] ?? entry.trim()).join(', ')}.`} />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </Box>
+      )}
+
+      {panel === 'translation' && (
+        <Box data-testid="panel-translation">
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            Every sentence a screen shows sits in the file beside the application. A translator works on the file and touches no screen.
+          </Typography>
+          <List dense aria-label="Translation files">
+            {translationCoverage(section).map((held) => (
+              <ListItemText key={held.language} primary={`strings.${held.language}.json`} secondary={held.missing === 0 ? `${held.held} sentences. Every key the screens name carries words.` : `${held.held} sentences. ${held.missing} keys still need this language.`} />
+            ))}
+          </List>
+        </Box>
+      )}
+
+      <Snackbar open={toast.open} autoHideDuration={4000} onClose={() => setToast((held) => ({ ...held, open: false }))}>
+        <Alert severity={toast.kind} variant="filled" sx={{ width: '100%' }}>
+          {toast.text}
         </Alert>
       </Snackbar>
     </Box>

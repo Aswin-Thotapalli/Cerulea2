@@ -111,6 +111,8 @@ export type InfrastructureItem = {
   domains: string[];
   certificates: string[];
   backupSchedule: string;
+  /** Where the figures came from. Absent when the compiler filled defaults. */
+  source?: string;
 };
 
 export type SecurityItem = {
@@ -135,6 +137,8 @@ export type CostItem = {
   addOns: { name: string; monthlyMinor: number }[];
   storageGigabytes: number;
   nodeCount: number;
+  /** Where the prices came from. Absent when the compiler filled defaults, and then no figure shows. */
+  source?: string;
 };
 
 export type DeploymentManifest = {

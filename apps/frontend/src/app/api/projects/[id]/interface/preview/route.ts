@@ -1,13 +1,15 @@
 // apps/frontend/src/app/api/projects/[id]/interface/preview/route.ts
-// The generated application of one project, rendered as one role.
+// The application of one project, rendered as one role.
 // The handler reads the Blueprint on the server and asks the frontend engine
 // for the screens the role reaches, at the width and in the mode the person
-// chose. The access token stays on the server.
+// chose. The builder may send the section it holds, so the preview shows an
+// edit before the save lands. The access token stays on the server.
 // Without this route the preview would call Cerulea APIs from the browser.
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { readInterfacePreview } from '@/lib/interface/server';
+import type { InterfaceSection } from '@/lib/interface/types';
 import { callOptions, ceruleaActor, failureReply, failureResponse, signInRequired } from '@/lib/cerulea-server';
 
 export const dynamic = 'force-dynamic';
@@ -19,6 +21,7 @@ const previewBody = z.object({
   mode: z.enum(['light', 'dark']).optional(),
   screen: z.string().min(1).max(200).optional(),
   language: z.string().min(2).max(20).optional(),
+  section: z.object({ screens: z.array(z.unknown()) }).passthrough().optional(),
 });
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -38,8 +41,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     );
   }
   try {
+    const { section, ...rest } = parsed.data;
     return NextResponse.json(
-      await readInterfacePreview(params.id, parsed.data, callOptions(actor)),
+      await readInterfacePreview(
+        params.id,
+        { ...rest, ...(section ? { section: section as unknown as InterfaceSection } : {}) },
+        callOptions(actor),
+      ),
     );
   } catch (cause) {
     return failureReply(cause);
