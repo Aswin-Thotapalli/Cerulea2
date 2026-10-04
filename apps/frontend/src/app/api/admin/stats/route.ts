@@ -1,37 +1,19 @@
 // apps/frontend/src/app/api/admin/stats/route.ts
-// The platform figures on the operator overview.
+// The platform figures on the operator overview and in the administration frame.
 // Cerulea APIs counts the accounts, the projects, the checkpoints and the open
 // subscriptions through the administration summary read. The project type of
-// each project comes from the division its workspace serves. Every
-// administration read opens for the operator role alone.
+// each project comes from the division its workspace serves. The frame reads
+// the running mode, the refusal count and the open items from the same body.
+// Every administration read opens for the operator role alone.
 // Without this route the operator overview shows no figure.
 import { readAdministration } from '@/lib/cerulea-api';
 import { callOptions, withActor } from '@/lib/cerulea-server';
 import { divisionForApplication, lockedProjectType } from '@/config/divisions';
 
+import { type ProjectRow, type Summary, type WorkspaceRow, openItems } from '../_shared/reads';
+
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-
-type Summary = {
-  platform: Record<string, unknown>;
-  counts: {
-    accounts: number;
-    accountsWithSecondFactor: number;
-    openSessions: number;
-    workspaces: number;
-    projects: number;
-    blueprintVersions: number;
-    checkpoints: number;
-    deployments: number;
-    openKeys: number;
-    openSubscriptions: number;
-    auditEvents: number;
-    refusedActions: number;
-  };
-};
-
-type ProjectRow = { projectId: string; workspaceId: string };
-type WorkspaceRow = { workspaceId: string; application: string };
 
 export async function GET() {
   return withActor(async (actor) => {
@@ -46,6 +28,7 @@ export async function GET() {
       const division = divisionForApplication(applications.get(row.workspaceId));
       return division ? lockedProjectType(division) : null;
     });
+    const threads = summary.counts.intelligenceThreads;
     return {
       ...summary,
       // The production overview reads these names at the top level.
@@ -55,6 +38,12 @@ export async function GET() {
       blockchainProjects: types.filter((type) => type === 'blockchain').length,
       dappProjects: types.filter((type) => type === 'dapp').length,
       totalSnapshots: summary.counts.checkpoints,
+      // The thread count appears once Cerulea APIs counts it. The card stays out until then.
+      ...(typeof threads === 'number' ? { totalAiThreads: threads } : {}),
+      // The administration frame reads these three.
+      mode: summary.platform.mode,
+      refusedActions: summary.counts.refusedActions,
+      openItems: openItems(summary.platform),
     };
   });
 }

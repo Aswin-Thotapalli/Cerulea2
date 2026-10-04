@@ -2,25 +2,17 @@
 // The platform audit trail for the Cerulea operator.
 // Cerulea APIs reads the newest audit events of the whole platform through the
 // administration security read. That read opens for the operator role alone and
-// answers every other account with a refusal naming the fix.
+// answers every other account with a refusal naming the fix. The same read
+// carries the newest sessions, which the Security screen asks for with
+// `sessions=1`.
 // Without this route the operator has no record of sign ins and refusals.
 import { ceruleaRequest } from '@/lib/cerulea-api';
 import { callOptions, withActor } from '@/lib/cerulea-server';
 
+import type { SecurityRead } from '../_shared/reads';
+
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-
-type SecurityRead = {
-  events: {
-    eventId: string;
-    action: string;
-    subjectType: string;
-    outcome: string;
-    networkAddress: string;
-    accountEmail: string;
-    occurredAt: string;
-  }[];
-};
 
 /** The most events the administration read returns in one call. */
 const CEILING = 500;
@@ -51,6 +43,7 @@ export async function GET(request: Request) {
     Number.isFinite(asked) && asked >= 1 ? Math.min(Math.floor(asked), CEILING) : STANDARD;
   const action = search.get('action') ?? '';
   const status = search.get('status') ?? '';
+  const wantsSessions = search.get('sessions') === '1';
   // The filters run after the read, so Cerulea reads the full ceiling when a filter is named.
   const reach = action.length > 0 || (status.length > 0 && status !== 'all') ? CEILING : limit;
   return withActor(async (actor) => {
@@ -74,6 +67,15 @@ export async function GET(request: Request) {
       .filter((entry) => (action ? matchesAction(entry.action, action) : true))
       .filter((entry) => (status && status !== 'all' ? entry.status === status : true))
       .slice(0, limit);
-    return { logs, total: logs.length };
+    // The action areas across the whole page feed the Action select on the screen.
+    const areas = Array.from(
+      new Set(page.events.map((event) => event.action.split('.')[0]).filter((area) => area)),
+    ).sort();
+    return {
+      logs,
+      total: logs.length,
+      areas,
+      ...(wantsSessions ? { sessions: page.sessions } : {}),
+    };
   });
 }

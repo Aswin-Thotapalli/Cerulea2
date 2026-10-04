@@ -3,9 +3,9 @@
 // Cerulea APIs holds the operator address list and refuses every other account
 // with a message naming the fix. This route forwards the read and returns that
 // refusal unchanged.
-// The folders audit, projects, stats and users beside this one answer first
-// for their own names, so this route serves summary, accounts, workspaces and
-// security.
+// The folders audit, chain, projects, stats and users beside this one answer
+// first for their own names, so this route serves summary, accounts,
+// workspaces and security.
 // Without this route the administration screens would have no data.
 import { NextResponse } from 'next/server';
 
