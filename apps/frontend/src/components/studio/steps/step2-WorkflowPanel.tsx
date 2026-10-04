@@ -336,7 +336,7 @@ export default function WorkflowPanel({ blueprint, layout, onChange, onChangeLay
                     <Switch
                       checked={state.terminal}
                       onChange={(event) => change(addWorkflowState(workflow, { ...state, terminal: event.target.checked }))}
-                      inputProps={{ 'aria-label': 'This state ends the work' }}
+                      slotProps={{ input: { 'aria-label': 'This state ends the work' } }}
                     />
                   }
                   label="This state ends the work"
@@ -348,7 +348,7 @@ export default function WorkflowPanel({ blueprint, layout, onChange, onChangeLay
                       onChange={(event) => {
                         if (event.target.checked) change({ ...workflow, initial_state: state.id });
                       }}
-                      inputProps={{ 'aria-label': 'Every new record starts here' }}
+                      slotProps={{ input: { 'aria-label': 'Every new record starts here' } }}
                     />
                   }
                   label="Every new record starts here"

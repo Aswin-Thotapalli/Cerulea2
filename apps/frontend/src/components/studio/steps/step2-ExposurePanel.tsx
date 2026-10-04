@@ -179,7 +179,7 @@ export default function ExposurePanel({ blueprint, grouping, onChange }: Exposur
                                 onChange={(event) =>
                                   onChange(setPublished(blueprint, collection.id, event.target.checked))
                                 }
-                                inputProps={{ 'aria-label': `Published read of ${toReadable(collection.id)}` }}
+                                slotProps={{ input: { 'aria-label': `Published read of ${toReadable(collection.id)}` } }}
                               />
                             </TableCell>
                             <TableCell align="center">

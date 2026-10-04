@@ -16,7 +16,7 @@ import HexagonOutlinedIcon from '@mui/icons-material/HexagonOutlined';
 
 import { toReadable } from '@/lib/blueprint/compose';
 import type { Collection } from '@/lib/blueprint/types';
-import { CUSTOM_MODULE, type Grouping } from './step2-model';
+import type { Grouping } from './step2-model';
 
 const EntityPanel = styled(Box)(({ theme }) => ({
   width: 240,
@@ -127,7 +127,7 @@ export default function EntitySidebar({
 
                 {collections.map((collection) => {
                   const isActive = selectedCollectionId === collection.id;
-                  const core = isCore(collection) && mod.id !== CUSTOM_MODULE.id;
+                  const core = isCore(collection);
                   return (
                     <Box
                       key={collection.id}

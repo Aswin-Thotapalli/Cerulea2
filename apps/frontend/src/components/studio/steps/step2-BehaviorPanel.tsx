@@ -340,13 +340,29 @@ export default function BehaviorPanel({ blueprint, grouping, track, layout, onCh
                           </TextField>
                           <ControlMirror controlId="blueprint.rule_kind" dense />
                         </Box>
+                        <TextField
+                          select
+                          size="small"
+                          label="Record it checks"
+                          value={rule.collections[0] ?? ''}
+                          onChange={(event) => onChange(putRule(blueprint, { ...rule, collections: event.target.value ? [event.target.value] : [] }))}
+                          sx={{ minWidth: 200 }}
+                          helperText="The formula reads the fields of this record."
+                          inputProps={{ 'aria-label': `Collection of rule ${rule.id}` }}
+                        >
+                          {collectionIds.map((entry) => (
+                            <MenuItem key={entry} value={entry}>
+                              {toReadable(entry)}
+                            </MenuItem>
+                          ))}
+                        </TextField>
                         <Box>
                           <Button size="small" color="error" onClick={() => onChange(removeRule(blueprint, rule.id))}>
                             Remove
                           </Button>
                         </Box>
                       </Stack>
-                      <RuleFormula blueprint={blueprint} rule={rule} onChange={onChange} />
+                      <RuleFormula key={rule.collections[0] ?? 'none'} blueprint={blueprint} rule={rule} onChange={onChange} />
                     </Stack>
                   ))}
                   {blueprint.rules.length === 0 && (
