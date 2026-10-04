@@ -93,10 +93,12 @@ export type BlueprintRecord = {
   document: unknown;
 };
 
-/** Reads the Blueprint of one project. */
+/** Reads the typed Blueprint document of one project. */
 export function readProjectBlueprint(projectId: string, version?: number) {
   const suffix = version === undefined ? '' : `?version=${version}`;
-  return api<BlueprintRecord>(`/api/projects/${encodeURIComponent(projectId)}/blueprint${suffix}`);
+  return api<BlueprintRecord>(
+    `/api/projects/${encodeURIComponent(projectId)}/blueprint/document${suffix}`,
+  );
 }
 
 /** Saves the Blueprint of one project and answers with the new version. */
@@ -108,7 +110,7 @@ export function writeProjectBlueprint(input: {
 }) {
   const { projectId, ...body } = input;
   return api<{ blueprint: Omit<BlueprintRecord, 'document'>; created: boolean }>(
-    `/api/projects/${encodeURIComponent(projectId)}/blueprint`,
+    `/api/projects/${encodeURIComponent(projectId)}/blueprint/document`,
     { method: 'PUT', body: JSON.stringify(body) },
   );
 }

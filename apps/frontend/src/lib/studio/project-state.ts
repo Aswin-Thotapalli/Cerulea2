@@ -89,7 +89,7 @@ export async function readProjectState(projectId: string): Promise<ProjectState>
   const [projectReply, blueprintReply, buildReply] = await Promise.all([
     api<{ project: ProjectState['project'] }>(`/api/projects/${encodeURIComponent(projectId)}`),
     api<{ version: number; document: unknown }>(
-      `/api/projects/${encodeURIComponent(projectId)}/blueprint`,
+      `/api/projects/${encodeURIComponent(projectId)}/blueprint/document`,
     ),
     api<{ buildState: BuildState }>(
       `/api/projects/${encodeURIComponent(projectId)}/build-state`,
@@ -112,7 +112,7 @@ export async function writeBlueprint(
   expectedVersion: number,
 ): Promise<number> {
   const outcome = await api<{ blueprint: { version: number } }>(
-    `/api/projects/${encodeURIComponent(projectId)}/blueprint`,
+    `/api/projects/${encodeURIComponent(projectId)}/blueprint/document`,
     { method: 'PUT', body: JSON.stringify({ document, note, expectedVersion }) },
   );
   return outcome.blueprint.version;
