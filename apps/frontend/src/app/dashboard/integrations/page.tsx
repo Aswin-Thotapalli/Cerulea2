@@ -244,9 +244,12 @@ export default function IntegrationsPage() {
 
   useEffect(() => { void read(); }, [read]);
 
-  const projects = view?.projects ?? [];
-  const drivers = view?.platform.drivers ?? [];
-  const selectedProject = projects.find((p) => p.projectId === selectedProjectId);
+  const projects = useMemo(() => view?.projects ?? [], [view]);
+  const drivers = useMemo(() => view?.platform.drivers ?? [], [view]);
+  const selectedProject = useMemo(
+    () => projects.find((p) => p.projectId === selectedProjectId),
+    [projects, selectedProjectId],
+  );
   const surface = view?.surface && view.surface.projectId === selectedProjectId ? view.surface : null;
 
   const rows: ServiceRow[] = useMemo(
