@@ -55,7 +55,9 @@ export function describeQuestion(description: string): string {
   ].join('\n');
 }
 
-const LINE = /^\s*(?:[-*\d.)]+\s*)?(template|module|application)\s*[:=]\s*[`'"]?([a-z0-9][a-z0-9 _./-]*?)[`'"]?\s*(?:[-:,;]\s*(.*))?$/i;
+// An identifier runs until a separator: a colon, a comma, a semicolon, or a
+// hyphen with a space on each side. A hyphen inside an identifier stays.
+const LINE = /^\s*(?:[-*\d.)]+\s*)?(template|module|application)\s*[:=]\s*[`'"]?([a-z0-9][a-z0-9 _./-]*?)[`'"]?\s*(?:(?:\s[-–]\s*|[:,;]\s*)(.*))?$/i;
 
 /** Reads every template, module and application line out of an answer. */
 export function readNamedLines(reply: string): NamedLine[] {

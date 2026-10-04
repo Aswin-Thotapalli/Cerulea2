@@ -6,7 +6,11 @@ import { SEED_MODULES } from '@/lib/catalogue/seed';
 
 import OutcomeCatalogue from './OutcomeCatalogue';
 
+// The surface tests type into the search, so they take the parts the searches
+// name plus a slice, which keeps the render light. The count tests take the
+// whole seed.
 const modules = SEED_MODULES;
+const light = SEED_MODULES.filter((part) => /wallet|role|permission|crypto/i.test(`${part.title} ${part.blurb ?? ''} ${(part.tags ?? []).join(' ')}`)).concat(SEED_MODULES.slice(0, 12));
 const BRIDGE_STATEMENTS = 7;
 const ALL = modules.length + BRIDGE_STATEMENTS;
 const PRIVATE = modules.filter((part) => part.projectType === 'blockchain').length + BRIDGE_STATEMENTS;
@@ -24,10 +28,11 @@ describe('the outcome catalogue surface', () => {
   });
 
   it('narrows as we search', async () => {
-    render(<OutcomeCatalogue modules={modules} />);
+    render(<OutcomeCatalogue modules={light} />);
     await userEvent.type(screen.getByLabelText('Search the outcomes'), 'wallet');
     await waitFor(() => {
-      expect(screen.getByText(new RegExp(`of ${ALL} outcomes match`))).not.toHaveTextContent(`${ALL} of ${ALL}`);
+      const lightAll = light.length + BRIDGE_STATEMENTS;
+      expect(screen.getByText(new RegExp(`of ${lightAll} outcomes match`))).not.toHaveTextContent(`${lightAll} of ${lightAll}`);
     });
   });
 
@@ -35,7 +40,7 @@ describe('the outcome catalogue surface', () => {
     const chosen: string[][] = [];
     render(
       <OutcomeCatalogue
-        modules={modules}
+        modules={light}
         selected={[]}
         onSelectedChange={(next) => chosen.push(next)}
       />,
@@ -51,7 +56,7 @@ describe('the outcome catalogue surface', () => {
   });
 
   it('states the parts a statement installs and what stops working after removal', async () => {
-    render(<OutcomeCatalogue modules={modules} />);
+    render(<OutcomeCatalogue modules={light} />);
     await userEvent.type(screen.getByLabelText('Search the outcomes'), 'roles permissions');
     await waitFor(() => {
       expect(screen.getAllByTestId('outcome-card').length).toBeGreaterThan(0);
