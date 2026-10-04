@@ -8,8 +8,16 @@ import StudioSidebar from './StudioSidebar';
 import { useStudio } from '@/context/StudioContext';
 import { useAutoSave } from '@/lib/useAutoSave';
 import dynamic from 'next/dynamic';
+import LevelSwitch from '@/components/studio/levels/LevelSwitch';
+import { getClientDivision } from '@/lib/division-client';
+import { STEP_DEPLOY, STEP_FOUNDATION, hiddenSteps, levelOpens, nearestOpenStep, type DisclosureLevel } from '@/lib/studio/disclosure';
+import { useDisclosureLevel } from '@/lib/studio/use-disclosure-level';
 
 const SmartContractsScreen = dynamic(() => import('@/components/SmartContractsScreen'), { ssr: false });
+// The two level views the shell renders itself: the plain questions of level
+// one in place of Foundation, and the typed document of level four over the steps.
+const LevelOneTemplate = dynamic(() => import('@/components/studio/levels/LevelOneTemplate'), { ssr: false });
+const LevelFourBlueprint = dynamic(() => import('@/components/studio/levels/LevelFourBlueprint'), { ssr: false });
 
 /* ---- Error Boundary ---- */
 class StepErrorBoundary extends Component<
@@ -55,6 +63,8 @@ export type StepProps = {
   goPrev: () => void;
   projectId: string | null;
   onSubStepChange?: (subStepIndex: number) => void;
+  /** The disclosure level the shell shows: 1 Template, 2 Outcomes, 3 Designer, 4 Blueprint. */
+  disclosureLevel?: DisclosureLevel;
 };
 
 const isComponentType = (x: any): x is React.ComponentType<any> =>
@@ -131,6 +141,18 @@ export default function StudioShell({
   const [subStepIndex, setSubStepIndex] = useState(0);
   const [projectId] = useState<string | null>(initialProjectId);
   const [contractsOpen, setContractsOpen] = useState(false);
+  const [documentOpen, setDocumentOpen] = useState(false);
+
+  // The disclosure level (specification 11.6). It lives in the build state of
+  // the project through Cerulea APIs; a project still being founded holds it
+  // in memory at the default for its division and template.
+  const disclosure = useDisclosureLevel({
+    projectId,
+    division: typeof window === 'undefined' ? null : getClientDivision(),
+    templateId: (studio as { templateId?: string | null }).templateId ?? null,
+  });
+  const level = disclosure.level;
+  const withheld = useMemo(() => hiddenSteps(level), [level]);
 
   useEffect(() => {
     if (stepIndex > currentWorkflow.length - 1) {
@@ -143,12 +165,29 @@ export default function StudioShell({
     if (stepIndex > 0) setSubStepIndex(0);
   }, [stepIndex]);
 
+  // A level that withholds the open step moves the person to the nearest open one.
+  useEffect(() => {
+    if (!disclosure.ready) return;
+    const open = nearestOpenStep(level, stepIndex);
+    if (open !== stepIndex) setStepIndex(open);
+    if (!levelOpens(level, 'document')) setDocumentOpen(false);
+  }, [level, stepIndex, disclosure.ready]);
+
   const TOTAL_STEPS = currentWorkflow.length;
   const step = currentWorkflow[stepIndex];
   const StepView = useMemo(() => makeLazy(step), [step]);
 
-  const goPrev = useCallback(() => setStepIndex((i) => Math.max(0, i - 1)), []);
-  const goNext = useCallback(() => setStepIndex((i) => Math.min(TOTAL_STEPS - 1, i + 1)), [TOTAL_STEPS]);
+  // Previous and next move through the steps the level opens.
+  const goPrev = useCallback(() => setStepIndex((i) => {
+    let next = i - 1;
+    while (next >= 0 && withheld.includes(next)) next -= 1;
+    return Math.max(0, next < 0 ? i : next);
+  }), [withheld]);
+  const goNext = useCallback(() => setStepIndex((i) => {
+    let next = i + 1;
+    while (next <= TOTAL_STEPS - 1 && withheld.includes(next)) next += 1;
+    return next > TOTAL_STEPS - 1 ? i : next;
+  }), [TOTAL_STEPS, withheld]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -237,6 +276,7 @@ export default function StudioShell({
           onSmartContractsOpen={() => setContractsOpen((o) => !o)}
           smartContractsActive={contractsOpen}
           onShowProjects={onShowProjects}
+          hiddenSteps={withheld}
         />
 
         {/* Step content area */}
@@ -247,18 +287,40 @@ export default function StudioShell({
           display: 'flex',
           flexDirection: 'column',
         }}>
+          {/* The level switch, in the place of the production track bar */}
+          <LevelSwitch
+            level={level}
+            saving={disclosure.saving}
+            onLevelChange={(next) => void disclosure.setLevel(next)}
+            onOpenDocument={projectId ? () => setDocumentOpen((o) => !o) : undefined}
+            documentOpen={documentOpen}
+          />
+          {disclosure.failure && (
+            <Typography variant="caption" color="error" sx={{ px: 2, py: 0.5 }}>
+              {disclosure.failure.message} {disclosure.failure.fix}
+            </Typography>
+          )}
           <StepErrorBoundary stepLabel={step.label || `Step ${stepIndex + 1}`}>
             <Suspense fallback={
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                 <Typography color="text.secondary">Loading…</Typography>
               </Box>
             }>
-              <StepView
-                goNext={goNext}
-                goPrev={goPrev}
-                projectId={projectId}
-                onSubStepChange={setSubStepIndex}
-              />
+              {documentOpen && projectId && levelOpens(level, 'document') ? (
+                <Box sx={{ flex: 1, overflow: 'auto' }}>
+                  <LevelFourBlueprint projectId={projectId} />
+                </Box>
+              ) : level === 1 && stepIndex === STEP_FOUNDATION && projectId ? (
+                <LevelOneTemplate projectId={projectId} onBuilt={() => setStepIndex(STEP_DEPLOY)} />
+              ) : (
+                <StepView
+                  goNext={goNext}
+                  goPrev={goPrev}
+                  projectId={projectId}
+                  onSubStepChange={setSubStepIndex}
+                  disclosureLevel={level}
+                />
+              )}
             </Suspense>
           </StepErrorBoundary>
         </Box>

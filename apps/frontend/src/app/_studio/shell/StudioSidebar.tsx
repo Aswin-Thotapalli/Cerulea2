@@ -84,9 +84,11 @@ export interface StudioSidebarProps {
   onSmartContractsOpen?: () => void;
   smartContractsActive?: boolean;
   onShowProjects?: () => void;
+  /** Shell step indexes the disclosure level withholds. Those rows stay out of the list. */
+  hiddenSteps?: number[];
 }
 
-export default function StudioSidebar({ stepIndex, subStepIndex, projectType, onStepChange, onSmartContractsOpen, smartContractsActive, onShowProjects }: StudioSidebarProps) {
+export default function StudioSidebar({ stepIndex, subStepIndex, projectType, onStepChange, onSmartContractsOpen, smartContractsActive, onShowProjects, hiddenSteps = [] }: StudioSidebarProps) {
   const theme = useTheme();
   const { data: session } = useSession();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -253,6 +255,7 @@ export default function StudioSidebar({ stepIndex, subStepIndex, projectType, on
         {/* ── Steps 2–6 ── */}
         {MAIN_STEPS.slice(1).map((step, i) => {
           const realIdx = i + 1;
+          if (hiddenSteps.includes(realIdx)) return null;
           const isDone   = stepIndex > realIdx;
           const isActive = stepIndex === realIdx;
           const opacity  = isDone ? 1 : isActive ? 1 : Math.max(0.07, 0.30 - i * 0.06);
