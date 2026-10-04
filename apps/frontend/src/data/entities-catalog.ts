@@ -516,7 +516,7 @@ export const ENTITIES_CATALOG: CatalogEntity[] = [
   {
     id: 'validator',
     name: 'Validator',
-    description: 'A network validator node in a private blockchain.',
+    description: 'A network validator node in a private Blockchain.',
     category: 'Chain-specific',
     moduleIds: ['staking', 'consensus', 'blockchain'],
     fields: [

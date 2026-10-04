@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-08-03T00:39:24.988Z",
+  "updatedAt": "2026-10-04T03:11:00.680Z",
   "templates": [
     {
       "id": "dapp-crypto-wallet",
@@ -52,7 +52,8 @@
           "Tokens",
           "Activity"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-nft-marketplace",
@@ -115,7 +116,8 @@
           "Sell",
           "Profile"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-defi-amm",
@@ -131,7 +133,7 @@
       "preinstalledModules": [
         "amm",
         "erc20",
-        "oracles",
+        "oracles-dapp",
         "treasury",
         "wallet-auth",
         "analytics",
@@ -140,7 +142,7 @@
       "modules": [
         "amm",
         "erc20",
-        "oracles",
+        "oracles-dapp",
         "treasury",
         "wallet-auth",
         "analytics",
@@ -149,7 +151,7 @@
       ],
       "edges": [
         {
-          "from": "oracles",
+          "from": "oracles-dapp",
           "to": "amm",
           "rel": "feeds"
         },
@@ -165,7 +167,8 @@
           "Pools",
           "Analytics"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-lending-borrowing",
@@ -189,12 +192,12 @@
         "wallet-auth",
         "analytics",
         "notifications",
-        "oracles",
+        "oracles-dapp",
         "liquidation-bot-hooks"
       ],
       "edges": [
         {
-          "from": "oracles",
+          "from": "oracles-dapp",
           "to": "lending-pool",
           "rel": "feeds"
         }
@@ -205,7 +208,8 @@
           "Markets",
           "My Positions"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-stablecoin-issuer",
@@ -233,11 +237,11 @@
         "kyc",
         "analytics",
         "notifications",
-        "oracles"
+        "oracles-dapp"
       ],
       "edges": [
         {
-          "from": "oracles",
+          "from": "oracles-dapp",
           "to": "peg-controller",
           "rel": "feeds"
         }
@@ -248,7 +252,8 @@
           "Reserves",
           "Policies"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-derivatives-exchange",
@@ -263,7 +268,7 @@
       ],
       "preinstalledModules": [
         "erc20",
-        "oracles",
+        "oracles-dapp",
         "wallet-auth",
         "analytics",
         "notifications"
@@ -272,14 +277,14 @@
         "perps-engine",
         "options-engine",
         "erc20",
-        "oracles",
+        "oracles-dapp",
         "wallet-auth",
         "analytics",
         "notifications"
       ],
       "edges": [
         {
-          "from": "oracles",
+          "from": "oracles-dapp",
           "to": "perps-engine",
           "rel": "feeds"
         }
@@ -290,7 +295,8 @@
           "Positions",
           "Risk"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-prediction-markets",
@@ -303,7 +309,7 @@
         "oracle"
       ],
       "preinstalledModules": [
-        "oracles",
+        "oracles-dapp",
         "wallet-auth",
         "profiles",
         "analytics",
@@ -311,7 +317,7 @@
       ],
       "modules": [
         "prediction-market",
-        "oracles",
+        "oracles-dapp",
         "wallet-auth",
         "profiles",
         "analytics",
@@ -319,7 +325,7 @@
       ],
       "edges": [
         {
-          "from": "oracles",
+          "from": "oracles-dapp",
           "to": "prediction-market",
           "rel": "resolves"
         }
@@ -330,7 +336,8 @@
           "My Bets",
           "Create"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-insurance-mutual",
@@ -343,7 +350,7 @@
         "defi"
       ],
       "preinstalledModules": [
-        "oracles",
+        "oracles-dapp",
         "treasury",
         "proposals",
         "voting",
@@ -352,7 +359,7 @@
       ],
       "modules": [
         "insurance-parametric",
-        "oracles",
+        "oracles-dapp",
         "treasury",
         "proposals",
         "voting",
@@ -362,7 +369,7 @@
       ],
       "edges": [
         {
-          "from": "oracles",
+          "from": "oracles-dapp",
           "to": "insurance-parametric",
           "rel": "triggers"
         }
@@ -373,7 +380,8 @@
           "Claims",
           "Governance"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-crowdfunding-launchpad",
@@ -417,7 +425,8 @@
           "Buy",
           "Vesting"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-grants-dao",
@@ -461,7 +470,8 @@
           "Rounds",
           "Treasury"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-creator-platform",
@@ -508,7 +518,8 @@
           "Creator",
           "Subscribe"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-social-app",
@@ -552,7 +563,8 @@
           "Profile",
           "Messages"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-ticketing-passes",
@@ -603,7 +615,8 @@
           "Scan",
           "Resale"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-education-certificates",
@@ -647,7 +660,8 @@
           "Verify",
           "Directory"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-ecommerce-crypto",
@@ -696,7 +710,8 @@
           "Checkout",
           "Orders"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-rwa-tokenization",
@@ -747,7 +762,8 @@
           "Invest",
           "Compliance"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-donations-charity",
@@ -789,7 +805,8 @@
           "Impact",
           "Reports"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-gaming-platform",
@@ -831,7 +848,8 @@
           "Market",
           "Profile"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-analytics-dashboard",
@@ -871,7 +889,8 @@
           "Dashboards",
           "Alerts"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-oracle-board",
@@ -884,20 +903,20 @@
         "analytics"
       ],
       "preinstalledModules": [
-        "oracles",
+        "oracles-dapp",
         "analytics",
         "wallet-auth",
         "notifications"
       ],
       "modules": [
-        "oracles",
+        "oracles-dapp",
         "analytics",
         "wallet-auth",
         "notifications"
       ],
       "edges": [
         {
-          "from": "oracles",
+          "from": "oracles-dapp",
           "to": "analytics",
           "rel": "feeds"
         }
@@ -908,7 +927,8 @@
           "Alerts",
           "Integrations"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-kyc-community",
@@ -949,7 +969,8 @@
           "Members",
           "Spaces"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-subscriptions-app",
@@ -991,7 +1012,8 @@
           "Subscribe",
           "Billing"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-file-backed-nfts",
@@ -1034,7 +1056,8 @@
           "Mint",
           "Item"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-services-marketplace",
@@ -1074,7 +1097,8 @@
           "Post a Job",
           "My Jobs"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "dapp-blank",
@@ -1100,7 +1124,8 @@
         "pages": [
           "Home"
         ]
-      }
+      },
+      "division": "dapp"
     },
     {
       "id": "chain-evm-poa",
@@ -1151,7 +1176,8 @@
           "RPC Console",
           "Network Status"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-staking-pos",
@@ -1205,7 +1231,8 @@
           "Staking",
           "Blocks"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-consortium-evm",
@@ -1252,7 +1279,8 @@
           "Validators",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-payments-ht",
@@ -1297,7 +1325,8 @@
           "Mempool",
           "Fee Controls"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-supply-provenance",
@@ -1343,7 +1372,8 @@
           "Events",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-notary-timestamps",
@@ -1385,7 +1415,8 @@
           "Verify",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-identity-ssi",
@@ -1427,13 +1458,14 @@
           "Verify",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-enterprise-defi-l2",
       "projectType": "blockchain",
       "title": "Enterprise DeFi L2 (Private)",
-      "description": "Private EVM environment for internal markets with configurable fees and monitoring.",
+      "description": "Private EVM environment for internal markets with the fees the operator sets and with monitoring.",
       "tags": [
         "defi",
         "l2",
@@ -1472,7 +1504,8 @@
           "Explorer",
           "Metrics"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-gaming-sidechain",
@@ -1516,7 +1549,8 @@
           "Game Ops",
           "Metrics"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-iot-telemetry",
@@ -1559,7 +1593,8 @@
           "Events",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-audit-compliance",
@@ -1600,7 +1635,8 @@
           "Explorer",
           "Sinks"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-health-records",
@@ -1643,7 +1679,8 @@
           "Audit",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-zk-rollup-l2",
@@ -1692,7 +1729,8 @@
         ]
       },
       "selfServe": false,
-      "gated": true
+      "gated": true,
+      "division": "shared"
     },
     {
       "id": "chain-optimistic-rollup-l2",
@@ -1741,7 +1779,8 @@
         ]
       },
       "selfServe": false,
-      "gated": true
+      "gated": true,
+      "division": "shared"
     },
     {
       "id": "chain-app-rollup-l3",
@@ -1783,7 +1822,8 @@
         ]
       },
       "selfServe": false,
-      "gated": true
+      "gated": true,
+      "division": "shared"
     },
     {
       "id": "chain-shared-sequencer",
@@ -1822,7 +1862,8 @@
         ]
       },
       "selfServe": false,
-      "gated": true
+      "gated": true,
+      "division": "shared"
     },
     {
       "id": "chain-pbs-mev",
@@ -1865,7 +1906,8 @@
         ]
       },
       "selfServe": false,
-      "gated": true
+      "gated": true,
+      "division": "shared"
     },
     {
       "id": "chain-fhe-first",
@@ -1905,7 +1947,8 @@
         ]
       },
       "selfServe": false,
-      "gated": true
+      "gated": true,
+      "division": "shared"
     },
     {
       "id": "chain-data-availability",
@@ -1943,7 +1986,8 @@
           "Sampling",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-oracle-utility",
@@ -1982,7 +2026,8 @@
           "Publishers",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-bridge-hub",
@@ -2020,7 +2065,8 @@
           "Attestations",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-mpc-custody",
@@ -2058,7 +2104,8 @@
           "Policies",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-pki-ct",
@@ -2097,7 +2144,8 @@
           "Monitors",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-research-reproducibility",
@@ -2137,7 +2185,8 @@
           "Attestations",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-land-title-registry",
@@ -2181,7 +2230,8 @@
           "Transfers",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-voting-audit",
@@ -2222,7 +2272,8 @@
           "Results",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-procurement-grants",
@@ -2262,7 +2313,8 @@
           "Awards",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-benefits-subsidy",
@@ -2302,7 +2354,8 @@
           "Beneficiaries",
           "Reports"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-court-evidence",
@@ -2343,7 +2396,8 @@
           "Submissions",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-carbon-credits",
@@ -2383,7 +2437,8 @@
           "Retirements",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-rec-registry",
@@ -2422,7 +2477,8 @@
           "Transfers",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-p2p-energy",
@@ -2463,7 +2519,8 @@
           "Settlement",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-ev-charging",
@@ -2502,7 +2559,8 @@
           "Settlements",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-realestate-registry",
@@ -2544,7 +2602,8 @@
           "Closings",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-construction-bim",
@@ -2583,7 +2642,8 @@
           "Milestones",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-telecom-roaming",
@@ -2622,7 +2682,8 @@
           "Settlements",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-spectrum-number",
@@ -2662,7 +2723,8 @@
           "Leases",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-royalty-licensing",
@@ -2701,7 +2763,8 @@
           "Splits",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-ad-measurement",
@@ -2740,7 +2803,8 @@
           "Partners",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-loyalty-coalition",
@@ -2779,7 +2843,8 @@
           "Partners",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-retail-warranty",
@@ -2818,7 +2883,8 @@
           "Returns",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-marketplace-settlement",
@@ -2860,7 +2926,8 @@
           "Settlements",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-supply-inventory-visibility",
@@ -2902,7 +2969,8 @@
           "Inventory",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-agri-traceability",
@@ -2944,7 +3012,8 @@
           "Certificates",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-agri-parametric-insurance",
@@ -2984,7 +3053,8 @@
           "Claims",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-agri-subsidy-ledger",
@@ -3024,7 +3094,8 @@
           "Beneficiaries",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-commodities-grades",
@@ -3065,7 +3136,8 @@
           "Grades",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-mobility-clearing",
@@ -3106,7 +3178,8 @@
           "Operators",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-toll-parking",
@@ -3147,7 +3220,8 @@
           "Channels",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-fleet-maintenance",
@@ -3188,7 +3262,8 @@
           "Records",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-core-banking",
@@ -3230,7 +3305,8 @@
           "Postings",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-interbank-rtgs",
@@ -3271,7 +3347,8 @@
           "Windows",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-cbdc-controls",
@@ -3312,7 +3389,8 @@
           "Policies",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-securities-issuance",
@@ -3354,7 +3432,8 @@
           "Actions",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-rwa-fund-admin",
@@ -3393,7 +3472,8 @@
           "Investors",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-trade-finance",
@@ -3433,7 +3513,8 @@
           "eBL",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-collateral-repo",
@@ -3474,7 +3555,8 @@
           "Eligibility",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-insurance-claims",
@@ -3514,7 +3596,8 @@
           "Claims",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-private-exchange",
@@ -3555,7 +3638,8 @@
           "Surveillance",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-kyc-utility",
@@ -3594,7 +3678,8 @@
           "Attestations",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-merchant-rails",
@@ -3635,7 +3720,8 @@
           "Disputes",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-enterprise-ops",
@@ -3675,7 +3761,8 @@
           "Expenses",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-procurement-ledger",
@@ -3714,7 +3801,8 @@
           "POs",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-itam-inventory",
@@ -3755,7 +3843,8 @@
           "Events",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-compliance-attest",
@@ -3794,7 +3883,8 @@
           "Attestations",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-sports-membership",
@@ -3835,7 +3925,8 @@
           "Votes",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-royalty-contracts",
@@ -3874,7 +3965,8 @@
           "Splits",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-venue-ops",
@@ -3915,7 +4007,8 @@
           "Settlements",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-ai-provenance",
@@ -3955,7 +4048,8 @@
           "Licenses",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-data-clean-room",
@@ -3994,7 +4088,8 @@
           "Policies",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-analytics-federation",
@@ -4033,7 +4128,8 @@
           "Results",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-devnet",
@@ -4071,7 +4167,8 @@
           "Console",
           "Status"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-public-testnet",
@@ -4114,7 +4211,8 @@
           "Explorer",
           "Validators"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-research-sandbox",
@@ -4154,7 +4252,8 @@
           "Hooks",
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "id": "chain-blank",
@@ -4182,7 +4281,8 @@
         "pages": [
           "Explorer"
         ]
-      }
+      },
+      "division": "shared"
     },
     {
       "title": "Tax Compliance & GST Reconciliation Ledger",
@@ -4192,7 +4292,7 @@
       "selfServe": true,
       "gated": false,
       "blurb": "Immutable GST return anchoring, TDS certificate issuance, inter-party invoice reconciliation, and tax audit trail for GSTN and income tax authority integration.",
-      "description": "Pre-configures the anchoring of GST returns and TDS certificates so any transaction party can independently verify the other's filed returns without direct GSTN access. compliance-attestations handles periodic return submissions, evidence-chain handles dispute evidence, and provenance-notary anchors original filing timestamps. Directly applicable to the Income Tax Department's blockchain audit trail programme and GSTN invoice-matching dispute resolution.",
+      "description": "Pre-configures the anchoring of GST returns and TDS certificates so any transaction party can independently verify the other's filed returns without direct GSTN access. compliance-attestations handles periodic return submissions, evidence-chain handles dispute evidence, and provenance-notary anchors original filing timestamps. Directly applicable to the Income Tax Department's Blockchain audit trail programme and GSTN invoice-matching dispute resolution.",
       "modules": [
         "consensus",
         "evm-config",
@@ -4216,7 +4316,8 @@
         "provenance-notary",
         "kyc-utility-registry",
         "api-gateway"
-      ]
+      ],
+      "division": "shared"
     },
     {
       "title": "Diagnostics & Lab Result Integrity Chain",
@@ -4252,7 +4353,8 @@
         "did-vc-ledger",
         "compliance-attestations",
         "api-gateway"
-      ]
+      ],
+      "division": "shared"
     },
     {
       "title": "Industrial Emissions Permit & Compliance Monitor",
@@ -4288,7 +4390,8 @@
         "device-attestation",
         "oracles",
         "api-gateway"
-      ]
+      ],
+      "division": "shared"
     },
     {
       "title": "Food Safety Recall Coordination Network",
@@ -4324,7 +4427,8 @@
         "compliance-attestations",
         "indexer-sink",
         "api-gateway"
-      ]
+      ],
+      "division": "shared"
     },
     {
       "title": "IP Registry, Licensing & ADR Evidence Vault",
@@ -4360,7 +4464,8 @@
         "royalty-clearing",
         "compliance-attestations",
         "api-gateway"
-      ]
+      ],
+      "division": "shared"
     },
     {
       "title": "Digital Travel Document & Border Verification",
@@ -4394,7 +4499,8 @@
         "privacy-compliance",
         "provenance-notary",
         "api-gateway"
-      ]
+      ],
+      "division": "shared"
     },
     {
       "title": "Responsible Gambling Self-Exclusion Registry",
@@ -4428,7 +4534,8 @@
         "privacy-compliance",
         "compliance-attestations",
         "api-gateway"
-      ]
+      ],
+      "division": "shared"
     },
     {
       "title": "Satellite Operations & Spectrum Coordination Registry",
@@ -4438,7 +4545,7 @@
       "selfServe": true,
       "gated": false,
       "blurb": "Orbital slot and spectrum filing registry with ITU-anchored priority dates, satellite network coordination records, space debris tracking data contribution, and launch compliance attestation.",
-      "description": "Distinct from chain-spectrum-number which handles terrestrial mobile network spectrum and TRAI numbering. Satellite operations are governed by the ITU Radiocommunication Bureau where orbital slot priority is determined by ITU filing date — exactly what provenance-notary anchors immutably. node-permissioning controls data sovereignty for multi-agency debris tracking (ISRO, NASA, ESA). compliance-attestations handles ITU coordination obligation filings. Primary buyers: ISRO, NewSpace India Limited, and commercial satellite operators emerging from India's space privatisation policy.",
+      "description": "Distinct from chain-spectrum-number which handles terrestrial mobile network spectrum and TRAI numbering. Satellite operations are governed by the ITU Radiocommunication Bureau where orbital slot priority is determined by ITU filing date, which is exactly what provenance-notary anchors immutably. node-permissioning controls data sovereignty for multi-agency debris tracking (ISRO, NASA, ESA). compliance-attestations handles ITU coordination obligation filings. Primary buyers: ISRO, NewSpace India Limited, and commercial satellite operators emerging from India's space privatisation policy.",
       "modules": [
         "consensus",
         "evm-config",
@@ -4464,7 +4571,8 @@
         "compliance-attestations",
         "node-permissioning",
         "api-gateway"
-      ]
+      ],
+      "division": "shared"
     },
     {
       "title": "Customs Clearance & Trade Document Chain",
@@ -4474,7 +4582,7 @@
       "selfServe": true,
       "gated": false,
       "blurb": "Digital customs filing, port entry and exit event anchoring, duty calculation audit trail, and customs authority verification integration for ICEGATE alignment.",
-      "description": "Distinct from chain-trade-finance which handles the private-sector trade flow (LCs, eBL, invoices between buyers and sellers). Customs clearance is the government workflow: the importer or CHA files a Bill of Entry, customs valuation is assessed, duty is paid, and goods are released. Each event is anchored with the filing agent's DID credential and timestamp. India's ICEGATE portal handles electronic filing but has no blockchain layer. Buyer: CBIC and major Customs House Agents. Lower priority because the sales cycle involves government procurement, but a direct extension of the trade finance use case.",
+      "description": "Distinct from chain-trade-finance which handles the private-sector trade flow (LCs, eBL, invoices between buyers and sellers). Customs clearance is the government workflow: the importer or CHA files a Bill of Entry, customs valuation is assessed, duty is paid, and goods are released. Each event is anchored with the filing agent's DID credential and timestamp. India's ICEGATE portal handles electronic filing but has no Blockchain layer. Buyer: CBIC and major Customs House Agents. Lower priority because the sales cycle involves government procurement, but a direct extension of the trade finance use case.",
       "modules": [
         "consensus",
         "evm-config",
@@ -4498,7 +4606,8 @@
         "compliance-attestations",
         "kyc-utility-registry",
         "api-gateway"
-      ]
+      ],
+      "division": "shared"
     },
     {
       "title": "Aircraft Parts MRO Provenance & Airworthiness",
@@ -4538,7 +4647,8 @@
         "quality-recalls",
         "node-permissioning",
         "api-gateway"
-      ]
+      ],
+      "division": "shared"
     },
     {
       "title": "International Trade Compliance & Dispute Evidence",
@@ -4574,7 +4684,8 @@
         "compliance-attestations",
         "node-permissioning",
         "api-gateway"
-      ]
+      ],
+      "division": "shared"
     },
     {
       "id": "govt-land-records",
@@ -4789,7 +4900,7 @@
       "projectType": "blockchain",
       "division": "enterprise",
       "title": "Supply Chain Provenance",
-      "description": "Track-and-trace across your supply chain with RBAC and audit-grade logging.",
+      "description": "Track-and-trace across the supply chain with RBAC and audit-grade logging.",
       "tags": [
         "supply-chain",
         "provenance",
@@ -4839,7 +4950,7 @@
       "projectType": "blockchain",
       "division": "enterprise",
       "title": "Trade Finance & Invoice Ledger",
-      "description": "A permissioned invoice and trade-finance ledger integrated with your ERP.",
+      "description": "A permissioned invoice and trade-finance ledger integrated with the ERP.",
       "tags": [
         "trade-finance",
         "invoice",
@@ -4987,6 +5098,403 @@
           "Access Control"
         ]
       }
+    },
+    {
+      "id": "govt-court-records",
+      "projectType": "blockchain",
+      "title": "Court Records and Evidence",
+      "description": "The template holds court evidence with an unbroken handling record, sealed items and an access log a court reads.",
+      "tags": [
+        "government",
+        "court_records"
+      ],
+      "preinstalledModules": [
+        "evidence-chain",
+        "provenance-notary",
+        "private-tx",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations"
+      ],
+      "modules": [
+        "evidence-chain",
+        "provenance-notary",
+        "private-tx",
+        "civil-registry",
+        "govt-interdept",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      },
+      "division": "govt",
+      "selfServe": false,
+      "gated": false
+    },
+    {
+      "id": "govt-farm-support",
+      "projectType": "blockchain",
+      "title": "Farm Support Distribution",
+      "description": "The template runs farm support from the published rate through enrolment and eligibility to the payments, with an appeal path.",
+      "tags": [
+        "government",
+        "farm_support"
+      ],
+      "preinstalledModules": [
+        "farm-subsidy-ledger",
+        "land-title-registry",
+        "kyc-utility-registry",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations"
+      ],
+      "modules": [
+        "farm-subsidy-ledger",
+        "land-title-registry",
+        "kyc-utility-registry",
+        "produce-grades",
+        "traceability-ledger",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      },
+      "division": "govt",
+      "selfServe": false,
+      "gated": false
+    },
+    {
+      "id": "govt-grants",
+      "projectType": "blockchain",
+      "title": "Grants",
+      "description": "The template runs a grant programme from the application through review and milestones to the payouts, with the decisions published.",
+      "tags": [
+        "government",
+        "grants"
+      ],
+      "preinstalledModules": [
+        "grants-manager",
+        "escrow-settlement",
+        "compliance-attestations",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance"
+      ],
+      "modules": [
+        "grants-manager",
+        "escrow-settlement",
+        "compliance-attestations",
+        "kyc-utility-registry",
+        "govt-interdept",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      },
+      "division": "govt",
+      "selfServe": false,
+      "gated": false
+    },
+    {
+      "id": "govt-inter-department-transfer",
+      "projectType": "blockchain",
+      "title": "Inter Department Transfer",
+      "description": "The template moves a case, a budget line or a statutory duty between departments with both sides recording the same handover.",
+      "tags": [
+        "government",
+        "inter_department_transfer"
+      ],
+      "preinstalledModules": [
+        "govt-interdept",
+        "evidence-chain",
+        "compliance-attestations",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance"
+      ],
+      "modules": [
+        "govt-interdept",
+        "evidence-chain",
+        "compliance-attestations",
+        "civil-registry",
+        "indexer-sink",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      },
+      "division": "govt",
+      "selfServe": false,
+      "gated": false
+    },
+    {
+      "id": "govt-licensing",
+      "projectType": "blockchain",
+      "title": "Licensing",
+      "description": "The template runs a public licence register with classes, renewals, sanctions and the allocation registers a regulator keeps.",
+      "tags": [
+        "government",
+        "licensing"
+      ],
+      "preinstalledModules": [
+        "licence-register",
+        "spectrum-registry",
+        "number-registry",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations"
+      ],
+      "modules": [
+        "licence-register",
+        "spectrum-registry",
+        "number-registry",
+        "civil-registry",
+        "did-vc-ledger",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      },
+      "division": "govt",
+      "selfServe": false,
+      "gated": false
+    },
+    {
+      "id": "govt-permits",
+      "projectType": "blockchain",
+      "title": "Permits",
+      "description": "The template runs a permit application from the submission through inspections to a decision, with the conditions published beside the permit.",
+      "tags": [
+        "government",
+        "permits"
+      ],
+      "preinstalledModules": [
+        "permit-issuance",
+        "civil-registry",
+        "evidence-chain",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations"
+      ],
+      "modules": [
+        "permit-issuance",
+        "civil-registry",
+        "evidence-chain",
+        "land-title-registry",
+        "licence-register",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      },
+      "division": "govt",
+      "selfServe": false,
+      "gated": false
+    },
+    {
+      "id": "govt-public-health-records",
+      "projectType": "blockchain",
+      "title": "Public Health Records",
+      "description": "The template anchors clinical records under patient consent, with every reading logged and reportable counts held apart from names.",
+      "tags": [
+        "government",
+        "public_health_records"
+      ],
+      "preinstalledModules": [
+        "health-record-anchor",
+        "civil-registry",
+        "private-tx",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations"
+      ],
+      "modules": [
+        "health-record-anchor",
+        "civil-registry",
+        "private-tx",
+        "evidence-chain",
+        "licence-register",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "privacy-compliance",
+        "compliance-attestations",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      },
+      "division": "govt",
+      "selfServe": false,
+      "gated": false
+    },
+    {
+      "id": "govt-public-voting",
+      "projectType": "blockchain",
+      "title": "Public Voting and Tallies",
+      "description": "The template runs a public vote with a published roll size, sealed votes, station totals and a result any observer recomputes.",
+      "tags": [
+        "government",
+        "public_voting"
+      ],
+      "preinstalledModules": [
+        "public-ballot-tally",
+        "civil-registry",
+        "evidence-chain",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "compliance-attestations"
+      ],
+      "modules": [
+        "public-ballot-tally",
+        "civil-registry",
+        "evidence-chain",
+        "provenance-notary",
+        "privacy-compliance",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "compliance-attestations",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      },
+      "division": "govt",
+      "selfServe": false,
+      "gated": false
+    },
+    {
+      "id": "govt-welfare-delivery",
+      "projectType": "blockchain",
+      "title": "Welfare Delivery",
+      "description": "The template runs a benefit programme from enrolment through eligibility to payment, with an appeal path a household reaches.",
+      "tags": [
+        "government",
+        "welfare_delivery"
+      ],
+      "preinstalledModules": [
+        "welfare-disbursement",
+        "civil-registry",
+        "kyc-utility-registry",
+        "privacy-compliance",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "compliance-attestations"
+      ],
+      "modules": [
+        "welfare-disbursement",
+        "civil-registry",
+        "kyc-utility-registry",
+        "privacy-compliance",
+        "govt-interdept",
+        "metrics-dashboards",
+        "alerts-paging",
+        "log-shipping",
+        "backups-restore",
+        "kms-signing",
+        "compliance-attestations",
+        "indexer-sink",
+        "api-gateway"
+      ],
+      "edges": [],
+      "ui": {
+        "pages": []
+      },
+      "division": "govt",
+      "selfServe": false,
+      "gated": false
     }
   ]
 }

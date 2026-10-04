@@ -5,7 +5,7 @@
 
     { "id": "stripe",           "name": "Stripe",              "category": "Payments",       "description": "The standard for online payments and subscriptions.",               "docsUrl": "https://stripe.com/docs",              "fields": ["publishableKey","secretKey","webhookSecret"] },
     { "id": "paypal",           "name": "PayPal",              "category": "Payments",       "description": "Accept PayPal, Venmo, and Pay Later options.",                      "fields": ["clientId","clientSecret","webhookId"] },
-    { "id": "coinbase",         "name": "Coinbase Commerce",   "category": "Payments",       "description": "Accept crypto payments directly to your wallet.",                   "fields": ["apiKey","webhookSecret"] },
+    { "id": "coinbase",         "name": "Coinbase Commerce",   "category": "Payments",       "description": "Accept crypto payments directly to the project wallet.",                   "fields": ["apiKey","webhookSecret"] },
     { "id": "lemonsqueezy",     "name": "Lemon Squeezy",       "category": "Payments",       "description": "Merchant of record for SaaS tax compliance.",                       "fields": ["apiKey","storeId","webhookSecret"] },
     { "id": "razorpay",         "name": "Razorpay",            "category": "Payments",       "description": "Payment gateway solution for India.",                               "fields": ["keyId","keySecret"] },
 
@@ -32,7 +32,7 @@
     { "id": "aws_kms",          "name": "AWS KMS",             "category": "Storage",        "description": "Platform signing keys for audit trail PDFs and chain signing.",     "docsUrl": "https://docs.aws.amazon.com/kms", "fields": ["keyArn","accessKey","secretKey","region"] },
 
     { "id": "chainlink",        "name": "Chainlink",           "category": "Data",           "description": "Decentralized oracle networks.",                                    "fields": ["subId","rpcUrl"] },
-    { "id": "graph",            "name": "The Graph",           "category": "Data",           "description": "Index blockchain data with Subgraphs.",                             "fields": ["apiKey","subgraphId"] },
+    { "id": "graph",            "name": "The Graph",           "category": "Data",           "description": "Index Blockchain data with Subgraphs.",                             "fields": ["apiKey","subgraphId"] },
     { "id": "alchemy",          "name": "Alchemy",             "category": "Data",           "description": "Web3 development platform and nodes.",                              "fields": ["apiKey","appId"] },
     { "id": "moralis",          "name": "Moralis",             "category": "Data",           "description": "Enterprise-grade Web3 APIs.",                                       "fields": ["apiKey"] },
     { "id": "pyth",             "name": "Pyth Network",        "category": "Data",           "description": "Real-time market data oracle.",                                     "fields": ["hermesUrl"] },
@@ -52,8 +52,8 @@
     { "id": "discord_webhook",  "name": "Discord",             "category": "Webhooks",       "description": "Send alerts to a Discord channel.",                                 "fields": ["webhookUrl"] },
     { "id": "telegram_bot",     "name": "Telegram Bot",        "category": "Webhooks",       "description": "Send messages via a Telegram Bot.",                                 "fields": ["botToken","chatId"] },
     { "id": "zapier",           "name": "Zapier",              "category": "Webhooks",       "description": "Trigger multi-step Zapier workflows.",                              "fields": ["webhookUrl"] },
-    { "id": "custom_webhook",   "name": "Custom Endpoint",     "category": "Webhooks",       "description": "Send JSON payloads to your own server.",                            "fields": ["url","secret","headers"] },
-    { "id": "pagerduty",        "name": "PagerDuty",           "category": "Webhooks",       "description": "Critical incident alerts — chain halt, validator down.",            "docsUrl": "https://developer.pagerduty.com", "fields": ["integrationKey","apiToken","serviceId"] }
+    { "id": "custom_webhook",   "name": "Custom Endpoint",     "category": "Webhooks",       "description": "Send JSON payloads to a server the project names.",                            "fields": ["url","secret","headers"] },
+    { "id": "pagerduty",        "name": "PagerDuty",           "category": "Webhooks",       "description": "Critical incident alerts: chain halt, validator down.",            "docsUrl": "https://developer.pagerduty.com", "fields": ["integrationKey","apiToken","serviceId"] }
 
   ]
 }

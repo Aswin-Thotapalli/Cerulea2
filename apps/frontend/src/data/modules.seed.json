@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-08-03T00:39:24.987Z",
+  "updatedAt": "2026-10-04T03:11:00.680Z",
   "modules": [
     {
       "moduleId": "wallet-auth",
@@ -15,7 +15,7 @@
       "blurb": "Sign in with a crypto wallet; optional server session.",
       "longDescription": [
         "Provides secure sign-in using a user’s wallet (SIWE-style), with an option to maintain a short-lived server session for convenience. It establishes a canonical identity that other modules reference for permissions and personalization.",
-        "Use this when users interact on-chain or when you need cryptographic proof of ownership. Typically connects to RBAC for roles, to KYC for compliance gating, and to device/session management for better security posture."
+        "Use this when users interact on-chain or when the application needs cryptographic proof of ownership. Typically connects to RBAC for roles, to KYC for compliance gating, and to device/session management for better security posture."
       ],
       "dependsOn": [],
       "recommends": [
@@ -61,7 +61,7 @@
       "blurb": "Scoped, time-limited keys for safer frequent actions.",
       "longDescription": [
         "Creates short-lived, limited-scope session keys so users can perform frequent actions without re-signing every time. Reduces friction while preserving intent and auditability.",
-        "Combine with Wallet Authentication for identity binding, and consider Account Abstraction if you plan to sponsor gas. Define scopes carefully (e.g., trading vs. profile updates) and assign conservative TTLs."
+        "Combine with Wallet Authentication for identity binding, and consider Account Abstraction when the application sponsors gas. Define scopes carefully (e.g., trading vs. profile updates) and assign conservative TTLs."
       ],
       "dependsOn": [],
       "recommends": [
@@ -106,7 +106,7 @@
       ],
       "blurb": "Web2 sign-in with optional custodial wallet.",
       "longDescription": [
-        "Adds OAuth-based sign-in (Google, Apple, GitHub, etc.) and can optionally pair users with a custodial wallet for instant onboarding. Useful when your audience is new to crypto.",
+        "Adds OAuth-based sign-in (Google, Apple, GitHub, etc.) and can optionally pair users with a custodial wallet for instant onboarding. Useful when the audience is new to crypto.",
         "Often used alongside Wallet Authentication to support both crypto-native and Web2 users. If using a custodial wallet, define clear limits and upgrade paths to self-custody."
       ],
       "dependsOn": [],
@@ -339,7 +339,7 @@
       "blurb": "Verify user identity and gate restricted features.",
       "longDescription": [
         "Adds know-your-customer (KYC) checks for users who must pass identity verification before accessing restricted features. Supports multiple providers and levels.",
-        "Use when your product has regulatory requirements or higher fraud risk. Gate sensitive actions (e.g., withdrawals) and re-check periodically to meet policy."
+        "Use when the product has regulatory requirements or higher fraud risk. Gate sensitive actions (e.g., withdrawals) and re-check periodically to meet policy."
       ],
       "dependsOn": [
         "wallet-auth"
@@ -439,7 +439,7 @@
       "blurb": "Convert local currency to crypto inside the app.",
       "longDescription": [
         "Allows users to buy crypto using cards or local payment rails and credits their wallet after settlement. Reduces drop off for users who do not hold tokens yet.",
-        "Select regional providers that match your compliance needs. Connect to Treasury for accounting and to Notifications or Email for receipts and status updates."
+        "Select regional providers that match the compliance needs of the product. Connect to Treasury for accounting and to Notifications or Email for receipts and status updates."
       ],
       "dependsOn": [],
       "recommends": [
@@ -571,7 +571,7 @@
       ],
       "blurb": "Promo codes, limited time offers, and bundles.",
       "longDescription": [
-        "Lets you create coupon codes, limited time discounts, and product bundles. Works with on-chain and off-chain payments.",
+        "Creates coupon codes, limited time discounts, and product bundles. Works with on-chain and off-chain payments.",
         "Scope promotions to user segments and plans. Prevent abuse with rate limits and unique code generation. Connect to Analytics to measure uplift."
       ],
       "dependsOn": [],
@@ -602,42 +602,6 @@
       }
     },
     {
-      "moduleId": "upi-payments",
-      "title": "UPI Payments",
-      "projectType": "dapp",
-      "category": "wallets-payments",
-      "tags": [
-        "india",
-        "payments"
-      ],
-      "blurb": "Unified Payments Interface support for India.",
-      "longDescription": [
-        "Adds UPI as a first class payment option for purchases and credits. Helps local users pay instantly with familiar flows.",
-        "Usually integrated through a provider adapter such as Razorpay. Consider UPI intent on mobile and reconcile postings in Treasury."
-      ],
-      "dependsOn": [],
-      "recommends": [
-        "razorpay-adapter",
-        "treasury"
-      ],
-      "reasonByDepId": {},
-      "configSchema": {
-        "type": "object",
-        "properties": {
-          "requireVpaValidation": {
-            "type": "boolean",
-            "default": true
-          },
-          "timeoutSecs": {
-            "type": "integer",
-            "minimum": 10,
-            "default": 300
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    {
       "moduleId": "erc20",
       "title": "ERC-20 Token",
       "projectType": "dapp",
@@ -649,7 +613,7 @@
       "blurb": "Fungible token for payments, rewards, and fees.",
       "longDescription": [
         "Implements a standard fungible token contract suitable for payments, rewards, and protocol fees. Provides mint, burn, and transfer hooks as needed.",
-        "Plan decimals and supply based on your economy. Connect to Treasury for accounting and to Subscriptions, Staking, or AMM modules when you use the token for utility."
+        "Plan decimals and supply around the economy of the product. Connect to Treasury for accounting and to Subscriptions, Staking, or AMM modules when the token carries utility."
       ],
       "dependsOn": [],
       "recommends": [
@@ -738,7 +702,7 @@
       "blurb": "Batch friendly multi token standard.",
       "longDescription": [
         "Implements a multi token contract that handles both fungible and non fungible types in one collection. Efficient for games and complex drops.",
-        "Plan token id ranges and supply per id. Pair with Marketplace if you plan to trade items and with Metadata Pipeline for dynamic content."
+        "Plan token id ranges and supply per id. Pair with Marketplace when items trade and with Metadata Pipeline for dynamic content."
       ],
       "dependsOn": [],
       "recommends": [
@@ -922,51 +886,6 @@
       }
     },
     {
-      "moduleId": "token-vesting",
-      "title": "Token Vesting",
-      "projectType": "dapp",
-      "category": "tokens-assets",
-      "tags": [
-        "vesting",
-        "distribution"
-      ],
-      "blurb": "Linear and cliff schedules for token grants.",
-      "longDescription": [
-        "Provides time based token release for teams, investors, and community programs. Supports cliffs, linear unlocks, and revocation.",
-        "Plan schedules in relation to governance and liquidity events. Pair with Treasury for accounting and with Analytics for progress reports."
-      ],
-      "dependsOn": [
-        "erc20"
-      ],
-      "recommends": [
-        "treasury",
-        "analytics"
-      ],
-      "reasonByDepId": {
-        "erc20": "Vesting releases an ERC-20 token over time to recipients."
-      },
-      "configSchema": {
-        "type": "object",
-        "properties": {
-          "cliffMonths": {
-            "type": "integer",
-            "minimum": 0,
-            "default": 6
-          },
-          "durationMonths": {
-            "type": "integer",
-            "minimum": 1,
-            "default": 36
-          },
-          "revocable": {
-            "type": "boolean",
-            "default": true
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    {
       "moduleId": "buyback-burn",
       "title": "Buyback and Burn",
       "projectType": "dapp",
@@ -1019,7 +938,7 @@
       "blurb": "Abstraction for bridging tokens across chains.",
       "longDescription": [
         "Adds a bridge interface that can connect to different providers to move tokens across networks. Keeps the app level integration stable as providers change.",
-        "Select providers that match your security and cost profile. Consider fast finality and failure modes. Expose status in UI so users trust the flow."
+        "Select providers that match the security and cost profile of the product. Consider fast finality and failure modes. Expose status in UI so users trust the flow."
       ],
       "dependsOn": [
         "erc20"
@@ -1062,7 +981,7 @@
       "blurb": "Phased drops, allowlists, limits, and royalties.",
       "longDescription": [
         "Provides a production-grade minting workflow for NFT collections, including allowlists, phased releases, per-wallet limits, and automatic royalty metadata. It is designed to handle high-traffic drops with predictable performance.",
-        "Connect to ERC-721 for token issuance and to Royalties for secondary market revenue. Draw edges to Treasury for revenue accounting and to Notifications or Emails to inform buyers about sale events. Pair with Metadata Pipeline when you need pre-processing or delayed reveal."
+        "Connect to ERC-721 for token issuance and to Royalties for secondary market revenue. Draw edges to Treasury for revenue accounting and to Notifications or Emails to inform buyers about sale events. Pair with Metadata Pipeline for pre-processing or a delayed reveal."
       ],
       "dependsOn": [
         "erc721"
@@ -1144,7 +1063,7 @@
       "blurb": "Image processing, JSON metadata, and upload.",
       "longDescription": [
         "Prepares images and metadata for NFT collections at scale. Generates JSON metadata, resizes assets, and uploads to the chosen storage. Helps ensure metadata consistency and predictable mint performance.",
-        "Use with NFT Minting for primary sales and with Dynamic NFT when traits update on chain. Configure storage to IPFS or a managed bucket and plan for backups and content hashing."
+        "Use with NFT Minting for primary sales and with Dynamic NFT when traits update on chain. Point storage at IPFS or at a managed bucket, then plan for backups and content hashing."
       ],
       "dependsOn": [],
       "recommends": [
@@ -1194,14 +1113,14 @@
       "blurb": "Delayed reveal with provable randomness.",
       "longDescription": [
         "Supports delayed reveal strategies where art or traits are hidden until a scheduled time. Assigns metadata using provable randomness to avoid manipulation.",
-        "Use with NFT Minting for hype cycles and with Oracles or a randomness beacon if you require verifiable draws. Communicate reveal schedules clearly in the UI and enforce them on chain."
+        "Use with NFT Minting for hype cycles and with Oracles or a randomness beacon for verifiable draws. Communicate reveal schedules clearly in the UI and enforce them on chain."
       ],
       "dependsOn": [
         "erc721"
       ],
       "recommends": [
         "nft-metadata-pipeline",
-        "oracles"
+        "oracles-dapp"
       ],
       "reasonByDepId": {
         "erc721": "Reveal mechanics map final metadata to specific ERC-721 token IDs."
@@ -1238,7 +1157,7 @@
       "blurb": "Trait frequencies and rarity scoring.",
       "longDescription": [
         "Calculates rarity scores from trait frequencies across a collection. Exposes rankings for discovery and marketplace displays.",
-        "Run it after metadata is finalized or post-reveal. Cache results for performance and expose APIs for your UI and partners."
+        "Run it after metadata is finalized or post-reveal. Cache results for performance and expose APIs for the UI and for partners."
       ],
       "dependsOn": [
         "nft-metadata-pipeline"
@@ -1325,7 +1244,7 @@
         "erc721"
       ],
       "recommends": [
-        "oracles",
+        "oracles-dapp",
         "nft-metadata-pipeline"
       ],
       "reasonByDepId": {
@@ -1449,7 +1368,7 @@
         "erc20"
       ],
       "recommends": [
-        "oracles",
+        "oracles-dapp",
         "analytics"
       ],
       "reasonByDepId": {
@@ -1493,7 +1412,7 @@
       ],
       "dependsOn": [
         "erc20",
-        "oracles"
+        "oracles-dapp"
       ],
       "recommends": [
         "analytics",
@@ -1501,7 +1420,7 @@
       ],
       "reasonByDepId": {
         "erc20": "Lending and borrowing are denominated in ERC-20 assets.",
-        "oracles": "Loan-to-value and liquidations require accurate price information."
+        "oracles-dapp": "Loan-to-value and liquidations require accurate price information."
       },
       "configSchema": {
         "type": "object",
@@ -1636,14 +1555,14 @@
       ],
       "dependsOn": [
         "erc20",
-        "oracles"
+        "oracles-dapp"
       ],
       "recommends": [
         "analytics"
       ],
       "reasonByDepId": {
         "erc20": "Staking and receipt tokens are ERC-20 based assets.",
-        "oracles": "Accurate pricing helps users understand value and risk."
+        "oracles-dapp": "Accurate pricing helps users understand value and risk."
       },
       "configSchema": {
         "type": "object",
@@ -1677,7 +1596,7 @@
         "Requires robust oracle feeds and risk checks. Monitor funding rates and liquidations in Analytics and communicate risks clearly to users."
       ],
       "dependsOn": [
-        "oracles",
+        "oracles-dapp",
         "treasury"
       ],
       "recommends": [
@@ -1685,8 +1604,8 @@
         "rate-limit"
       ],
       "reasonByDepId": {
-        "oracles": "Perpetual pricing and liquidations depend on timely and accurate price feeds.",
-        "treasury": "Margin, collateral, and payouts are accounted in treasury ledgers."
+        "treasury": "Margin, collateral, and payouts are accounted in treasury ledgers.",
+        "oracles-dapp": "Perpetual pricing and liquidations depend on timely and accurate price feeds."
       },
       "configSchema": {
         "type": "object",
@@ -1720,13 +1639,13 @@
         "Feeds typically come from Oracles. Store time series sparsely to control costs and preload key views in Analytics for speed."
       ],
       "dependsOn": [
-        "oracles"
+        "oracles-dapp"
       ],
       "recommends": [
         "analytics"
       ],
       "reasonByDepId": {
-        "oracles": "Reliable price feeds are required to value positions and render charts."
+        "oracles-dapp": "Reliable price feeds are required to value positions and render charts."
       },
       "configSchema": {
         "type": "object",
@@ -1755,7 +1674,7 @@
       ],
       "blurb": "Token or membership voting with quorum and delays.",
       "longDescription": [
-        "Adds governance voting with configurable quorum, threshold, and delay parameters. Works for token voting or membership voting depending on your community model.",
+        "Adds governance voting with the quorum, threshold and delay values the project sets. Works for token voting or membership voting depending on the community model.",
         "Decide whether proposals execute automatically or require a timelock. Pair with Proposals for authoring and with Treasury if votes control budgets."
       ],
       "dependsOn": [],
@@ -1889,13 +1808,13 @@
       ],
       "blurb": "Visual flows for triggers, actions, and checks.",
       "longDescription": [
-        "Lets you design business logic as visual flows that run on user actions or on-chain events. Supports branching, loops, and calls to other modules.",
+        "Designs business logic as visual flows that run on user actions or on-chain events. Supports branching, loops, and calls to other modules.",
         "Draw edges to indicate data sources and side effects. Keep critical checks simple and test flows with sample payloads before enabling in production."
       ],
       "dependsOn": [],
       "recommends": [
         "event-bus",
-        "oracles"
+        "oracles-dapp"
       ],
       "reasonByDepId": {},
       "configSchema": {
@@ -1951,7 +1870,7 @@
       }
     },
     {
-      "moduleId": "oracles",
+      "moduleId": "oracles-dapp",
       "title": "External Data Oracles",
       "projectType": "dapp",
       "category": "data-logic",
@@ -2035,7 +1954,7 @@
       "blurb": "Index contract events into queryable views.",
       "longDescription": [
         "Streams contract events into a query layer for fast reads. Useful for feeds, leaderboards, and dashboards without complex on-chain iteration.",
-        "Define entities that mirror your contracts and keep mappings simple. Coordinate schema updates with app deploys to avoid broken queries."
+        "Define entities that mirror the contracts and keep mappings simple. Coordinate schema updates with app deploys to avoid broken queries."
       ],
       "dependsOn": [],
       "recommends": [
@@ -2175,7 +2094,7 @@
       "blurb": "Receipts, alerts, and passwordless codes.",
       "longDescription": [
         "Sends transactional messages such as receipts and security alerts. Supports templates and localization for consistent communication.",
-        "Connect through SendGrid or SES adapters. Publish events for delivery status and keep templates versioned with your code."
+        "Connect through SendGrid or SES adapters. Publish events for delivery status and keep templates versioned with the code."
       ],
       "dependsOn": [],
       "recommends": [
@@ -2277,41 +2196,6 @@
           "allowReactions": {
             "type": "boolean",
             "default": true
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    {
-      "moduleId": "feature-flags",
-      "title": "Feature Flags",
-      "projectType": "dapp",
-      "category": "comms-engagement",
-      "tags": [
-        "flags",
-        "ops"
-      ],
-      "blurb": "Roll out changes safely to segments.",
-      "longDescription": [
-        "Controls feature availability by environment, user segment, or percentage. Reduces risk during launches and experiments.",
-        "Keep flag names stable and document default states. Audit changes and avoid mixing flags with long term product decisions."
-      ],
-      "dependsOn": [],
-      "recommends": [
-        "analytics"
-      ],
-      "reasonByDepId": {},
-      "configSchema": {
-        "type": "object",
-        "properties": {
-          "segments": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "default": [
-              "all"
-            ]
           }
         },
         "additionalProperties": false
@@ -2479,7 +2363,7 @@
       "blurb": "Per-user and per-route quotas and throttles.",
       "longDescription": [
         "Adds global and per-user throttles to protect APIs and costly actions. Helps manage abuse and keep operating costs predictable.",
-        "Define separate limits for sign-in, minting, and withdrawals. Emit metrics so you can tune without guesswork."
+        "Define separate limits for sign-in, minting, and withdrawals. Emit metrics so tuning rests on measurement."
       ],
       "dependsOn": [],
       "recommends": [
@@ -2515,7 +2399,7 @@
       ],
       "blurb": "Tamper-evident logs for sensitive actions.",
       "longDescription": [
-        "Captures a signed record of sensitive actions and configuration changes. Improves accountability and incident response.",
+        "Captures a signed record of sensitive actions and of every change to a platform value. Improves accountability and incident response.",
         "Store logs with retention policies and secure access. Pair with Audit Export for compliance and with Alerts for critical events."
       ],
       "dependsOn": [],
@@ -2574,37 +2458,6 @@
       }
     },
     {
-      "moduleId": "cms-pages",
-      "title": "CMS Pages",
-      "projectType": "dapp",
-      "category": "content-ui",
-      "tags": [
-        "cms",
-        "pages"
-      ],
-      "blurb": "Editable marketing and help pages.",
-      "longDescription": [
-        "Enables non-technical authors to edit public pages such as marketing and help content. Keeps product teams fast without code deploys.",
-        "Define roles that can publish. Use draft previews and track changes so updates are safe and auditable."
-      ],
-      "dependsOn": [],
-      "recommends": [
-        "rbac",
-        "media-library"
-      ],
-      "reasonByDepId": {},
-      "configSchema": {
-        "type": "object",
-        "properties": {
-          "allowCustomBlocks": {
-            "type": "boolean",
-            "default": true
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    {
       "moduleId": "theme-branding",
       "title": "Theme and Branding",
       "projectType": "dapp",
@@ -2627,45 +2480,6 @@
           "brandName": {
             "type": "string",
             "default": ""
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    {
-      "moduleId": "i18n",
-      "title": "Internationalization",
-      "projectType": "dapp",
-      "category": "content-ui",
-      "tags": [
-        "i18n",
-        "localization"
-      ],
-      "blurb": "Translate UI and content for multiple locales.",
-      "longDescription": [
-        "Adds translation keys, locale routing, and formatting helpers so your app can serve multiple markets cleanly.",
-        "Choose default locale and fallback behavior. Keep keys stable to avoid translation churn and version templates with code."
-      ],
-      "dependsOn": [],
-      "recommends": [
-        "cms-pages"
-      ],
-      "reasonByDepId": {},
-      "configSchema": {
-        "type": "object",
-        "properties": {
-          "defaultLocale": {
-            "type": "string",
-            "default": "en"
-          },
-          "supportedLocales": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "default": [
-              "en"
-            ]
           }
         },
         "additionalProperties": false
@@ -2752,7 +2566,7 @@
       ],
       "blurb": "Export logs and reports for audits.",
       "longDescription": [
-        "Packages logs and configuration snapshots into an audit bundle for review. Simplifies compliance workflows and vendor reviews.",
+        "Packages logs and snapshots of the values in force into an audit bundle for review. Simplifies compliance workflows and vendor reviews.",
         "Coordinate exports with retention policies. Secure bundles with checksums and provide a chain of custody."
       ],
       "dependsOn": [
@@ -2824,7 +2638,7 @@
       "blurb": "Send emails through Amazon SES.",
       "longDescription": [
         "Connects the Emails module to Amazon SES. Supports regional endpoints and verified identities for production workloads.",
-        "Configure sending quotas and handle suppression lists. Store credentials in Secrets and prefer IAM roles in production."
+        "Set sending quotas and handle suppression lists. Store credentials in Secrets and prefer IAM roles in production."
       ],
       "dependsOn": [],
       "recommends": [
@@ -2977,8 +2791,8 @@
       ],
       "blurb": "Global on-ramp through Transak.",
       "longDescription": [
-        "Adds a fiat to crypto on-ramp using Transak. Useful when you want broad country coverage with a single integration.",
-        "Configure allowed assets and regions. Show KYC expectations up front to avoid drop off."
+        "Adds a fiat to crypto on-ramp using Transak. Useful for broad country coverage with a single integration.",
+        "Name the allowed assets and the allowed regions. Show KYC expectations up front to avoid drop off."
       ],
       "dependsOn": [],
       "recommends": [
@@ -3042,7 +2856,7 @@
       "blurb": "On-ramp option for India via CoinSwitch.",
       "longDescription": [
         "Adds a local on-ramp path in India using CoinSwitch where supported. Can improve approval rates for domestic users.",
-        "Validate supported assets and set expectations for settlement times. Keep provider choice configurable."
+        "Validate supported assets and set expectations for settlement times. Keep the provider choice open to change."
       ],
       "dependsOn": [],
       "recommends": [
@@ -3078,7 +2892,7 @@
       ],
       "dependsOn": [],
       "recommends": [
-        "oracles"
+        "oracles-dapp"
       ],
       "reasonByDepId": {},
       "configSchema": {
@@ -3144,7 +2958,7 @@
       ],
       "blurb": "Discord bot for commands and alerts.",
       "longDescription": [
-        "Exposes bot commands and webhooks to connect your app to Discord communities. Useful for alerts, allowlists, and support.",
+        "Exposes bot commands and webhooks to connect the app to Discord communities. Useful for alerts, allowlists, and support.",
         "Respect rate limits and permission scopes. Store tokens in Secrets and provide an audit trail for admin commands."
       ],
       "dependsOn": [],
@@ -3176,7 +2990,7 @@
       ],
       "blurb": "Telegram bot for commands and alerts.",
       "longDescription": [
-        "Connects bot commands and updates to your app so you can run alerts or light workflows in Telegram. Good for communities in emerging markets.",
+        "Connects bot commands and updates to the app so alerts or light workflows run in Telegram. Good for communities in emerging markets.",
         "Use webhook mode when possible and handle retries. Store tokens safely and restrict admin actions."
       ],
       "dependsOn": [],
@@ -3310,8 +3124,8 @@
       ],
       "blurb": "Route cards, UPI, netbanking across gateways.",
       "longDescription": [
-        "Configurable routing across card/UPI/net banking providers with failover and cost/approval optimization.",
-        "Normalizes events and metadata for your order and ledger systems."
+        "Routing across card/UPI/net banking providers with failover and cost/approval optimization, with the rules the project sets.",
+        "Normalizes events and metadata for the order and ledger systems."
       ],
       "dependsOn": [],
       "recommends": [
@@ -3484,7 +3298,7 @@
       "blurb": "Deliver signed event webhooks to partners.",
       "longDescription": [
         "Configures event filters and endpoints; delivers retries with exponential backoff and HMAC signatures.",
-        "Ideal for partners that need to react to your app events."
+        "Ideal for partners that need to react to the app events."
       ],
       "dependsOn": [],
       "recommends": [
@@ -3875,7 +3689,7 @@
       "blurb": "Manage marketing/docs pages and content blocks.",
       "longDescription": [
         "Stores localized content blocks and pages with versioning and preview.",
-        "Feeds your UI Composer pages and static routes."
+        "Feeds the UI Composer pages and static routes."
       ],
       "dependsOn": [],
       "recommends": [
@@ -4170,7 +3984,7 @@
       ],
       "blurb": "Queue, delay, and execute approved proposals safely.",
       "longDescription": [
-        "Queues proposal actions behind a configurable delay, giving time for audits, cancellations, or emergency pauses.",
+        "Queues proposal actions behind a delay the project sets, giving time for audits, cancellations, or emergency pauses.",
         "Pairs with voting modules and multisigs for robust governance pipelines."
       ],
       "dependsOn": [
@@ -4666,13 +4480,13 @@
       "blurb": "Deterministic or randomizable feeds for tests.",
       "longDescription": [
         "Produces price/weather/custom signals on timers or manual triggers for local/testing environments.",
-        "Lets you simulate edge cases and failure modes reliably."
+        "Simulates edge cases and failure modes reliably in a test setting."
       ],
       "dependsOn": [
         "local-chain-devnet"
       ],
       "recommends": [
-        "oracles"
+        "oracles-dapp"
       ],
       "reasonByDepId": {
         "local-chain-devnet": "Publishes mock events to a controlled chain."
@@ -4803,7 +4617,7 @@
       ],
       "blurb": "Transactions, blocks, and addresses UI.",
       "longDescription": [
-        "Provides a web interface to browse blocks, transactions, and addresses for your network. Useful for developers and users to inspect activity.",
+        "Provides a web interface to browse blocks, transactions, and addresses for the network. Useful for developers and users to inspect activity.",
         "Add filters and search to speed discovery. Host behind a CDN and keep APIs paginated for performance."
       ],
       "dependsOn": [],
@@ -4834,7 +4648,7 @@
       ],
       "blurb": "Select and tune the network consensus.",
       "longDescription": [
-        "Configures the consensus mechanism for your private network, such as Proof of Authority or a Byzantine fault tolerant variant. Focuses on predictable finality, validator set management, and safety parameters.",
+        "Sets the Dynamic Consensus Framework profile for a private network: the Commit Engine thresholds, the Authoring Engine committee size and the Admission Engine rules. Focuses on predictable finality, validator set management, and safety parameters.",
         "Choose based on throughput needs and trust assumptions. Coordinate validator identities and consider how upgrades change quorum requirements."
       ],
       "dependsOn": [],
@@ -4865,7 +4679,7 @@
     },
     {
       "moduleId": "evm-config",
-      "title": "EVM Configuration",
+      "title": "EVM Parameters",
       "projectType": "blockchain",
       "category": "core-protocol",
       "tags": [
@@ -4875,7 +4689,7 @@
       "blurb": "Chain ID, precompiles, and protocol flags.",
       "longDescription": [
         "Sets core EVM parameters such as chain ID, fork rules, and active precompiles. Ensures compatibility with tooling and clients.",
-        "Plan upgrades on a schedule and test contracts against your configuration. Document deviations from public networks for developers."
+        "Plan upgrades on a schedule and test contracts against the values in force. Document deviations from public networks for developers."
       ],
       "dependsOn": [],
       "recommends": [
@@ -5028,7 +4842,7 @@
       "blurb": "Network randomness for draws and assignments.",
       "longDescription": [
         "Provides a verifiable randomness source for protocol features that require unbiased draws, leader selection, or fair ordering. Designed for predictable latency and auditability in private networks.",
-        "Choose a source that matches your threat model and availability goals. Coordinate parameters with upgrade schedules and document how consumers handle failures or delays."
+        "Choose a source that matches the threat model and the availability goals. Coordinate parameters with upgrade schedules and document how consumers handle failures or delays."
       ],
       "dependsOn": [],
       "recommends": [
@@ -5067,8 +4881,8 @@
       ],
       "blurb": "Plan and execute protocol upgrades safely.",
       "longDescription": [
-        "Schedules and coordinates protocol upgrades, including fork activation heights and configuration changes. Ensures validators apply changes consistently to avoid splits.",
-        "Pick an approval strategy that fits your governance model and require notice periods for operational readiness. Version every upgrade with changelogs."
+        "Schedules and coordinates protocol upgrades, including fork activation heights and changes to protocol values. Ensures validators apply changes consistently to avoid splits.",
+        "Pick an approval strategy that fits the governance model and require notice periods for operational readiness. Version every upgrade with changelogs."
       ],
       "dependsOn": [],
       "recommends": [
@@ -5107,7 +4921,7 @@
         "economics",
         "supply"
       ],
-      "blurb": "Configure supply, issuance, and rewards.",
+      "blurb": "Set supply, issuance, and rewards.",
       "longDescription": [
         "Defines supply characteristics, issuance schedules, and reward distribution for validators and delegators. Forms the foundation of network incentives.",
         "Model scenarios for inflation and burn before launch. Coordinate with Fees, Validators, and Governance so incentives align across the system."
@@ -5406,7 +5220,7 @@
       ],
       "blurb": "Built-in token or message bridge between chains.",
       "longDescription": [
-        "Enables a native bridge for tokens or messages between your chain and designated networks. Supports confirmations and replay protections.",
+        "Enables a native bridge for tokens or messages between this chain and designated networks. Supports confirmations and replay protections.",
         "Carefully document trust assumptions and monitoring. Expose status for operators and users and test fault paths before enabling value transfer."
       ],
       "dependsOn": [],
@@ -5518,17 +5332,17 @@
         "evm",
         "precompiles"
       ],
-      "blurb": "Enable or configure EVM precompiles.",
+      "blurb": "Enable or adjust EVM precompiles.",
       "longDescription": [
-        "Controls which precompiles are exposed and their parameters where applicable. Helps tailor performance and features for your network.",
-        "Coordinate changes with EVM Configuration and test contracts that rely on specific precompiles before upgrades."
+        "Controls which precompiles are exposed and their parameters where applicable. Helps tailor performance and features for the network.",
+        "Coordinate changes with EVM Parameters and test contracts that rely on specific precompiles before upgrades."
       ],
       "dependsOn": [
         "evm-config"
       ],
       "recommends": [],
       "reasonByDepId": {
-        "evm-config": "Precompile availability depends on core EVM configuration and fork rules."
+        "evm-config": "Precompile availability depends on the core EVM values and on fork rules."
       },
       "configSchema": {
         "type": "object",
@@ -5966,46 +5780,6 @@
             "type": "integer",
             "minimum": 1,
             "default": 1000
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    {
-      "moduleId": "faucet",
-      "title": "Faucet",
-      "projectType": "blockchain",
-      "category": "apis-devex",
-      "tags": [
-        "faucet",
-        "testnet"
-      ],
-      "blurb": "Fund test accounts with small amounts.",
-      "longDescription": [
-        "Provides a faucet endpoint and basic UI to fund developer or QA accounts with small token amounts. Essential for testnets and pilots.",
-        "Throttle by address and IP to prevent abuse. Keep faucet wallets isolated and funded by policy."
-      ],
-      "dependsOn": [
-        "tokenomics"
-      ],
-      "recommends": [
-        "rate-limit",
-        "analytics"
-      ],
-      "reasonByDepId": {
-        "tokenomics": "Faucet issuance policies must respect the network's token supply and economics settings."
-      },
-      "configSchema": {
-        "type": "object",
-        "properties": {
-          "maxPerAddressPerDay": {
-            "type": "number",
-            "minimum": 0,
-            "default": 1
-          },
-          "captcha": {
-            "type": "boolean",
-            "default": true
           }
         },
         "additionalProperties": false
@@ -6490,7 +6264,7 @@
       ],
       "blurb": "Managed updates to fees, limits, and protocol params.",
       "longDescription": [
-        "On-chain configuration for economic and protocol parameters with auditable changes and role/consensus gating.",
+        "On-chain control of economic and protocol parameters with auditable changes and role/consensus gating.",
         "Supports proposals, voting, timelocks, and staged rollouts."
       ],
       "dependsOn": [
@@ -6567,7 +6341,7 @@
         "spam",
         "tx-policy"
       ],
-      "blurb": "Configurable acceptance policies for pending txs.",
+      "blurb": "Acceptance policies the project sets for pending txs.",
       "longDescription": [
         "Controls admission, replacement, and prioritization rules for the mempool.",
         "Helps mitigate spam, enforce fee floors, and coordinate with PBS/MEV policies."
@@ -8489,7 +8263,7 @@
       ],
       "blurb": "Granular, revocable patient consent for health record access by provider type and purpose.",
       "longDescription": [
-        "Manages consent at the individual record category level — lab results, imaging, prescriptions, discharge summaries — with time-bound and purpose-limited grants. Satisfies India's DPDP Act obligations for healthcare data. Each grant records the issuing patient's DID, the requesting provider credential, the permitted purpose, and an expiry, all anchored on-chain.",
+        "Manages consent at the individual record category level (lab results, imaging, prescriptions, discharge summaries) with time-bound and purpose-limited grants. Satisfies India's DPDP Act obligations for healthcare data. Each grant records the issuing patient's DID, the requesting provider credential, the permitted purpose, and an expiry, all anchored on-chain.",
         "Pair with Health Record Anchor for the actual document side and with KYC / Identity Verification to validate that the requesting party is a credentialled provider. RBAC controls which provider types can request which record categories; Audit Logs capture every consent grant, revocation, and access event."
       ],
       "dependsOn": [
@@ -8612,7 +8386,7 @@
         "recall-hub",
         "cold-chain-monitoring",
         "audit-logs",
-        "oracles"
+        "oracles-dapp"
       ],
       "reasonByDepId": {
         "traceability-ledger": "Builds on the generic batch-and-custody model, adding pharma-specific fields and scan flows."
@@ -8676,7 +8450,7 @@
       ],
       "reasonByDepId": {
         "audit-logs": "Protocol amendments, enrollment events, and adverse reports need tamper-evident timestamps.",
-        "evidence-chain": "Trial documents — protocols, ICFs, lab reports — are anchored as evidence items."
+        "evidence-chain": "Trial documents (protocols, ICFs, lab reports) are anchored as evidence items."
       },
       "configSchema": {
         "type": "object",
@@ -8888,7 +8662,7 @@
       ],
       "blurb": "Targeted benefit transfer with eligibility verification, duplicate detection, beneficiary identity linkage, and utilisation tracking.",
       "longDescription": [
-        "Implements Direct Benefit Transfer (DBT) with on-chain eligibility proofs to eliminate ghost beneficiaries. Supports configurable scheme-type parameters (food, fuel, education, healthcare), multi-tier eligibility checks, duplicate detection across beneficiary registers, and per-transaction utilisation tracking. Aadhaar/ABHA identity linkage is supported via adapters.",
+        "Implements Direct Benefit Transfer (DBT) with on-chain eligibility proofs to eliminate ghost beneficiaries. Supports scheme-type parameters the department sets (food, fuel, education, healthcare), multi-tier eligibility checks, duplicate detection across beneficiary registers, and per-transaction utilisation tracking. Aadhaar/ABHA identity linkage is supported via adapters.",
         "Works with CBDC Distribution Engine so that welfare amounts are credited as programmable CBDC restricted to approved merchant categories. Connect to KYC/AML Utility Registry for beneficiary identity verification, to Audit Logs for fund utilisation audits, and to Notifications to inform beneficiaries of credit events."
       ],
       "dependsOn": [
@@ -9044,13 +8818,13 @@
         "manufacturing",
         "emissions"
       ],
-      "blurb": "Configurable sensor data anchor for industrial equipment with threshold alerting and calibration certificate anchoring.",
+      "blurb": "Sensor data anchor for industrial equipment with threshold alerting and calibration certificate anchoring, with thresholds the operator sets.",
       "longDescription": [
-        "Anchors readings from industrial sensors — temperature, pressure, vibration, emissions, flow rate, power consumption — with unit-of-measure schema, device identity, calibration certificate hash, and anomaly thresholds. Each reading event is chained to the previous, making any gap or tampering visible. Calibration certificate renewal events are tracked as lifecycle records.",
+        "Anchors readings from industrial sensors (temperature, pressure, vibration, emissions, flow rate, power consumption) with unit-of-measure schema, device identity, calibration certificate hash, and anomaly thresholds. Each reading event is chained to the previous, making any gap or tampering visible. Calibration certificate renewal events are tracked as lifecycle records.",
         "Covers all industrial sensor use cases not addressed by Energy Meter Oracle (electricity) or Cold Chain Monitoring (food temperature): manufacturing process sensors, mining equipment telemetry, emissions monitors, pipeline flow meters, aerospace test rigs. Connect to Industrial IoT Device Registry for device identity and to Alerts and Paging for threshold breach notifications."
       ],
       "dependsOn": [
-        "oracles"
+        "oracles-dapp"
       ],
       "recommends": [
         "iot-device-registry",
@@ -9060,7 +8834,7 @@
         "audit-logs"
       ],
       "reasonByDepId": {
-        "oracles": "Sensor readings enter the system as attested oracle data with the same freshness and deviation controls as price feeds."
+        "oracles-dapp": "Sensor readings enter the system as attested oracle data with the same freshness and deviation controls as price feeds."
       },
       "configSchema": {
         "type": "object",
@@ -9104,7 +8878,7 @@
       "blurb": "Hierarchical component tree with version control, revision anchoring, and cross-reference to supplier and serial number records.",
       "longDescription": [
         "Tracks the structural relationship between components within a product: which version of which sub-assembly was built into which finished unit. Supports multi-level BOM hierarchies, revision management with diff anchoring, supplier part number cross-referencing, and AS9100 / ISO 9001 part traceability requirements.",
-        "Distinct from the Traceability Ledger which tracks batch custody movements. A BOM Ledger tracks structural composition — what is made of what — and is the data model aerospace, defense, and automotive clients will require for design authority records. Connect to Industrial IoT Sensor Oracle for production parameter anchoring against specific BOM revisions."
+        "Distinct from the Traceability Ledger which tracks batch custody movements. A BOM Ledger tracks structural composition, what is made of what, and is the data model aerospace, defense, and automotive clients will require for design authority records. Connect to Industrial IoT Sensor Oracle for production parameter anchoring against specific BOM revisions."
       ],
       "dependsOn": [
         "onchain-data"
@@ -9220,7 +8994,7 @@
       "blurb": "Multi-party product recall orchestration with affected batch identification, downstream customer alerting, and regulator notification workflow.",
       "longDescription": [
         "The operational coordination layer built on top of the Quality and Recall Ledger. When a recall event is initiated, the hub automatically traverses the traceability graph to identify all downstream customers and retailers who received affected batches, generates regulator notification packages in FSSAI/CDSCO-required formats, routes alerts to affected parties, and tracks acknowledgment and return confirmation.",
-        "Food, pharmaceutical, and automotive clients need this distinct from the raw ledger because the coordination workflow — who to notify, in what order, with what information, by what deadline — requires a separate operational module. Connect to Notifications and Email for the outbound communication layer and to Audit Logs to generate the effectiveness verification report that regulators require after every recall."
+        "Food, pharmaceutical, and automotive clients need this distinct from the raw ledger because the coordination workflow (who to notify, in what order, with what information, by what deadline) requires a separate operational module. Connect to Notifications and Email for the outbound communication layer and to Audit Logs to generate the effectiveness verification report that regulators require after every recall."
       ],
       "dependsOn": [
         "quality-recall-ledger"
@@ -9342,7 +9116,7 @@
       "recommends": [
         "reinsurance-treaty",
         "parametric-insurance",
-        "oracles",
+        "oracles-dapp",
         "regulatory-reporting",
         "notifications"
       ],
@@ -9502,7 +9276,7 @@
       "blurb": "Generate structured regulatory filings (RBI, SEBI, IRDAI, GSTN) from on-chain data with submission receipt anchoring.",
       "longDescription": [
         "Produces machine-readable regulatory submissions directly from on-chain data in the formats that specific Indian regulators require: XBRL for SEBI financial disclosures, JSON schemas for GSTN returns, XML for RBI prudential returns, and IRDAI data submission formats. Each generated report is hashed and anchored with a submission timestamp. Submission acknowledgement receipts from regulator portals are also anchored.",
-        "Different from Audit Evidence Export which handles application-level log packaging. This module generates specific filing formats that regulatory systems ingest directly. It is the last-mile compliance module that transforms an on-chain financial system into a regulator-ready platform. Connect to Chain Audit Export for blockchain-layer data and to Compliance Attestations for the sign-off workflow."
+        "Different from Audit Evidence Export which handles application-level log packaging. This module generates specific filing formats that regulatory systems ingest directly. It is the last-mile compliance module that transforms an on-chain financial system into a regulator-ready platform. Connect to Chain Audit Export for Blockchain-layer data and to Compliance Attestations for the sign-off workflow."
       ],
       "dependsOn": [
         "audit-logs"
@@ -9676,7 +9450,7 @@
       ],
       "blurb": "Register patents, trademarks, copyrights, and trade secrets with ownership history, licensing terms, and royalty distribution rules.",
       "longDescription": [
-        "Manages IP asset registration across all types — patents, trademarks, copyrights, trade secrets — with multiple owners at defined split percentages, licensing tier definitions, sub-licensing permission chains, and jurisdiction-specific validity dates. Ownership history is immutable; transfers and licensing events are anchored with supporting deed hashes.",
+        "Manages IP asset registration across all types (patents, trademarks, copyrights, trade secrets) with multiple owners at defined split percentages, licensing tier definitions, sub-licensing permission chains, and jurisdiction-specific validity dates. Ownership history is immutable; transfers and licensing events are anchored with supporting deed hashes.",
         "Provenance Notary handles the timestamp. DID/VC Ledger issues the credential. But IP management requires this structured registry for the IP Office of India and corporate IP teams to interact with. Connect to Royalty Clearing for automated distribution of licensing royalties to multiple rights holders and to Music Rights Registry for music-specific IP management."
       ],
       "dependsOn": [
@@ -9856,7 +9630,7 @@
       ],
       "blurb": "Portable, cumulative skill and certification profile aggregating credentials from multiple issuers into a single verified learner identity.",
       "longDescription": [
-        "Aggregates credentials from multiple issuing institutions — universities, employers, training providers, bootcamps — into a single verified skill portfolio tied to a learner's DID. Each credential addition event is anchored. The passport exposes a queryable API for HR systems and NSDC-compatible data export. Selective disclosure allows learners to share specific skills without revealing their full profile.",
+        "Aggregates credentials from multiple issuing institutions (universities, employers, training providers, bootcamps) into a single verified skill portfolio tied to a learner's DID. Each credential addition event is anchored. The passport exposes a queryable API for HR systems and NSDC-compatible data export. Selective disclosure allows learners to share specific skills without revealing their full profile.",
         "Each soulbound token or VC credential is a point credential from a single issuer. Skill Passport is the aggregation layer that makes a learner's credentials portable and cumulatively verifiable. Designed for NSDC, Skill India, and corporate L&D platform integration. Connect to Academic Credential Registry for institutional degree inputs and to RBAC to assign platform roles based on verified skills."
       ],
       "dependsOn": [
@@ -9905,7 +9679,7 @@
       "blurb": "Structured registry for song ownership splits with ISRC linkage, PRO reporting, and sample clearance chains.",
       "longDescription": [
         "Manages music rights at the work level: master and publishing ownership splits between composers, lyricists, producers, and labels; ISRC code assignment; performing rights organisation (IPRS, PPL) affiliation records; sample clearance chains; and sync licence records. Every ownership change and licence grant is anchored.",
-        "The Royalty Standard defines the technical split. Royalty Clearing distributes it. This module manages the registry that defines what the split is and why — the authorship records, the agreement terms, and the rights chain — which is what the Indian music industry, streaming platforms, and label legal teams need. Connect to IP Rights Registry for copyright registration linkage and to Royalty Clearing for automated PRO distribution."
+        "The Royalty Standard defines the technical split. Royalty Clearing distributes it. This module manages the registry that defines what the split is and why: the authorship records, the agreement terms, and the rights chain. That registry is what the Indian music industry, streaming platforms, and label legal teams need. Connect to IP Rights Registry for copyright registration linkage and to Royalty Clearing for automated PRO distribution."
       ],
       "dependsOn": [
         "royalty-clearing"
@@ -9956,7 +9730,7 @@
         "in-game",
         "esports"
       ],
-      "blurb": "In-game asset marketplace with listing, bidding, instant sale, cross-game asset transfer, and configurable platform fee and creator royalty.",
+      "blurb": "In-game asset marketplace with listing, bidding, instant sale, cross-game asset transfer, and a platform fee and creator royalty the operator sets.",
       "longDescription": [
         "A purpose-built game asset marketplace with listing management, bid escrow, buy-now mechanics, rental duration enforcement, cross-game compatibility checks, and the game studio's fee collection. Supports ERC-721 and ERC-1155 assets. Transaction history is publicly queryable for provenance.",
         "NFT Rentals and Delegation handles lending. Royalty Clearing handles creator fees. But a gaming marketplace needs the full exchange mechanics as a single integrated module that game studios can embed or white-label. Connect to ERC-721 and ERC-1155 for the underlying asset standards, to Escrow and Conditional Settlement for bid escrow, and to Royalty Standard for automatic creator royalties on every secondary sale."
@@ -10113,7 +9887,7 @@
       "blurb": "Trustless machine-to-machine payment channels for autonomous IoT transactions without human approval per transaction.",
       "longDescription": [
         "Implements payment channels for device-to-device transactions: data marketplace sales, EV charging per kWh, bandwidth metering, and distributed compute microtransactions. Each device has a per-channel spending cap. Channels are opened on-chain and settled periodically without per-transaction on-chain costs. Automatic settlement is triggered at balance or time thresholds.",
-        "State Channels handles the general off-chain channel mechanics. M2M micropayments have a specific pattern — no human in the loop, device-level spending caps, automatic settlement windows — that require a dedicated module. Connect to IoT Device Registry for device identity binding and to Industrial IoT Sensor Oracle when the payment is triggered by a sensor reading event."
+        "State Channels handles the general off-chain channel mechanics. M2M micropayments have a specific pattern (no human in the loop, device-level spending caps, automatic settlement windows) that requires a dedicated module. Connect to IoT Device Registry for device identity binding and to Industrial IoT Sensor Oracle when the payment is triggered by a sensor reading event."
       ],
       "dependsOn": [
         "state-channels"
@@ -10167,7 +9941,7 @@
       "blurb": "Mortgage creation, lien registration, partial release, and satisfaction with bank credential and property title linkage.",
       "longDescription": [
         "Records mortgage charges against a Land Title Registry entry: charge creation with lender DID, principal amount, and equitable or registered mortgage type; partial release on EMI payment with principal balance tracking; and full satisfaction with automatic title clearance notification. CERSAI-compatible data structures for the Central Registry of Securitisation Asset Reconstruction and Security Interest.",
-        "Land Title Registry records ownership. This module records encumbrances — the most commercially important function for banks and housing finance companies who need proof of charge before and after disbursement. Connect to KYB Registry for bank credential verification, to Escrow and Conditional Settlement for disbursement mechanics, and to Stamp Duty and Registration Oracle for associated registration costs."
+        "Land Title Registry records ownership. This module records encumbrances, the most commercially important function for banks and housing finance companies who need proof of charge before and after disbursement. Connect to KYB Registry for bank credential verification, to Escrow and Conditional Settlement for disbursement mechanics, and to Stamp Duty and Registration Oracle for associated registration costs."
       ],
       "dependsOn": [
         "land-title-registry"
@@ -10225,7 +9999,7 @@
         "Every real estate transaction in India requires stamp duty payment and registration. This oracle bridges the gap between the on-chain property record and the state government registration system, turning a prototype into a production-ready platform. Connect to Land Title Registry for the property record, to Mortgage and Lien Manager for registration of charges, and to Audit Logs for the full transaction trail."
       ],
       "dependsOn": [
-        "oracles",
+        "oracles-dapp",
         "land-title-registry"
       ],
       "recommends": [
@@ -10234,8 +10008,8 @@
         "audit-logs"
       ],
       "reasonByDepId": {
-        "oracles": "State guidance values and IGR portal data are fetched as oracle feeds with freshness controls.",
-        "land-title-registry": "Stamp duty is calculated and anchored against a specific property title entry."
+        "land-title-registry": "Stamp duty is calculated and anchored against a specific property title entry.",
+        "oracles-dapp": "State guidance values and IGR portal data are fetched as oracle feeds with freshness controls."
       },
       "configSchema": {
         "type": "object",
@@ -10280,7 +10054,7 @@
       "blurb": "Lease creation, deposit escrow, rent collection scheduling, renewal options, and exit condition enforcement with landlord and tenant credential binding.",
       "longDescription": [
         "Manages the full residential and commercial lease lifecycle: lease term and rent escalation clause definition, security deposit escrow, utility deposit split, notice period rule enforcement, rent collection scheduling with automatic reminders, renewal option tracking, and lease termination or renewal confirmation. Both landlord and tenant DIDs are bound to the agreement at creation.",
-        "Escrow and Conditional Settlement handles the deposit mechanics in isolation. A rental agreement requires the complete lifecycle — from agreement drafting through renewal or exit — that no single existing module provides. High-volume urban rental market in India where a reliable, legally anchored digital lease is a genuine product. Connect to Stamp Duty and Registration Oracle for the mandatory lease registration requirement."
+        "Escrow and Conditional Settlement handles the deposit mechanics in isolation. A rental agreement requires the complete lifecycle, from agreement drafting through renewal or exit, that no single existing module provides. The high-volume urban rental market in India is where a reliable, legally anchored digital lease is a genuine product. Connect to Stamp Duty and Registration Oracle for the mandatory lease registration requirement."
       ],
       "dependsOn": [
         "escrow-settlement"
@@ -10347,7 +10121,7 @@
         "recs-registry",
         "compliance-attestations",
         "regulatory-reporting",
-        "oracles"
+        "oracles-dapp"
       ],
       "reasonByDepId": {
         "audit-logs": "ESG data inputs and verifier sign-off events must be tamper-evidently logged for audit trail integrity."
@@ -10402,7 +10176,7 @@
         "Carbon credits have an existing module. Biodiversity credits are an emerging market following the COP15 framework adopted in 2022 and India's National Biodiversity Action Plan obligations. A dedicated module with the MRV methodology specific to biodiversity positions Cerulea ahead of the market before it matures. Connect to Carbon Credits MRV Registry for combined environmental credit portfolios and to ESG Reporting Ledger for inclusion in BRSR and TNFD disclosures."
       ],
       "dependsOn": [
-        "oracles"
+        "oracles-dapp"
       ],
       "recommends": [
         "carbon-credits-registry",
@@ -10411,7 +10185,7 @@
         "provenance-notary"
       ],
       "reasonByDepId": {
-        "oracles": "Satellite imagery hashes, species count attestations, and habitat measurements enter as oracle-attested data."
+        "oracles-dapp": "Satellite imagery hashes, species count attestations, and habitat measurements enter as oracle-attested data."
       },
       "configSchema": {
         "type": "object",
@@ -10451,7 +10225,7 @@
       "blurb": "Define which addresses or roles can submit which transaction types to the chain; enforce at the mempool level.",
       "longDescription": [
         "Defines a policy table mapping address sets and on-chain roles to permitted transaction types, and enforces it at the mempool level before transactions are included in a block. Policy updates are governance-gated. An emergency override path exists for regulatory-ordered blocks that bypasses normal governance timing.",
-        "Node Permissioning controls which nodes can join the network. Permissioned Private Transactions encrypts payload content. Neither controls which participants can submit which transaction types — the use case where a government-run private chain needs to allow a tax authority to query all transactions while restricting banks to only certain transaction types. Connect to KYB Registry for role-to-address binding and to Audit Logs for policy change records."
+        "Node Permissioning controls which nodes can join the network. Permissioned Private Transactions encrypts payload content. Neither controls which participants can submit which transaction types. This module serves the case where a government-run private chain allows a tax authority to query all transactions while restricting banks to certain transaction types. Connect to KYB Registry for role-to-address binding and to Audit Logs for policy change records."
       ],
       "dependsOn": [
         "node-permissioning"
@@ -10559,7 +10333,7 @@
       "blurb": "Scheduled or on-demand export of all chain transactions in regulator-specified formats with cryptographic completeness proof.",
       "longDescription": [
         "Generates full transaction history exports in JSON, CSV, or XBRL format with a Merkle proof of completeness so the regulator can verify that no transactions were omitted between any two block heights. Supports scheduled automated exports for regular filing periods and on-demand exports for regulatory examination requests. Export packages are signed by the chain operator's KMS key.",
-        "Audit Evidence Export on the dApp side handles application-level log packages. This blockchain-layer module exports the chain itself: every transaction in the specified range with a cryptographic proof that the export is complete and unaltered. RBI, SEBI, or CCI will request exactly this during a regulatory examination of a blockchain-based financial system."
+        "Audit Evidence Export on the dApp side handles application-level log packages. This Blockchain-layer module exports the chain itself: every transaction in the specified range with a cryptographic proof that the export is complete and unaltered. RBI, SEBI, or CCI will request exactly this during a regulatory examination of a Blockchain-based financial system."
       ],
       "dependsOn": [
         "audit-logs"
@@ -10617,7 +10391,7 @@
       ],
       "blurb": "Consortium-controlled circuit breaker to pause specific contract functions or transaction types within minutes of an exploit or regulatory order.",
       "longDescription": [
-        "Provides a multisig-controlled pause function that can halt a specific contract, transaction type, or address within minutes without waiting for a full governance cycle. Pause actions require a configurable M-of-N threshold from the consortium's designated emergency responders. All pause and resume events are anchored and broadcast to all nodes immediately. A configurable auto-expiry forces a governance vote to resume after a defined window.",
+        "Provides a multisig-controlled pause function that can halt a specific contract, transaction type, or address within minutes without waiting for a full governance cycle. Pause actions require an M-of-N threshold, set by the consortium, from its designated emergency responders. All pause and resume events are anchored and broadcast to all nodes immediately. An auto-expiry the consortium sets forces a governance vote to resume after a defined window.",
         "Upgrade Manager handles planned protocol upgrades through the full governance cycle. Enterprise consortiums in banking and insurance will require a faster emergency mechanism as a hard requirement before going live. This module is a risk management non-negotiable for regulated institutions. Connect to Alerts and Paging for immediate notification to all consortium members when the brake is triggered."
       ],
       "dependsOn": [
@@ -10680,7 +10454,7 @@
       "blurb": "Verify citizens against national ID (Aadhaar / DigiLocker) and bind records to real people.",
       "longDescription": [
         "Links on-chain actors to a verified national identity so records, benefits, and services map to real citizens.",
-        "Runs verification off-chain and anchors only proofs on-chain — raw identity data never leaves sovereign storage."
+        "Runs verification off-chain and anchors only proofs on-chain. Raw identity data stays inside sovereign storage."
       ],
       "dependsOn": [
         "genesis"
@@ -10708,7 +10482,7 @@
         "certificates",
         "licenses"
       ],
-      "blurb": "Tamper-proof registry for land, certificates, and licences — independently verifiable.",
+      "blurb": "Tamper-proof registry for land, certificates, and licences, independently verifiable.",
       "longDescription": [
         "Stores hashes and lifecycle events for public records so any entry can be verified without trusting a single authority.",
         "Supports issuance, transfer, and revocation with a full immutable history per record."
@@ -10739,10 +10513,10 @@
         "portal",
         "public"
       ],
-      "blurb": "A citizen-facing explorer for public records and spending — trust through visibility.",
+      "blurb": "A citizen-facing explorer for public records and spending. Trust through visibility.",
       "longDescription": [
         "A read-only public portal where citizens can search and verify public records and transactions.",
-        "Configurable disclosure controls decide what is public vs. restricted per department."
+        "Disclosure controls, set per department, decide what is public and what is restricted."
       ],
       "dependsOn": [
         "rpc"
@@ -10771,7 +10545,7 @@
       ],
       "blurb": "Track citizen grievances and RTI requests end-to-end with accountability at each step.",
       "longDescription": [
-        "Models the full lifecycle of a citizen request — filed, assigned, reviewed, resolved — on an auditable ledger.",
+        "Models the full lifecycle of a citizen request (filed, assigned, reviewed, resolved) on an auditable ledger.",
         "SLA timers and escalation rules keep departments accountable and give citizens verifiable status."
       ],
       "dependsOn": [
@@ -10831,7 +10605,7 @@
       "blurb": "An immutable, evidence-admissible record of every action for oversight and courts.",
       "longDescription": [
         "Captures a cryptographically-verifiable trail of every state change with actor, time, and context.",
-        "Designed for regulatory oversight and legal proceedings — exportable and independently checkable."
+        "Designed for regulatory oversight and legal proceedings. Exportable and independently checkable."
       ],
       "dependsOn": [
         "genesis"
@@ -10917,8 +10691,8 @@
       ],
       "blurb": "SAML single sign-on with automated user provisioning and de-provisioning.",
       "longDescription": [
-        "Connects your identity provider (Okta, Azure AD, Google) for SSO across the studio and apps.",
-        "SCIM keeps users and groups in sync automatically as your directory changes."
+        "Connects the organisation's identity provider (Okta, Azure AD, Google) for SSO across the studio and apps.",
+        "SCIM keeps users and groups in sync automatically as the directory changes."
       ],
       "dependsOn": [
         "genesis"
@@ -10975,10 +10749,10 @@
         "oracle",
         "netsuite"
       ],
-      "blurb": "Sync data with SAP, Oracle, or NetSuite so the chain fits your existing stack.",
+      "blurb": "Sync data with SAP, Oracle, or NetSuite so the chain fits the existing stack.",
       "longDescription": [
         "Bi-directional connectors map ERP objects (orders, invoices, assets) to on-chain records.",
-        "Configurable field mapping and scheduled reconciliation keep both systems consistent."
+        "Field mapping the team sets and scheduled reconciliation keep both systems consistent."
       ],
       "dependsOn": [
         "genesis"
@@ -11065,7 +10839,7 @@
       ],
       "blurb": "Legal-grade, exportable, long-retention audit trails for every action.",
       "longDescription": [
-        "Captures a verifiable record of all activity, retained per your compliance policy.",
+        "Captures a verifiable record of all activity, retained per the compliance policy.",
         "Exports evidence packs for SOC2 / ISO27001 audits."
       ],
       "dependsOn": [
@@ -11077,6 +10851,105 @@
         "type": "object",
         "properties": {},
         "additionalProperties": true
+      }
+    },
+    {
+      "moduleId": "permit-issuance",
+      "title": "Permit Issuance",
+      "projectType": "blockchain",
+      "category": "Permits",
+      "tags": [
+        "government",
+        "permits"
+      ],
+      "blurb": "An application for a permit carries its checks, its decision and its conditions in one record the applicant follows from the first day.",
+      "longDescription": [
+        "The module holds the permit kinds an authority issues, the applications people make, the checks each one passes, and the permit and its conditions.",
+        "An applicant chases an office for a decision nobody can date."
+      ],
+      "dependsOn": [
+        "civil-registry"
+      ],
+      "recommends": [
+        "evidence-chain",
+        "indexer-sink"
+      ],
+      "reasonByDepId": {
+        "civil-registry": "The civil register names the applicant behind a permit application.",
+        "evidence-chain": "The evidence chain anchors the plans and photographs attached to an application.",
+        "indexer-sink": "The index store answers a public search over permits by address."
+      },
+      "division": "govt",
+      "configSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "moduleId": "licence-register",
+      "title": "Licence Register",
+      "projectType": "blockchain",
+      "category": "Licensing",
+      "tags": [
+        "government",
+        "licensing"
+      ],
+      "blurb": "A trade licence, a professional licence and their renewals rest in one public register anybody checks in a moment.",
+      "longDescription": [
+        "The module holds the licence classes a regulator issues, the licences themselves, the renewal record, and the sanctions placed against a holder.",
+        "A member of the public takes a licence claim on trust and a regulator finds a lapse months later."
+      ],
+      "dependsOn": [
+        "civil-registry"
+      ],
+      "recommends": [
+        "permit-issuance",
+        "indexer-sink"
+      ],
+      "reasonByDepId": {
+        "civil-registry": "The civil register names the person or the business behind a licence.",
+        "permit-issuance": "A permit covers one activity while a licence covers a standing right to trade.",
+        "indexer-sink": "The index store answers a public licence search by name or address."
+      },
+      "division": "govt",
+      "configSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "moduleId": "public-ballot-tally",
+      "title": "Public Ballot and Tally",
+      "projectType": "blockchain",
+      "category": "Public voting",
+      "tags": [
+        "government",
+        "public voting"
+      ],
+      "blurb": "A public vote publishes its roll, its sealed ballots and its count, so any observer recomputes the result.",
+      "longDescription": [
+        "The module holds the ballots a returning officer opens, the sealed votes cast at each station, and the counts an observer recomputes from the published record.",
+        "A result arrives as a number and an observer checks nothing."
+      ],
+      "dependsOn": [
+        "civil-registry"
+      ],
+      "recommends": [
+        "evidence-chain",
+        "indexer-sink"
+      ],
+      "reasonByDepId": {
+        "civil-registry": "The civil register supplies the roll a ballot is opened against.",
+        "evidence-chain": "The evidence chain anchors the paper records a recount reads.",
+        "indexer-sink": "The index store lets an observer recompute a national total in one pass."
+      },
+      "division": "govt",
+      "configSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
       }
     }
   ]
