@@ -59,19 +59,23 @@ const MAIN_STEPS = [
   { label: 'Deploy & UI', stepNum: 6, Icon: CloudUploadOutlinedIcon },
 ];
 
+/* Deploy & UI shows two sub-steps the way Foundation shows its phases. */
+const DEPLOY_SUB_STEPS = ['Interface', 'Verify and deploy'];
+
+/* Foundation opens on the Describe it door, then runs the production phases. */
 function getSubSteps(projectType: string | null): string[] {
   if (projectType === 'blockchain') {
-    return ['Choose type', 'Legacy check', 'Template', 'Details'];
+    return ['Describe it', 'Choose type', 'Legacy check', 'Template', 'Details'];
   }
-  return ['Choose type', 'Template', 'Details'];
+  return ['Describe it', 'Choose type', 'Template', 'Details'];
 }
 
-/* Maps raw phase index (0-3) to display sub-step index based on project type */
+/* Maps the raw phase index (0 describe, 1 type, 2 visibility or legacy, 3 gallery, 4 details) to the display index. */
 function displaySubStep(phase: number, projectType: string | null): number {
   if (projectType === 'blockchain') return phase;
-  if (phase === 0) return 0;
-  if (phase === 2) return 1;
+  if (phase <= 2) return Math.min(phase, 1);
   if (phase === 3) return 2;
+  if (phase === 4) return 3;
   return 0;
 }
 
@@ -261,8 +265,8 @@ export default function StudioSidebar({ stepIndex, subStepIndex, projectType, on
           const opacity  = isDone ? 1 : isActive ? 1 : Math.max(0.07, 0.30 - i * 0.06);
 
           return (
+            <React.Fragment key={step.label}>
             <Box
-              key={step.label}
               onClick={() => onStepChange?.(realIdx)}
               sx={{
                 display: 'flex', alignItems: 'center', gap: 1,
@@ -302,6 +306,39 @@ export default function StudioSidebar({ stepIndex, subStepIndex, projectType, on
                 </Typography>
               </Box>
             </Box>
+            {realIdx === 5 && isActive && (
+              <Box sx={{ p: '2px 8px 6px 18px', display: 'flex', flexDirection: 'column', gap: '1px' }} data-testid="sidebar-deploy-sub-steps">
+                {DEPLOY_SUB_STEPS.map((label, j) => {
+                  const subDone = j < subStepIndex;
+                  const subActive = j === subStepIndex;
+                  return (
+                    <Box key={label} sx={{
+                      display: 'flex', alignItems: 'center', gap: '7px',
+                      p: '5px 8px', borderRadius: '6px',
+                      bgcolor: subActive ? PRIMARY : 'transparent',
+                      opacity: j > subStepIndex ? 0.45 : 1,
+                      transition: 'all 0.15s',
+                    }}>
+                      <Box sx={{
+                        width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        bgcolor: subDone ? 'success.main' : subActive ? alpha('#fff', 0.2) : 'transparent',
+                        border: j > subStepIndex ? `1.5px solid ${alpha(PRIMARY, 0.4)}` : 'none',
+                      }}>
+                        {subDone
+                          ? <CheckIcon sx={{ fontSize: 9, color: '#fff' }} />
+                          : <Typography sx={{ fontSize: '0.58rem', color: subActive ? '#fff' : PRIMARY, fontWeight: 600, lineHeight: 1 }}>{j + 1}</Typography>
+                        }
+                      </Box>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: subActive ? 500 : 400, color: subActive ? '#fff' : subDone ? 'success.dark' : PRIMARY }}>
+                        {label}
+                      </Typography>
+                    </Box>
+                  );
+                })}
+              </Box>
+            )}
+            </React.Fragment>
           );
         })}
       </Box>

@@ -1,15 +1,31 @@
 'use client';
 
+// apps/frontend/src/components/studio/steps/step0.tsx
+// Step 1 of 6, Foundation.
+// The production phases stay: the type, the Dapps visibility or the legacy
+// question, the gallery with compare, the details. A Describe it door opens
+// first and sends the sentence to Cerulea Intelligence, which proposes the
+// template, the outcomes and the network with reasons. Every answer writes the
+// build state and the Blueprint through Cerulea APIs, so the project reopens
+// where the person left it on any machine.
+
 import * as React from 'react';
 import { useStudio } from '@/context/StudioContext';
 import { useSession } from 'next-auth/react';
 import AuthModal from '@/components/auth/AuthModal';
 import { getClientDivision } from '@/lib/division-client';
-import { lockedProjectType } from '@/config/divisions';
+import { applicationForDivision, lockedProjectType, type Division } from '@/config/divisions';
+import { api } from '@/lib/apiClient';
+import { describeSaveFailure, type SaveFailure } from '@/lib/studio/project-state';
+import { BLOCK_SECONDS, HISTORY_RETENTION_DAYS, boundFix, withinBound } from '@/lib/studio/foundation-controls';
+import { readFoundationDetails, type FoundationDetails } from '@/lib/studio/foundation-record';
+import { applyTrackOverride, deriveTrack, type Application, type TrackDerivation } from '@/lib/track/derive';
+import type { ProjectTrack } from '@/lib/catalogue/types';
+import DescribeDoor, { type DescribeChoice } from './step0-DescribeDoor';
+import NetworkPanel from './step0-NetworkPanel';
 import {
   Box, Typography, Stack, Paper, Button, Chip, TextField, Select, MenuItem,
-  InputLabel, FormControl, Divider,
-  Dialog, DialogTitle, DialogContent, DialogActions, Fade,
+  Divider, Dialog, DialogTitle, DialogContent, DialogActions, Fade, Alert,
 } from '@mui/material';
 import { useTheme, styled, alpha } from '@mui/material/styles';
 
@@ -28,7 +44,7 @@ import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import CloseIcon from '@mui/icons-material/Close';
 
 /* ---------- Types ---------- */
-type Workspace = { id: string; name: string; slug: string; createdAt: string };
+type Workspace = { id: string; name: string; slug?: string; application?: string };
 type ProjectType = 'dapp' | 'blockchain';
 
 type Template = {
@@ -40,9 +56,10 @@ type Template = {
   icon?: string;
   tags: string[];
   preinstalledModules: string[];
+  modules?: string[];
 };
 
-type Step0Phase = 'choose-type' | 'dapp-type' | 'legacy-question' | 'gallery' | 'details';
+export type Step0Phase = 'describe' | 'choose-type' | 'dapp-type' | 'legacy-question' | 'gallery' | 'details';
 type LegacyMode = 'none' | 'connect' | 'port';
 type DappVisibility = 'public' | 'private';
 
@@ -51,21 +68,49 @@ function slugify(raw: string) {
   return raw.toLowerCase().normalize('NFKD').replace(/[^\w\s-]+/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-').slice(0, 60);
 }
 
-const PHASE_TO_SUBSTEP: Record<Step0Phase, number> = {
-  'choose-type': 0,
-  'dapp-type': 1,
-  'legacy-question': 1,
-  'gallery': 2,
-  'details': 3,
+/** The modules a template installs, under either seed field name. */
+function templateModules(template: Template | null | undefined): string[] {
+  if (!template) return [];
+  return Array.from(new Set(template.modules ?? template.preinstalledModules ?? []));
+}
+
+/** The first words of a sentence, as the name a project opens under. */
+export function nameFromSentence(sentence: string): string {
+  const words = sentence.trim().replace(/\s+/g, ' ').split(' ').slice(0, 6).join(' ').replace(/[.,;:!?]+$/, '');
+  const named = words.length > 0 ? words[0].toUpperCase() + words.slice(1) : 'New system';
+  return named.length >= 3 ? named.slice(0, 80) : 'New system';
+}
+
+/** The sub-step the sidebar shows for each phase. */
+export const PHASE_TO_SUBSTEP: Record<Step0Phase, number> = {
+  describe: 0,
+  'choose-type': 1,
+  'dapp-type': 2,
+  'legacy-question': 2,
+  gallery: 3,
+  details: 4,
 };
+
+/** The tiers that open a public dApp and a private dApp. */
+export const PUBLIC_DAPP_TIERS = ['public_dapps', 'pro'];
+export const PRIVATE_DAPP_TIERS = ['private_dapps', 'private_dapps_pro', 'pro', 'enterprise'];
+
+/**
+ * Reads what the Dapps tier of the account opens.
+ * The division gate admitted the account, so a tier outside both lists opens
+ * the public dApp, the entry of the division, and gates the private one.
+ */
+export function dappAccess(tier: string | null | undefined): { publicDapp: boolean; privateDapp: boolean } {
+  const held = tier ?? '';
+  const publicDapp = PUBLIC_DAPP_TIERS.includes(held);
+  const privateDapp = PRIVATE_DAPP_TIERS.includes(held);
+  return { publicDapp: publicDapp || !privateDapp, privateDapp };
+}
 
 /* ---------- Styled Components ---------- */
 
-// Floating pill dock at bottom
 const FloatingIsland = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light'
-    ? 'rgba(255,255,255,0.96)'
-    : 'rgba(8,14,36,0.96)',
+  background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.96)' : 'rgba(8,14,36,0.96)',
   backdropFilter: 'blur(16px) saturate(180%)',
   border: `0.5px solid ${theme.palette.divider}`,
   boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, theme.palette.mode === 'light' ? 0.1 : 0.2)}`,
@@ -77,7 +122,6 @@ const FloatingIsland = styled(Paper)(({ theme }) => ({
   transition: 'all 0.2s ease',
 }));
 
-// Type selection card (choose-type + legacy-question phases)
 const PortalCard = styled(Paper, { shouldForwardProp: (p) => p !== 'selected' })<{ selected?: boolean }>(({ theme, selected }) => ({
   width: '100%',
   display: 'flex',
@@ -99,7 +143,6 @@ const PortalCard = styled(Paper, { shouldForwardProp: (p) => p !== 'selected' })
   },
 }));
 
-// Gallery grid card
 const GalleryCard = styled(Paper, { shouldForwardProp: (p) => p !== 'selected' })<{ selected?: boolean }>(({ theme, selected }) => ({
   padding: 14,
   borderRadius: 12,
@@ -117,7 +160,6 @@ const GalleryCard = styled(Paper, { shouldForwardProp: (p) => p !== 'selected' }
   },
 }));
 
-// Split configure panel
 const SplitGlassPanel = styled(Paper)(({ theme }) => ({
   background: theme.palette.background.paper,
   border: `0.5px solid ${theme.palette.divider}`,
@@ -146,7 +188,6 @@ const ConfigSection = styled(Box)(({ theme }) => ({
   },
 }));
 
-// Opaque menu props (no near-black)
 const OPAQUE_MENU_PROPS = {
   PaperProps: {
     sx: {
@@ -157,6 +198,31 @@ const OPAQUE_MENU_PROPS = {
       boxShadow: (t: any) => `0 8px 32px ${alpha(t.palette.primary.main, 0.1)}`,
     },
   },
+};
+
+const APPLICATION_OF_DIVISION: Record<Division, Application> = {
+  dapp: 'dapps',
+  enterprise: 'enterprise',
+  govt: 'government',
+};
+
+/** The answer the Foundation route returns. */
+type FoundationReply = {
+  ok: true;
+  project: { id: string; name: string; slug: string; description: string; projectType: ProjectType; workspaceId: string };
+  foundation: {
+    projectName: string;
+    summary: string;
+    application: string;
+    track: ProjectType;
+    trackOverridden: boolean;
+    templateId: string;
+    publishSelectedRecords: boolean;
+    blockSeconds: number;
+    historyRetentionDays: number;
+  };
+  details: FoundationDetails;
+  steps: { foundation: boolean };
 };
 
 /* ====================================================================== */
@@ -171,36 +237,27 @@ export default function Step0({
   const { projectType, templateId, appMetadata, workspaceId, projectId: existingProjectId, setStudioState } = useStudio();
   const { data: session } = useSession();
 
-  const userPlan = (session?.user as any)?.plan as string | undefined;
-  const canUsePublicDapp = userPlan === 'public_dapps' || userPlan === 'pro';
-  const canUsePrivateDapp = userPlan === 'private_dapps' || userPlan === 'private_dapps_pro' || userPlan === 'pro' || userPlan === 'enterprise';
-
   /* ---- Division lock ----
-   * enterprise/govt divisions lock the studio to a project type and skip the
-   * type chooser entirely. dapp division keeps the normal chooser. Computed
-   * synchronously on the client (studio renders ssr:false) so there's no flash
-   * of the chooser before the lock applies. */
-  const divisionLockedType: ProjectType | null = React.useMemo(() => {
-    const d = getClientDivision();
-    return (d ? lockedProjectType(d) : null) as ProjectType | null;
-  }, []);
+   * The division of the address locks the type. Enterprise and Government
+   * build private Blockchain networks; Dapps builds decentralised applications. */
+  const division: Division | null = React.useMemo(() => getClientDivision(), []);
+  const divisionLockedType: ProjectType | null = React.useMemo(
+    () => (division ? lockedProjectType(division) : null) as ProjectType | null,
+    [division],
+  );
+  const application: Application = division ? APPLICATION_OF_DIVISION[division] : 'dapps';
+
+  const sessionUser = session?.user as { plan?: string; divisionSubs?: Record<string, string | null> } | undefined;
+  const dappTier = sessionUser?.divisionSubs?.dapp ?? sessionUser?.plan ?? null;
+  const access = dappAccess(dappTier);
 
   /* ---- State ---- */
-  // Locked divisions never show the "dApp vs private blockchain" chooser — they
-  // auto-select the type and land on the NEXT phase within that flow:
-  //   dapp       → dapp-type (visibility)
-  //   blockchain → legacy-question
-  const [phase, setPhaseRaw] = React.useState<Step0Phase>(
-    projectType ? 'gallery'
-      : divisionLockedType === 'dapp' ? 'dapp-type'
-      : divisionLockedType === 'blockchain' ? 'legacy-question'
-      : 'choose-type'
-  );
+  const [projectId, setProjectId] = React.useState<string | null>(existingProjectId ?? null);
+  const [phase, setPhaseRaw] = React.useState<Step0Phase>(existingProjectId ? 'details' : 'describe');
   const [dType, setDType] = React.useState<ProjectType | null>(projectType ?? divisionLockedType);
   const [dappVisibility, setDappVisibility] = React.useState<DappVisibility | null>(null);
   const [authModalOpen, setAuthModalOpen] = React.useState(false);
   const [pendingType, setPendingType] = React.useState<ProjectType | null>(null);
-  const [pendingPrivateDapp, setPendingPrivateDapp] = React.useState(false);
   const [legacyMode, setLegacyMode] = React.useState<LegacyMode>('none');
   const [legacyStep, setLegacyStep] = React.useState<'has-legacy' | 'how-to-proceed'>('has-legacy');
   const [templates, setTemplates] = React.useState<Template[]>([]);
@@ -212,52 +269,42 @@ export default function Step0({
   const [search, setSearch] = React.useState('');
   const [categoryFilter, setCategoryFilter] = React.useState('All');
 
-  // Form state — only pre-fill from context when editing an existing project.
-  // For new projects (no projectId), start empty so template selection always populates cleanly.
+  // Form state. An existing project fills from Cerulea APIs; a new one starts empty.
   const [name, setName] = React.useState(existingProjectId ? (appMetadata?.appName ?? '') : '');
   const [slug, setSlug] = React.useState(existingProjectId ? slugify(appMetadata?.appName ?? '') : '');
-  const [slugDirty, setSlugDirty] = React.useState(false);
+  const [assignedSlug, setAssignedSlug] = React.useState<string | null>(null);
   const [description, setDescription] = React.useState(existingProjectId ? (appMetadata?.appDescription ?? '') : '');
   const [wsId, setWsId] = React.useState(workspaceId ?? '');
-
-  // Track the last values auto-populated from a template so we know whether
-  // to override them when the user selects a different template.
   const lastTemplateAutoRef = React.useRef<{ name: string; slug: string; description: string } | null>(null);
+
+  // The specification additions: the derived network, the outcomes and the properties.
+  const [derivation, setDerivation] = React.useState<TrackDerivation>(() => deriveTrack(application));
+  const [publishSelected, setPublishSelected] = React.useState(false);
+  const [outcomeIds, setOutcomeIds] = React.useState<string[]>([]);
+  const [blockSeconds, setBlockSeconds] = React.useState(BLOCK_SECONDS.bound.fallback);
+  const [retentionDays, setRetentionDays] = React.useState(HISTORY_RETENTION_DAYS.bound.fallback);
+  const [saveState, setSaveState] = React.useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
+  const [failure, setFailure] = React.useState<SaveFailure | null>(null);
+  const [initialising, setInitialising] = React.useState(false);
 
   // Dialogs
   const [wsDialogOpen, setWsDialogOpen] = React.useState(false);
   const [wsNewName, setWsNewName] = React.useState('');
-  const [wsType, setWsType] = React.useState<'personal' | 'team'>('personal');
 
-  // Deep config
-  const [dappDetails, setDappDetails] = React.useState({
-    network: 'cerulea-testnet', tokenFocus: [] as string[], royalties: 5, monetization: [] as string[], emailSender: '',
-  });
-  const [chainDetails, setChainDetails] = React.useState({
-    consensus: 'PoA', region: 'apac-south', initialValidators: 2,
-    nativeToken: { symbol: 'CER', decimals: 18 },
-    feeModel: { baseGas: 1, burnPct: 0.2, validatorSharePct: 0.8 },
-  });
-
-  /* ---- Phase helper — reports to shell sidebar ---- */
+  /* ---- Phase helper, reports to the shell sidebar ---- */
   const setPhase = React.useCallback((p: Step0Phase) => {
     setPhaseRaw(p);
     onSubStepChange?.(PHASE_TO_SUBSTEP[p] ?? 0);
     setStudioState({ step0Phase: p } as any);
   }, [onSubStepChange, setStudioState]);
 
-  // Report initial phase on mount
   React.useEffect(() => {
     onSubStepChange?.(PHASE_TO_SUBSTEP[phase] ?? 0);
     setStudioState({ step0Phase: phase } as any);
   }, []); // eslint-disable-line
 
-  // Locked divisions (enterprise/govt): pin the project type in studio state so
-  // downstream steps + the AI see it, without the user ever touching a chooser.
   React.useEffect(() => {
     if (!divisionLockedType || existingProjectId || projectType) return;
-    // Pin the auto-selected project type in studio state (the intermediate phase
-    // the user lands on will set visibility/legacy next).
     setStudioState({ projectType: divisionLockedType } as any);
     if (typeof window !== 'undefined') localStorage.setItem('cerulea.projectType', divisionLockedType);
   }, []); // eslint-disable-line
@@ -268,8 +315,9 @@ export default function Step0({
       try {
         const r = await fetch('/api/workspaces');
         const data = await r.json();
-        setWorkspaces(data);
-        if (!wsId && data.length) { setWsId(data[0].id); setStudioState({ workspaceId: data[0].id }); }
+        const list: Workspace[] = Array.isArray(data) ? data : [];
+        setWorkspaces(list);
+        if (!wsId && list.length) { setWsId(list[0].id); setStudioState({ workspaceId: list[0].id }); }
       } catch {}
     })();
   }, []); // eslint-disable-line
@@ -277,32 +325,152 @@ export default function Step0({
   const loadTemplates = React.useCallback(async (ptype: ProjectType) => {
     setLoadingTemplates(true);
     try {
-      const division = getClientDivision();
       const url = `/api/templates?projectType=${ptype}${division ? `&division=${division}` : ''}`;
       const r = await fetch(url);
-      setTemplates(await r.json());
+      const list = await r.json();
+      setTemplates(Array.isArray(list) ? list : []);
     } finally { setLoadingTemplates(false); }
-  }, []);
+  }, [division]);
 
   React.useEffect(() => {
-    if (dType && phase === 'gallery' && templates.length === 0) loadTemplates(dType);
+    if (dType && (phase === 'gallery' || phase === 'details') && templates.length === 0) void loadTemplates(dType);
   }, [dType, phase]); // eslint-disable-line
 
-  React.useEffect(() => { if (!slugDirty) setSlug(slugify(name)); }, [name, slugDirty]);
+  React.useEffect(() => { if (!assignedSlug) setSlug(slugify(name)); }, [name, assignedSlug]);
+
+  // An existing project opens on its details, read from Cerulea APIs.
+  React.useEffect(() => {
+    if (!existingProjectId) return;
+    let live = true;
+    (async () => {
+      try {
+        const reply = await api<FoundationReply>(`/api/projects/${encodeURIComponent(existingProjectId)}/foundation`);
+        if (!live) return;
+        setProjectId(reply.project.id);
+        setName(reply.project.name);
+        setDescription(reply.project.description);
+        setAssignedSlug(reply.project.slug);
+        setSlug(reply.project.slug);
+        setWsId(reply.project.workspaceId);
+        setDType(reply.foundation.track);
+        setSelectedTemplate(reply.foundation.templateId || 'scratch');
+        setBlockSeconds(reply.foundation.blockSeconds);
+        setRetentionDays(reply.foundation.historyRetentionDays);
+        setPublishSelected(reply.foundation.publishSelectedRecords);
+        setDappVisibility(reply.details.dappVisibility);
+        setLegacyMode(reply.details.legacyMode);
+        const base = deriveTrack(application, {
+          templateTrack: reply.foundation.track,
+        });
+        const wanted: ProjectTrack = reply.details.network.kind === 'public-access' ? 'dapp' : 'blockchain';
+        setDerivation(reply.details.network.overridden ? applyTrackOverride(base, wanted) : base);
+        setStudioState({ projectType: reply.foundation.track, templateId: reply.foundation.templateId || null, appMetadata: { appName: reply.project.name, appDescription: reply.project.description } });
+      } catch (cause) {
+        if (live) setFailure(describeSaveFailure(cause));
+      }
+    })();
+    return () => { live = false; };
+  }, [existingProjectId]); // eslint-disable-line
+
+  /* ---- The network as the person answered it ---- */
+  const networkKind: 'public-access' | 'private' = derivation.track === 'dapp' ? 'public-access' : 'private';
+  const planNote = React.useMemo(() => {
+    if (dType !== 'dapp') return null;
+    if (networkKind === 'private' && !access.privateDapp) {
+      return 'A private dApp needs the Private Dapps plan. Open the billing screen to add it, or keep the public-access chain.';
+    }
+    if (networkKind === 'public-access' && !access.publicDapp) {
+      return 'A public dApp needs the Public Dapps plan. Open the billing screen to add it, or choose the private network.';
+    }
+    return null;
+  }, [access.privateDapp, access.publicDapp, dType, networkKind]);
+
+  /* ---- Saving through Cerulea APIs ---- */
+  const saveTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveFoundation = React.useCallback(async (id: string, extra: Record<string, unknown> = {}) => {
+    const template = templates.find((t) => t.id === selectedTemplate) ?? null;
+    const body = {
+      name: name.trim().length >= 3 ? name.trim() : undefined,
+      description,
+      templateId: selectedTemplate ?? undefined,
+      network: networkKind,
+      networkReason: derivation.reason,
+      networkOverridden: derivation.overridden,
+      dappVisibility: dType === 'dapp' ? (networkKind === 'private' ? 'private' : 'public') : null,
+      legacyMode,
+      publishSelectedRecords: publishSelected,
+      blockSeconds: withinBound(blockSeconds, BLOCK_SECONDS.bound),
+      historyRetentionDays: withinBound(retentionDays, HISTORY_RETENTION_DAYS.bound),
+      outcomeIds,
+      ...extra,
+    };
+    setSaveState('saving');
+    try {
+      const reply = await api<{ ok: true; slug: string }>(`/api/projects/${encodeURIComponent(id)}/foundation`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      });
+      setAssignedSlug(reply.slug);
+      setSlug(reply.slug);
+      setSaveState('saved');
+      setFailure(null);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('cerulea.templateModules', JSON.stringify(templateModules(template)));
+      }
+      return true;
+    } catch (cause) {
+      setSaveState('failed');
+      setFailure(describeSaveFailure(cause));
+      return false;
+    }
+  }, [blockSeconds, dType, derivation.overridden, derivation.reason, description, legacyMode, name, networkKind, outcomeIds, publishSelected, retentionDays, selectedTemplate, templates]);
+
+  // Every answer on the details phase saves after a short pause.
+  React.useEffect(() => {
+    if (!projectId || phase !== 'details') return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => { void saveFoundation(projectId); }, 1000);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [projectId, phase, name, description, selectedTemplate, networkKind, derivation.overridden, publishSelected, blockSeconds, retentionDays, legacyMode]); // eslint-disable-line
+
+  /** Opens the project in Cerulea APIs. The division workspace holds it. */
+  const createProject = React.useCallback(async (projectName: string, summary: string, ptype: ProjectType, template: string | null): Promise<string> => {
+    const payload = {
+      name: projectName,
+      slug: slugify(projectName),
+      description: summary,
+      projectType: ptype,
+      dappVisibility: ptype === 'dapp' ? (dappVisibility ?? 'public') : null,
+      templateId: template,
+      workspaceId: wsId || null,
+    };
+    const reply = await api<{ ok: true; id: string; slug: string; workspaceId: string }>('/api/projects', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    setProjectId(reply.id);
+    setAssignedSlug(reply.slug);
+    setSlug(reply.slug);
+    setStudioState({ projectId: reply.id, slug: reply.slug, workspaceId: reply.workspaceId, appMetadata: { appName: projectName, appDescription: summary } });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('cerulea.projectId', reply.id);
+      localStorage.setItem('cerulea.activeProjectId', reply.id);
+      localStorage.removeItem('cerulea.step1.graph');
+      localStorage.setItem('cerulea.projectType', ptype);
+      if (ptype === 'dapp') localStorage.setItem('cerulea.dappVisibility', dappVisibility ?? 'public');
+    }
+    return reply.id;
+  }, [dappVisibility, setStudioState, wsId]);
 
   /* ---- Handlers ---- */
   const proceedToGallery = (ptype: ProjectType, lmode: LegacyMode = 'none', visibility: DappVisibility = 'public') => {
     setDType(ptype);
-    // Clear ALL stale project data from the previous project so the AI
-    // doesn't see the old project name / modules / config during new project creation.
     setStudioState({
       projectType: ptype,
       dappVisibility: ptype === 'dapp' ? visibility : null,
       templateId: null,
       legacyMode: lmode,
-      projectId: undefined,
-      slug: undefined,
-      appMetadata: { appName: '', appDescription: '' },
+      appMetadata: { appName: name, appDescription: description },
       selectedModules: [],
     } as any);
     setSelectedTemplate(null);
@@ -314,32 +482,32 @@ export default function Step0({
       localStorage.removeItem('cerulea.templateId');
     }
     setPhase('gallery');
-    loadTemplates(ptype);
+    void loadTemplates(ptype);
   };
 
   const chooseType = (ptype: ProjectType) => {
     if (!session) { setPendingType(ptype); setAuthModalOpen(true); return; }
+    setDType(ptype);
     if (ptype === 'blockchain') {
-      setDType(ptype);
       setLegacyStep('has-legacy');
       setPhase('legacy-question');
     } else {
-      // dApp — ask public vs private
-      setDType(ptype);
       setPhase('dapp-type');
     }
   };
 
   const chooseDappVisibility = (visibility: DappVisibility) => {
-    if (visibility === 'public' && !canUsePublicDapp) {
+    if (visibility === 'public' && !access.publicDapp) {
       if (typeof window !== 'undefined') window.location.href = '/dashboard/billing?upgrade=public-dapp';
       return;
     }
-    if (visibility === 'private' && !canUsePrivateDapp) {
+    if (visibility === 'private' && !access.privateDapp) {
       if (typeof window !== 'undefined') window.location.href = '/dashboard/billing?upgrade=private-dapp';
       return;
     }
     setDappVisibility(visibility);
+    const base = deriveTrack(application);
+    setDerivation(visibility === 'private' ? applyTrackOverride(base, 'blockchain') : base);
     proceedToGallery('dapp', 'none', visibility);
   };
 
@@ -362,12 +530,13 @@ export default function Step0({
     setSelectedTemplate(id);
     if (tpl) {
       const last = lastTemplateAutoRef.current;
-      // Replace auto-populated values when the user picks a different template,
-      // but preserve anything the user has manually typed.
       setName(prev => (!prev || prev === last?.name) ? tpl.title : prev);
-      setSlug(prev => (!prev || prev === last?.slug) ? slugify(tpl.title) : prev);
       setDescription(prev => (!prev || prev === last?.description) ? tpl.description : prev);
       lastTemplateAutoRef.current = { name: tpl.title, slug: slugify(tpl.title), description: tpl.description };
+      setDerivation((held) => {
+        const base = deriveTrack(application, { templateTrack: tpl.projectType });
+        return held.overridden ? applyTrackOverride(base, held.track) : base;
+      });
     }
   };
 
@@ -377,46 +546,79 @@ export default function Step0({
     setPhase('details');
   };
 
+  /** The Describe it door accepted a proposal. The details open filled from it. */
+  const onDescribeAccepted = (choice: DescribeChoice) => {
+    const ptype: ProjectType = dType ?? divisionLockedType ?? 'dapp';
+    setDType(ptype);
+    setOutcomeIds(choice.outcomeIds);
+    setDerivation(choice.derivation);
+    setPublishSelected(choice.publishSelectedRecords);
+    if (ptype === 'dapp') setDappVisibility(choice.derivation.track === 'blockchain' ? 'private' : 'public');
+    if (choice.template) {
+      setSelectedTemplate(choice.template.id);
+      setName((prev) => (prev.trim().length >= 3 && prev !== nameFromSentence(choice.description) ? prev : choice.template?.title ?? prev));
+      lastTemplateAutoRef.current = { name: choice.template.title, slug: slugify(choice.template.title), description: choice.template.description };
+    } else {
+      setSelectedTemplate('scratch');
+    }
+    setDescription(choice.description);
+    setStudioState({ projectType: ptype, templateId: choice.template?.id ?? null, appMetadata: { appName: name, appDescription: choice.description } });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('cerulea.projectType', ptype);
+      localStorage.setItem('cerulea.outcomeIds', JSON.stringify(choice.outcomeIds));
+    }
+    setPhase('details');
+  };
+
+  const onBrowseInstead = () => {
+    const ptype = dType ?? divisionLockedType;
+    if (ptype === 'dapp') setPhase('dapp-type');
+    else if (ptype === 'blockchain') { setLegacyStep('has-legacy'); setPhase('legacy-question'); }
+    else setPhase('choose-type');
+  };
+
+  const nameFix = name.trim().length < 3 ? 'Type a name of at least three characters.' : null;
+  const blockFix = boundFix(blockSeconds, BLOCK_SECONDS);
+  const retentionFix = boundFix(retentionDays, HISTORY_RETENTION_DAYS);
+  const canInitialise = !nameFix && !blockFix && !retentionFix && !!dType && !initialising;
+
   const onInitialize = async () => {
-    if (!dType || !name || name.trim().length < 3 || !slug) return;
-    const payload: any = {
-      name, slug, description, projectType: dType,
-      dappVisibility: dType === 'dapp' ? (dappVisibility ?? 'public') : null,
-      templateId: selectedTemplate ?? null, workspaceId: wsId || null,
-      details: dType === 'dapp' ? { dapp: { ...dappDetails, visibility: dappVisibility ?? 'public' } } : { blockchain: chainDetails },
-    };
+    if (!canInitialise || !dType) return;
+    setInitialising(true);
     try {
-      const res = await fetch('/api/projects', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
-      if (!res.ok) { alert('Failed to create project'); return; }
-      const proj = await res.json();
-      setStudioState({ projectId: proj.id, slug: proj.slug, appMetadata: { appName: name, appDescription: description } });
+      const id = projectId ?? (await createProject(name.trim(), description, dType, selectedTemplate));
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      const wrote = await saveFoundation(id, { done: true });
+      if (!wrote) return;
+      const template = templates.find(t => t.id === selectedTemplate) ?? null;
+      setStudioState({ projectId: id, templateId: selectedTemplate, appMetadata: { appName: name.trim(), appDescription: description } });
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('cerulea.step1.graph');
-        let modulesToLoad: string[] = [];
-        if (selectedTemplate && selectedTemplate !== 'scratch') {
-          const tpl = templates.find(t => t.id === selectedTemplate);
-          if (tpl) modulesToLoad = tpl.preinstalledModules || [];
-        }
-        localStorage.setItem('cerulea.templateModules', JSON.stringify(modulesToLoad));
+        localStorage.setItem('cerulea.projectId', id);
+        localStorage.setItem('cerulea.activeProjectId', id);
+        localStorage.setItem('cerulea.templateModules', JSON.stringify(templateModules(template)));
+        localStorage.setItem('cerulea.outcomeIds', JSON.stringify(outcomeIds));
         localStorage.setItem('cerulea.projectType', dType);
-        if (dType === 'dapp') localStorage.setItem('cerulea.dappVisibility', dappVisibility ?? 'public');
+        if (dType === 'dapp') localStorage.setItem('cerulea.dappVisibility', networkKind === 'private' ? 'private' : 'public');
       }
       goNext();
-    } catch (e) { console.error(e); }
+    } catch (cause) {
+      setFailure(describeSaveFailure(cause));
+    } finally {
+      setInitialising(false);
+    }
   };
 
   const createWorkspace = async () => {
     if (!wsNewName.trim()) return;
     try {
-      const res = await fetch('/api/workspaces', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name: wsNewName.trim(), type: wsType }),
+      const ws = await api<Workspace & { workspaceId?: string }>('/api/workspaces', {
+        method: 'POST',
+        body: JSON.stringify({ name: wsNewName.trim(), application: applicationForDivision(division ?? 'dapp') }),
       });
-      if (!res.ok) throw new Error();
-      const ws = await res.json();
-      setWorkspaces((w) => [ws, ...w]);
-      setWsId(ws.id);
-    } catch { alert('Create failed'); } finally { setWsDialogOpen(false); setWsNewName(''); }
+      const opened = { ...ws, id: ws.id ?? ws.workspaceId ?? '' };
+      setWorkspaces((w) => [opened, ...w]);
+      setWsId(opened.id);
+    } catch (cause) { setFailure(describeSaveFailure(cause)); } finally { setWsDialogOpen(false); setWsNewName(''); }
   };
 
   const categories = React.useMemo(() => {
@@ -428,7 +630,7 @@ export default function Step0({
     let arr = templates;
     if (categoryFilter !== 'All') arr = arr.filter(t => t.category === categoryFilter);
     if (search.trim()) {
-      arr = arr.filter(t => `${t.title} ${t.description} ${t.tags.join(' ')}`.toLowerCase().includes(search.toLowerCase()));
+      arr = arr.filter(t => `${t.title} ${t.description} ${(t.tags ?? []).join(' ')}`.toLowerCase().includes(search.toLowerCase()));
     }
     return arr;
   }, [templates, search, categoryFilter]);
@@ -439,42 +641,26 @@ export default function Step0({
     return templates.find(t => t.id === selectedTemplate)?.title ?? 'Template';
   }, [selectedTemplate, templates]);
 
-  /* ---- Helpers for back navigation ---- */
   const goBackFromGallery = () => {
-    // Back from the gallery returns to the intermediate phase within the flow
-    // (legacy check for blockchain, visibility for dApp) — never the removed
-    // type chooser.
     if (dType === 'blockchain') setPhase('legacy-question');
     else setPhase('dapp-type');
   };
 
+  const typeLabel = dType === 'blockchain' ? 'Private Blockchain' : 'dApp';
+  const saveText = saveState === 'saving' ? 'Saving' : saveState === 'saved' ? 'Saved to Cerulea' : saveState === 'failed' ? 'Save failed' : '';
+
   /* ================================================================ */
   return (
-    <Box sx={{
-      width: '100%',
-      height: '100%',
-      overflow: 'hidden',
-      bgcolor: 'background.default',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
-      {/* Auth gate modal */}
+    <Box sx={{ width: '100%', height: '100%', overflow: 'hidden', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
       <AuthModal
         open={authModalOpen}
         title="Sign in to continue"
-        subtitle="Create a free account or sign in to start building your project."
+        subtitle="Sign in, or create an account, to start building the project."
         onSuccess={() => {
           setAuthModalOpen(false);
-          if (pendingType === 'blockchain') {
-            setDType('blockchain');
-            setLegacyStep('has-legacy');
-            setPhase('legacy-question');
-          } else if (pendingType === 'dapp') {
-            setDType('dapp');
-            setPhase('dapp-type');
-          } else if (pendingType) {
-            proceedToGallery(pendingType);
-          }
+          if (pendingType === 'blockchain') { setDType('blockchain'); setLegacyStep('has-legacy'); setPhase('legacy-question'); }
+          else if (pendingType === 'dapp') { setDType('dapp'); setPhase('dapp-type'); }
+          else if (pendingType) proceedToGallery(pendingType);
         }}
         onClose={() => setAuthModalOpen(false)}
       />
@@ -487,117 +673,94 @@ export default function Step0({
         maskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%)',
       }} />
 
-      {/* ══════════════════════════════════════════════════════════ */}
-      {/* CONTENT AREA — scrollable, phases render here            */}
-      {/* ══════════════════════════════════════════════════════════ */}
-      <Box sx={{
-        flex: 1,
-        width: '100%',
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        pt: 4,
-        pb: 2,
-        position: 'relative',
-        zIndex: 1,
-      }}>
+      <Box sx={{ flex: 1, width: '100%', overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 4, pb: 2, position: 'relative', zIndex: 1 }}>
 
-        {/* ─── PHASE: CHOOSE TYPE ─── */}
-        {phase === 'choose-type' && (
+        {/* ─── PHASE: DESCRIBE IT ─── */}
+        {phase === 'describe' && (
           <Fade in mountOnEnter unmountOnExit timeout={350}>
-            <Stack spacing={5} alignItems="center" justifyContent="center"
-              sx={{ width: '100%', maxWidth: 560, px: 3, my: 'auto' }}>
-
-              {/* Badge */}
-              <Stack spacing={1.5} alignItems="center" textAlign="center">
-                <Box sx={{
-                  display: 'inline-flex', alignItems: 'center', gap: 0.6,
-                  bgcolor: 'background.paper', border: '0.5px solid', borderColor: 'divider',
-                  borderRadius: 99, px: 1.5, py: 0.4,
-                }}>
+            <Stack spacing={3} alignItems="center" sx={{ width: '100%' }}>
+              <Stack spacing={1.5} alignItems="center" textAlign="center" sx={{ px: 3 }}>
+                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.6, bgcolor: 'background.paper', border: '0.5px solid', borderColor: 'divider', borderRadius: 99, px: 1.5, py: 0.4 }}>
                   <Typography sx={{ fontSize: '0.65rem', color: 'primary.main', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>
                     Step 1 of 6 · Foundation
                   </Typography>
                 </Box>
                 <Typography variant="h4" fontWeight={500} sx={{ letterSpacing: '-0.5px', color: 'text.primary', lineHeight: 1.2 }}>
-                  What are you building?
+                  What are we building
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7, maxWidth: 440 }}>
+                  One sentence is enough. Cerulea proposes the template, the outcomes and the network, and states the reason for each.
+                </Typography>
+              </Stack>
+              <DescribeDoor
+                application={application}
+                projectId={projectId}
+                createProject={(sentence) => createProject(nameFromSentence(sentence), sentence, dType ?? divisionLockedType ?? 'dapp', null)}
+                onAccept={onDescribeAccepted}
+                onBrowse={onBrowseInstead}
+              />
+            </Stack>
+          </Fade>
+        )}
+
+        {/* ─── PHASE: CHOOSE TYPE ─── */}
+        {phase === 'choose-type' && (
+          <Fade in mountOnEnter unmountOnExit timeout={350}>
+            <Stack spacing={5} alignItems="center" justifyContent="center" sx={{ width: '100%', maxWidth: 560, px: 3, my: 'auto' }}>
+              <Stack spacing={1.5} alignItems="center" textAlign="center">
+                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.6, bgcolor: 'background.paper', border: '0.5px solid', borderColor: 'divider', borderRadius: 99, px: 1.5, py: 0.4 }}>
+                  <Typography sx={{ fontSize: '0.65rem', color: 'primary.main', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                    Step 1 of 6 · Foundation
+                  </Typography>
+                </Box>
+                <Typography variant="h4" fontWeight={500} sx={{ letterSpacing: '-0.5px', color: 'text.primary', lineHeight: 1.2 }}>
+                  What are we building
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7, maxWidth: 380 }}>
-                  Your choice determines the module catalog, templates, and deployment targets available to you.
+                  The choice decides the module catalogue, the templates and the deployment targets on offer.
                 </Typography>
               </Stack>
 
-              {/* Type cards */}
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} width="100%">
-                {/* dApp */}
                 <PortalCard selected={dType === 'dapp'} onClick={() => chooseType('dapp')} elevation={0}>
                   {dType === 'dapp' && (
-                    <Box sx={{
-                      position: 'absolute', top: 10, right: 10, zIndex: 1,
-                      width: 20, height: 20, borderRadius: '50%', bgcolor: 'primary.main',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
+                    <Box sx={{ position: 'absolute', top: 10, right: 10, zIndex: 1, width: 20, height: 20, borderRadius: '50%', bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <CheckIcon sx={{ fontSize: 11, color: '#fff' }} />
                     </Box>
                   )}
-                  <Box sx={{
-                    height: 108,
-                    bgcolor: dType === 'dapp' ? alpha(theme.palette.primary.main, 0.07) : alpha(theme.palette.primary.main, 0.03),
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'background 0.15s',
-                  }}>
+                  <Box sx={{ height: 108, bgcolor: dType === 'dapp' ? alpha(theme.palette.primary.main, 0.07) : alpha(theme.palette.primary.main, 0.03), display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}>
                     <AutoAwesomeMosaicIcon sx={{ fontSize: 48, color: dType === 'dapp' ? 'primary.main' : 'text.disabled' }} />
                   </Box>
                   <Box sx={{ p: '14px 14px 16px' }}>
                     <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 0.5 }}>dApp</Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.7, display: 'block', mb: 1.5 }}>
-                      Public chain. Users own assets through wallets.
+                      An application on the public-access chain. Anyone can verify a record.
                     </Typography>
                     <Stack direction="row" gap={0.5} flexWrap="wrap">
-                      {['NFT', 'DeFi', 'DAO'].map(tag => (
-                        <Chip key={tag} label={tag} size="small" sx={{
-                          height: 20, fontSize: '0.65rem', fontWeight: 500,
-                          bgcolor: alpha(theme.palette.primary.main, 0.08),
-                          color: 'primary.main', border: 'none',
-                        }} />
+                      {['Marketplace', 'Registry', 'Community'].map(tag => (
+                        <Chip key={tag} label={tag} size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 500, bgcolor: alpha(theme.palette.primary.main, 0.08), color: 'primary.main', border: 'none' }} />
                       ))}
                     </Stack>
                   </Box>
                 </PortalCard>
 
-                {/* Private Blockchain */}
                 <PortalCard selected={dType === 'blockchain'} onClick={() => chooseType('blockchain')} elevation={0}>
                   {dType === 'blockchain' && (
-                    <Box sx={{
-                      position: 'absolute', top: 10, right: 10, zIndex: 1,
-                      width: 20, height: 20, borderRadius: '50%', bgcolor: 'primary.main',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
+                    <Box sx={{ position: 'absolute', top: 10, right: 10, zIndex: 1, width: 20, height: 20, borderRadius: '50%', bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <CheckIcon sx={{ fontSize: 11, color: '#fff' }} />
                     </Box>
                   )}
-                  <Box sx={{
-                    height: 108,
-                    bgcolor: dType === 'blockchain' ? alpha(theme.palette.primary.main, 0.07) : alpha(theme.palette.primary.main, 0.03),
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'background 0.15s',
-                  }}>
+                  <Box sx={{ height: 108, bgcolor: dType === 'blockchain' ? alpha(theme.palette.primary.main, 0.07) : alpha(theme.palette.primary.main, 0.03), display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}>
                     <LanIcon sx={{ fontSize: 48, color: dType === 'blockchain' ? 'primary.main' : 'text.disabled' }} />
                   </Box>
                   <Box sx={{ p: '14px 14px 16px' }}>
-                    <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 0.5 }}>Private blockchain</Typography>
+                    <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 0.5 }}>Private Blockchain</Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.7, display: 'block', mb: 1.5 }}>
-                      Sovereign network you control end to end.
+                      A network we run end to end. Every record stays inside the organisations we name.
                     </Typography>
                     <Stack direction="row" gap={0.5} flexWrap="wrap">
-                      {['Enterprise', 'CBDC'].map(tag => (
-                        <Chip key={tag} label={tag} size="small" sx={{
-                          height: 20, fontSize: '0.65rem', fontWeight: 500,
-                          bgcolor: alpha(theme.palette.primary.main, 0.06),
-                          color: 'text.secondary', border: 'none',
-                        }} />
+                      {['Enterprise', 'Central bank currency'].map(tag => (
+                        <Chip key={tag} label={tag} size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 500, bgcolor: alpha(theme.palette.primary.main, 0.06), color: 'text.secondary', border: 'none' }} />
                       ))}
                     </Stack>
                   </Box>
@@ -607,139 +770,86 @@ export default function Step0({
           </Fade>
         )}
 
-        {/* ─── PHASE: DAPP TYPE (public vs private) ─── */}
+        {/* ─── PHASE: DAPP TYPE (public or private) ─── */}
         {phase === 'dapp-type' && (
           <Fade in mountOnEnter unmountOnExit timeout={350}>
-            <Stack spacing={5} alignItems="center" justifyContent="center"
-              sx={{ width: '100%', maxWidth: 580, px: 3, my: 'auto' }}>
-
+            <Stack spacing={5} alignItems="center" justifyContent="center" sx={{ width: '100%', maxWidth: 580, px: 3, my: 'auto' }}>
               <Stack spacing={1.5} alignItems="center" textAlign="center">
-                <Box sx={{
-                  display: 'inline-flex', alignItems: 'center', gap: 0.6,
-                  bgcolor: 'background.paper', border: '0.5px solid', borderColor: 'divider',
-                  borderRadius: 99, px: 1.5, py: 0.4,
-                }}>
+                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.6, bgcolor: 'background.paper', border: '0.5px solid', borderColor: 'divider', borderRadius: 99, px: 1.5, py: 0.4 }}>
                   <Typography sx={{ fontSize: '0.65rem', color: 'primary.main', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>
                     dApp · Step 1 of 6
                   </Typography>
                 </Box>
                 <Typography variant="h4" fontWeight={500} sx={{ letterSpacing: '-0.5px', color: 'text.primary', lineHeight: 1.2 }}>
-                  Who can access your dApp?
+                  Who can reach the dApp
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7, maxWidth: 400 }}>
-                  Public dApps deploy on Cerulea&apos;s shared public network and are accessible to any wallet — requires the Public Dapps plan. Private dApps run on your own isolated environment with permissioned access — requires the Private Dapps plan.
+                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7, maxWidth: 420 }}>
+                  {deriveTrack(application).reason} A public dApp runs on the shared public-access network and needs the Public Dapps plan. A private dApp runs in its own permissioned network and needs the Private Dapps plan.
                 </Typography>
               </Stack>
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} width="100%">
-                {/* Public dApp */}
-                <PortalCard selected={dappVisibility === 'public'} onClick={() => chooseDappVisibility('public')} elevation={0} sx={{ flex: 1, opacity: canUsePublicDapp ? 1 : 0.75 }}>
+                <PortalCard selected={dappVisibility === 'public'} onClick={() => chooseDappVisibility('public')} elevation={0} sx={{ flex: 1, opacity: access.publicDapp ? 1 : 0.75 }}>
                   {dappVisibility === 'public' && (
-                    <Box sx={{
-                      position: 'absolute', top: 10, right: 10, zIndex: 1,
-                      width: 20, height: 20, borderRadius: '50%', bgcolor: 'primary.main',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
+                    <Box sx={{ position: 'absolute', top: 10, right: 10, zIndex: 1, width: 20, height: 20, borderRadius: '50%', bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <CheckIcon sx={{ fontSize: 11, color: '#fff' }} />
                     </Box>
                   )}
-                  <Box sx={{
-                    height: 108,
-                    bgcolor: dappVisibility === 'public' ? alpha(theme.palette.primary.main, 0.07) : alpha(theme.palette.primary.main, 0.03),
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'background 0.15s',
-                  }}>
+                  <Box sx={{ height: 108, bgcolor: dappVisibility === 'public' ? alpha(theme.palette.primary.main, 0.07) : alpha(theme.palette.primary.main, 0.03), display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}>
                     <AutoAwesomeMosaicIcon sx={{ fontSize: 48, color: dappVisibility === 'public' ? 'primary.main' : 'text.disabled' }} />
                   </Box>
                   <Box sx={{ p: '14px 14px 16px' }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
                       <Typography variant="subtitle1" fontWeight={600}>Public dApp</Typography>
-                      {!canUsePublicDapp && (
-                        <Chip label="Public Dapps plan" size="small" sx={{
-                          height: 18, fontSize: '0.6rem', fontWeight: 700,
-                          bgcolor: alpha('#f59e0b', 0.12), color: '#f59e0b', border: 'none',
-                        }} />
-                      )}
+                      <Chip label="Default" size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', border: 'none' }} />
                     </Stack>
                     <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.7, display: 'block', mb: 1.5 }}>
-                      Open to all users on Cerulea&apos;s public network. Anyone with a wallet can interact.
+                      Open to everyone on the Cerulea public-access network. Anyone can verify a record. Cerulea publishes no private field there.
                     </Typography>
                     <Stack direction="row" gap={0.5} flexWrap="wrap">
-                      {['NFT', 'DeFi', 'DAO', 'Marketplace'].map(tag => (
-                        <Chip key={tag} label={tag} size="small" sx={{
-                          height: 20, fontSize: '0.65rem', fontWeight: 500,
-                          bgcolor: alpha(theme.palette.primary.main, 0.08),
-                          color: 'primary.main', border: 'none',
-                        }} />
+                      {['Marketplace', 'Registry', 'Community'].map(tag => (
+                        <Chip key={tag} label={tag} size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 500, bgcolor: alpha(theme.palette.primary.main, 0.08), color: 'primary.main', border: 'none' }} />
                       ))}
                     </Stack>
-                    {canUsePublicDapp ? (
-                      <Chip label="Public Dapps plan" size="small" sx={{
-                        mt: 1.5, height: 20, fontSize: '0.62rem', fontWeight: 600,
-                        bgcolor: alpha('#10b981', 0.1), color: '#10b981', border: 'none',
-                      }} />
+                    {access.publicDapp ? (
+                      <Chip label="Public Dapps plan" size="small" sx={{ mt: 1.5, height: 20, fontSize: '0.62rem', fontWeight: 600, bgcolor: alpha('#10b981', 0.1), color: '#10b981', border: 'none' }} />
                     ) : (
                       <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: '#f59e0b', fontWeight: 600, fontSize: '0.65rem' }}>
-                        Requires Public Dapps plan →
+                        Needs the Public Dapps plan
                       </Typography>
                     )}
                   </Box>
                 </PortalCard>
 
-                {/* Private dApp */}
-                <PortalCard
-                  selected={dappVisibility === 'private'}
-                  onClick={() => chooseDappVisibility('private')}
-                  elevation={0}
-                  sx={{ flex: 1, opacity: canUsePrivateDapp ? 1 : 0.75 }}
-                >
+                <PortalCard selected={dappVisibility === 'private'} onClick={() => chooseDappVisibility('private')} elevation={0} sx={{ flex: 1, opacity: access.privateDapp ? 1 : 0.75 }}>
                   {dappVisibility === 'private' && (
-                    <Box sx={{
-                      position: 'absolute', top: 10, right: 10, zIndex: 1,
-                      width: 20, height: 20, borderRadius: '50%', bgcolor: 'primary.main',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
+                    <Box sx={{ position: 'absolute', top: 10, right: 10, zIndex: 1, width: 20, height: 20, borderRadius: '50%', bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <CheckIcon sx={{ fontSize: 11, color: '#fff' }} />
                     </Box>
                   )}
-                  <Box sx={{
-                    height: 108,
-                    bgcolor: dappVisibility === 'private' ? alpha('#8b5cf6', 0.1) : alpha('#8b5cf6', 0.04),
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'background 0.15s',
-                  }}>
+                  <Box sx={{ height: 108, bgcolor: dappVisibility === 'private' ? alpha('#8b5cf6', 0.1) : alpha('#8b5cf6', 0.04), display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}>
                     <DomainIcon sx={{ fontSize: 48, color: dappVisibility === 'private' ? '#8b5cf6' : 'text.disabled' }} />
                   </Box>
                   <Box sx={{ p: '14px 14px 16px' }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
                       <Typography variant="subtitle1" fontWeight={600}>Private dApp</Typography>
-                      {!canUsePrivateDapp && (
-                        <Chip label="Private Dapps plan" size="small" sx={{
-                          height: 18, fontSize: '0.6rem', fontWeight: 700,
-                          bgcolor: alpha('#f59e0b', 0.12), color: '#f59e0b', border: 'none',
-                        }} />
+                      {!access.privateDapp && (
+                        <Chip label="Private Dapps plan" size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, bgcolor: alpha('#f59e0b', 0.12), color: '#f59e0b', border: 'none' }} />
                       )}
                     </Stack>
                     <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.7, display: 'block', mb: 1.5 }}>
-                      Isolated environment with permissioned access. Only invited wallets can interact.
+                      A permissioned network of its own. Only the people we invite reach it.
                     </Typography>
                     <Stack direction="row" gap={0.5} flexWrap="wrap">
-                      {['Enterprise', 'Internal Tools', 'Permissioned'].map(tag => (
-                        <Chip key={tag} label={tag} size="small" sx={{
-                          height: 20, fontSize: '0.65rem', fontWeight: 500,
-                          bgcolor: alpha('#8b5cf6', 0.08),
-                          color: '#8b5cf6', border: 'none',
-                        }} />
+                      {['Enterprise', 'Internal tools', 'Permissioned'].map(tag => (
+                        <Chip key={tag} label={tag} size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 500, bgcolor: alpha('#8b5cf6', 0.08), color: '#8b5cf6', border: 'none' }} />
                       ))}
                     </Stack>
-                    {canUsePrivateDapp ? (
-                      <Chip label="Private Dapps plan" size="small" sx={{
-                        mt: 1.5, height: 20, fontSize: '0.62rem', fontWeight: 600,
-                        bgcolor: alpha('#10b981', 0.1), color: '#10b981', border: 'none',
-                      }} />
+                    {access.privateDapp ? (
+                      <Chip label="Private Dapps plan" size="small" sx={{ mt: 1.5, height: 20, fontSize: '0.62rem', fontWeight: 600, bgcolor: alpha('#10b981', 0.1), color: '#10b981', border: 'none' }} />
                     ) : (
                       <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: '#f59e0b', fontWeight: 600, fontSize: '0.65rem' }}>
-                        Requires Private Dapps plan →
+                        Needs the Private Dapps plan
                       </Typography>
                     )}
                   </Box>
@@ -747,13 +857,7 @@ export default function Step0({
               </Stack>
 
               <Box>
-                <Button
-                  size="small"
-                  startIcon={<ArrowBackIcon />}
-                  onClick={() => { if (!divisionLockedType) setPhase('choose-type'); }}
-                  disabled={!!divisionLockedType}
-                  sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' }, display: divisionLockedType ? 'none' : undefined }}
-                >
+                <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => setPhase(divisionLockedType ? 'describe' : 'choose-type')} sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}>
                   Back
                 </Button>
               </Box>
@@ -764,26 +868,20 @@ export default function Step0({
         {/* ─── PHASE: LEGACY QUESTION ─── */}
         {phase === 'legacy-question' && (
           <Fade in mountOnEnter unmountOnExit timeout={350}>
-            <Stack spacing={5} alignItems="center" justifyContent="center"
-              sx={{ width: '100%', maxWidth: 560, px: 3, my: 'auto' }}>
-
+            <Stack spacing={5} alignItems="center" justifyContent="center" sx={{ width: '100%', maxWidth: 560, px: 3, my: 'auto' }}>
               <Stack spacing={1.5} alignItems="center" textAlign="center">
-                <Box sx={{
-                  display: 'inline-flex', alignItems: 'center', gap: 0.6,
-                  bgcolor: 'background.paper', border: '0.5px solid', borderColor: 'divider',
-                  borderRadius: 99, px: 1.5, py: 0.4,
-                }}>
+                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.6, bgcolor: 'background.paper', border: '0.5px solid', borderColor: 'divider', borderRadius: 99, px: 1.5, py: 0.4 }}>
                   <Typography sx={{ fontSize: '0.65rem', color: 'primary.main', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-                    Private blockchain · Step 1 of 6
+                    Private Blockchain · Step 1 of 6
                   </Typography>
                 </Box>
                 <Typography variant="h4" fontWeight={500} sx={{ letterSpacing: '-0.5px', color: 'text.primary', lineHeight: 1.2 }}>
-                  {legacyStep === 'has-legacy' ? 'Existing systems?' : 'Integration strategy'}
+                  {legacyStep === 'has-legacy' ? 'Existing systems' : 'How the existing system joins'}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7, maxWidth: 380 }}>
                   {legacyStep === 'has-legacy'
-                    ? 'Do you have a legacy system you want to integrate with or migrate onto the blockchain?'
-                    : 'How would you like to proceed with your existing system?'}
+                    ? 'Is there an existing system to connect to the Blockchain, or to move onto it'
+                    : 'How should the existing system and the new network work together'}
                 </Typography>
               </Stack>
 
@@ -794,9 +892,9 @@ export default function Step0({
                       <DnsIcon sx={{ fontSize: 44, color: 'text.disabled' }} />
                     </Box>
                     <Box sx={{ p: '14px 14px 16px' }}>
-                      <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 0.5 }}>Yes, I have one</Typography>
+                      <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 0.5 }}>Yes, there is one</Typography>
                       <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.65, display: 'block' }}>
-                        Integrate with or migrate from an ERP, CRM, or database system.
+                        Connect to, or move from, a resource planning, customer or database system.
                       </Typography>
                     </Box>
                   </PortalCard>
@@ -808,7 +906,7 @@ export default function Step0({
                     <Box sx={{ p: '14px 14px 16px' }}>
                       <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 0.5 }}>No, starting fresh</Typography>
                       <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.65, display: 'block' }}>
-                        Building everything on-chain from scratch.
+                        Everything starts on the Blockchain.
                       </Typography>
                     </Box>
                   </PortalCard>
@@ -820,9 +918,9 @@ export default function Step0({
                       <LanIcon sx={{ fontSize: 44, color: 'text.disabled' }} />
                     </Box>
                     <Box sx={{ p: '14px 14px 16px' }}>
-                      <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 0.5 }}>Connect (Hybrid)</Typography>
+                      <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 0.5 }}>Connect</Typography>
                       <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.65, display: 'block', mb: 1 }}>
-                        Keep your existing system running alongside a new blockchain layer.
+                        The existing system keeps running beside the new Blockchain layer.
                       </Typography>
                       <Typography variant="caption" sx={{ color: 'primary.main', fontSize: '0.65rem' }}>
                         Recommended · least disruption
@@ -835,25 +933,20 @@ export default function Step0({
                       <AutoAwesomeMosaicIcon sx={{ fontSize: 44, color: 'text.disabled' }} />
                     </Box>
                     <Box sx={{ p: '14px 14px 16px' }}>
-                      <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 0.5 }}>Full port (Migrate)</Typography>
+                      <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 0.5 }}>Full port</Typography>
                       <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.65, display: 'block', mb: 1 }}>
-                        Migrate all data and logic from the legacy system onto the new chain.
+                        Every record and every rule moves from the existing system onto the new network.
                       </Typography>
                       <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-                        Maximum transformation
+                        The largest change
                       </Typography>
                     </Box>
                   </PortalCard>
                 </Stack>
               )}
 
-              {/* Inline back for the how-to-proceed sub-step */}
               {legacyStep === 'how-to-proceed' && (
-                <Button
-                  size="small" variant="text" startIcon={<ArrowBackIcon />}
-                  onClick={() => setLegacyStep('has-legacy')}
-                  sx={{ color: 'text.secondary' }}
-                >
+                <Button size="small" variant="text" startIcon={<ArrowBackIcon />} onClick={() => setLegacyStep('has-legacy')} sx={{ color: 'text.secondary' }}>
                   Back
                 </Button>
               )}
@@ -865,14 +958,10 @@ export default function Step0({
         {phase === 'gallery' && (
           <Fade in mountOnEnter unmountOnExit timeout={350}>
             <Box sx={{ width: '100%', maxWidth: 860, px: 3 }}>
-              {/* Gallery header */}
-              <Box sx={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                mb: 2, gap: 2,
-              }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, gap: 2 }}>
                 <Box>
                   <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.7, color: 'primary.main', mb: 0.5 }}>
-                    {dType === 'blockchain' ? 'Private blockchain' : 'dApp'}
+                    {typeLabel}
                     {legacyMode !== 'none' ? ` · ${legacyMode === 'connect' ? 'Connect' : 'Full port'}` : ''} · Templates
                   </Typography>
                   <Typography variant="h5" fontWeight={500} sx={{ letterSpacing: '-0.3px', color: 'text.primary' }}>
@@ -883,63 +972,45 @@ export default function Step0({
                   <Box
                     onClick={() => { setCompareMode(m => !m); if (compareMode) setCompareSet(new Set()); }}
                     sx={{
-                      display: 'flex', alignItems: 'center', gap: 0.75, cursor: 'pointer',
-                      px: 1.5, py: 0.75, borderRadius: 2,
+                      display: 'flex', alignItems: 'center', gap: 0.75, cursor: 'pointer', px: 1.5, py: 0.75, borderRadius: 2,
                       bgcolor: compareMode ? alpha(theme.palette.primary.main, 0.1) : 'background.paper',
-                      border: '0.5px solid',
-                      borderColor: compareMode ? 'primary.main' : 'divider',
+                      border: '0.5px solid', borderColor: compareMode ? 'primary.main' : 'divider',
                       color: compareMode ? 'primary.main' : 'text.secondary',
-                      fontSize: '0.72rem', fontWeight: compareMode ? 700 : 500,
-                      userSelect: 'none', transition: 'all 0.15s',
+                      fontSize: '0.72rem', fontWeight: compareMode ? 700 : 500, userSelect: 'none', transition: 'all 0.15s',
                     }}
                   >
                     <CompareArrowsIcon sx={{ fontSize: 14 }} />
                     Compare
                     {compareSet.size > 0 && (
-                      <Box sx={{
-                        width: 16, height: 16, borderRadius: '50%', bgcolor: 'primary.main',
-                        color: '#fff', fontSize: '0.6rem', fontWeight: 700,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
+                      <Box sx={{ width: 16, height: 16, borderRadius: '50%', bgcolor: 'primary.main', color: '#fff', fontSize: '0.6rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         {compareSet.size}
                       </Box>
                     )}
                   </Box>
-                  <Box sx={{
-                    display: 'flex', alignItems: 'center', gap: 1,
-                    bgcolor: 'background.paper', border: '0.5px solid', borderColor: 'divider',
-                    borderRadius: 2, px: 1.5, py: 0.75,
-                  }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'background.paper', border: '0.5px solid', borderColor: 'divider', borderRadius: 2, px: 1.5, py: 0.75 }}>
                     <SearchIcon sx={{ fontSize: 15, color: 'text.secondary' }} />
                     <input
                       value={search}
                       onChange={e => setSearch(e.target.value)}
-                      placeholder="Search..."
-                      style={{
-                        border: 'none', outline: 'none', background: 'transparent',
-                        fontSize: '0.75rem', width: 140,
-                        color: theme.palette.text.primary,
-                      }}
+                      placeholder="Search"
+                      aria-label="Search the templates"
+                      style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '0.75rem', width: 140, color: theme.palette.text.primary }}
                     />
                   </Box>
                 </Stack>
               </Box>
 
-              {/* Category tabs */}
               <Box sx={{ display: 'flex', gap: 0.75, mb: 2, flexWrap: 'wrap' }}>
                 {categories.map(c => (
                   <Box
                     key={c}
                     onClick={() => setCategoryFilter(c)}
                     sx={{
-                      px: 1.75, py: 0.4, borderRadius: 99, cursor: 'pointer',
-                      fontSize: '0.7rem', fontWeight: 500,
+                      px: 1.75, py: 0.4, borderRadius: 99, cursor: 'pointer', fontSize: '0.7rem', fontWeight: 500,
                       bgcolor: categoryFilter === c ? 'primary.main' : 'background.paper',
                       color: categoryFilter === c ? '#fff' : 'text.secondary',
-                      border: '0.5px solid',
-                      borderColor: categoryFilter === c ? 'primary.main' : 'divider',
-                      transition: 'all 0.15s',
-                      userSelect: 'none',
+                      border: '0.5px solid', borderColor: categoryFilter === c ? 'primary.main' : 'divider',
+                      transition: 'all 0.15s', userSelect: 'none',
                     }}
                   >
                     {c}
@@ -947,135 +1018,96 @@ export default function Step0({
                 ))}
               </Box>
 
-              {/* Compare mode hint */}
               {compareMode && (
                 <Box sx={{ mb: 1.5, px: 1.5, py: 1, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.06), border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}` }}>
                   <Typography variant="caption" color="primary.main" fontWeight={600}>
-                    Compare mode — select 2 or 3 templates to compare side-by-side
+                    Compare mode. Select two or three templates to read them side by side.
                   </Typography>
                 </Box>
               )}
 
-              {/* 2-column grid */}
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5, pb: compareMode && compareSet.size >= 2 ? 0 : 4 }}>
-                {/* Blank canvas — hidden in compare mode */}
                 {!compareMode && (
                   <GalleryCard
                     selected={selectedTemplate === 'scratch'}
                     elevation={0}
-                    onClick={() => selectTemplate({ id: 'scratch', title: 'Blank Canvas', description: 'Start from scratch.', category: 'Custom', tags: [], preinstalledModules: [] } as any)}
+                    onClick={() => selectTemplate({ id: 'scratch', title: 'Blank canvas', description: 'An empty canvas. We add outcomes in the Blueprint step.', category: 'Custom', tags: [], preinstalledModules: [], projectType: dType ?? 'dapp' })}
                   >
                     {selectedTemplate === 'scratch' && (
-                      <Box sx={{
-                        position: 'absolute', top: 10, right: 10,
-                        width: 16, height: 16, borderRadius: '50%', bgcolor: 'primary.main',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
+                      <Box sx={{ position: 'absolute', top: 10, right: 10, width: 16, height: 16, borderRadius: '50%', bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <CheckIcon sx={{ fontSize: 9, color: '#fff' }} />
                       </Box>
                     )}
-                    <Box sx={{
-                      width: 34, height: 34, borderRadius: '8px',
-                      bgcolor: alpha(theme.palette.primary.main, 0.05),
-                      border: `1px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      mb: 1.25,
-                    }}>
+                    <Box sx={{ width: 34, height: 34, borderRadius: '8px', bgcolor: alpha(theme.palette.primary.main, 0.05), border: `1px dashed ${alpha(theme.palette.primary.main, 0.2)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1.25 }}>
                       <AddIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                     </Box>
                     <Typography variant="body2" fontWeight={500} sx={{ mb: 0.5 }}>Blank canvas</Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                      Zero pre-installed modules
+                      No module installed yet
                     </Typography>
                     <Chip label="0 modules" size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: alpha(theme.palette.primary.main, 0.05), color: 'text.secondary' }} />
                   </GalleryCard>
                 )}
 
-                {/* Templates from API */}
                 {filteredTemplates.map(t => {
                   const inCompare = compareSet.has(t.id);
                   const compareDisabled = compareMode && compareSet.size >= 3 && !inCompare;
+                  const count = templateModules(t).length;
                   return (
                     <GalleryCard
                       key={t.id}
                       selected={compareMode ? inCompare : selectedTemplate === t.id}
                       elevation={0}
+                      data-testid="template-card"
                       onClick={() => {
-                        if (!compareMode) {
-                          selectTemplate(t);
-                          return;
-                        }
+                        if (!compareMode) { selectTemplate(t); return; }
                         if (compareDisabled) return;
-                        setCompareSet(prev => {
-                          const next = new Set(prev);
-                          if (next.has(t.id)) next.delete(t.id);
-                          else next.add(t.id);
-                          return next;
-                        });
+                        setCompareSet(prev => { const next = new Set(prev); if (next.has(t.id)) next.delete(t.id); else next.add(t.id); return next; });
                       }}
                       sx={compareDisabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                     >
                       {(compareMode ? inCompare : selectedTemplate === t.id) && (
-                        <Box sx={{
-                          position: 'absolute', top: 10, right: 10,
-                          width: 16, height: 16, borderRadius: '50%', bgcolor: 'primary.main',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
+                        <Box sx={{ position: 'absolute', top: 10, right: 10, width: 16, height: 16, borderRadius: '50%', bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <CheckIcon sx={{ fontSize: 9, color: '#fff' }} />
                         </Box>
                       )}
-                      <Box sx={{
-                        width: 34, height: 34, borderRadius: '8px',
-                        bgcolor: alpha(theme.palette.primary.main, 0.07),
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1.25,
-                      }}>
+                      <Box sx={{ width: 34, height: 34, borderRadius: '8px', bgcolor: alpha(theme.palette.primary.main, 0.07), display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1.25 }}>
                         <BoltIcon sx={{ fontSize: 17, color: 'primary.main' }} />
                       </Box>
                       <Stack direction="row" alignItems="center" spacing={0.75} mb={0.5} pr={2.5}>
                         <Typography variant="body2" fontWeight={500}>{t.title}</Typography>
-                        <Chip label={t.category} size="small" sx={{
-                          height: 16, fontSize: '0.58rem', fontWeight: 500,
-                          bgcolor: alpha(theme.palette.primary.main, 0.08), color: 'primary.main',
-                        }} />
+                        <Chip label={t.category} size="small" sx={{ height: 16, fontSize: '0.58rem', fontWeight: 500, bgcolor: alpha(theme.palette.primary.main, 0.08), color: 'primary.main' }} />
                       </Stack>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, lineHeight: 1.5 }}>
                         {t.description}
                       </Typography>
-                      <Chip
-                        label={`${t.preinstalledModules?.length ?? 0} modules`}
-                        size="small"
-                        sx={{ height: 18, fontSize: '0.6rem', bgcolor: alpha(theme.palette.primary.main, 0.05), color: 'text.secondary' }}
-                      />
+                      <Chip label={`${count} modules`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: alpha(theme.palette.primary.main, 0.05), color: 'text.secondary' }} />
                     </GalleryCard>
                   );
                 })}
 
                 {loadingTemplates && (
                   <Box sx={{ gridColumn: '1/-1', py: 3, textAlign: 'center' }}>
-                    <Typography variant="caption" color="text.secondary">Loading templates…</Typography>
+                    <Typography variant="caption" color="text.secondary">Reading the templates</Typography>
                   </Box>
                 )}
               </Box>
 
-              {/* Compare panel — shows when 2+ templates are selected for comparison */}
               {compareMode && compareSet.size >= 2 && (() => {
                 const compareTemplates = Array.from(compareSet).map(id => templates.find(t => t.id === id)).filter(Boolean) as Template[];
-                // Find all unique module sets
-                const allModules = Array.from(new Set(compareTemplates.flatMap(t => t.preinstalledModules ?? [])));
+                const allModules = Array.from(new Set(compareTemplates.flatMap(t => templateModules(t))));
+                const columns = `120px repeat(${compareTemplates.length}, 1fr)`;
                 return (
                   <Box sx={{ mt: 2, mb: 4, borderRadius: 2, border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, overflow: 'hidden' }}>
                     <Box sx={{ px: 2, py: 1.25, bgcolor: alpha(theme.palette.primary.main, 0.06), borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ letterSpacing: 0.5, textTransform: 'uppercase', fontSize: '0.63rem' }}>
                         Comparing {compareTemplates.length} templates
                       </Typography>
-                      <Box
-                        onClick={() => { setCompareSet(new Set()); setCompareMode(false); }}
-                        sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
-                      >
+                      <Box onClick={() => { setCompareSet(new Set()); setCompareMode(false); }} sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'text.secondary', '&:hover': { color: 'text.primary' } }}>
                         <CloseIcon sx={{ fontSize: 14 }} />
                       </Box>
                     </Box>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: `120px repeat(${compareTemplates.length}, 1fr)`, borderBottom: `1px solid ${theme.palette.divider}` }}>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: columns, borderBottom: `1px solid ${theme.palette.divider}` }}>
                       <Box sx={{ p: 1.5, bgcolor: 'background.default' }} />
                       {compareTemplates.map(t => (
                         <Box key={t.id} sx={{ p: 1.5, borderLeft: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
@@ -1084,8 +1116,7 @@ export default function Step0({
                         </Box>
                       ))}
                     </Box>
-                    {/* Description row */}
-                    <Box sx={{ display: 'grid', gridTemplateColumns: `120px repeat(${compareTemplates.length}, 1fr)`, borderBottom: `1px solid ${theme.palette.divider}` }}>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: columns, borderBottom: `1px solid ${theme.palette.divider}` }}>
                       <Box sx={{ p: 1.25, bgcolor: 'background.default', display: 'flex', alignItems: 'flex-start' }}>
                         <Typography variant="caption" color="text.secondary" fontWeight={600}>Description</Typography>
                       </Box>
@@ -1095,55 +1126,36 @@ export default function Step0({
                         </Box>
                       ))}
                     </Box>
-                    {/* Modules row */}
-                    <Box sx={{ display: 'grid', gridTemplateColumns: `120px repeat(${compareTemplates.length}, 1fr)`, borderBottom: `1px solid ${theme.palette.divider}` }}>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: columns, borderBottom: `1px solid ${theme.palette.divider}` }}>
                       <Box sx={{ p: 1.25, bgcolor: 'background.default', display: 'flex', alignItems: 'flex-start' }}>
                         <Typography variant="caption" color="text.secondary" fontWeight={600}>Modules</Typography>
                       </Box>
                       {compareTemplates.map(t => (
                         <Box key={t.id} sx={{ p: 1.25, borderLeft: `1px solid ${theme.palette.divider}` }}>
-                          <Typography variant="caption" fontWeight={700} color="primary.main">{t.preinstalledModules?.length ?? 0}</Typography>
-                          <Typography variant="caption" color="text.secondary"> pre-installed</Typography>
-                          {(t.preinstalledModules ?? []).length > 0 && (
-                            <Stack direction="row" flexWrap="wrap" gap={0.5} mt={0.75}>
-                              {t.preinstalledModules.map(m => (
-                                <Chip key={m} label={m} size="small" sx={{ height: 16, fontSize: '0.57rem', bgcolor: 'background.default' }} />
-                              ))}
-                            </Stack>
-                          )}
+                          <Typography variant="caption" fontWeight={700} color="primary.main">{templateModules(t).length}</Typography>
+                          <Typography variant="caption" color="text.secondary"> installed</Typography>
                         </Box>
                       ))}
                     </Box>
-                    {/* Unique modules across all */}
-                    {allModules.length > 0 && (
-                      allModules.map(mod => (
-                        <Box key={mod} sx={{ display: 'grid', gridTemplateColumns: `120px repeat(${compareTemplates.length}, 1fr)`, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.5)}` }}>
-                          <Box sx={{ p: 1, bgcolor: 'background.default', display: 'flex', alignItems: 'center', pl: 1.5 }}>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.62rem' }}>{mod}</Typography>
-                          </Box>
-                          {compareTemplates.map(t => (
-                            <Box key={t.id} sx={{ p: 1, borderLeft: `1px solid ${theme.palette.divider}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              {t.preinstalledModules?.includes(mod)
-                                ? <CheckIcon sx={{ fontSize: 13, color: '#10b981' }} />
-                                : <Box sx={{ width: 12, height: 1.5, bgcolor: alpha(theme.palette.text.secondary, 0.2), borderRadius: 1 }} />
-                              }
-                            </Box>
-                          ))}
+                    {allModules.map(mod => (
+                      <Box key={mod} sx={{ display: 'grid', gridTemplateColumns: columns, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.5)}` }}>
+                        <Box sx={{ p: 1, bgcolor: 'background.default', display: 'flex', alignItems: 'center', pl: 1.5 }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.62rem' }}>{mod}</Typography>
                         </Box>
-                      ))
-                    )}
-                    {/* Action row */}
-                    <Box sx={{ display: 'grid', gridTemplateColumns: `120px repeat(${compareTemplates.length}, 1fr)`, bgcolor: alpha(theme.palette.primary.main, 0.03) }}>
+                        {compareTemplates.map(t => (
+                          <Box key={t.id} sx={{ p: 1, borderLeft: `1px solid ${theme.palette.divider}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {templateModules(t).includes(mod)
+                              ? <CheckIcon sx={{ fontSize: 13, color: '#10b981' }} />
+                              : <Box sx={{ width: 12, height: 1.5, bgcolor: alpha(theme.palette.text.secondary, 0.2), borderRadius: 1 }} />}
+                          </Box>
+                        ))}
+                      </Box>
+                    ))}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: columns, bgcolor: alpha(theme.palette.primary.main, 0.03) }}>
                       <Box sx={{ p: 1.5, bgcolor: 'background.default' }} />
                       {compareTemplates.map(t => (
                         <Box key={t.id} sx={{ p: 1.5, borderLeft: `1px solid ${theme.palette.divider}` }}>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            fullWidth
-                            onClick={() => { selectTemplate(t); setCompareMode(false); setCompareSet(new Set()); }}
-                            sx={{ fontSize: '0.7rem', borderRadius: 1.5, py: 0.5 }}
-                          >
+                          <Button size="small" variant="outlined" fullWidth onClick={() => { selectTemplate(t); setCompareMode(false); setCompareSet(new Set()); }} sx={{ fontSize: '0.7rem', borderRadius: 1.5, py: 0.5 }}>
                             Use this
                           </Button>
                         </Box>
@@ -1156,22 +1168,27 @@ export default function Step0({
           </Fade>
         )}
 
-        {/* ─── PHASE: DETAILS (split configure) ─── */}
+        {/* ─── PHASE: DETAILS (split panel) ─── */}
         {phase === 'details' && (
           <Fade in mountOnEnter unmountOnExit timeout={350}>
             <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', px: 3 }}>
               <Box sx={{ width: '100%', maxWidth: 1100, mb: 2 }}>
                 <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.7, color: 'primary.main', mb: 0.5 }}>
-                  {dType === 'blockchain' ? 'Private blockchain' : 'dApp'}
-                  {selectedTemplateName ? ` · ${selectedTemplateName}` : ''} · Configure
+                  {typeLabel}
+                  {selectedTemplateName ? ` · ${selectedTemplateName}` : ''} · Details
                 </Typography>
                 <Typography variant="h5" fontWeight={500} sx={{ letterSpacing: '-0.3px', color: 'text.primary' }}>
-                  Configure your project
+                  The project details
                 </Typography>
               </Box>
 
+              {failure && (
+                <Alert severity="error" variant="outlined" sx={{ width: '100%', maxWidth: 1100, mb: 2 }}>
+                  {failure.message} {failure.fix}
+                </Alert>
+              )}
+
               <SplitGlassPanel elevation={0}>
-                {/* Left: Identity */}
                 <ConfigSection sx={{ borderRight: { md: `0.5px solid ${theme.palette.divider}` } }}>
                   <Stack direction="row" alignItems="center" spacing={1.5} mb={3}>
                     <Box sx={{ width: 28, height: 28, borderRadius: '7px', bgcolor: alpha(theme.palette.primary.main, 0.08), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1179,7 +1196,7 @@ export default function Step0({
                     </Box>
                     <Box>
                       <Typography variant="body2" fontWeight={500}>Identity</Typography>
-                      <Typography variant="caption" color="text.secondary">Naming & workspace</Typography>
+                      <Typography variant="caption" color="text.secondary">The name and the workspace</Typography>
                     </Box>
                   </Stack>
 
@@ -1187,13 +1204,16 @@ export default function Step0({
                     <TextField
                       label="Project name" fullWidth value={name}
                       onChange={e => setName(e.target.value)} variant="outlined" size="small"
+                      error={name.length > 0 && !!nameFix}
+                      helperText={name.length > 0 ? nameFix : undefined}
+                      inputProps={{ 'data-testid': 'project-name' }}
                     />
                     <TextField
-                      label="Slug" fullWidth value={slug} size="small"
-                      onChange={e => { setSlug(e.target.value); setSlugDirty(true); }}
+                      label="Address" fullWidth value={slug} size="small"
+                      InputProps={{ readOnly: true }}
                       helperText={
                         <Typography component="span" sx={{ fontSize: '0.7rem', color: 'primary.main', fontFamily: 'monospace' }}>
-                          studio.cerulea.io/{slug}
+                          studio.cerulea.io/{slug || 'the-name'}{assignedSlug ? '' : ' · Cerulea assigns the address from the name when the project opens.'}
                         </Typography>
                       }
                     />
@@ -1202,54 +1222,65 @@ export default function Step0({
                         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500, textTransform: 'uppercase', fontSize: '0.62rem', letterSpacing: 0.4 }}>
                           Workspace
                         </Typography>
-                        <Button
-                          size="small" startIcon={<AddIcon sx={{ fontSize: 12 }} />}
-                          onClick={() => { setWsDialogOpen(true); setWsNewName(''); setWsType('personal'); }}
-                          sx={{ fontSize: '0.7rem', p: '2px 8px', minWidth: 0, color: 'primary.main' }}
-                        >
+                        <Button size="small" startIcon={<AddIcon sx={{ fontSize: 12 }} />} onClick={() => { setWsDialogOpen(true); setWsNewName(''); }} sx={{ fontSize: '0.7rem', p: '2px 8px', minWidth: 0, color: 'primary.main' }} disabled={!!projectId}>
                           New
                         </Button>
                       </Stack>
                       <Select
-                        fullWidth value={wsId} size="small"
+                        fullWidth value={wsId} size="small" disabled={!!projectId}
                         onChange={e => { setWsId(e.target.value); setStudioState({ workspaceId: e.target.value }); }}
                         displayEmpty MenuProps={OPAQUE_MENU_PROPS as any}
                       >
-                        <MenuItem value="">Personal project</MenuItem>
+                        <MenuItem value="">The division workspace</MenuItem>
                         {workspaces.map(w => <MenuItem key={w.id} value={w.id}>{w.name}</MenuItem>)}
                       </Select>
+                      {projectId && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                          A project stays in the workspace it opened in.
+                        </Typography>
+                      )}
                     </Box>
                     <TextField
                       label="Description" multiline rows={3} fullWidth size="small"
                       value={description} onChange={e => setDescription(e.target.value)}
-                      placeholder="Brief description of what this project does…"
+                      placeholder="What this system does, in a sentence or two"
+                      helperText="This sentence reaches the Deployment Manifest, where we compare what we asked for with what we get."
+                      inputProps={{ 'data-testid': 'project-description' }}
                     />
                   </Stack>
                 </ConfigSection>
 
-                {/* Right: Technical */}
                 <ConfigSection sx={{ bgcolor: alpha(theme.palette.primary.main, 0.015) }}>
                   <Stack direction="row" alignItems="center" spacing={1.5} mb={3}>
                     <Box sx={{ width: 28, height: 28, borderRadius: '7px', bgcolor: alpha(theme.palette.primary.main, 0.08), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <DnsIcon sx={{ fontSize: 15, color: 'primary.main' }} />
                     </Box>
                     <Box>
-                      <Typography variant="body2" fontWeight={500}>{dType === 'dapp' ? 'Network specs' : 'Genesis params'}</Typography>
-                      <Typography variant="caption" color="text.secondary">Technical configuration</Typography>
+                      <Typography variant="body2" fontWeight={500}>The network</Typography>
+                      <Typography variant="caption" color="text.secondary">Where the system runs and how it keeps history</Typography>
                     </Box>
                   </Stack>
 
-                  {dType === 'dapp'
-                    ? <DappDetails value={dappDetails} onChange={setDappDetails} />
-                    : <ChainDetails value={chainDetails} onChange={setChainDetails} />
-                  }
+                  <NetworkPanel
+                    division={division}
+                    derivation={derivation}
+                    onDerivationChange={(next) => {
+                      setDerivation(next);
+                      if (dType === 'dapp') setDappVisibility(next.track === 'blockchain' ? 'private' : 'public');
+                    }}
+                    publishSelected={publishSelected}
+                    onPublishSelectedChange={setPublishSelected}
+                    planNote={planNote}
+                    blockSeconds={blockSeconds}
+                    onBlockSecondsChange={setBlockSeconds}
+                    historyRetentionDays={retentionDays}
+                    onHistoryRetentionDaysChange={setRetentionDays}
+                  />
 
-                  <Box sx={{
-                    mt: 2.5, p: 1.5, bgcolor: 'background.paper',
-                    border: '0.5px solid', borderColor: 'divider', borderRadius: 2,
-                  }}>
+                  <Box sx={{ mt: 2.5, p: 1.5, bgcolor: 'background.paper', border: '0.5px solid', borderColor: 'divider', borderRadius: 2 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                      These settings pre-load into Blueprint. You can add, remove, or change modules freely in Step 2.
+                      The template installs its parts and their record shapes into the Blueprint. We add, remove or change parts freely in the Blueprint step.
+                      {outcomeIds.length > 0 ? ` ${outcomeIds.length} outcomes from the description join the Blueprint step as well.` : ''}
                     </Typography>
                   </Box>
                 </ConfigSection>
@@ -1260,172 +1291,79 @@ export default function Step0({
 
       </Box>
 
-      {/* ══════════════════════════════════════════════════════════ */}
-      {/* FLOATING ISLAND — bottom dock, only for non-choose-type  */}
-      {/* ══════════════════════════════════════════════════════════ */}
-      {phase !== 'choose-type' && (
-        <Box sx={{
-          height: 80, display: 'flex', alignItems: 'center',
-          justifyContent: 'center', flexShrink: 0, position: 'relative', zIndex: 2,
-        }}>
+      {/* FLOATING ISLAND, the bottom dock for every phase after the first */}
+      {phase !== 'describe' && phase !== 'choose-type' && (
+        <Box sx={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative', zIndex: 2 }}>
           <FloatingIsland elevation={0}>
-            {/* Back button */}
             <Button
               size="small"
               startIcon={<ArrowBackIcon sx={{ fontSize: 14 }} />}
               onClick={() => {
-                // Locked divisions have no chooser to return to from legacy-question.
-                if (phase === 'legacy-question') { if (!divisionLockedType) setPhase('choose-type'); }
+                if (phase === 'legacy-question') setPhase(divisionLockedType ? 'describe' : 'choose-type');
+                else if (phase === 'dapp-type') setPhase(divisionLockedType ? 'describe' : 'choose-type');
                 else if (phase === 'gallery') goBackFromGallery();
                 else if (phase === 'details') setPhase('gallery');
               }}
-              sx={{
-                borderRadius: 99, px: 1.75, py: 0.75, fontSize: '0.72rem',
-                color: 'text.secondary', border: '0.5px solid', borderColor: 'divider',
-                fontWeight: 400, minWidth: 0,
-                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) },
-              }}
+              sx={{ borderRadius: 99, px: 1.75, py: 0.75, fontSize: '0.72rem', color: 'text.secondary', border: '0.5px solid', borderColor: 'divider', fontWeight: 400, minWidth: 0, '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) } }}
             >
               Back
             </Button>
 
-            {/* Center context label — gallery phase only */}
             {phase === 'gallery' && (
               <>
                 <Divider orientation="vertical" flexItem sx={{ height: 22, my: 'auto', mx: 0.5 }} />
-                <Typography sx={{
-                  fontSize: '0.72rem', fontWeight: 500, px: 1.25,
-                  color: selectedTemplate ? 'primary.main' : 'text.secondary',
-                }}>
+                <Typography sx={{ fontSize: '0.72rem', fontWeight: 500, px: 1.25, color: selectedTemplate ? 'primary.main' : 'text.secondary' }}>
                   {selectedTemplate
                     ? <><CheckIcon sx={{ fontSize: 11, verticalAlign: 'middle', mr: 0.5 }} />{selectedTemplateName}</>
-                    : 'Select a template'
-                  }
+                    : 'Select a template'}
                 </Typography>
               </>
             )}
 
             <Divider orientation="vertical" flexItem sx={{ height: 22, my: 'auto', mx: 0.5 }} />
 
-            {/* Action button */}
             {phase === 'gallery' && (
-              <Button
-                variant="contained" disabled={!selectedTemplate}
-                onClick={onConfirmTemplate}
-                endIcon={<ArrowForwardIcon sx={{ fontSize: 14 }} />}
-                sx={{ borderRadius: 99, px: 2.5, fontSize: '0.72rem', fontWeight: 500, boxShadow: 'none' }}
-              >
-                Configure
+              <Button variant="contained" disabled={!selectedTemplate} onClick={onConfirmTemplate} endIcon={<ArrowForwardIcon sx={{ fontSize: 14 }} />} sx={{ borderRadius: 99, px: 2.5, fontSize: '0.72rem', fontWeight: 500, boxShadow: 'none' }}>
+                Details
               </Button>
             )}
 
-            {(phase === 'legacy-question') && (
+            {(phase === 'legacy-question' || phase === 'dapp-type') && (
               <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', px: 1 }}>
                 Choose an option above
               </Typography>
             )}
 
             {phase === 'details' && (
-              <Button
-                variant="contained"
-                disabled={!name || name.trim().length < 3 || !slug}
-                onClick={onInitialize}
-                sx={{ borderRadius: 99, px: 2.5, fontSize: '0.72rem', fontWeight: 500, boxShadow: 'none' }}
-              >
-                Initialize project
-              </Button>
+              <>
+                {saveText && (
+                  <Typography sx={{ fontSize: '0.68rem', color: saveState === 'failed' ? 'error.main' : 'text.secondary', px: 1 }} data-testid="foundation-save-state">
+                    {saveText}
+                  </Typography>
+                )}
+                <Button variant="contained" disabled={!canInitialise} onClick={() => void onInitialize()} data-testid="initialize-project" sx={{ borderRadius: 99, px: 2.5, fontSize: '0.72rem', fontWeight: 500, boxShadow: 'none' }}>
+                  {projectId ? 'Save and continue' : 'Initialise project'}
+                </Button>
+              </>
             )}
           </FloatingIsland>
         </Box>
       )}
 
-      {/* ── Workspace dialog ── */}
+      {/* Workspace dialog */}
       <Dialog open={wsDialogOpen} onClose={() => setWsDialogOpen(false)} PaperProps={{ sx: { borderRadius: 3, p: 0.5, width: 320 } }}>
         <DialogTitle sx={{ fontSize: '1rem', fontWeight: 500 }}>New workspace</DialogTitle>
         <DialogContent>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2, lineHeight: 1.6 }}>
-            Workspaces let you group projects and manage team access.
+            A workspace groups projects and holds the team that reaches them. It serves the division of this address.
           </Typography>
-          <TextField
-            autoFocus margin="dense" label="Workspace name" fullWidth size="small"
-            value={wsNewName} onChange={e => setWsNewName(e.target.value)}
-            sx={{ mb: 2 }}
-          />
-          <Stack direction="row" spacing={1}>
-            {(['personal', 'team'] as const).map(t => (
-              <Box
-                key={t}
-                onClick={() => setWsType(t)}
-                sx={{
-                  flex: 1, border: '0.5px solid', borderRadius: 2, p: 1.25, cursor: 'pointer',
-                  borderColor: wsType === t ? 'primary.main' : 'divider',
-                  bgcolor: wsType === t ? alpha(theme.palette.primary.main, 0.05) : 'transparent',
-                  transition: 'all 0.15s',
-                }}
-              >
-                <Typography variant="caption" fontWeight={500} sx={{ color: wsType === t ? 'primary.main' : 'text.primary' }}>
-                  {t === 'personal' ? 'Personal' : 'Team'}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.62rem' }}>
-                  {t === 'personal' ? 'Just me' : 'Collaborate'}
-                </Typography>
-              </Box>
-            ))}
-          </Stack>
+          <TextField autoFocus margin="dense" label="Workspace name" fullWidth size="small" value={wsNewName} onChange={e => setWsNewName(e.target.value)} sx={{ mb: 1 }} />
         </DialogContent>
         <DialogActions sx={{ px: 2, pb: 2, gap: 1 }}>
           <Button onClick={() => setWsDialogOpen(false)} sx={{ color: 'text.secondary' }}>Cancel</Button>
-          <Button variant="contained" onClick={createWorkspace} sx={{ borderRadius: 2, boxShadow: 'none' }}>Create</Button>
+          <Button variant="contained" onClick={() => void createWorkspace()} sx={{ borderRadius: 2, boxShadow: 'none' }}>Create</Button>
         </DialogActions>
       </Dialog>
     </Box>
-  );
-}
-
-/* ──────────────────────────────────────────── */
-/* Sub-forms (DappDetails, ChainDetails)        */
-/* ──────────────────────────────────────────── */
-
-function DappDetails({ value, onChange }: { value: any; onChange: (v: any) => void }) {
-  return (
-    <Stack spacing={2.5}>
-      <FormControl fullWidth size="small">
-        <InputLabel>Target network</InputLabel>
-        <Select value={value.network} label="Target network" onChange={e => onChange({ ...value, network: e.target.value })} MenuProps={OPAQUE_MENU_PROPS as any}>
-          <MenuItem value="cerulea-testnet">Cerulea Testnet</MenuItem>
-          <MenuItem value="cerulea-mainnet">Cerulea Mainnet</MenuItem>
-          <MenuItem value="ethereum">Ethereum Mainnet</MenuItem>
-        </Select>
-      </FormControl>
-      <FormControl fullWidth size="small">
-        <InputLabel>Token standards</InputLabel>
-        <Select multiple value={value.tokenFocus} label="Token standards" onChange={e => onChange({ ...value, tokenFocus: e.target.value })} MenuProps={OPAQUE_MENU_PROPS as any}>
-          {['erc20', 'erc721', 'erc1155'].map(t => <MenuItem key={t} value={t}>{t.toUpperCase()}</MenuItem>)}
-        </Select>
-      </FormControl>
-      <TextField type="number" label="Royalties (%)" size="small" value={value.royalties} onChange={e => onChange({ ...value, royalties: Number(e.target.value) })} />
-    </Stack>
-  );
-}
-
-function ChainDetails({ value, onChange }: { value: any; onChange: (v: any) => void }) {
-  return (
-    <Stack spacing={2.5}>
-      <FormControl fullWidth size="small">
-        <InputLabel>Consensus mechanism</InputLabel>
-        <Select value={value.consensus} label="Consensus mechanism" onChange={e => onChange({ ...value, consensus: e.target.value })} MenuProps={OPAQUE_MENU_PROPS as any}>
-          <MenuItem value="PoA">Proof of Authority (Dev / Test)</MenuItem>
-          <MenuItem value="PoS">Proof of Stake (Production)</MenuItem>
-        </Select>
-      </FormControl>
-      <Stack direction="row" spacing={1.5}>
-        <TextField label="Native token" fullWidth size="small" value={value.nativeToken.symbol} onChange={e => onChange({ ...value, nativeToken: { ...value.nativeToken, symbol: e.target.value } })} />
-        <TextField type="number" label="Decimals" fullWidth size="small" value={value.nativeToken.decimals} onChange={e => onChange({ ...value, nativeToken: { ...value.nativeToken, decimals: Number(e.target.value) } })} />
-      </Stack>
-      <Stack direction="row" spacing={1.5}>
-        <TextField type="number" label="Validators" fullWidth size="small" value={value.initialValidators} onChange={e => onChange({ ...value, initialValidators: Number(e.target.value) })} />
-        <TextField type="number" label="Base gas" fullWidth size="small" value={value.feeModel.baseGas} onChange={e => onChange({ ...value, feeModel: { ...value.feeModel, baseGas: Number(e.target.value) } })} />
-      </Stack>
-    </Stack>
   );
 }
