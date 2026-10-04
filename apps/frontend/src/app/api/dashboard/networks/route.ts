@@ -2,7 +2,8 @@
 // The Networks panel reads the Blockchain of every project through this route.
 // Cerulea APIs opens the Blockchain each deployment runs and reads its height,
 // its validators and its region from the node. The throughput comes from the
-// blocks the workspace overview measures. Nothing here is estimated.
+// blocks the workspace overview measures. The chain card and the measured
+// behaviour come from the node Studio is joined to. Nothing here is estimated.
 // Without this route the panel would show nothing about the running networks.
 import { NextResponse } from 'next/server';
 
@@ -13,6 +14,8 @@ import {
   ceruleaRequest,
   listProjects,
   listWorkspaces,
+  readChainMeasurement,
+  readChainNetwork,
 } from '@/lib/cerulea-api';
 import { callOptions, ceruleaActor, failureReply, signInRequired } from '@/lib/cerulea-server';
 import { divisionForApplication, lockedProjectType } from '@/config/divisions';
@@ -39,6 +42,9 @@ type NetworkReading = {
   totalValidators: number | null;
   consensusHealth: 'Healthy' | 'Degraded' | 'Critical' | null;
   healthy: boolean | null;
+  host: string | null;
+  basePath: string | null;
+  publishedAt: string | null;
 };
 
 /** The part of the workspace overview read this route uses. */
@@ -80,6 +86,8 @@ async function readWorkspace(workspace: CeruleaWorkspace, options: CeruleaApiOpt
       options,
     ),
   ]);
+  // Only an open project runs a network a reader can act on.
+  projects.projects = projects.projects.filter((project) => project.state !== 'closed');
   // The overview read measures the Blockchain of the first live deployment.
   // Cerulea reads it only when a deployment answers, so an idle workspace costs one call less.
   const measured = networks.networks.some((reading) => reading.reachable)
@@ -89,7 +97,12 @@ async function readWorkspace(workspace: CeruleaWorkspace, options: CeruleaApiOpt
         options,
       )
     : null;
-  return { projects: projects.projects, networks: networks.networks, measured };
+  return {
+    projects: projects.projects,
+    networks: networks.networks,
+    measured,
+    observedAt: networks.observedAt,
+  };
 }
 
 function networkRow(
@@ -101,8 +114,10 @@ function networkRow(
   // The Networks read lists deployments newest first.
   const newest = readings.find((reading) => reading.projectId === project.projectId);
   // The workspace application fixes the division, and the division fixes the project type.
-  const division = divisionForApplication(workspace.application);
-  const projectType = division ? lockedProjectType(division) : null;
+  const division = divisionForApplication(workspace.application) ?? 'enterprise';
+  const projectType = lockedProjectType(division);
+  // The workspace overview measures the Blockchain of the first live deployment.
+  // The rate is a workspace reading, so the row says which blocks it came from.
   const throughput =
     newest && measured && measured.health.deploymentId === newest.deploymentId
       ? measured.throughput
@@ -110,13 +125,15 @@ function networkRow(
   return {
     id: project.projectId,
     name: project.name,
-    type: projectType === 'blockchain' ? 'L1' : projectType === 'dapp' ? 'dApp' : null,
+    type: projectType === 'dapp' ? 'dApp' : 'Blockchain',
     projectType,
+    division,
     status: screenStatus(newest),
     blockHeight: newest?.height ?? null,
     finalizedBlock: newest?.finalizedBlock ?? null,
     tps: throughput ? throughput.transactionsPerSecond : null,
     sampledBlocks: throughput ? throughput.sampledBlocks : null,
+    measuredAt: throughput ? throughput.measuredAt : null,
     consensusHealth: activeShare(newest),
     consensusState: newest?.consensusHealth ?? null,
     activeValidators: newest?.activeValidators ?? null,
@@ -126,6 +143,9 @@ function networkRow(
     region: newest?.region ?? null,
     deploymentId: newest?.deploymentId ?? null,
     deploymentState: newest?.state ?? null,
+    host: newest?.host ?? null,
+    basePath: newest?.basePath ?? null,
+    publishedAt: newest?.publishedAt ?? null,
     failureReason: newest?.failureReason ?? null,
     unreachableReason: newest?.unreachableReason ?? null,
     workspaceId: workspace.workspaceId,
@@ -140,15 +160,21 @@ export async function GET() {
   if (!actor) return signInRequired();
   try {
     const options = callOptions(actor);
-    const { workspaces } = await listWorkspaces(options);
+    const [{ workspaces }, chain, measurement] = await Promise.all([
+      listWorkspaces(options),
+      readChainNetwork(options),
+      readChainMeasurement(undefined, options),
+    ]);
     const networks = [];
+    let observedAt: string | null = null;
     for (const workspace of workspaces) {
       const held = await readWorkspace(workspace, options);
+      observedAt = held.observedAt;
       for (const project of held.projects) {
         networks.push(networkRow(workspace, project, held.networks, held.measured));
       }
     }
-    return NextResponse.json({ networks });
+    return NextResponse.json({ networks, chain, measurement, observedAt });
   } catch (cause) {
     return failureReply(cause);
   }

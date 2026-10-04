@@ -1,15 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+// apps/frontend/src/app/dashboard/nodes/page.tsx
+// The Nodes screen.
+// Every row reads /api/dashboard/nodes: the node Studio is joined to, every
+// validator taking part in agreement with its Trust Score, and every node a
+// deployment runs with the memory, processor time and uptime the hosting
+// process measured. A figure Cerulea APIs holds no reading for says so.
+// Without this screen an operator cannot tell who is authoring blocks.
+
 import {
-  Box, Typography, Paper, Stack, Chip, Button,
+  Box, Typography, Paper, Stack, Chip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Tooltip, LinearProgress, CircularProgress,
+  Tooltip, LinearProgress, CircularProgress, Alert, AlertTitle, Button,
 } from '@mui/material';
 import Grid from '@mui/material/GridLegacy';
 import { alpha, useTheme } from '@mui/material/styles';
-import { useSession } from 'next-auth/react';
-import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import ShieldIcon from '@mui/icons-material/Shield';
@@ -17,75 +22,208 @@ import HubIcon from '@mui/icons-material/Hub';
 import DeviceHubIcon from '@mui/icons-material/DeviceHub';
 import DnsIcon from '@mui/icons-material/Dns';
 
-type Node = {
-  id: string;
-  role: 'Validator' | 'RPC' | 'Archival';
-  status: 'Active' | 'Down' | 'Syncing';
-  region: string;
-  uptime: number;
-  network: string;
-  cpuPct: number;
-  memPct: number;
+import { usePanelData } from '@/components/dashboard/PanelState';
+import { shortAccount } from '@/components/dashboard/wording';
+import { durationText } from '@/components/dashboard/time';
+
+/** The answer of /api/dashboard/nodes, exactly as the route writes it. */
+type NodesView = {
+  network: {
+    node: {
+      systemName: string;
+      systemVersion: string;
+      chainName: string;
+      kind: 'local' | 'live';
+      peers: number;
+      isSyncing: boolean;
+      shouldHavePeers: boolean;
+      observedAt: string;
+    };
+    head: { number: number };
+    finalizedBlock: number;
+    epoch: number;
+    activeValidators: number;
+    totalValidators: number;
+    consensusHealth: string;
+    healthy: boolean;
+  };
+  validators: {
+    profile: {
+      account: string;
+      standingScore: number;
+      trustScore: number;
+      state: 'Active' | 'Inactive' | 'Slashed';
+      authoredBlocks: number;
+      missedBlocks: number;
+    };
+    trust: {
+      total: number;
+      standing: number;
+      performance: number;
+      custody: number;
+      verification: number;
+    };
+  }[];
+  nodes: {
+    nodeId: string;
+    deploymentId: string;
+    projectName: string;
+    account: string;
+    kind: 'process' | 'in_process';
+    state: 'running' | 'stopped';
+    systemName: string | null;
+    systemVersion: string | null;
+    chainName: string | null;
+    height: number | null;
+    peers: number | null;
+    expectedPeers: number;
+    isSyncing: boolean | null;
+    resources: {
+      source: 'hosting_service' | 'node_process';
+      residentBytes: number | null;
+      processorSeconds: number | null;
+      uptimeSeconds: number | null;
+    };
+    startedAt: string | null;
+    workspaceName: string;
+    region: string | null;
+  }[];
+  observedAt: string;
 };
 
-const TEST_NODES: Node[] = [
-  { id: 'node-val-01', role: 'Validator', status: 'Active',  region: 'us-east-1',      uptime: 99.94, network: 'CeruleaChain Mainnet',  cpuPct: 34, memPct: 51 },
-  { id: 'node-val-02', role: 'Validator', status: 'Active',  region: 'eu-west-1',      uptime: 99.81, network: 'CeruleaChain Mainnet',  cpuPct: 29, memPct: 48 },
-  { id: 'node-val-03', role: 'Validator', status: 'Down',    region: 'ap-southeast-1', uptime: 71.2,  network: 'CeruleaChain Mainnet',  cpuPct: 0,  memPct: 0 },
-  { id: 'node-val-04', role: 'Validator', status: 'Active',  region: 'eu-central-1',   uptime: 100,   network: 'TradeFi Private L1',    cpuPct: 22, memPct: 44 },
-  { id: 'node-val-05', role: 'Validator', status: 'Active',  region: 'us-west-2',      uptime: 99.97, network: 'TradeFi Private L1',    cpuPct: 27, memPct: 46 },
-  { id: 'node-rpc-01', role: 'RPC',       status: 'Active',  region: 'us-east-1',      uptime: 100,   network: 'VoteApp Devnet',         cpuPct: 18, memPct: 38 },
-  { id: 'node-rpc-02', role: 'RPC',       status: 'Active',  region: 'eu-west-1',      uptime: 99.99, network: 'VoteApp Devnet',         cpuPct: 21, memPct: 40 },
-  { id: 'node-rpc-03', role: 'RPC',       status: 'Syncing', region: 'ap-northeast-1', uptime: 98.1,  network: 'NFT Marketplace Chain', cpuPct: 55, memPct: 67 },
-  { id: 'node-arc-01', role: 'Archival',  status: 'Active',  region: 'us-west-2',      uptime: 99.55, network: 'CeruleaChain Mainnet',  cpuPct: 12, memPct: 72 },
-  { id: 'node-arc-02', role: 'Archival',  status: 'Active',  region: 'eu-west-2',      uptime: 99.8,  network: 'TradeFi Private L1',    cpuPct: 9,  memPct: 68 },
-];
+type Role = 'Node' | 'Validator';
+type Status = 'Active' | 'Down' | 'Degraded' | 'Syncing';
 
-const ROLE_COLOR: Record<string, string> = { Validator: '#8b5cf6', RPC: '#4F46E5', Archival: '#06b6d4' };
-const STATUS_COLOR: Record<string, string> = { Active: '#10b981', Down: '#ef4444', Syncing: '#f59e0b' };
+/** One roster row, whatever kind of node it describes. */
+type RosterRow = {
+  key: string;
+  id: string;
+  idDetail: string;
+  network: string;
+  role: Role;
+  status: Status;
+  statusDetail: string;
+  region: string;
+  cpu: string;
+  cpuDetail: string;
+  memory: string;
+  memoryDetail: string;
+  uptime: string;
+  uptimeDetail: string;
+  trust: { total: number; standing: number; performance: number; custody: number; verification: number } | null;
+};
+
+const ROLE_COLOR: Record<Role, string> = { Validator: '#8b5cf6', Node: '#4F46E5' };
+const STATUS_COLOR: Record<Status, string> = { Active: '#10b981', Down: '#ef4444', Degraded: '#f59e0b', Syncing: '#f59e0b' };
+
+const UNMEASURED = 'unmeasured';
+
+function megabytes(bytes: number | null): string {
+  if (bytes === null) return UNMEASURED;
+  return `${(bytes / 1048576).toFixed(0)} MB`;
+}
+
+/** The share of wall time the process spent on the processor, as a whole percentage. */
+function processorShare(processorSeconds: number | null, uptimeSeconds: number | null): string {
+  if (processorSeconds === null || uptimeSeconds === null || uptimeSeconds <= 0) return UNMEASURED;
+  return `${Math.round((processorSeconds / uptimeSeconds) * 100)}%`;
+}
+
+/** Builds the roster from the three kinds of node the route answers. */
+function rosterOf(view: NodesView): RosterRow[] {
+  const node = view.network.node;
+  const rows: RosterRow[] = [
+    {
+      key: `node-${node.systemName}`,
+      id: node.systemName,
+      idDetail: `${node.systemName} ${node.systemVersion}, the node Studio reads. ${node.peers} peers.`,
+      network: node.chainName,
+      role: 'Node',
+      status: node.isSyncing ? 'Syncing' : 'Active',
+      statusDetail: node.isSyncing
+        ? 'The node is catching up with the chain.'
+        : `The node answers at block ${view.network.head.number}, irreversible to ${view.network.finalizedBlock}.`,
+      region: node.kind,
+      cpu: UNMEASURED,
+      cpuDetail: 'Cerulea APIs measures no processor time for the node it reads.',
+      memory: UNMEASURED,
+      memoryDetail: 'Cerulea APIs measures no memory for the node it reads.',
+      uptime: UNMEASURED,
+      uptimeDetail: 'Cerulea APIs measures no uptime for the node it reads.',
+      trust: null,
+    },
+  ];
+  for (const entry of view.nodes) {
+    const measuredOn = entry.resources.source === 'hosting_service'
+      ? 'Measured on the Cerulea APIs process that hosts this node.'
+      : 'Measured on the node process.';
+    rows.push({
+      key: entry.nodeId,
+      id: entry.account,
+      idDetail: `${entry.nodeId}. ${entry.kind === 'in_process' ? 'Runs inside Cerulea APIs' : 'Runs as its own process'} for deployment ${entry.deploymentId}.`,
+      network: entry.projectName,
+      role: 'Validator',
+      status: entry.state === 'running' ? (entry.isSyncing ? 'Syncing' : 'Active') : 'Down',
+      statusDetail: entry.state === 'running'
+        ? `Running at block ${entry.height ?? 'unknown'} with ${entry.peers ?? 0} of ${entry.expectedPeers} expected peers.`
+        : 'The node process stopped.',
+      region: entry.region ?? UNMEASURED,
+      cpu: processorShare(entry.resources.processorSeconds, entry.resources.uptimeSeconds),
+      cpuDetail: entry.resources.processorSeconds !== null
+        ? `${entry.resources.processorSeconds.toFixed(0)} s of processor time over ${durationText(entry.resources.uptimeSeconds)}. ${measuredOn}`
+        : 'Cerulea APIs holds no processor reading for this node.',
+      memory: megabytes(entry.resources.residentBytes),
+      memoryDetail: entry.resources.residentBytes !== null
+        ? `Resident memory. ${measuredOn}`
+        : 'Cerulea APIs holds no memory reading for this node.',
+      uptime: durationText(entry.resources.uptimeSeconds),
+      uptimeDetail: entry.startedAt
+        ? `Started ${new Date(entry.startedAt).toLocaleString()}. ${measuredOn}`
+        : measuredOn,
+      trust: null,
+    });
+  }
+  for (const entry of view.validators) {
+    rows.push({
+      key: `validator-${entry.profile.account}`,
+      id: shortAccount(entry.profile.account),
+      idDetail: entry.profile.account,
+      network: node.chainName,
+      role: 'Validator',
+      status: entry.profile.state === 'Active' ? 'Active' : entry.profile.state === 'Slashed' ? 'Down' : 'Degraded',
+      statusDetail: `${entry.profile.state}. Authored ${entry.profile.authoredBlocks} blocks, missed ${entry.profile.missedBlocks}.`,
+      region: UNMEASURED,
+      cpu: UNMEASURED,
+      cpuDetail: 'A validator reports its blocks, its standing and its Trust Score. Its processor stays unmeasured here.',
+      memory: UNMEASURED,
+      memoryDetail: 'A validator reports its blocks, its standing and its Trust Score. Its memory stays unmeasured here.',
+      uptime: UNMEASURED,
+      uptimeDetail: 'A validator reports its blocks, its standing and its Trust Score. Its uptime stays unmeasured here.',
+      trust: entry.trust,
+    });
+  }
+  return rows;
+}
 
 export default function NodesPage() {
   const theme = useTheme();
-  const { data: session } = useSession();
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [loading, setLoading] = useState(true);
+  const reading = usePanelData<NodesView>('/api/dashboard/nodes', 12000);
+  const view = reading.data;
+  const loading = reading.loading && view === null;
+  const failure = reading.failure;
 
-  const isTestAccount = session?.user?.email === 'test@cerulea.app';
-
-  useEffect(() => {
-    if (!session) return;
-    if (isTestAccount) { setNodes(TEST_NODES); setLoading(false); return; }
-    // Nodes map 1:1 with projects — no real node metrics until infrastructure is provisioned.
-    fetch('/api/projects')
-      .then(r => r.json())
-      .then(j => {
-        const userProjects = (j.projects || []);
-        const derived: Node[] = userProjects.map((p: any) => ({
-          id: p.id,
-          role: 'Validator' as const,
-          status: p.status === 'active' ? 'Active' as const : 'Syncing' as const,
-          region: '—',
-          uptime: 0,
-          network: p.name,
-          cpuPct: 0,
-          memPct: 0,
-        }));
-        setNodes(derived);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [session, isTestAccount]);
-
+  const nodes = view ? rosterOf(view) : [];
   const activeNodes = nodes.filter((n) => n.status === 'Active');
-  const downNodes = nodes.filter((n) => n.status === 'Down');
+  const downNodes = nodes.filter((n) => n.status === 'Down' || n.status === 'Degraded');
   const validators = nodes.filter((n) => n.role === 'Validator');
   const activeValidators = validators.filter((n) => n.status === 'Active');
   const faultTolerance = validators.length ? Math.floor((activeValidators.length / validators.length) * 100) : 0;
+  const deploymentsRunNodes = Boolean(view && (view.nodes.length > 0 || view.validators.length > 0));
 
   const statCards = [
-    { label: 'Total Nodes', value: nodes.length, sub: 'Across all networks', color: '#4F46E5', icon: <HubIcon sx={{ fontSize: 28 }} /> },
-    { label: 'Active', value: activeNodes.length, sub: 'Healthy & reachable', color: '#10b981', icon: <CheckCircleIcon sx={{ fontSize: 28 }} /> },
-    { label: 'Down / Degraded', value: downNodes.length, sub: 'Require attention', color: '#ef4444', icon: <ErrorIcon sx={{ fontSize: 28 }} /> },
+    { label: 'Total Nodes', value: nodes.length, sub: 'Across every network', color: '#4F46E5', icon: <HubIcon sx={{ fontSize: 28 }} /> },
+    { label: 'Active', value: activeNodes.length, sub: 'Answering and in step', color: '#10b981', icon: <CheckCircleIcon sx={{ fontSize: 28 }} /> },
+    { label: 'Down / Degraded', value: downNodes.length, sub: 'Need attention', color: '#ef4444', icon: <ErrorIcon sx={{ fontSize: 28 }} /> },
   ];
 
   return (
@@ -103,31 +241,30 @@ export default function NodesPage() {
             Nodes
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-            Monitor validators, RPC endpoints, and archival nodes across all your networks.
+            Every validator and every node that serves the networks of this account.
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1.5}>
-          <Tooltip title="Available after deployment" arrow>
-            <span>
-              <Button variant="contained" disabled sx={{ fontWeight: 700 }}>Provision Node</Button>
-            </span>
-          </Tooltip>
-          <Button variant="outlined" startIcon={<VpnKeyIcon />} sx={{ borderRadius: 1, fontWeight: 700 }}>Rotate Keys</Button>
-        </Stack>
       </Stack>
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
-      ) : nodes.length === 0 ? (
-        <Paper variant="outlined" sx={{ borderRadius: 3, py: 12, textAlign: 'center', borderStyle: 'dashed' }}>
-          <Box sx={{ width: 72, height: 72, borderRadius: 3, bgcolor: alpha('#4F46E5', 0.07), display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2.5 }}>
-            <DnsIcon sx={{ fontSize: 36, color: '#4F46E5', opacity: 0.5 }} />
-          </Box>
-          <Typography variant="subtitle1" fontWeight={700} gutterBottom>No nodes provisioned yet</Typography>
-          <Typography variant="caption" color="text.secondary">Nodes are automatically provisioned when you deploy a network.</Typography>
-        </Paper>
-      ) : (
+      ) : failure && view === null ? (
+        <Alert severity="error" action={<Button size="small" onClick={reading.readAgain}>Read again</Button>}>
+          <AlertTitle>{failure.message}</AlertTitle>
+          {failure.fix}
+        </Alert>
+      ) : view && (
         <>
+          {!deploymentsRunNodes && (
+            <Paper variant="outlined" sx={{ borderRadius: 3, py: 8, textAlign: 'center', borderStyle: 'dashed', mb: 4 }}>
+              <Box sx={{ width: 72, height: 72, borderRadius: 3, bgcolor: alpha('#4F46E5', 0.07), display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2.5 }}>
+                <DnsIcon sx={{ fontSize: 36, color: '#4F46E5', opacity: 0.5 }} />
+              </Box>
+              <Typography variant="subtitle1" fontWeight={700} gutterBottom>No deployment runs a node yet</Typography>
+              <Typography variant="caption" color="text.secondary">Cerulea starts the nodes when we deploy a network. The node Studio reads is listed below.</Typography>
+            </Paper>
+          )}
+
           {/* Stat cards */}
           <Grid container spacing={2.5} mb={4}>
             {statCards.map((s) => (
@@ -148,7 +285,7 @@ export default function NodesPage() {
               <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, bgcolor: alpha('#f59e0b', 0.05), borderColor: alpha('#f59e0b', 0.18) }}>
                 <Typography variant="caption" sx={{ color: '#f59e0b', fontWeight: 800, letterSpacing: 0.8, fontSize: '0.62rem' }}>FAULT TOLERANCE</Typography>
                 <Typography variant="h3" fontWeight={900} sx={{ color: '#f59e0b', lineHeight: 1, mt: 0.5 }}>{faultTolerance}%</Typography>
-                <LinearProgress variant="determinate" value={faultTolerance}
+                <LinearProgress variant="determinate" value={faultTolerance} aria-label="Share of validators active"
                   sx={{ mt: 1.5, mb: 0.75, borderRadius: 1, height: 6, bgcolor: alpha('#f59e0b', 0.15), '& .MuiLinearProgress-bar': { bgcolor: faultTolerance >= 90 ? '#10b981' : faultTolerance >= 66 ? '#f59e0b' : '#ef4444' } }} />
                 <Stack direction="row" alignItems="center" gap={0.5}>
                   <ShieldIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
@@ -167,13 +304,16 @@ export default function NodesPage() {
                   <Typography variant="overline" sx={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: 1, color: 'primary.main' }}>NODE ROSTER</Typography>
                   <Chip label={nodes.length} size="small" sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, bgcolor: alpha('#4F46E5', 0.1), color: '#4F46E5', border: 'none' }} />
                 </Stack>
+                <Typography variant="caption" color="text.secondary">
+                  Read at {new Date(view.observedAt).toLocaleTimeString()}. The Trust Score decides how often a validator authors a block.
+                </Typography>
               </Stack>
             </Box>
             <TableContainer>
               <Table>
                 <TableHead>
                   <TableRow sx={{ bgcolor: alpha('#4F46E5', 0.02) }}>
-                    {['Node ID', 'Network', 'Role', 'Status', 'Region', 'CPU', 'Memory', 'Uptime', 'Actions'].map((h) => (
+                    {['Node ID', 'Network', 'Role', 'Status', 'Region', 'CPU', 'Memory', 'Uptime', 'Trust Score'].map((h) => (
                       <TableCell key={h} sx={{ fontWeight: 800, color: 'text.disabled', fontSize: '0.62rem', letterSpacing: 0.8, py: 1.5 }}>{h.toUpperCase()}</TableCell>
                     ))}
                   </TableRow>
@@ -183,12 +323,14 @@ export default function NodesPage() {
                     const sc = STATUS_COLOR[node.status];
                     const rc = ROLE_COLOR[node.role];
                     return (
-                      <TableRow key={node.id} sx={{
+                      <TableRow key={node.key} sx={{
                         borderLeft: `3px solid ${alpha(sc, 0.4)}`,
                         '&:hover': { bgcolor: alpha(sc, 0.03) },
                       }}>
                         <TableCell>
-                          <Typography variant="body2" fontWeight={700} sx={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>{node.id}</Typography>
+                          <Tooltip title={node.idDetail}>
+                            <Typography variant="body2" fontWeight={700} sx={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>{node.id}</Typography>
+                          </Tooltip>
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" color="text.secondary">{node.network}</Typography>
@@ -199,40 +341,39 @@ export default function NodesPage() {
                           </Box>
                         </TableCell>
                         <TableCell>
-                          <Stack direction="row" alignItems="center" spacing={0.75}>
-                            <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: sc, flexShrink: 0 }} />
-                            <Typography variant="body2" fontWeight={600} sx={{ color: sc }}>{node.status}</Typography>
-                          </Stack>
+                          <Tooltip title={node.statusDetail}>
+                            <Stack direction="row" alignItems="center" spacing={0.75}>
+                              <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: sc, flexShrink: 0 }} />
+                              <Typography variant="body2" fontWeight={600} sx={{ color: sc }}>{node.status}</Typography>
+                            </Stack>
+                          </Tooltip>
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" color="text.secondary">{node.region}</Typography>
                         </TableCell>
                         <TableCell>
-                          <Typography variant="caption" fontWeight={700} sx={{ color: node.cpuPct > 80 ? '#ef4444' : node.cpuPct > 60 ? '#f59e0b' : 'text.secondary' }}>
-                            {node.status === 'Down' ? '—' : `${node.cpuPct}%`}
-                          </Typography>
+                          <Tooltip title={node.cpuDetail}>
+                            <Typography variant="caption" fontWeight={700} color={node.cpu === UNMEASURED ? 'text.disabled' : 'text.secondary'}>{node.cpu}</Typography>
+                          </Tooltip>
                         </TableCell>
                         <TableCell>
-                          <Typography variant="caption" fontWeight={700} sx={{ color: node.memPct > 85 ? '#ef4444' : node.memPct > 70 ? '#f59e0b' : 'text.secondary' }}>
-                            {node.status === 'Down' ? '—' : `${node.memPct}%`}
-                          </Typography>
+                          <Tooltip title={node.memoryDetail}>
+                            <Typography variant="caption" fontWeight={700} color={node.memory === UNMEASURED ? 'text.disabled' : 'text.secondary'}>{node.memory}</Typography>
+                          </Tooltip>
                         </TableCell>
                         <TableCell>
-                          <Box sx={{ minWidth: 90 }}>
-                            <Typography variant="caption" fontWeight={700} sx={{ color: node.uptime >= 99 ? '#10b981' : node.uptime >= 90 ? '#f59e0b' : '#ef4444' }}>
-                              {node.uptime.toFixed(2)}%
-                            </Typography>
-                            <LinearProgress variant="determinate" value={node.uptime}
-                              sx={{ mt: 0.5, borderRadius: 1, height: 4, bgcolor: alpha('#10b981', 0.12), '& .MuiLinearProgress-bar': { bgcolor: node.uptime >= 99 ? '#10b981' : node.uptime >= 90 ? '#f59e0b' : '#ef4444' } }} />
-                          </Box>
+                          <Tooltip title={node.uptimeDetail}>
+                            <Typography variant="caption" fontWeight={700} color={node.uptime === UNMEASURED ? 'text.disabled' : 'text.secondary'}>{node.uptime}</Typography>
+                          </Tooltip>
                         </TableCell>
                         <TableCell>
-                          <Stack direction="row" spacing={0.75}>
-                            <Tooltip title="Available after deployment" arrow>
-                              <span><Button size="small" variant="outlined" disabled sx={{ borderRadius: 1, fontSize: '0.68rem' }}>SSH</Button></span>
+                          {node.trust ? (
+                            <Tooltip title={`Standing ${node.trust.standing}, performance ${node.trust.performance}, custody ${node.trust.custody}, verification ${node.trust.verification}`}>
+                              <Typography variant="caption" fontWeight={700} sx={{ color: '#8b5cf6' }}>{node.trust.total}</Typography>
                             </Tooltip>
-                            <Button size="small" variant="outlined" startIcon={<VpnKeyIcon sx={{ fontSize: 11 }} />} sx={{ borderRadius: 1, fontSize: '0.68rem' }}>Rotate</Button>
-                          </Stack>
+                          ) : (
+                            <Typography variant="caption" color="text.disabled">—</Typography>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
