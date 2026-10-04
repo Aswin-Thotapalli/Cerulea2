@@ -1,11 +1,18 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+// apps/frontend/src/app/dashboard/page.tsx
+// The Overview screen.
+// Every tile, every row and every bar reads /api/dashboard/overview, which
+// joins the Cerulea APIs overview, the projects of every workspace and the
+// request observatory. Nothing on this screen is typed in by hand.
+// Without this screen the account has no first view of its work.
+
+import { useState } from 'react';
 import {
   Box, Typography, Paper, Button, Stack, CircularProgress, Alert,
   Chip, Avatar, Tooltip, IconButton, Dialog, DialogTitle, DialogContent,
   DialogContentText, DialogActions, TextField, InputAdornment, Divider,
-  LinearProgress,
+  LinearProgress, AlertTitle,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useSession } from 'next-auth/react';
@@ -24,34 +31,71 @@ import SearchIcon from '@mui/icons-material/Search';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PendingIcon from '@mui/icons-material/Pending';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import SpeedIcon from '@mui/icons-material/Speed';
 import StorageIcon from '@mui/icons-material/Storage';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import BlockIcon from '@mui/icons-material/Block';
 import Link from 'next/link';
-import { studioProjectUrl } from '@/config/divisions';
+
+import { usePanelData } from '@/components/dashboard/PanelState';
+import { describeAction } from '@/components/dashboard/wording';
+import { planLabel } from '@/components/dashboard/plan';
+import {
+  divisionStartUrl,
+  newProjectUrl,
+  openInNewTab,
+  openProjectUrl,
+} from '@/components/dashboard/studio-links';
+import { longDate, relativeTime, shortDate } from '@/components/dashboard/time';
+import { api } from '@/lib/apiClient';
 
 type Project = {
   id: string;
   name: string;
   slug: string;
   status: string;
-  projectType: string;
-  division?: string;
+  state: string;
+  projectType: 'dapp' | 'blockchain';
+  division: string;
+  workspaceName: string;
   createdAt: string;
-  updatedAt?: string;
+  updatedAt: string;
 };
 
-// Opens a saved project inside its division (studio.cerulea.io/<division>?project=<id>).
-function getStudioUrl(p: { id: string; division?: string }) {
-  const isLocal = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
-  const base = isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
-  return studioProjectUrl(base, p.id, p.division);
-}
-
-function getNewProjectUrl() {
-  const isLocal = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
-  return isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
-}
+/** The answer of /api/dashboard/overview, exactly as the route writes it. */
+type OverviewView = {
+  chain: {
+    chainName: string;
+    kind: 'local' | 'live';
+    head: number;
+    finalizedBlock: number;
+    activeValidators: number;
+    totalValidators: number;
+    consensusHealth: string;
+    healthy: boolean;
+  };
+  integrations: { integration: string; kind: string; ready: boolean; detail: string }[];
+  attention: { subject: string; fix: string }[];
+  recentEvents: {
+    eventId: string;
+    action: string;
+    subjectType: string;
+    outcome: string;
+    occurredAt: string;
+  }[];
+  projects: Project[];
+  tiles: {
+    projects: number;
+    live: number;
+    inBuild: number;
+    drafts: number;
+    chains: number;
+    dapps: number;
+    deployments: number;
+    deploymentsRunning: number;
+    requests: number;
+    servingDeployments: number;
+    requestsSince: string | null;
+  };
+};
 
 const STATUS_MAP: Record<string, { color: string; icon: JSX.Element; label: string }> = {
   active:    { color: '#10b981', icon: <CheckCircleIcon sx={{ fontSize: 12 }} />, label: 'Live' },
@@ -60,76 +104,97 @@ const STATUS_MAP: Record<string, { color: string; icon: JSX.Element; label: stri
   failed:    { color: '#ef4444', icon: <ErrorOutlineIcon sx={{ fontSize: 12 }} />, label: 'Failed' },
 };
 
-const ACTIVITY = [
-  { time: '2h ago',  text: 'Deployment completed', sub: 'CeruleaDAO → Active', color: '#10b981', icon: <CheckCircleIcon sx={{ fontSize: 14 }} /> },
-  { time: '5h ago',  text: 'Contract compiled',    sub: 'NFT Module v2',        color: '#6366f1', icon: <HexagonOutlinedIcon sx={{ fontSize: 14 }} /> },
-  { time: '1d ago',  text: 'New project created',  sub: 'Private Blockchain',   color: '#8b5cf6', icon: <RocketLaunchIcon sx={{ fontSize: 14 }} /> },
-  { time: '2d ago',  text: 'API key rotated',      sub: 'Production key',       color: '#f59e0b', icon: <KeyIcon sx={{ fontSize: 14 }} /> },
-  { time: '3d ago',  text: 'Governance vote',      sub: 'Proposal #14 passed',  color: '#06b6d4', icon: <AccountBalanceIcon sx={{ fontSize: 14 }} /> },
-];
+/** The words beside the subject of an audit event. */
+function subjectWords(subjectType: string): string {
+  return subjectType.split('_').join(' ');
+}
+
+/** The first letter in upper case. */
+function capitalised(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
 
 export default function DashboardPage() {
   const theme = useTheme();
   const { data: session } = useSession();
-  const [loading, setLoading] = useState(true);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [err, setErr] = useState<string | null>(null);
+  const reading = usePanelData<OverviewView>('/api/dashboard/overview', 15000);
   const [search, setSearch] = useState('');
-  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [closeTarget, setCloseTarget] = useState<Project | null>(null);
+  const [closing, setClosing] = useState(false);
+  const [closeFailure, setCloseFailure] = useState<string | null>(null);
+  // Projects closed on this screen leave the table before the next read.
+  const [closedIds, setClosedIds] = useState<string[]>([]);
 
   const firstName = (session?.user?.name || 'Builder')?.split(' ')[0];
-  const user = session?.user as any;
+  const user = session?.user as { plan?: string } | undefined;
   const isDark = theme.palette.mode === 'dark';
 
-  const loadProjects = useCallback(async () => {
-    try {
-      const res = await fetch('/api/projects');
-      if (!res.ok) { setErr('Failed to load projects'); return; }
-      const j = await res.json();
-      setProjects(j.projects || []);
-    } catch {
-      setErr('Failed to connect to server');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const view = reading.data;
+  const loading = reading.loading && view === null;
+  const failure = reading.failure;
+  const projects = (view?.projects ?? []).filter((p) => !closedIds.includes(p.id));
 
-  useEffect(() => { loadProjects(); }, [loadProjects]);
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
+  const handleClose = async () => {
+    if (!closeTarget) return;
+    setClosing(true);
+    setCloseFailure(null);
     try {
-      const res = await fetch(`/api/projects/${deleteTarget.id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setProjects((prev) => prev.filter((p) => p.id !== deleteTarget.id));
-        setDeleteTarget(null);
-      }
+      // The trunk route closes the project. Every saved version stays readable.
+      await api(`/api/projects/${encodeURIComponent(closeTarget.id)}`, { method: 'DELETE' });
+      setClosedIds((prev) => [...prev, closeTarget.id]);
+      setCloseTarget(null);
+      reading.readAgain();
+    } catch (cause) {
+      setCloseFailure(cause instanceof Error ? cause.message : String(cause));
     } finally {
-      setDeleting(false);
+      setClosing(false);
     }
   };
 
   const filtered = projects.filter((p) =>
-    !search || p.name.toLowerCase().includes(search.toLowerCase())
+    !search
+      || p.name.toLowerCase().includes(search.toLowerCase())
+      || p.slug.toLowerCase().includes(search.toLowerCase())
   );
-
-  const activeCount = projects.filter((p) => p.status === 'active').length;
-  const draftCount = projects.filter((p) => p.status === 'draft').length;
-  const chainCount = projects.filter((p) => p.projectType === 'blockchain').length;
-  const dappCount = projects.filter((p) => p.projectType === 'dapp').length;
 
   const now = new Date();
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
 
+  const tiles = view?.tiles;
   const STATS = [
-    { label: 'Projects', value: loading ? '—' : projects.length, delta: '+2 this month', color: '#6366f1' },
-    { label: 'Live',     value: loading ? '—' : activeCount,     delta: `${Math.round((activeCount / Math.max(projects.length, 1)) * 100)}% uptime`, color: '#10b981' },
-    { label: 'Drafts',   value: loading ? '—' : draftCount,      delta: 'Pending deploy', color: '#f59e0b' },
-    { label: 'Chains',   value: loading ? '—' : chainCount,      delta: `${dappCount} dApps`, color: '#8b5cf6' },
-    { label: 'RPC reqs', value: loading ? '—' : '12.4K',         delta: '↑ 8% vs yesterday', color: '#06b6d4' },
+    {
+      label: 'Projects',
+      value: tiles ? tiles.projects : '—',
+      delta: tiles ? `${tiles.live} live, ${tiles.inBuild} in build` : 'Reading',
+      color: '#6366f1',
+    },
+    {
+      label: 'Live',
+      value: tiles ? tiles.live : '—',
+      delta: tiles ? `${tiles.deployments} deployments, ${tiles.deploymentsRunning} in progress` : 'Reading',
+      color: '#10b981',
+    },
+    { label: 'Drafts', value: tiles ? tiles.drafts : '—', delta: 'Pending deploy', color: '#f59e0b' },
+    {
+      label: 'Chains',
+      value: tiles ? tiles.chains : '—',
+      delta: tiles ? `${tiles.dapps} dApps` : 'Reading',
+      color: '#8b5cf6',
+    },
+    {
+      label: 'RPC requests',
+      value: tiles ? tiles.requests.toLocaleString('en-GB') : '—',
+      delta: tiles
+        ? tiles.requestsSince
+          ? `Served since ${shortDate(tiles.requestsSince)}`
+          : 'No deployment serves requests yet'
+        : 'Reading',
+      color: '#06b6d4',
+    },
   ];
+
+  const driversReady = view ? view.integrations.every((d) => d.ready) : false;
+  const healthy = Boolean(view?.chain.healthy) && driversReady;
 
   return (
     <Box sx={{ minHeight: '100%', p: { xs: 2, md: 3 }, position: 'relative' }}>
@@ -154,25 +219,23 @@ export default function DashboardPage() {
               </Typography>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <Typography variant="body2" color="text.secondary">
-                  {now.toLocaleDateString('en-GB', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  {longDate(now)}
                 </Typography>
-                {user?.plan && (
-                  <Chip
-                    label={user.plan.replace(/_/g, ' ').toUpperCase()}
-                    size="small"
-                    sx={{
-                      height: 20, fontSize: '0.6rem', fontWeight: 800,
-                      bgcolor: alpha('#4F46E5', 0.12), color: '#818cf8',
-                      border: '1px solid rgba(99,102,241,0.3)',
-                    }}
-                  />
-                )}
+                <Chip
+                  label={planLabel(user?.plan).toUpperCase()}
+                  size="small"
+                  sx={{
+                    height: 20, fontSize: '0.6rem', fontWeight: 800,
+                    bgcolor: alpha('#4F46E5', 0.12), color: '#818cf8',
+                    border: '1px solid rgba(99,102,241,0.3)',
+                  }}
+                />
               </Stack>
             </Box>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
-              onClick={() => { window.location.href = getNewProjectUrl(); }}
+              onClick={() => { window.location.href = newProjectUrl(); }}
               sx={{
                 borderRadius: 2, fontWeight: 700, px: 2.5,
                 background: 'linear-gradient(135deg, #4F46E5 0%, #6366f1 100%)',
@@ -220,6 +283,18 @@ export default function DashboardPage() {
           </Box>
         </Box>
 
+        {/* Open items, each with the fix beside it */}
+        {view && view.attention.length > 0 && (
+          <Stack spacing={1} sx={{ mb: 2.5 }}>
+            {view.attention.map((item) => (
+              <Alert key={item.subject} severity="warning" sx={{ borderRadius: 2 }}>
+                <AlertTitle sx={{ fontWeight: 700 }}>{item.subject}</AlertTitle>
+                {item.fix}
+              </Alert>
+            ))}
+          </Stack>
+        )}
+
         {/* ── Main 3-column layout ──────────────────────────── */}
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 280px' }, gap: 2.5 }}>
 
@@ -240,9 +315,9 @@ export default function DashboardPage() {
                 <Box>
                   <Stack direction="row" alignItems="center" spacing={0.75}>
                     <Typography variant="subtitle1" fontWeight={800}>Projects</Typography>
-                    {!loading && <Chip label={projects.length} size="small" sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }} />}
+                    {view && <Chip label={projects.length} size="small" sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }} />}
                   </Stack>
-                  <Typography variant="caption" color="text.secondary">Your blockchain apps and networks</Typography>
+                  <Typography variant="caption" color="text.secondary">The Blockchain apps and networks of this account</Typography>
                 </Box>
               </Stack>
               <Stack direction="row" spacing={1} alignItems="center">
@@ -260,7 +335,7 @@ export default function DashboardPage() {
             </Stack>
 
             {/* Column headers */}
-            {!loading && filtered.length > 0 && (
+            {view && filtered.length > 0 && (
               <Box sx={{
                 display: 'grid',
                 gridTemplateColumns: '40px 1fr 110px 100px 90px 60px',
@@ -268,8 +343,8 @@ export default function DashboardPage() {
                 borderBottom: `1px solid ${theme.palette.divider}`,
                 bgcolor: isDark ? alpha('#4F46E5', 0.04) : alpha('#f5f5f5', 0.6),
               }}>
-                {['', 'Name', 'Type', 'Status', 'Updated', ''].map((h) => (
-                  <Typography key={h} variant="caption" color="text.disabled"
+                {['', 'Name', 'Type', 'Status', 'Updated', ''].map((h, i) => (
+                  <Typography key={`${h}-${i}`} variant="caption" color="text.disabled"
                     sx={{ fontWeight: 800, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: 0.8 }}>
                     {h}
                   </Typography>
@@ -283,8 +358,14 @@ export default function DashboardPage() {
                 <Box sx={{ py: 8, display: 'flex', justifyContent: 'center' }}>
                   <CircularProgress size={28} />
                 </Box>
-              ) : err ? (
-                <Box sx={{ p: 3 }}><Alert severity="error" sx={{ borderRadius: 2 }}>{err}</Alert></Box>
+              ) : failure && view === null ? (
+                <Box sx={{ p: 3 }}>
+                  <Alert severity="error" sx={{ borderRadius: 2 }}
+                    action={<Button size="small" onClick={reading.readAgain}>Read again</Button>}>
+                    <AlertTitle>{failure.message}</AlertTitle>
+                    {failure.fix}
+                  </Alert>
+                </Box>
               ) : filtered.length === 0 ? (
                 <Box sx={{ py: 10, textAlign: 'center' }}>
                   <Box sx={{
@@ -298,12 +379,12 @@ export default function DashboardPage() {
                     {search ? 'No matching projects' : 'No projects yet'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    {search ? 'Try a different search term' : 'Launch Cerulea Studio to create your first project'}
+                    {search ? 'Try a different search term' : 'Open Cerulea Studio to start the first project'}
                   </Typography>
                   {!search && (
                     <Button variant="contained" startIcon={<RocketLaunchIcon />}
                       sx={{ borderRadius: 2 }}
-                      onClick={() => { window.location.href = getNewProjectUrl(); }}>
+                      onClick={() => { window.location.href = newProjectUrl(); }}>
                       Open Studio
                     </Button>
                   )}
@@ -312,7 +393,7 @@ export default function DashboardPage() {
                 filtered.map((p, idx) => {
                   const isChain = p.projectType === 'blockchain';
                   const typeColor = isChain ? '#8b5cf6' : '#6366f1';
-                  const statusCfg = STATUS_MAP[p.status] ?? { color: '#6366f1', icon: null, label: p.status };
+                  const statusCfg = STATUS_MAP[p.status] ?? { color: '#6366f1', icon: null, label: capitalised(p.status) };
                   return (
                     <Box key={p.id}>
                       {idx > 0 && <Divider sx={{ mx: 3 }} />}
@@ -371,21 +452,21 @@ export default function DashboardPage() {
 
                         {/* Date */}
                         <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>
-                          {new Date(p.updatedAt || p.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                          {shortDate(p.updatedAt || p.createdAt)}
                         </Typography>
 
                         {/* Actions */}
                         <Stack direction="row" spacing={0.25} alignItems="center">
                           <Tooltip title="Open in Studio">
-                            <IconButton size="small"
-                              onClick={() => { window.open(getStudioUrl(p), '_blank', 'noopener,noreferrer'); }}
+                            <IconButton size="small" aria-label={`Open ${p.name} in Studio`}
+                              onClick={() => { openInNewTab(openProjectUrl(p.id, p.division)); }}
                               sx={{ bgcolor: alpha(typeColor, 0.07), '&:hover': { bgcolor: alpha(typeColor, 0.18) } }}>
                               <OpenInNewIcon sx={{ fontSize: 14, color: typeColor }} />
                             </IconButton>
                           </Tooltip>
-                          <Tooltip title="Delete">
-                            <IconButton size="small"
-                              onClick={() => setDeleteTarget(p)}
+                          <Tooltip title="Close project">
+                            <IconButton size="small" aria-label={`Close ${p.name}`}
+                              onClick={() => { setCloseFailure(null); setCloseTarget(p); }}
                               sx={{ '&:hover': { color: 'error.main', bgcolor: alpha('#ef4444', 0.08) } }}>
                               <DeleteOutlineIcon sx={{ fontSize: 14 }} />
                             </IconButton>
@@ -409,8 +490,8 @@ export default function DashboardPage() {
               </Box>
               <Box sx={{ p: 1 }}>
                 {[
-                  { label: 'New dApp',       icon: <BoltIcon sx={{ fontSize: 16 }} />,              color: '#6366f1', action: () => { window.location.href = getNewProjectUrl(); } },
-                  { label: 'New Blockchain', icon: <NetworkCheckIcon sx={{ fontSize: 16 }} />,      color: '#8b5cf6', action: () => { window.location.href = getNewProjectUrl(); } },
+                  { label: 'New dApp',       icon: <BoltIcon sx={{ fontSize: 16 }} />,              color: '#6366f1', action: () => { window.location.href = divisionStartUrl('dapp'); } },
+                  { label: 'New Blockchain', icon: <NetworkCheckIcon sx={{ fontSize: 16 }} />,      color: '#8b5cf6', action: () => { window.location.href = divisionStartUrl('enterprise'); } },
                   { label: 'API Keys',       icon: <KeyIcon sx={{ fontSize: 16 }} />,               color: '#f59e0b', href: '/dashboard/keys' },
                   { label: 'Governance',     icon: <AccountBalanceIcon sx={{ fontSize: 16 }} />,    color: '#06b6d4', href: '/dashboard/governance' },
                   { label: 'Smart Contracts',icon: <HexagonOutlinedIcon sx={{ fontSize: 16 }} />,  color: '#8b5cf6', href: '/dashboard/contracts' },
@@ -440,7 +521,7 @@ export default function DashboardPage() {
                       {inner}
                     </Link>
                   ) : (
-                    <Box key={a.label} onClick={a.action}>{inner}</Box>
+                    <Box key={a.label} role="button" aria-label={a.label} onClick={a.action}>{inner}</Box>
                   );
                 })}
               </Box>
@@ -452,69 +533,99 @@ export default function DashboardPage() {
                 <Typography variant="subtitle2" fontWeight={800}>Recent Activity</Typography>
               </Box>
               <Box sx={{ p: 2 }}>
-                <Stack spacing={2}>
-                  {ACTIVITY.map((a, i) => (
-                    <Stack key={i} direction="row" spacing={1.5} alignItems="flex-start">
-                      <Box sx={{
-                        width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                        bgcolor: alpha(a.color, 0.12),
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: a.color, mt: 0.1,
-                      }}>
-                        {a.icon}
-                      </Box>
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem', lineHeight: 1.3 }}>
-                          {a.text}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', fontSize: '0.7rem' }}>
-                          {a.sub}
-                        </Typography>
-                      </Box>
-                      <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem', flexShrink: 0 }}>
-                        {a.time}
-                      </Typography>
-                    </Stack>
-                  ))}
-                </Stack>
+                {!view ? (
+                  <Typography variant="caption" color="text.secondary">Reading the audit record.</Typography>
+                ) : view.recentEvents.length === 0 ? (
+                  <Typography variant="caption" color="text.secondary">
+                    The audit record holds no event for this account yet.
+                  </Typography>
+                ) : (
+                  <Stack spacing={2}>
+                    {view.recentEvents.slice(0, 5).map((event) => {
+                      const refused = event.outcome !== 'allowed';
+                      const color = refused ? '#ef4444' : '#10b981';
+                      return (
+                        <Stack key={event.eventId} direction="row" spacing={1.5} alignItems="flex-start">
+                          <Box sx={{
+                            width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                            bgcolor: alpha(color, 0.12),
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color, mt: 0.1,
+                          }}>
+                            {refused ? <BlockIcon sx={{ fontSize: 14 }} /> : <CheckCircleIcon sx={{ fontSize: 14 }} />}
+                          </Box>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem', lineHeight: 1.3 }}>
+                              {describeAction(event.action)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', fontSize: '0.7rem' }}>
+                              {capitalised(subjectWords(event.subjectType))}, {event.outcome}
+                            </Typography>
+                          </Box>
+                          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem', flexShrink: 0 }}>
+                            {relativeTime(event.occurredAt, now)}
+                          </Typography>
+                        </Stack>
+                      );
+                    })}
+                  </Stack>
+                )}
               </Box>
             </Paper>
 
             {/* Platform health */}
-            <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden', borderColor: alpha('#10b981', 0.18) }}>
+            <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden', borderColor: alpha(healthy ? '#10b981' : '#f59e0b', 0.18) }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between"
                 sx={{ px: 2.5, py: 1.75, borderBottom: `1px solid ${theme.palette.divider}` }}>
                 <Typography variant="subtitle2" fontWeight={800}>Platform Health</Typography>
-                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#10b981', boxShadow: '0 0 6px #10b981' }} />
+                <Box aria-label={healthy ? 'Every service answers' : 'A service needs attention'}
+                  sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: healthy ? '#10b981' : '#f59e0b', boxShadow: `0 0 6px ${healthy ? '#10b981' : '#f59e0b'}` }} />
               </Stack>
               <Box sx={{ p: 2 }}>
-                <Stack spacing={1}>
-                  {[
-                    { label: 'Studio', pct: 100 },
-                    { label: 'Deploy Engine', pct: 100 },
-                    { label: 'RPC Gateway', pct: 98 },
-                    { label: 'AI Assistant', pct: 100 },
-                    { label: 'Contract Compiler', pct: 100 },
-                  ].map((s) => (
-                    <Box key={s.label}>
-                      <Stack direction="row" justifyContent="space-between" mb={0.5}>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.72rem' }}>{s.label}</Typography>
-                        <Typography variant="caption" fontWeight={700} sx={{ fontSize: '0.72rem', color: s.pct === 100 ? '#10b981' : '#f59e0b' }}>
-                          {s.pct}%
-                        </Typography>
-                      </Stack>
-                      <LinearProgress
-                        variant="determinate"
-                        value={s.pct}
-                        sx={{
-                          height: 3, borderRadius: 2,
-                          bgcolor: alpha('#10b981', 0.08),
-                          '& .MuiLinearProgress-bar': { bgcolor: s.pct === 100 ? '#10b981' : '#f59e0b', borderRadius: 2 },
-                        }}
-                      />
-                    </Box>
-                  ))}
-                </Stack>
+                {!view ? (
+                  <Typography variant="caption" color="text.secondary">Reading the node and the drivers.</Typography>
+                ) : (
+                  <Stack spacing={1}>
+                    {[
+                      {
+                        label: view.chain.chainName,
+                        ok: view.chain.healthy,
+                        right: `Agreement ${view.chain.consensusHealth}`,
+                        detail: `Block ${view.chain.head}, irreversible to ${view.chain.finalizedBlock}, ${view.chain.activeValidators} of ${view.chain.totalValidators} validators serving.`,
+                      },
+                      ...view.integrations.map((driver) => ({
+                        label: capitalised(driver.integration),
+                        ok: driver.ready,
+                        right: driver.ready ? 'Ready' : 'Holding back',
+                        detail: driver.detail,
+                      })),
+                    ].map((s) => (
+                      <Tooltip key={s.label} title={s.detail} placement="left">
+                        <Box>
+                          <Stack direction="row" justifyContent="space-between" mb={0.5}>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.72rem' }}>{s.label}</Typography>
+                            <Typography variant="caption" fontWeight={700} sx={{ fontSize: '0.72rem', color: s.ok ? '#10b981' : '#f59e0b' }}>
+                              {s.right}
+                            </Typography>
+                          </Stack>
+                          <LinearProgress
+                            variant="determinate"
+                            value={s.ok ? 100 : 0}
+                            aria-label={`${s.label}: ${s.detail}`}
+                            sx={{
+                              height: 3, borderRadius: 2,
+                              bgcolor: alpha(s.ok ? '#10b981' : '#f59e0b', 0.12),
+                              '& .MuiLinearProgress-bar': { bgcolor: s.ok ? '#10b981' : '#f59e0b', borderRadius: 2 },
+                            }}
+                          />
+                          <Typography variant="caption" color="text.disabled" noWrap sx={{ display: 'block', fontSize: '0.62rem', mt: 0.25 }}>
+                            {s.detail}
+                          </Typography>
+                        </Box>
+                      </Tooltip>
+                    ))}
+                  </Stack>
+                )}
               </Box>
             </Paper>
 
@@ -523,26 +634,27 @@ export default function DashboardPage() {
 
       </Box>
 
-      {/* Delete Dialog */}
+      {/* Close Dialog */}
       <Dialog
-        open={!!deleteTarget}
-        onClose={() => !deleting && setDeleteTarget(null)}
+        open={!!closeTarget}
+        onClose={() => !closing && setCloseTarget(null)}
         maxWidth="xs" fullWidth
         PaperProps={{ sx: { borderRadius: 3 } }}
       >
         <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <DeleteOutlineIcon color="error" /> Delete Project
+          <DeleteOutlineIcon color="error" /> Close Project
         </DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Permanently delete <strong>{deleteTarget?.name}</strong>? All drafts, contracts, and threads will be removed. This cannot be undone.
+            Close <strong>{closeTarget?.name}</strong>? The project leaves this list and stops accepting changes. Every saved Blueprint version stays readable.
           </DialogContentText>
+          {closeFailure && <Alert severity="error" sx={{ mt: 2, borderRadius: 2 }}>{closeFailure}</Alert>}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancel</Button>
-          <Button variant="contained" color="error" onClick={handleDelete} disabled={deleting}
-            startIcon={deleting ? <CircularProgress size={14} color="inherit" /> : <DeleteOutlineIcon />}>
-            {deleting ? 'Deleting...' : 'Delete'}
+          <Button onClick={() => setCloseTarget(null)} disabled={closing}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={handleClose} disabled={closing}
+            startIcon={closing ? <CircularProgress size={14} color="inherit" /> : <DeleteOutlineIcon />}>
+            {closing ? 'Closing...' : 'Close'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,11 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { studioProjectUrl } from '@/config/divisions';
+// apps/frontend/src/app/dashboard/projects/page.tsx
+// The Projects screen.
+// Every row reads /api/dashboard/projects, which lists the projects of every
+// workspace the account belongs to. The type of a row follows the workspace
+// application. Closing a project goes through the trunk project route, and
+// every saved Blueprint version stays readable afterwards.
+// Without this screen the account cannot find, open or close its projects.
+
+import { useState } from 'react';
 import {
   Box, Typography, Paper, Button, Stack,
   TextField, MenuItem, Select, FormControl, InputLabel,
-  CircularProgress, Alert, InputAdornment,
+  CircularProgress, Alert, AlertTitle, InputAdornment,
   Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Tooltip,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -17,16 +24,26 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AutoAwesomeMosaicIcon from '@mui/icons-material/AutoAwesomeMosaic';
 import LanIcon from '@mui/icons-material/Lan';
 
+import { usePanelData } from '@/components/dashboard/PanelState';
+import { newProjectUrl, openInNewTab, openProjectUrl } from '@/components/dashboard/studio-links';
+import { fullDate } from '@/components/dashboard/time';
+import { api } from '@/lib/apiClient';
+
 type Project = {
   id: string;
   name: string;
   slug: string;
   status: string;
-  projectType: string;
-  division?: string;
+  state: string;
+  projectType: 'dapp' | 'blockchain';
+  division: string;
+  workspaceName: string;
   createdAt: string;
-  updatedAt?: string;
+  updatedAt: string;
 };
+
+/** The answer of /api/dashboard/projects, exactly as the route writes it. */
+type ProjectsView = { projects: Project[] };
 
 const STATUS_META: Record<string, { color: string; label: string }> = {
   active: { color: '#10b981', label: 'Active' },
@@ -35,48 +52,37 @@ const STATUS_META: Record<string, { color: string; label: string }> = {
   failed: { color: '#ef4444', label: 'Failed' },
 };
 
-function studioBase() {
-  const isLocal = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
-  return isLocal ? 'http://studio.localhost:3000' : 'https://studio.cerulea.io';
-}
-// Opens a saved project inside its division (studio.cerulea.io/<division>?project=<id>).
-function getStudioUrl(p: { id: string; division?: string }) {
-  return studioProjectUrl(studioBase(), p.id, p.division);
-}
-function getNewProjectUrl() {
-  return studioBase();
-}
-
 export default function ProjectsPage() {
   const theme = useTheme();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const reading = usePanelData<ProjectsView>('/api/dashboard/projects');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [closeTarget, setCloseTarget] = useState<Project | null>(null);
+  const [closing, setClosing] = useState(false);
+  const [closeFailure, setCloseFailure] = useState<string | null>(null);
+  // Projects closed on this screen leave the table before the next read.
+  const [closedIds, setClosedIds] = useState<string[]>([]);
 
-  const loadProjects = async () => {
+  const loading = reading.loading && reading.data === null;
+  const failure = reading.failure;
+  const projects = (reading.data?.projects ?? []).filter((p) => !closedIds.includes(p.id));
+
+  const handleClose = async () => {
+    if (!closeTarget) return;
+    setClosing(true);
+    setCloseFailure(null);
     try {
-      const res = await fetch('/api/projects');
-      if (!res.ok) { setError('Failed to load projects'); return; }
-      const j = await res.json();
-      setProjects(j.projects || []);
-    } catch { setError('Failed to connect to server'); } finally { setLoading(false); }
-  };
-
-  useEffect(() => { loadProjects(); }, []);
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      const res = await fetch(`/api/projects/${deleteTarget.id}`, { method: 'DELETE' });
-      if (res.ok) { setProjects((prev) => prev.filter((p) => p.id !== deleteTarget.id)); setDeleteTarget(null); }
-      else setError('Failed to delete project');
-    } catch { setError('Failed to delete project'); } finally { setDeleting(false); }
+      // The trunk route closes the project. Every saved version stays readable.
+      await api(`/api/projects/${encodeURIComponent(closeTarget.id)}`, { method: 'DELETE' });
+      setClosedIds((prev) => [...prev, closeTarget.id]);
+      setCloseTarget(null);
+      reading.readAgain();
+    } catch (cause) {
+      setCloseFailure(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setClosing(false);
+    }
   };
 
   const filtered = projects.filter((p) => {
@@ -97,10 +103,10 @@ export default function ProjectsPage() {
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: -0.5, mt: 0.5,
           }}>Projects</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-            All your blockchain networks and dApps — manage, open, and delete from here.
+            Every Blockchain network and dApp this account holds. Open, filter and close each one here.
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => { window.location.href = getNewProjectUrl(); }}
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => { window.location.href = newProjectUrl(); }}
           sx={{ borderRadius: 1, fontWeight: 700, background: 'linear-gradient(135deg, #4F46E5 0%, #6366f1 100%)' }}>
           New Project
         </Button>
@@ -112,16 +118,16 @@ export default function ProjectsPage() {
           InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" sx={{ color: 'text.disabled' }} /></InputAdornment> }}
           sx={{ flex: 1, minWidth: 220 }} />
         <FormControl size="small" sx={{ minWidth: 130 }}>
-          <InputLabel>Type</InputLabel>
-          <Select value={typeFilter} label="Type" onChange={(e) => setTypeFilter(e.target.value)}>
+          <InputLabel id="projects-type-label">Type</InputLabel>
+          <Select labelId="projects-type-label" value={typeFilter} label="Type" onChange={(e) => setTypeFilter(e.target.value)}>
             <MenuItem value="all">All Types</MenuItem>
             <MenuItem value="blockchain">Blockchain</MenuItem>
             <MenuItem value="dapp">dApp</MenuItem>
           </Select>
         </FormControl>
         <FormControl size="small" sx={{ minWidth: 140 }}>
-          <InputLabel>Status</InputLabel>
-          <Select value={statusFilter} label="Status" onChange={(e) => setStatusFilter(e.target.value)}>
+          <InputLabel id="projects-status-label">Status</InputLabel>
+          <Select labelId="projects-status-label" value={statusFilter} label="Status" onChange={(e) => setStatusFilter(e.target.value)}>
             <MenuItem value="all">All Statuses</MenuItem>
             <MenuItem value="active">Active</MenuItem>
             <MenuItem value="draft">Draft</MenuItem>
@@ -136,18 +142,21 @@ export default function ProjectsPage() {
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
-      ) : error ? (
-        <Alert severity="error">{error}</Alert>
+      ) : failure && reading.data === null ? (
+        <Alert severity="error" action={<Button size="small" onClick={reading.readAgain}>Read again</Button>}>
+          <AlertTitle>{failure.message}</AlertTitle>
+          {failure.fix}
+        </Alert>
       ) : filtered.length === 0 ? (
         <Paper variant="outlined" sx={{ borderRadius: 2, py: 12, textAlign: 'center', borderStyle: 'dashed' }}>
           <Box sx={{ width: 64, height: 64, borderRadius: 2, bgcolor: alpha('#4F46E5', 0.07), display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2.5 }}>
             <FolderOpenIcon sx={{ fontSize: 32, color: '#4F46E5', opacity: 0.5 }} />
           </Box>
           <Typography variant="subtitle1" fontWeight={700} gutterBottom>
-            {projects.length === 0 ? 'No projects yet' : 'No projects match your filters'}
+            {projects.length === 0 ? 'No projects yet' : 'No projects match these filters'}
           </Typography>
           {projects.length === 0 && (
-            <Button variant="contained" startIcon={<AddIcon />} sx={{ mt: 1.5, borderRadius: 1 }} onClick={() => { window.location.href = getNewProjectUrl(); }}>
+            <Button variant="contained" startIcon={<AddIcon />} sx={{ mt: 1.5, borderRadius: 1 }} onClick={() => { window.location.href = newProjectUrl(); }}>
               Create First Project
             </Button>
           )}
@@ -205,19 +214,20 @@ export default function ProjectsPage() {
 
                 {/* Updated */}
                 <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.72rem' }}>
-                  {new Date(p.updatedAt || p.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {fullDate(p.updatedAt || p.createdAt)}
                 </Typography>
 
                 {/* Open button */}
                 <Button size="small" variant="outlined" endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
-                  onClick={() => { window.open(getStudioUrl(p), '_blank', 'noopener,noreferrer'); }}
+                  aria-label={`Open ${p.name} in Studio`}
+                  onClick={() => { openInNewTab(openProjectUrl(p.id, p.division)); }}
                   sx={{ borderRadius: 1.5, fontWeight: 700, fontSize: '0.7rem', borderColor: alpha(typeColor, 0.3), color: typeColor, '&:hover': { borderColor: typeColor, bgcolor: alpha(typeColor, 0.05) }, whiteSpace: 'nowrap' }}>
                   Open
                 </Button>
 
-                {/* Delete */}
-                <Tooltip title="Delete project">
-                  <IconButton size="small" onClick={() => setDeleteTarget(p)} sx={{ color: 'text.disabled', '&:hover': { color: 'error.main' } }}>
+                {/* Close */}
+                <Tooltip title="Close project">
+                  <IconButton size="small" aria-label={`Close ${p.name}`} onClick={() => { setCloseFailure(null); setCloseTarget(p); }} sx={{ color: 'text.disabled', '&:hover': { color: 'error.main' } }}>
                     <DeleteOutlineIcon sx={{ fontSize: 16 }} />
                   </IconButton>
                 </Tooltip>
@@ -227,17 +237,20 @@ export default function ProjectsPage() {
         </Paper>
       )}
 
-      {/* Delete dialog */}
-      <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>Delete Project</DialogTitle>
+      {/* Close dialog */}
+      <Dialog open={Boolean(closeTarget)} onClose={() => !closing && setCloseTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Close Project</DialogTitle>
         <DialogContent>
-          <Typography>Are you sure you want to delete <strong>{deleteTarget?.name}</strong>? This cannot be undone.</Typography>
+          <Typography>
+            Close <strong>{closeTarget?.name}</strong>? The project leaves this list and stops accepting changes. Every saved Blueprint version stays readable.
+          </Typography>
+          {closeFailure && <Alert severity="error" sx={{ mt: 2 }}>{closeFailure}</Alert>}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancel</Button>
-          <Button variant="contained" color="error" onClick={handleDelete} disabled={deleting}
-            startIcon={deleting ? <CircularProgress size={14} /> : <DeleteOutlineIcon />}>
-            Delete
+          <Button onClick={() => setCloseTarget(null)} disabled={closing}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={handleClose} disabled={closing}
+            startIcon={closing ? <CircularProgress size={14} /> : <DeleteOutlineIcon />}>
+            Close
           </Button>
         </DialogActions>
       </Dialog>
