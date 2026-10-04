@@ -1,13 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+// apps/frontend/src/app/settings/profile/page.tsx
+// The profile screen.
+// The identity card, the account details, the plan, the usage and the security
+// rows all come from Cerulea APIs. The name changes through the account route,
+// the sessions close through the sessions routes, and signing out closes the
+// Cerulea APIs session behind the browser cookie.
+// Without this screen a person sees no plan, no usage and no open session.
+
+import { useCallback, useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
   Box, Typography, Paper, Stack, Button, TextField, Avatar,
-  Chip, Alert, CircularProgress, IconButton, Tooltip,
-  LinearProgress, Dialog, DialogTitle, DialogContent, DialogActions,
-  Switch, FormControlLabel,
+  Chip, Alert, CircularProgress, IconButton,
+  LinearProgress,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -18,38 +25,123 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import SecurityIcon from '@mui/icons-material/Security';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import PersonIcon from '@mui/icons-material/Person';
-import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import NotificationsIcon from '@mui/icons-material/Notifications';
-import LinkIcon from '@mui/icons-material/Link';
 
-const PLAN_META: Record<string, { label: string; color: string; features: string[] }> = {
-  developer: { label: 'Developer', color: '#4F46E5', features: ['5 projects', '20 deployments/mo', '100K API calls/mo', '10 GB storage'] },
-  pro: { label: 'Pro', color: '#9c27b0', features: ['20 projects', '100 deployments/mo', '1M API calls/mo', '50 GB storage'] },
-  enterprise: { label: 'Enterprise', color: '#f59e0b', features: ['Unlimited projects', 'Unlimited deployments', 'Custom API limits', 'Dedicated support'] },
-  free: { label: 'Free', color: '#6b7280', features: ['1 project', '5 deployments/mo', '10K API calls/mo', '1 GB storage'] },
+const PLAN_COLOR: Record<string, string> = {
+  public_dapps: '#4F46E5',
+  private_dapps: '#9c27b0',
+  private_dapps_pro: '#f59e0b',
+  ent_sme: '#4F46E5',
+  ent_growth: '#9c27b0',
+  ent_enterprise: '#f59e0b',
+  govt_standard: '#0f766e',
 };
+
+/** The plain name of each usage metric Cerulea APIs meters. */
+const METRIC_LABEL: Record<string, string> = {
+  requests: 'Requests',
+  transactions: 'Transactions',
+  records_written: 'Records written',
+  records_read: 'Records read',
+  actions_invoked: 'Actions invoked',
+  stream_minutes: 'Stream minutes',
+  webhook_deliveries: 'Webhook deliveries',
+  storage_bytes: 'Storage bytes',
+};
+
+/** The limit key of the entitlement each metered figure is measured against. */
+const METRIC_LIMIT: Record<string, string> = {
+  transactions: 'txPerMonth',
+};
+
+type ProfileView = {
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    createdAt: string;
+    state: string;
+    multiFactorActive: boolean;
+    lastSignInAt: string | null;
+  };
+  profile: { displayName: string | null; avatarUrl: string | null; company: string | null; role: string | null };
+  plan: {
+    division: string | null;
+    tierId: string | null;
+    label: string;
+    status: string | null;
+    limits: Record<string, number>;
+    specs: { label: string; value: string }[];
+    pricingPath: string;
+  };
+  workspace: { workspaceId: string; name: string; application: string } | null;
+  projectCount: number | null;
+  usage: { from: string; to: string; totals: { metric: string; unit: string; quantity: number }[] } | null;
+  usageFix: string | null;
+};
+
+/** Reads the one sentence every Studio failure carries. */
+async function failureSentence(response: Response, fallback: string): Promise<string> {
+  const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
+  if (body && typeof body.error === 'string') return body.error;
+  if (body && body.error && typeof body.error === 'object') {
+    const inner = body.error as { message?: string; fix?: string };
+    return `${inner.message ?? ''} ${inner.fix ?? ''}`.trim() || fallback;
+  }
+  return fallback;
+}
+
+function metricLabel(metric: string): string {
+  if (METRIC_LABEL[metric]) return METRIC_LABEL[metric];
+  const words = metric.split('_').join(' ');
+  return `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
+}
 
 export default function ProfilePage() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
   const theme = useTheme();
 
+  const [view, setView] = useState<ProfileView | null>(null);
+  const [viewError, setViewError] = useState<string | null>(null);
+  const [sessionCount, setSessionCount] = useState<number | null>(null);
+
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState('');
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [confirmText, setConfirmText] = useState('');
-  const [copiedId, setCopiedId] = useState(false);
-  const [notifyDeployments, setNotifyDeployments] = useState(true);
-  const [notifySnapshots, setNotifySnapshots] = useState(true);
-  const [notifyAlerts, setNotifyAlerts] = useState(true);
-  const [notifyMarketing, setNotifyMarketing] = useState(false);
+  const [signingOutAll, setSigningOutAll] = useState(false);
+
+  const readView = useCallback(async () => {
+    setViewError(null);
+    try {
+      const res = await fetch('/api/profile');
+      if (!res.ok) throw new Error(await failureSentence(res, 'Cerulea APIs did not answer the profile read.'));
+      const held = (await res.json()) as ProfileView;
+      setView(held);
+      setName(held.user.name);
+    } catch (e: unknown) {
+      setViewError(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
+
+  const readSessions = useCallback(async () => {
+    try {
+      const res = await fetch('/api/dashboard/sessions');
+      if (!res.ok) return;
+      const held = (await res.json()) as { count?: number; sessions?: unknown[] };
+      setSessionCount(held.count ?? held.sessions?.length ?? null);
+    } catch {
+      setSessionCount(null);
+    }
+  }, []);
 
   useEffect(() => {
-    if (session?.user?.name) setName(session.user.name);
-  }, [session]);
+    if (status === 'authenticated') {
+      void readView();
+      void readSessions();
+    }
+  }, [status, readView, readSessions]);
 
   if (status === 'loading') {
     return (
@@ -60,22 +152,26 @@ export default function ProfilePage() {
   }
 
   if (status === 'unauthenticated') {
-    router.push('/auth/signin');
+    router.push('/auth/login?next=/settings/profile');
     return null;
   }
 
-  const user = session?.user as any;
-  const initials = (user?.name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
-  const plan = user?.plan || 'free';
-  const planMeta = PLAN_META[plan] ?? PLAN_META.free;
-  const memberSince = user?.createdAt
-    ? new Date(user.createdAt).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
-    : 'Unknown';
-  const userId = user?.id || user?.sub || '—';
+  const displayName = view?.user.name || session?.user?.name || '';
+  const email = view?.user.email || session?.user?.email || '';
+  const initials = (displayName || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
+  const planColor = (view?.plan.tierId && PLAN_COLOR[view.plan.tierId]) || '#6b7280';
+  const planLabel = view?.plan.label ?? '';
+  const memberSince = view?.user.createdAt
+    ? new Date(view.user.createdAt).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+    : '';
+  const lastSignIn = view?.user.lastSignInAt
+    ? new Date(view.user.lastSignInAt).toLocaleString()
+    : 'No sign in recorded yet';
 
   const handleSaveName = async () => {
     setSaving(true);
     setSaveMsg(null);
+    setSaveFailed(false);
     try {
       const r = await fetch('/api/auth/me', {
         method: 'PUT',
@@ -84,40 +180,84 @@ export default function ProfilePage() {
         body: JSON.stringify({ name }),
       });
       if (r.ok) {
-        await update({ name });
+        const changed = (await r.json()) as { name?: string };
+        const held = changed.name ?? name;
+        setView((before) => (before ? { ...before, user: { ...before.user, name: held } } : before));
+        setName(held);
+        await update({ name: held });
         setSaveMsg('Name updated successfully');
         setEditingName(false);
       } else {
-        setSaveMsg('Update failed — please try again');
+        setSaveFailed(true);
+        setSaveMsg(await failureSentence(r, 'Cerulea APIs refused the new name. Try again.'));
       }
     } catch {
-      setSaveMsg('Update failed — please try again');
+      setSaveFailed(true);
+      setSaveMsg('Cerulea APIs did not answer. Try again.');
     } finally {
       setSaving(false);
     }
   };
 
-  const copyUserId = () => {
-    navigator.clipboard.writeText(userId);
-    setCopiedId(true);
-    setTimeout(() => setCopiedId(false), 1500);
+  const signOut = () => {
+    window.location.assign('/api/auth/force-signout?next=/');
   };
+
+  const handleSignOutAll = async () => {
+    setSigningOutAll(true);
+    try {
+      const res = await fetch('/api/dashboard/sessions/revocations', { method: 'POST' });
+      if (!res.ok) {
+        setSaveFailed(true);
+        setSaveMsg(await failureSentence(res, 'Cerulea APIs refused to close the sessions.'));
+        return;
+      }
+      const outcome = (await res.json()) as { signOutPath?: string };
+      window.location.assign(outcome.signOutPath ?? '/api/auth/force-signout?next=/auth/login');
+    } catch {
+      setSaveFailed(true);
+      setSaveMsg('Cerulea APIs did not answer. Try again.');
+    } finally {
+      setSigningOutAll(false);
+    }
+  };
+
+  const usageRows: { label: string; used: number; limit: number | null }[] = [];
+  if (view) {
+    if (view.projectCount !== null) {
+      usageRows.push({ label: 'Projects', used: view.projectCount, limit: view.plan.limits.projects ?? null });
+    }
+    for (const total of view.usage?.totals ?? []) {
+      const limitKey = METRIC_LIMIT[total.metric];
+      usageRows.push({
+        label: metricLabel(total.metric),
+        used: total.quantity,
+        limit: limitKey && view.plan.limits[limitKey] ? view.plan.limits[limitKey] : null,
+      });
+    }
+  }
 
   return (
     <Box sx={{ maxWidth: 760, mx: 'auto', px: 3, py: 5 }}>
-      {/* Page header — inline, no sticky conflicts */}
+      {/* Page header, inline */}
       <Stack direction="row" alignItems="center" mb={4}>
         <Button startIcon={<ArrowBackIcon />} onClick={() => router.back()} sx={{ fontWeight: 600, color: 'text.secondary', mr: 'auto' }}>
           Back
         </Button>
-        <Button variant="outlined" startIcon={<LogoutIcon />} size="small" onClick={() => signOut({ callbackUrl: '/' })} sx={{ borderRadius: 1 }}>
+        <Button variant="outlined" startIcon={<LogoutIcon />} size="small" onClick={signOut} sx={{ borderRadius: 1 }}>
           Sign out
         </Button>
       </Stack>
 
       {saveMsg && (
-        <Alert severity={saveMsg.includes('failed') ? 'error' : 'success'} sx={{ mb: 3 }} onClose={() => setSaveMsg(null)}>
+        <Alert severity={saveFailed ? 'error' : 'success'} sx={{ mb: 3 }} onClose={() => setSaveMsg(null)}>
           {saveMsg}
+        </Alert>
+      )}
+      {viewError && (
+        <Alert severity="error" sx={{ mb: 3 }}
+          action={<Button color="inherit" size="small" onClick={() => void readView()}>Read again</Button>}>
+          {viewError}
         </Alert>
       )}
 
@@ -138,33 +278,38 @@ export default function ProfilePage() {
                   <TextField
                     value={name} onChange={(e) => setName(e.target.value)}
                     size="small" autoFocus
+                    inputProps={{ 'aria-label': 'Full name' }}
                     sx={{ flex: 1, '& .MuiInputBase-root': { fontSize: '1rem', fontWeight: 700 } }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setEditingName(false); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') void handleSaveName(); if (e.key === 'Escape') setEditingName(false); }}
                   />
-                  <IconButton size="small" color="primary" onClick={handleSaveName} disabled={saving}>
+                  <IconButton size="small" color="primary" aria-label="Save name" onClick={() => void handleSaveName()} disabled={saving}>
                     {saving ? <CircularProgress size={16} /> : <CheckIcon fontSize="small" />}
                   </IconButton>
-                  <IconButton size="small" onClick={() => { setEditingName(false); setName(user?.name || ''); }}>
+                  <IconButton size="small" aria-label="Cancel name edit" onClick={() => { setEditingName(false); setName(displayName); }}>
                     <CloseIcon fontSize="small" />
                   </IconButton>
                 </Stack>
               ) : (
                 <>
-                  <Typography variant="h6" fontWeight={800}>{user?.name || '—'}</Typography>
-                  <IconButton size="small" onClick={() => setEditingName(true)} sx={{ opacity: 0.45, '&:hover': { opacity: 1 } }}>
+                  <Typography variant="h6" fontWeight={800}>{displayName || '…'}</Typography>
+                  <IconButton size="small" aria-label="Edit name" onClick={() => setEditingName(true)} sx={{ opacity: 0.45, '&:hover': { opacity: 1 } }}>
                     <EditIcon sx={{ fontSize: 14 }} />
                   </IconButton>
                 </>
               )}
             </Stack>
-            <Typography variant="body2" color="text.secondary" mb={1.5}>{user?.email}</Typography>
+            <Typography variant="body2" color="text.secondary" mb={1.5}>{email}</Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <Chip
-                label={planMeta.label}
-                size="small"
-                sx={{ height: 20, fontSize: '0.65rem', fontWeight: 800, bgcolor: alpha(planMeta.color, 0.12), color: planMeta.color, border: `1px solid ${alpha(planMeta.color, 0.25)}` }}
-              />
-              <Chip label={`Member since ${memberSince}`} size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 600, bgcolor: alpha('#6b7280', 0.1), color: 'text.secondary' }} />
+              {view && (
+                <Chip
+                  label={planLabel}
+                  size="small"
+                  sx={{ height: 20, fontSize: '0.65rem', fontWeight: 800, bgcolor: alpha(planColor, 0.12), color: planColor, border: `1px solid ${alpha(planColor, 0.25)}` }}
+                />
+              )}
+              {memberSince && (
+                <Chip label={`Member since ${memberSince}`} size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 600, bgcolor: alpha('#6b7280', 0.1), color: 'text.secondary' }} />
+              )}
             </Stack>
           </Box>
         </Stack>
@@ -181,29 +326,20 @@ export default function ProfilePage() {
         <Box sx={{ px: 3, py: 2.5 }}>
           <Stack spacing={2.5}>
             {[
-              { label: 'Full Name', value: user?.name || '—' },
-              { label: 'Email', value: user?.email || '—' },
-              {
-                label: 'User ID', value: userId,
-                action: (
-                  <Tooltip title={copiedId ? 'Copied!' : 'Copy'}>
-                    <IconButton size="small" onClick={copyUserId}>
-                      {copiedId ? <CheckIcon sx={{ fontSize: 13, color: '#10b981' }} /> : <ContentCopyIcon sx={{ fontSize: 13 }} />}
-                    </IconButton>
-                  </Tooltip>
-                )
-              },
-              { label: 'Plan', value: planMeta.label },
+              { label: 'Full Name', value: displayName },
+              { label: 'Email', value: email },
+              { label: 'Company', value: view?.profile.company ?? '' },
+              { label: 'Role', value: view?.profile.role ?? '' },
+              { label: 'Plan', value: planLabel },
               { label: 'Member Since', value: memberSince },
             ].map((row) => (
-              <Box key={row.label} sx={{ display: 'grid', gridTemplateColumns: '160px 1fr auto', alignItems: 'center', gap: 2 }}>
+              <Box key={row.label} sx={{ display: 'grid', gridTemplateColumns: '160px 1fr', alignItems: 'center', gap: 2 }}>
                 <Typography variant="caption" color="text.disabled" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 0.8, fontSize: '0.6rem' }}>
                   {row.label}
                 </Typography>
-                <Typography variant="body2" fontWeight={500} sx={{ fontFamily: row.label === 'User ID' ? 'monospace' : undefined, fontSize: '0.82rem', wordBreak: 'break-all' }}>
+                <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.82rem', wordBreak: 'break-all' }}>
                   {row.value}
                 </Typography>
-                {row.action ?? <Box />}
               </Box>
             ))}
           </Stack>
@@ -212,119 +348,77 @@ export default function ProfilePage() {
 
       {/* Plan & Usage */}
       <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden', borderRadius: 3 }}>
-        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha(planMeta.color, 0.02) }}>
+        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha(planColor, 0.02) }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Stack direction="row" alignItems="center" spacing={1.5}>
-              <CreditCardIcon sx={{ fontSize: 17, color: planMeta.color }} />
+              <CreditCardIcon sx={{ fontSize: 17, color: planColor }} />
               <Typography variant="subtitle2" fontWeight={800}>Plan & Usage</Typography>
             </Stack>
-            <Button size="small" variant="outlined" sx={{ borderRadius: 1, borderColor: alpha(planMeta.color, 0.4), color: planMeta.color, fontSize: '0.72rem' }}
+            <Button size="small" variant="outlined" sx={{ borderRadius: 1, borderColor: alpha(planColor, 0.4), color: planColor, fontSize: '0.72rem' }}
               onClick={() => router.push('/dashboard/billing')}>
               Upgrade Plan
             </Button>
           </Stack>
         </Box>
         <Box sx={{ px: 3, py: 2.5 }}>
-          <Box sx={{ mb: 2.5, p: 2, borderRadius: 1.5, border: `1px solid ${alpha(planMeta.color, 0.2)}`, bgcolor: alpha(planMeta.color, 0.04) }}>
-            <Typography variant="subtitle2" fontWeight={800} sx={{ color: planMeta.color, mb: 1 }}>{planMeta.label} Plan</Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {planMeta.features.map((f) => (
-                <Box key={f} sx={{ px: 1.25, py: 0.3, borderRadius: 0.5, bgcolor: alpha(planMeta.color, 0.1), color: planMeta.color, fontSize: '0.65rem', fontWeight: 700 }}>
-                  {f}
-                </Box>
-              ))}
-            </Stack>
-          </Box>
-          <Stack spacing={2}>
-            {[
-              { label: 'Projects', used: 3, limit: plan === 'developer' ? 5 : plan === 'pro' ? 20 : 1 },
-              { label: 'Deployments this month', used: 12, limit: plan === 'developer' ? 20 : plan === 'pro' ? 100 : 5 },
-              { label: 'API calls this month', used: 48200, limit: plan === 'developer' ? 100000 : plan === 'pro' ? 1000000 : 10000 },
-            ].map((u) => {
-              const pct = Math.min((u.used / u.limit) * 100, 100);
-              const color = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#10b981';
-              return (
-                <Box key={u.label}>
-                  <Stack direction="row" justifyContent="space-between" mb={0.5}>
-                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>{u.label}</Typography>
-                    <Typography variant="caption" fontWeight={700} sx={{ color }}>{u.used.toLocaleString()} / {u.limit.toLocaleString()}</Typography>
+          {!view ? (
+            <Typography variant="caption" color="text.secondary">Cerulea is reading the plan and the usage.</Typography>
+          ) : (
+            <>
+              <Box sx={{ mb: 2.5, p: 2, borderRadius: 1.5, border: `1px solid ${alpha(planColor, 0.2)}`, bgcolor: alpha(planColor, 0.04) }}>
+                <Typography variant="subtitle2" fontWeight={800} sx={{ color: planColor, mb: 1 }}>{planLabel} Plan</Typography>
+                {view.plan.specs.length > 0 ? (
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {view.plan.specs.map((spec) => (
+                      <Box key={spec.label} sx={{ px: 1.25, py: 0.3, borderRadius: 0.5, bgcolor: alpha(planColor, 0.1), color: planColor, fontSize: '0.65rem', fontWeight: 700 }}>
+                        {spec.label}: {spec.value}
+                      </Box>
+                    ))}
                   </Stack>
-                  <LinearProgress variant="determinate" value={pct} sx={{ height: 4, borderRadius: 2, bgcolor: alpha(color, 0.12), '& .MuiLinearProgress-bar': { bgcolor: color, borderRadius: 2 } }} />
-                </Box>
-              );
-            })}
-          </Stack>
-        </Box>
-      </Paper>
-
-      {/* Notification Preferences */}
-      <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden', borderRadius: 3 }}>
-        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#06b6d4', 0.02) }}>
-          <Stack direction="row" alignItems="center" spacing={1.5}>
-            <NotificationsIcon sx={{ fontSize: 17, color: '#06b6d4' }} />
-            <Typography variant="subtitle2" fontWeight={800}>Notification Preferences</Typography>
-          </Stack>
-        </Box>
-        <Box sx={{ px: 3, py: 2 }}>
-          <Stack spacing={0}>
-            {[
-              { label: 'Deployment events', description: 'Notify when a deployment completes or fails', value: notifyDeployments, set: setNotifyDeployments },
-              { label: 'State snapshots', description: 'Notify when a snapshot is created or fails', value: notifySnapshots, set: setNotifySnapshots },
-              { label: 'Security alerts', description: 'Notify on new sign-ins or API key usage anomalies', value: notifyAlerts, set: setNotifyAlerts },
-              { label: 'Product updates', description: 'News, tips, and feature announcements from Cerulea', value: notifyMarketing, set: setNotifyMarketing },
-            ].map((n, i, arr) => (
-              <Box key={n.label} sx={{ py: 1.5, borderBottom: i < arr.length - 1 ? '1px solid' : 'none', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.85rem' }}>{n.label}</Typography>
-                  <Typography variant="caption" color="text.secondary">{n.description}</Typography>
-                </Box>
-                <Switch
-                  size="small"
-                  checked={n.value}
-                  onChange={(e) => n.set(e.target.checked)}
-                  sx={{ '& .MuiSwitch-thumb': { bgcolor: n.value ? '#06b6d4' : undefined } }}
-                />
-              </Box>
-            ))}
-          </Stack>
-        </Box>
-      </Paper>
-
-      {/* Connected Accounts */}
-      <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden', borderRadius: 3 }}>
-        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#8b5cf6', 0.02) }}>
-          <Stack direction="row" alignItems="center" spacing={1.5}>
-            <LinkIcon sx={{ fontSize: 17, color: '#8b5cf6' }} />
-            <Typography variant="subtitle2" fontWeight={800}>Connected Accounts</Typography>
-          </Stack>
-        </Box>
-        <Box sx={{ px: 3, py: 2 }}>
-          <Stack spacing={0}>
-            {[
-              { name: 'Google', connected: true, email: user?.email, color: '#ea4335' },
-              { name: 'GitHub', connected: false, email: null, color: '#24292e' },
-              { name: 'Discord', connected: false, email: null, color: '#5865f2' },
-            ].map((acc, i, arr) => (
-              <Box key={acc.name} sx={{ py: 1.5, borderBottom: i < arr.length - 1 ? '1px solid' : 'none', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: alpha(acc.color, 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 15, color: acc.color, flexShrink: 0 }}>
-                  {acc.name[0]}
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="body2" fontWeight={700}>{acc.name}</Typography>
-                  {acc.connected && acc.email && (
-                    <Typography variant="caption" color="text.secondary">{acc.email}</Typography>
-                  )}
-                </Box>
-                {acc.connected ? (
-                  <Chip label="Connected" size="small" sx={{ height: 20, fontSize: '0.62rem', fontWeight: 700, bgcolor: alpha('#10b981', 0.1), color: '#10b981', border: 'none' }} />
                 ) : (
-                  <Button size="small" variant="outlined" sx={{ borderRadius: 1, fontSize: '0.7rem', borderColor: alpha(acc.color, 0.3), color: acc.color }}>
-                    Connect
-                  </Button>
+                  <Typography variant="caption" color="text.secondary">
+                    The catalogue holds no specification for this plan. The pricing page lists the current plans.
+                  </Typography>
                 )}
               </Box>
-            ))}
-          </Stack>
+              {view.workspace && (
+                <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
+                  Usage of {view.workspace.name} over the last thirty days.
+                </Typography>
+              )}
+              {view.usageFix && (
+                <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>{view.usageFix}</Alert>
+              )}
+              {usageRows.length === 0 ? (
+                <Typography variant="caption" color="text.secondary">No usage recorded in the last thirty days.</Typography>
+              ) : (
+                <Stack spacing={2}>
+                  {usageRows.map((u) => {
+                    const pct = u.limit ? Math.min((u.used / u.limit) * 100, 100) : 0;
+                    const color = u.limit === null ? '#6b7280' : pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#10b981';
+                    return (
+                      <Box key={u.label}>
+                        <Stack direction="row" justifyContent="space-between" mb={0.5}>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>{u.label}</Typography>
+                          <Typography variant="caption" fontWeight={700} sx={{ color }}>
+                            {u.limit === null ? u.used.toLocaleString() : `${u.used.toLocaleString()} / ${u.limit.toLocaleString()}`}
+                          </Typography>
+                        </Stack>
+                        {u.limit !== null && (
+                          <LinearProgress variant="determinate" value={pct} sx={{ height: 4, borderRadius: 2, bgcolor: alpha(color, 0.12), '& .MuiLinearProgress-bar': { bgcolor: color, borderRadius: 2 } }} />
+                        )}
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              )}
+              {view.usage && view.usage.totals.length === 0 && usageRows.length > 0 && (
+                <Typography variant="caption" color="text.secondary" display="block" mt={1.5}>
+                  No metered usage recorded in the last thirty days.
+                </Typography>
+              )}
+            </>
+          )}
         </Box>
       </Paper>
 
@@ -339,9 +433,31 @@ export default function ProfilePage() {
         <Box sx={{ px: 3, py: 2 }}>
           <Stack spacing={0}>
             {[
-              { label: 'Password', value: '••••••••••••', action: <Button size="small" sx={{ borderRadius: 1, fontSize: '0.72rem' }}>Change</Button> },
-              { label: 'Two-factor authentication', value: 'Not enabled', action: <Button size="small" variant="outlined" sx={{ borderRadius: 1, fontSize: '0.72rem', borderColor: alpha('#10b981', 0.4), color: '#10b981' }}>Enable 2FA</Button> },
-              { label: 'Active sessions', value: '1 device', action: <Button size="small" color="error" sx={{ borderRadius: 1, fontSize: '0.72rem' }} onClick={() => signOut()}>Sign out all</Button> },
+              {
+                label: 'Password',
+                value: '••••••••••••',
+                action: <Button size="small" href="/dashboard/settings#password" sx={{ borderRadius: 1, fontSize: '0.72rem' }}>Change</Button>,
+              },
+              {
+                label: 'Two-factor authentication',
+                value: view ? (view.user.multiFactorActive ? 'Enabled' : 'Awaiting activation') : '',
+                action: <Box />,
+              },
+              {
+                label: 'Active sessions',
+                value: sessionCount === null ? '' : `${sessionCount} ${sessionCount === 1 ? 'device' : 'devices'}`,
+                action: (
+                  <Button size="small" color="error" sx={{ borderRadius: 1, fontSize: '0.72rem' }}
+                    disabled={signingOutAll} onClick={() => void handleSignOutAll()}>
+                    Sign out all
+                  </Button>
+                ),
+              },
+              {
+                label: 'Last sign in',
+                value: view ? lastSignIn : '',
+                action: <Box />,
+              },
             ].map((row, i, arr) => (
               <Box key={row.label} sx={{ py: 1.5, borderBottom: i < arr.length - 1 ? '1px solid' : 'none', borderColor: 'divider', display: 'grid', gridTemplateColumns: '200px 1fr auto', alignItems: 'center', gap: 2 }}>
                 <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>{row.label}</Typography>
@@ -352,40 +468,6 @@ export default function ProfilePage() {
           </Stack>
         </Box>
       </Paper>
-
-      {/* Danger zone */}
-      <Paper variant="outlined" sx={{ overflow: 'hidden', borderRadius: 3, borderColor: alpha('#ef4444', 0.2) }}>
-        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: alpha('#ef4444', 0.15), bgcolor: alpha('#ef4444', 0.02) }}>
-          <Typography variant="subtitle2" fontWeight={800} color="error">Danger Zone</Typography>
-        </Box>
-        <Box sx={{ px: 3, py: 2.5 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Box>
-              <Typography variant="body2" fontWeight={600}>Delete account</Typography>
-              <Typography variant="caption" color="text.secondary">Permanently remove your account and all associated data. This cannot be undone.</Typography>
-            </Box>
-            <Button variant="outlined" color="error" startIcon={<DeleteForeverIcon />} onClick={() => setDeleteOpen(true)}
-              sx={{ borderRadius: 1, flexShrink: 0, ml: 3 }}>
-              Delete
-            </Button>
-          </Stack>
-        </Box>
-      </Paper>
-
-      {/* Delete account dialog */}
-      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800, color: 'error.main' }}>Delete Account?</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" mb={2}>
-            This action is irreversible. Type <strong>DELETE</strong> to confirm.
-          </Typography>
-          <TextField fullWidth size="small" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="DELETE" />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => { setDeleteOpen(false); setConfirmText(''); }}>Cancel</Button>
-          <Button variant="contained" color="error" disabled={confirmText !== 'DELETE'}>Delete Account</Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }
