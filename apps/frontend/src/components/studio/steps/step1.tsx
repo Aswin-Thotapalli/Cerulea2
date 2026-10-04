@@ -1,15 +1,23 @@
 'use client';
 
+// apps/frontend/src/components/studio/steps/step1.tsx
+// Step 2 of 6, Blueprint.
+// The production canvas stays: cards on an infinite surface, a search that
+// adds a part, an inspector, undo and redo, the help, the assistant actions.
+// Outcomes decide which parts are present. Cerulea resolves the dependency
+// closure and reports conflicts. Four link types draw distinctly, two derived
+// and two chosen from valid pairs. Removing a part asks first. Every change
+// saves the graph with its positions and writes the typed Blueprint through
+// Cerulea APIs, so every level reads one document.
+
 import * as React from 'react';
 import StepGuidance from '@/components/studio/StepGuidance';
 import { useTheme, alpha, styled } from '@mui/material/styles';
 import {
-  Box, Stack, Paper, Typography, TextField, Chip, Button,
-  Divider, CircularProgress, Alert, MenuItem, Select, InputLabel, FormControl,
-  IconButton, Tooltip, Collapse, Fade, Dialog, DialogContent
+  Box, Stack, Paper, Typography, TextField, Chip, Button, Divider, Alert, AlertTitle,
+  IconButton, Tooltip, Fade, Dialog, DialogContent, DialogTitle, DialogActions, Snackbar, CircularProgress,
 } from '@mui/material';
 
-// Icons
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -19,52 +27,57 @@ import SearchIcon from '@mui/icons-material/Search';
 import LayersIcon from '@mui/icons-material/Layers';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
-import BoltIcon from '@mui/icons-material/Bolt';
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
+import ChecklistIcon from '@mui/icons-material/Checklist';
+import HubIcon from '@mui/icons-material/Hub';
 
 import ReactFlow, {
-  ReactFlowProvider, useReactFlow,
-  Background, BackgroundVariant,
-  MiniMap, Controls,
-  useNodesState, useEdgesState,
-  Node, Edge, addEdge,
-  Connection, Position, Handle,
-  BaseEdge, EdgeLabelRenderer, getSmoothStepPath, EdgeProps, MarkerType
+  ReactFlowProvider, useReactFlow, Background, BackgroundVariant, MiniMap, Controls,
+  useNodesState, type Node, type Edge, type Connection, type NodeChange,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
 import { useStudio } from '@/context/StudioContext';
 import { getClientDivision } from '@/lib/division-client';
-
-/* ------------------ Types ------------------ */
-type ProjectType = 'dapp' | 'blockchain';
-
-type Module = {
-  moduleId: string;
-  title: string;
-  projectType: ProjectType;
-  category?: string;
-  tags: string[];
-  blurb?: string;
-  longDescription?: string[];
-  dependsOn?: string[];
-  recommends?: string[];
-  reasonByDepId?: Record<string, string>;
-  configSchema?: any;
-  __custom?: boolean;
-};
-
-type EdgeRel = 'reads' | 'writes' | 'triggers' | 'feeds' | 'calls' | 'pays' | 'custom';
-type EdgeData = { rel: EdgeRel };
+import { api } from '@/lib/apiClient';
+import { describeSaveFailure, type SaveFailure } from '@/lib/studio/project-state';
+import type { CatalogueModule, CatalogueTemplate, ProjectTrack } from '@/lib/catalogue/types';
+import {
+  EMPTY_SELECTION,
+  buildCanvasModel,
+  drawableKinds,
+  layoutPositions,
+  moduleIdOfNode,
+  nodeIdFor,
+  openingSelection,
+  prepareCatalogue,
+  readSavedGraph,
+  removalQuestion,
+  savedGraphOf,
+  withFeedsAnswer,
+  withModule,
+  withModuleRemoved,
+  withOutcome,
+  withTrigger,
+  withoutLink,
+  withoutOutcome,
+  type CanvasSelection,
+  type CardSettings,
+  type Position,
+  type PreparedCatalogue,
+} from '@/lib/map/canvas';
+import type { MapLink } from '@/lib/map/links';
+import type { TriggerPair } from '@/lib/map/triggers';
+import { applyRemoveOutcomes, detectConflicts, type Conflict, type ConflictFix } from '@/lib/outcomes/conflicts';
+import type { RemovalImpact } from '@/lib/outcomes/resolve';
+import { nodeTypes, edgeTypes, type ModuleNodeData, type LinkEdgeData } from './step1-canvas-parts';
+import { CardInspector, InspectorIsland, LinkInspector, RemovalDialog } from './step1-Inspector';
+import SidePanel, { type SidePanelTab } from './step1-SidePanel';
 
 /* ---------------- Styled Components ---------------- */
 
-// 1. The Floating Dock
 const FloatingIsland = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light'
-    ? 'rgba(255, 255, 255, 0.96)'
-    : 'rgba(8, 14, 36, 0.96)',
+  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.96)' : 'rgba(8, 14, 36, 0.96)',
   backdropFilter: 'blur(20px) saturate(180%)',
   border: `0.5px solid ${theme.palette.divider}`,
   boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, theme.palette.mode === 'light' ? 0.08 : 0.18)}`,
@@ -73,21 +86,6 @@ const FloatingIsland = styled(Paper)(({ theme }) => ({
   transition: 'all 0.3s ease',
 }));
 
-// 2. The Step Indicator Pill (New)
-const StepPill = styled(Paper)(({ theme }) => ({
-  background: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.96)' : 'rgba(8, 14, 36, 0.96)',
-  backdropFilter: 'blur(12px)',
-  border: `0.5px solid ${theme.palette.divider}`,
-  borderRadius: 100,
-  padding: '8px 20px',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 12,
-  boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.08)}`,
-  pointerEvents: 'auto',
-}));
-
-// 3. The Spotlight (Add Module)
 const SpotlightDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
     background: theme.palette.mode === 'light' ? '#fff' : '#0D1535',
@@ -102,7 +100,6 @@ const SpotlightDialog = styled(Dialog)(({ theme }) => ({
   },
 }));
 
-// 4. The Help Dialog
 const HelpDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
     background: theme.palette.mode === 'light' ? '#ffffff' : '#121212',
@@ -123,961 +120,766 @@ const ScrollBox = styled(Box)(({ theme }) => ({
   },
 }));
 
-/* ---------------- Helpers ---------------- */
-async function safeJson<T = any>(r: Response): Promise<T> {
-  const txt = await r.text();
-  if (!txt) throw new Error(`Empty response (status ${r.status})`);
-  try { return JSON.parse(txt) as T; } catch { throw new Error(`Non-JSON response (status ${r.status})`); }
-}
-function blurbFromJson(m: Module): string {
-  if (m.blurb && m.blurb.trim()) return m.blurb.trim();
-  const firstPara = (m.longDescription?.[0] || '').trim();
-  if (firstPara) return firstPara.length > 140 ? firstPara.slice(0, 137) + '…' : firstPara;
-  return m.title;
-}
+/* ---------------- Types ---------------- */
 
-const EDGE_LABEL: Record<EdgeRel, string> = {
-  reads: 'READS',
-  writes: 'WRITES',
-  triggers: 'TRIGGERS',
-  feeds: 'FEEDS',
-  calls: 'CALLS',
-  pays: 'PAYS',
-  custom: 'LINKS',
+type HistoryEntry = { selection: CanvasSelection; positions: Record<string, Position>; settings: Record<string, CardSettings> };
+
+type GraphReply = {
+  ok: true;
+  blueprint: unknown;
+  compose: { outcomeIds: string[]; moduleIds: string[]; removedModuleIds: string[]; chosenLinks: CanvasSelection['chosenLinks'] };
+  foundation: { track: ProjectTrack; templateId: string; historyRetentionDays: number };
 };
 
-const DEP_REASON: Record<string, string> = {
-  'nft-mint->erc721': 'Minting NFTs requires the ERC-721 contract.',
-  'royalties->erc721': 'EIP-2981 metadata attaches to ERC-721 tokens.',
-  'erc4626->erc20': 'Vault shares track deposits of an ERC-20 asset.',
+type SaveReply = {
+  ok: true;
+  moduleIds: string[];
+  blueprintVersion?: number;
+  linksWithoutEvent?: Array<{ linkId: string; reason: string }>;
+  bridgesWithoutEndpoint?: Array<{ outcomeId: string; reason: string }>;
 };
 
-/* ---------------- Custom Node ---------------- */
-type ModuleNodeData = {
-  moduleId: string;
-  title: string;
-  group?: string;
-  blurb?: string;
-  category?: string;
-  tags?: string[];
-  config?: Record<string, any>;
-};
-
-function ModuleNode({ data, selected }: { data: ModuleNodeData; selected: boolean }) {
-  const theme = useTheme();
-  const isLight = theme.palette.mode === 'light';
-
-  const accentColor = React.useMemo(() => {
-    const colors = ['#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#8b5cf6'];
-    let hash = 0;
-    for (let i = 0; i < data.moduleId.length; i++) hash += data.moduleId.charCodeAt(i);
-    return colors[hash % colors.length];
-  }, [data.moduleId]);
-
-  const tooltipContent = (
-    <Box sx={{ maxWidth: 280, p: 0.5 }}>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-        <Box sx={{ width: 28, height: 28, borderRadius: 1.5, bgcolor: alpha(accentColor, 0.15), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <BoltIcon sx={{ fontSize: 16, color: accentColor }} />
-        </Box>
-        <Box>
-          <Typography variant="subtitle2" fontWeight={800} sx={{ lineHeight: 1.2 }}>{data.title}</Typography>
-          {data.category && (
-            <Typography variant="caption" sx={{ color: accentColor, fontWeight: 700, fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: 0.3 }}>
-              {data.category}
-            </Typography>
-          )}
-        </Box>
-      </Stack>
-      {data.blurb && (
-        <Typography variant="body2" sx={{ lineHeight: 1.55, mb: 1, color: 'text.primary', fontSize: '0.8rem' }}>
-          {data.blurb}
-        </Typography>
-      )}
-      {data.tags && data.tags.length > 0 && (
-        <Box sx={{ mb: 1 }}>
-          <Typography variant="caption" fontWeight={800} sx={{ opacity: 0.5, letterSpacing: 0.5, display: 'block', mb: 0.5 }}>GENERATES</Typography>
-          <Stack direction="row" flexWrap="wrap" gap={0.5}>
-            {data.tags.slice(0, 5).map((t) => (
-              <Chip key={t} label={t} size="small"
-                sx={{ height: 17, fontSize: '0.58rem', fontWeight: 700, bgcolor: alpha(accentColor, 0.1), color: accentColor, border: 'none' }} />
-            ))}
-          </Stack>
-        </Box>
-      )}
-      <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
-        <Typography variant="caption" sx={{ opacity: 0.55, fontStyle: 'italic' }}>
-          Click the node to configure parameters
-        </Typography>
-      </Box>
-    </Box>
-  );
-
-  return (
-    <Box sx={{ position: 'relative' }}>
-      <Handle type="target" position={Position.Left} style={{ width: 10, height: 10, left: -5, border: '2px solid white', background: accentColor }} />
-      <Tooltip title={tooltipContent} placement="right" arrow enterDelay={400} enterNextDelay={200}
-        componentsProps={{
-          tooltip: {
-            sx: {
-              bgcolor: isLight ? 'rgba(255,255,255,0.97)' : 'rgba(8,14,36,0.97)',
-              color: 'text.primary',
-              border: '1px solid',
-              borderColor: 'divider',
-              backdropFilter: 'blur(12px)',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
-              borderRadius: 2,
-              p: 1.5,
-            },
-          },
-          arrow: { sx: { color: isLight ? 'rgba(255,255,255,0.97)' : 'rgba(8,14,36,0.97)' } },
-        }}
-      >
-        <Paper
-          elevation={selected ? 12 : 2}
-          sx={{
-            minWidth: 260,
-            borderRadius: 3,
-            overflow: 'hidden',
-            border: '1px solid',
-            borderColor: selected ? accentColor : (isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'),
-            transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
-            background: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(24,24,27,0.95)',
-            backdropFilter: 'blur(10px)',
-            boxShadow: selected ? `0 12px 30px ${alpha(accentColor, 0.3)}` : '0 4px 6px rgba(0,0,0,0.04)',
-            transform: selected ? 'scale(1.02)' : 'scale(1)',
-          }}
-        >
-          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-            <Box sx={{
-              width: 32, height: 32, borderRadius: 2,
-              bgcolor: alpha(accentColor, 0.1), color: accentColor,
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>
-              <BoltIcon fontSize="small" />
-            </Box>
-            <Box sx={{ overflow: 'hidden' }}>
-              <Typography variant="subtitle2" fontWeight={800} noWrap sx={{ fontSize: '0.9rem' }}>{data.title}</Typography>
-              <Typography variant="caption" sx={{ fontFamily: 'monospace', opacity: 0.5, fontSize: '0.7rem' }}>{data.moduleId}</Typography>
-            </Box>
-          </Stack>
-          {data.group && (
-            <Box sx={{ px: 2, py: 1, bgcolor: alpha(accentColor, 0.04) }}>
-              <Chip
-                label={data.group} size="small"
-                sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, borderRadius: 1, bgcolor: alpha(accentColor, 0.1), color: accentColor }}
-              />
-            </Box>
-          )}
-        </Paper>
-      </Tooltip>
-      <Handle type="source" position={Position.Right} style={{ width: 10, height: 10, right: -5, border: '2px solid white', background: accentColor }} />
-    </Box>
-  );
-}
-const nodeTypes = { module: ModuleNode };
-
-/* -------------- Custom Edge -------------- */
-function RelationEdge(props: EdgeProps<EdgeData>) {
-  const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, data, selected } = props;
-  const [edgePath, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, borderRadius: 16 });
-  const rel = (data?.rel ?? 'custom') as EdgeRel;
-
-  return (
-    <>
-      <BaseEdge 
-        id={id} path={edgePath} markerEnd={markerEnd} 
-        style={{ strokeWidth: selected ? 3 : 2, stroke: selected ? '#6366f1' : 'rgba(120,120,120, 0.3)', transition: 'all 0.3s' }} 
-      />
-      <EdgeLabelRenderer>
-        <div style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`, pointerEvents: 'all', zIndex: 10 }}>
-          <Box sx={{ 
-             bgcolor: selected ? '#6366f1' : (t => t.palette.background.paper), 
-             color: selected ? 'white' : 'text.secondary',
-             border: '1px solid', borderColor: selected ? 'transparent' : 'divider',
-             borderRadius: 20, px: 1, py: 0.2, fontSize: '0.65rem', fontWeight: 800, letterSpacing: 0.5,
-             boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-          }}>
-             {EDGE_LABEL[rel]}
-          </Box>
-        </div>
-      </EdgeLabelRenderer>
-    </>
-  );
-}
-const edgeTypes = { relation: RelationEdge };
-
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-
-/* ---- Config Form ---- */
-function FieldHelp({ description, example }: { description?: string; example?: string }) {
-  if (!description && !example) return null;
-  return (
-    <Tooltip
-      title={
-        <Box sx={{ maxWidth: 220 }}>
-          {description && <Typography variant="caption" sx={{ display: 'block', mb: example ? 0.5 : 0 }}>{description}</Typography>}
-          {example && <Typography variant="caption" sx={{ opacity: 0.7 }}>Example: {example}</Typography>}
-        </Box>
-      }
-      placement="top"
-      arrow
-    >
-      <InfoOutlinedIcon sx={{ fontSize: 14, opacity: 0.5, cursor: 'help', flexShrink: 0, '&:hover': { opacity: 1 } }} />
-    </Tooltip>
-  );
+/** The modules one template installs, under either seed field name. */
+function templateModuleIds(template: CatalogueTemplate | undefined): string[] {
+  if (!template) return [];
+  return Array.from(new Set(template.modules ?? template.preinstalledModules ?? []));
 }
 
-function SchemaForm({ schema, value, onChange }: { schema: any; value: Record<string, any>; onChange: (patch: Record<string, any>) => void; }) {
-  const props = schema?.properties || {};
-  const entries = Object.entries<any>(props);
-  if (!entries.length) return (
-    <Box sx={{ textAlign: 'center', py: 2 }}>
-      <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }}>No configuration needed</Typography>
-      <Typography variant="caption" sx={{ opacity: 0.35, display: 'block', mt: 0.5 }}>This module works with its default settings.</Typography>
-    </Box>
-  );
-
-  return (
-    <Stack spacing={2}>
-      {entries.map(([key, def]) => {
-        const label = def.title || key;
-        const description = def.description;
-        const example = def.examples?.[0] ?? def.default;
-        const v = value?.[key];
-
-        if (def.enum) {
-          return (
-            <Box key={key}>
-              <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 0.5 }}>
-                <Typography variant="caption" fontWeight={700} sx={{ opacity: 0.7 }}>{label}</Typography>
-                <FieldHelp description={description} example={String(example ?? '')} />
-              </Stack>
-              <FormControl fullWidth size="small">
-                <Select value={v ?? ''} displayEmpty onChange={(e) => onChange({ [key]: e.target.value })}>
-                  <MenuItem value="" disabled><em>Select {label}</em></MenuItem>
-                  {def.enum.map((opt: string) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
-                </Select>
-              </FormControl>
-            </Box>
-          );
-        }
-        if (def.type === 'boolean') {
-          return (
-            <Stack key={key} direction="row" alignItems="center" justifyContent="space-between" sx={{ p: 1.5, borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
-              <Stack direction="row" alignItems="center" spacing={0.5}>
-                <Typography variant="body2">{label}</Typography>
-                <FieldHelp description={description} />
-              </Stack>
-              <Button size="small" variant={v ? 'contained' : 'outlined'} onClick={() => onChange({ [key]: !v })}>{v ? 'ON' : 'OFF'}</Button>
-            </Stack>
-          );
-        }
-        return (
-          <Box key={key}>
-            <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 0.5 }}>
-              <Typography variant="caption" fontWeight={700} sx={{ opacity: 0.7 }}>{label}</Typography>
-              <FieldHelp description={description} example={String(example ?? '')} />
-            </Stack>
-            <TextField
-              fullWidth size="small"
-              type={def.type === 'integer' ? 'number' : 'text'}
-              value={v ?? ''}
-              placeholder={def.default !== undefined ? `Default: ${def.default}` : undefined}
-              onChange={(e) => onChange({ [key]: def.type === 'integer' ? Number(e.target.value) : e.target.value })}
-            />
-          </Box>
-        );
-      })}
-    </Stack>
-  );
-}
+/** The assistant action the production drawer dispatches on the window. */
+type AssistantAction =
+  | { type: 'add_module'; moduleId: string }
+  | { type: 'remove_module'; moduleId: string }
+  | { type: 'connect_modules'; sourceId: string; targetId: string; rel?: string };
 
 /* =======================
-   Step 1 Logic
+   Step 2 Logic
 ======================= */
-const GRID_COLS = 4;
-const GRID_GAP_X = 280;
-const GRID_GAP_Y = 160;
-const GRID_START = { x: 50, y: 50 };
 
-function gridPos(index: number) {
-  const col = index % GRID_COLS;
-  const row = Math.floor(index / GRID_COLS);
-  return { x: GRID_START.x + col * GRID_GAP_X, y: GRID_START.y + row * GRID_GAP_Y };
-}
-const uniq = <T,>(arr: T[]) => Array.from(new Set(arr));
-
-function Step1Inner({ goPrev, goNext }: { goPrev?: () => void; goNext?: () => void; }) {
+function Step1Inner({ goPrev, goNext, projectId: givenProjectId }: { goPrev?: () => void; goNext?: () => void; projectId?: string | null }) {
   const theme = useTheme();
-  const { projectType: ctxProjectType, setStudioState } = useStudio();
-  const projectType = (ctxProjectType || (typeof window !== 'undefined' ? (localStorage.getItem('cerulea.projectType') as ProjectType | null) : null) || 'dapp') as ProjectType;
+  const studio = useStudio();
+  const rf = useReactFlow();
+  const division = React.useMemo(() => getClientDivision(), []);
+  const projectId =
+    givenProjectId ??
+    studio.projectId ??
+    (typeof window !== 'undefined' ? localStorage.getItem('cerulea.projectId') : null);
 
-  // Data
-  const [library, setLibrary] = React.useState<Module[]>([]);
+  /* ---- The catalogue and the saved graph ---- */
+  const [prepared, setPrepared] = React.useState<PreparedCatalogue | null>(null);
+  const [modules, setModules] = React.useState<CatalogueModule[]>([]);
+  const [track, setTrack] = React.useState<ProjectTrack>((studio.projectType as ProjectTrack | null) ?? 'dapp');
+  const [retentionDays, setRetentionDays] = React.useState<number | undefined>(undefined);
+  const [loadProblem, setLoadProblem] = React.useState<SaveFailure | null>(null);
+  const [loaded, setLoaded] = React.useState(false);
+
+  /* ---- What the person decided ---- */
+  const [selection, setSelection] = React.useState<CanvasSelection>(EMPTY_SELECTION);
+  const [positions, setPositions] = React.useState<Record<string, Position>>({});
+  const [settings, setSettings] = React.useState<Record<string, CardSettings>>({});
+
+  /* ---- Screen state ---- */
   const [nodes, setNodes, onNodesChange] = useNodesState<ModuleNodeData>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<EdgeData>([]);
-  
-  // Selection
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = React.useState<string | null>(null);
-
-  // UI State
+  const [panelOpen, setPanelOpen] = React.useState(true);
+  const [panelTab, setPanelTab] = React.useState<SidePanelTab>('outcomes');
   const [isSpotlightOpen, setIsSpotlightOpen] = React.useState(false);
   const [isHelpOpen, setIsHelpOpen] = React.useState(false);
-  const [q, setQ] = React.useState('');
+  const [clearAsked, setClearAsked] = React.useState(false);
+  const [query, setQuery] = React.useState('');
+  const [removal, setRemoval] = React.useState<RemovalImpact | null>(null);
+  const [linkChoice, setLinkChoice] = React.useState<{ from: string; to: string; kinds: Array<'feeds' | 'triggers'> } | null>(null);
+  const [notice, setNotice] = React.useState<string | null>(null);
+  const [saveState, setSaveState] = React.useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
+  const [saveFailure, setSaveFailure] = React.useState<SaveFailure | null>(null);
+  const [saveNotes, setSaveNotes] = React.useState<string[]>([]);
+  const [blueprintVersion, setBlueprintVersion] = React.useState<number | null>(null);
 
-  // Undo/redo history
-  const historyRef = React.useRef<Array<{ nodes: Node[]; edges: Edge[] }>>([]);
+  /* ---- Undo and redo over every decision ---- */
+  const historyRef = React.useRef<HistoryEntry[]>([]);
   const historyIndexRef = React.useRef(-1);
-  const isUndoingRef = React.useRef(false);
+  const [historyMark, setHistoryMark] = React.useState(0);
 
-  const rf = useReactFlow();
-
-  // Load Library
-  React.useEffect(() => {
-    (async () => {
-      try {
-        const division = getClientDivision();
-        const url = `/api/modules?projectType=${projectType}${division ? `&division=${division}` : ''}`;
-        const r = await fetch(url);
-        const data = await safeJson<Module[]>(r);
-        // A saved project may use modules outside this division's palette
-        // (e.g. app-layer modules tagged for the dApp track). Fetch those by id
-        // so their config panel and schema still resolve on the canvas.
-        let extra: Module[] = [];
-        try {
-          const raw = localStorage.getItem('cerulea.step1.graph');
-          const saved = raw ? JSON.parse(raw) : null;
-          const have = new Set((data || []).map((m) => m.moduleId));
-          const missing: string[] = Array.from(new Set<string>(
-            (saved?.nodes || []).map((n: any) => n?.data?.moduleId).filter((id: any) => typeof id === 'string' && id && !have.has(id))
-          ));
-          if (missing.length) {
-            const r2 = await fetch(`/api/modules?ids=${encodeURIComponent(missing.join(','))}`);
-            const d2 = await safeJson<Module[]>(r2);
-            const seen = new Set<string>();
-            extra = (d2 || []).filter((m) => { if (seen.has(m.moduleId)) return false; seen.add(m.moduleId); return true; });
-          }
-        } catch { /* ignore */ }
-        setLibrary(extra.length ? [...(data || []), ...extra] : data);
-      } catch (e) { console.warn(e); }
-    })();
-  }, [projectType]);
-
-  const libById = React.useMemo(() => new Map(library.map((m) => [m.moduleId, m] as const)), [library]);
-
-  /* ------ Persistence ------ */
-  async function persistBlueprintNow() {
-    if (typeof window === 'undefined') return;
-    const projectId = localStorage.getItem('cerulea.projectId');
-    if (!projectId) return;
-    const mods = nodes.map((n) => ({
-      moduleId: (n.data as any)?.moduleId,
-      label: (n.data as any)?.label,
-      group: (n.data as any)?.group,
-      config: (n.data as any)?.config,
-    }));
-    try {
-      await fetch(`/api/projects/${projectId}/blueprint`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ modules: mods, graph: { nodes, edges } }),
-      });
-    } catch (err) { console.warn(err); }
-  }
-  
-  React.useEffect(() => {
-    if(nodes.length > 0) {
-       localStorage.setItem('cerulea.step1.graph', JSON.stringify({ nodes, edges }));
-       // Keep StudioContext.selectedModules in sync so downstream steps (step6 deploy) can read them
-       const moduleIds = nodes.map(n => n.data?.moduleId).filter(Boolean) as string[];
-       setStudioState({ selectedModules: moduleIds });
-    }
-    const timer = setTimeout(persistBlueprintNow, 2000);
-    return () => clearTimeout(timer);
-  }, [nodes, edges]);
-
-  // Seed canvas & Check if help needed
-  const seededRef = React.useRef(false);
-  React.useEffect(() => {
-    if (seededRef.current) return;
-    if (!library.length) return;
-
-    (async () => {
-       // 1. Try restore graph
-       try {
-         const raw = localStorage.getItem('cerulea.step1.graph');
-         const saved = raw ? JSON.parse(raw) : null;
-         if (saved?.nodes?.length) { 
-            setNodes(saved.nodes); 
-            setEdges(saved.edges || []); 
-            seededRef.current = true;
-            return; 
-         }
-       } catch {}
-
-       // 2. Load from template (Fresh Start)
-       let ids: string[] = [];
-       try {
-         const rawIds = localStorage.getItem('cerulea.templateModules');
-         ids = rawIds ? JSON.parse(rawIds) : [];
-       } catch {}
-
-       if (ids.length > 0) {
-          const toPlace = uniq(ids).map(id => libById.get(id)).filter(Boolean) as Module[];
-          const newNodes = toPlace.map((m, i) => ({
-             id: `n_${m.moduleId}`,
-             type: 'module',
-             position: gridPos(i),
-             data: { moduleId: m.moduleId, title: m.title }
-          }));
-          setNodes(newNodes);
-          seededRef.current = true;
-       } else {
-          // If totally empty, show help
-          setIsHelpOpen(true);
-       }
-    })();
-  }, [library]);
-
-  /* ------ Graph Logic ------ */
-  function nodeIdFor(modId: string) { return `n_${modId}`; }
-  function modIdFromNodeId(nodeId: string) { return nodeId.startsWith('n_') ? nodeId.slice(2) : nodeId; }
-  
-  function addModule(moduleId: string) {
-    const mod = libById.get(moduleId);
-    if (!mod) return;
-    const id = nodeIdFor(moduleId);
-    
-    // If module already exists, just select it and pan to it
-    if (nodes.find(n => n.id === id)) {
-       setSelectedNodeId(id);
-       setIsSpotlightOpen(false);
-       rf.fitView({ nodes: [{ id }], duration: 800, padding: 2 });
-       return;
-    }
-
-    // Determine position: Center of view + small random offset
-    const center = rf.project({ 
-      x: (window.innerWidth / 2) - 130, // half node width roughly
-      y: (window.innerHeight / 2) - 50 
-    });
-
-    const newNode: Node = {
-      id, type: 'module',
-      position: center.x ? center : { x: 100, y: 100 },
-      data: {
-        moduleId: mod.moduleId,
-        title: mod.title,
-        blurb: blurbFromJson(mod),
-        category: mod.category,
-        tags: mod.tags,
-      },
-    };
-
-    setNodes(nds => {
-      const next = [...nds, newNode];
-      pushHistory(next, edges);
-      return next;
-    });
-    setIsSpotlightOpen(false);
-    setSelectedNodeId(id);
-  }
-
-  const onConnect = (c: Connection) => {
-    setEdges((eds) => {
-      const next = addEdge({ ...c, type: 'relation', markerEnd: { type: MarkerType.ArrowClosed }, data: { rel: 'custom' } }, eds) as any;
-      pushHistory(nodes, next);
-      return next;
-    });
-  };
-  const onNodeClick = (_: any, n: Node) => { setSelectedEdgeId(null); setSelectedNodeId(n.id); };
-  const onEdgeClick = (_: any, e: Edge) => { setSelectedNodeId(null); setSelectedEdgeId(e.id); };
-  const onPaneClick = () => { setSelectedNodeId(null); setSelectedEdgeId(null); };
-
-  /* ------ Selectors ------ */
-  const selectedNode = React.useMemo(() => nodes.find(n => n.id === selectedNodeId) || null, [nodes, selectedNodeId]);
-  const selectedModule = React.useMemo(() => selectedNode ? libById.get(modIdFromNodeId(selectedNode.id)) : null, [selectedNode, libById]);
-  const selectedEdge = React.useMemo(() => edges.find(e => e.id === selectedEdgeId) || null, [edges, selectedEdgeId]);
-
-  function updateNodeData(patch: any) {
-    if(!selectedNodeId) return;
-    setNodes(nds => nds.map(n => n.id === selectedNodeId ? { ...n, data: { ...n.data, ...patch } } : n));
-  }
-
-  function addMissing(depId: string) {
-    addModule(depId);
-    setTimeout(() => {
-       const targetId = nodeIdFor(depId);
-       if(selectedNodeId && nodes.some(n => n.id === targetId)) {
-          setEdges(eds => [...eds, { id: `e_${selectedNodeId}_${targetId}_${Date.now()}`, source: selectedNodeId, target: targetId, type: 'relation', markerEnd: { type: MarkerType.ArrowClosed }, data: { rel: 'reads' } } as any]);
-       }
-    }, 200);
-  }
-
-  const handleNext = async () => { await persistBlueprintNow(); if (goNext) goNext(); };
-
-  /* ------ Undo / Redo ------ */
-  function pushHistory(currentNodes: Node[], currentEdges: Edge[]) {
-    if (isUndoingRef.current) return;
+  const pushHistory = React.useCallback((entry: HistoryEntry) => {
     historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
-    historyRef.current.push({ nodes: JSON.parse(JSON.stringify(currentNodes)), edges: JSON.parse(JSON.stringify(currentEdges)) });
+    historyRef.current.push(JSON.parse(JSON.stringify(entry)) as HistoryEntry);
     if (historyRef.current.length > 50) historyRef.current = historyRef.current.slice(-50);
     historyIndexRef.current = historyRef.current.length - 1;
-  }
+    setHistoryMark((mark) => mark + 1);
+  }, []);
 
-  const undoRef = React.useRef<() => void>(() => {});
-  const redoRef = React.useRef<() => void>(() => {});
+  /** Applies one decision and records it for undo. */
+  const decide = React.useCallback(
+    (next: Partial<HistoryEntry>) => {
+      const entry: HistoryEntry = {
+        selection: next.selection ?? selection,
+        positions: next.positions ?? positions,
+        settings: next.settings ?? settings,
+      };
+      setSelection(entry.selection);
+      setPositions(entry.positions);
+      setSettings(entry.settings);
+      pushHistory(entry);
+    },
+    [positions, pushHistory, selection, settings],
+  );
 
-  undoRef.current = () => {
+  const restore = React.useCallback((entry: HistoryEntry) => {
+    setSelection(entry.selection);
+    setPositions(entry.positions);
+    setSettings(entry.settings);
+    setHistoryMark((mark) => mark + 1);
+  }, []);
+
+  const undo = React.useCallback(() => {
     if (historyIndexRef.current <= 0) return;
-    historyIndexRef.current--;
-    const state = historyRef.current[historyIndexRef.current];
-    isUndoingRef.current = true;
-    setNodes(state.nodes);
-    setEdges(state.edges);
-    setTimeout(() => { isUndoingRef.current = false; }, 0);
-  };
+    historyIndexRef.current -= 1;
+    restore(historyRef.current[historyIndexRef.current]);
+  }, [restore]);
 
-  redoRef.current = () => {
+  const redo = React.useCallback(() => {
     if (historyIndexRef.current >= historyRef.current.length - 1) return;
-    historyIndexRef.current++;
-    const state = historyRef.current[historyIndexRef.current];
-    isUndoingRef.current = true;
-    setNodes(state.nodes);
-    setEdges(state.edges);
-    setTimeout(() => { isUndoingRef.current = false; }, 0);
-  };
+    historyIndexRef.current += 1;
+    restore(historyRef.current[historyIndexRef.current]);
+  }, [restore]);
+
+  /* ---- Load ---- */
+  React.useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const graph = projectId
+          ? await api<GraphReply>(`/api/projects/${encodeURIComponent(projectId)}/blueprint`)
+          : null;
+        const projectTrack: ProjectTrack = graph?.foundation.track ?? track;
+        const suffix = `?projectType=${projectTrack}${division ? `&division=${division}` : ''}`;
+        const [moduleList, templateList] = await Promise.all([
+          api<CatalogueModule[]>(`/api/modules${suffix}`),
+          api<CatalogueTemplate[]>(`/api/templates${suffix}`),
+        ]);
+        if (!live) return;
+        const catalogue = prepareCatalogue({ modules: moduleList, templates: templateList });
+        const saved = readSavedGraph(graph?.blueprint ?? null);
+        const template = templateList.find((entry) => entry.id === graph?.foundation.templateId);
+        const opening = openingSelection(
+          saved,
+          graph?.compose ?? { outcomeIds: [], moduleIds: [], removedModuleIds: [], chosenLinks: [] },
+          templateModuleIds(template),
+          catalogue,
+        );
+        setModules(moduleList);
+        setTrack(projectTrack);
+        setRetentionDays(graph?.foundation.historyRetentionDays);
+        setPrepared(catalogue);
+        setSelection(opening);
+        setPositions(saved.positions);
+        setSettings(saved.settings);
+        historyRef.current = [{ selection: opening, positions: saved.positions, settings: saved.settings }];
+        historyIndexRef.current = 0;
+        setLoaded(true);
+        if (opening.outcomeIds.length === 0) setIsHelpOpen(true);
+      } catch (cause) {
+        if (live) setLoadProblem(describeSaveFailure(cause));
+      }
+    })();
+    return () => { live = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+
+  /* ---- The model, derived from the decisions ---- */
+  const model = React.useMemo(
+    () => (prepared ? buildCanvasModel(selection, prepared) : null),
+    [prepared, selection],
+  );
+
+  const conflicts: Conflict[] = React.useMemo(
+    () => (prepared && model ? detectConflicts(model.resolution, { track, outcomes: prepared.outcomes, modules: prepared.withBridges }) : []),
+    [model, prepared, track],
+  );
+
+  const laidOut = React.useMemo(
+    () => (model ? layoutPositions(model.installed, positions) : {}),
+    [model, positions],
+  );
+
+  // The cards follow the model. A position a person set stays.
+  React.useEffect(() => {
+    if (!model) return;
+    setNodes(
+      model.cards.map((card) => ({
+        id: nodeIdFor(card.moduleId),
+        type: 'module',
+        position: laidOut[card.moduleId],
+        selected: selectedNodeId === nodeIdFor(card.moduleId),
+        data: {
+          moduleId: card.moduleId,
+          title: card.title,
+          area: card.area,
+          blurb: card.blurb,
+          tags: card.tags,
+          group: settings[card.moduleId]?.group,
+          config: settings[card.moduleId]?.config,
+          contribution: card.contribution,
+          causedBy: card.causedBy,
+          chosenDirectly: card.chosenDirectly,
+          removalConsequence: card.removalConsequence,
+        },
+      })),
+    );
+  }, [model, laidOut, settings, selectedNodeId, setNodes]);
+
+  const edges: Edge<LinkEdgeData>[] = React.useMemo(
+    () =>
+      (model?.links ?? []).map((link) => ({
+        id: link.linkId,
+        source: nodeIdFor(link.from),
+        target: nodeIdFor(link.to),
+        type: 'link',
+        selected: selectedEdgeId === link.linkId,
+        data: { linkType: link.type, origin: link.origin, reason: link.reason, removable: link.removable },
+      })),
+    [model, selectedEdgeId],
+  );
+
+  /* ---- Autosave: the graph with positions, and the typed Blueprint ---- */
+  const saveTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persist = React.useCallback(async () => {
+    if (!projectId || !model) return;
+    setSaveState('saving');
+    try {
+      const body = savedGraphOf(model, selection, laidOut, settings);
+      const reply = await api<SaveReply>(`/api/projects/${encodeURIComponent(projectId)}/blueprint`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      });
+      setSaveState('saved');
+      setSaveFailure(null);
+      if (reply.blueprintVersion !== undefined) setBlueprintVersion(reply.blueprintVersion);
+      setSaveNotes([
+        ...(reply.linksWithoutEvent ?? []).map((entry) => entry.reason),
+        ...(reply.bridgesWithoutEndpoint ?? []).map((entry) => entry.reason),
+      ]);
+      studio.setStudioState({ selectedModules: model.installed });
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('cerulea.step1.graph', JSON.stringify(body.graph));
+        localStorage.setItem('cerulea.templateModules', JSON.stringify(model.installed));
+      }
+    } catch (cause) {
+      setSaveState('failed');
+      setSaveFailure(describeSaveFailure(cause));
+    }
+  }, [laidOut, model, projectId, selection, settings, studio]);
 
   React.useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      const inInput = (e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable;
+    if (!loaded) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => { void persist(); }, 2000);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, selection, positions, settings]);
+
+  /* ---- Canvas handlers ---- */
+  const onNodeDragStop = React.useCallback(() => {
+    const moved: Record<string, Position> = { ...laidOut };
+    for (const node of rf.getNodes()) moved[moduleIdOfNode(node.id)] = { x: node.position.x, y: node.position.y };
+    decide({ positions: moved });
+  }, [decide, laidOut, rf]);
+
+  const handleNodesChange = React.useCallback(
+    (changes: NodeChange[]) => {
+      // Removal goes through the question, so the canvas drops no card on its own.
+      onNodesChange(changes.filter((change) => change.type !== 'remove'));
+    },
+    [onNodesChange],
+  );
+
+  const onConnect = React.useCallback(
+    (connection: Connection) => {
+      if (!model || !connection.source || !connection.target) return;
+      const from = moduleIdOfNode(connection.source);
+      const to = moduleIdOfNode(connection.target);
+      const kinds = drawableKinds(from, to, model);
+      const fromTitle = prepared?.titleById[from] ?? from;
+      const toTitle = prepared?.titleById[to] ?? to;
+      if (kinds.length === 0) {
+        setNotice(`Cerulea holds no feeds or triggers relation between ${fromTitle} and ${toTitle}. The Links panel lists every pair that works.`);
+        return;
+      }
+      if (kinds.length === 1) {
+        decide({
+          selection:
+            kinds[0] === 'triggers'
+              ? withTrigger(selection, { from, to }, true)
+              : withFeedsAnswer(selection, to, Array.from(new Set([...(selection.chosenLinks.filter((l) => l.kind === 'feeds' && l.to === to).map((l) => l.from)), from]))),
+        });
+        return;
+      }
+      setLinkChoice({ from, to, kinds });
+    },
+    [decide, model, prepared, selection],
+  );
+
+  const chooseLinkKind = (kind: 'feeds' | 'triggers') => {
+    if (!linkChoice) return;
+    const { from, to } = linkChoice;
+    decide({
+      selection:
+        kind === 'triggers'
+          ? withTrigger(selection, { from, to }, true)
+          : withFeedsAnswer(selection, to, Array.from(new Set([...selection.chosenLinks.filter((l) => l.kind === 'feeds' && l.to === to).map((l) => l.from), from]))),
+    });
+    setLinkChoice(null);
+  };
+
+  const focusModule = React.useCallback(
+    (moduleId: string) => {
+      const id = nodeIdFor(moduleId);
+      setSelectedEdgeId(null);
+      setSelectedNodeId(id);
+      rf.fitView({ nodes: [{ id }], duration: 600, padding: 2 });
+    },
+    [rf],
+  );
+
+  const addModule = React.useCallback(
+    (moduleId: string) => {
+      if (!prepared?.index.has(moduleId)) {
+        setNotice('Cerulea holds no part under that name in this catalogue.');
+        return;
+      }
+      if (model?.installed.includes(moduleId)) {
+        setIsSpotlightOpen(false);
+        focusModule(moduleId);
+        return;
+      }
+      decide({ selection: withModule(selection, moduleId) });
+      setIsSpotlightOpen(false);
+      setSelectedNodeId(nodeIdFor(moduleId));
+    },
+    [decide, focusModule, model, prepared, selection],
+  );
+
+  const askRemoval = React.useCallback(
+    (moduleId: string) => {
+      if (!model || !prepared) return;
+      setRemoval(removalQuestion(moduleId, model, prepared));
+    },
+    [model, prepared],
+  );
+
+  const confirmRemoval = () => {
+    if (!removal) return;
+    decide({ selection: withModuleRemoved(selection, removal.moduleId, removal) });
+    setSelectedNodeId(null);
+    setRemoval(null);
+  };
+
+  const applyFix = (conflict: Conflict, fix: ConflictFix) => {
+    if (fix.kind === 'remove-outcomes') {
+      decide({ selection: { ...selection, outcomeIds: applyRemoveOutcomes(selection.outcomeIds, fix) } });
+    } else if (fix.kind === 'add-modules') {
+      let next = selection;
+      for (const moduleId of fix.moduleIds) next = withModule(next, moduleId);
+      decide({ selection: next });
+    } else if (fix.kind === 'change-track') {
+      setNotice(`The network is set in the Foundation step. Open it and choose the ${fix.track === 'blockchain' ? 'private Blockchain network' : 'public-access chain'}.`);
+    } else {
+      setNotice(`${conflict.title}. ${fix.label}.`);
+    }
+  };
+
+  const onDeleteLink = (link: MapLink) => {
+    if (!link.removable) {
+      setNotice('Cerulea draws this link itself. Add or remove an outcome, or change the permission matrix, to change it.');
+      return;
+    }
+    decide({ selection: withoutLink(selection, link.linkId) });
+    setSelectedEdgeId(null);
+  };
+
+  const clearCanvas = () => {
+    decide({ selection: EMPTY_SELECTION, positions: {}, settings: {} });
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    setClearAsked(false);
+  };
+
+  /* ---- Keyboard ---- */
+  const undoRef = React.useRef(undo);
+  const redoRef = React.useRef(redo);
+  undoRef.current = undo;
+  redoRef.current = redo;
+  React.useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const inInput = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable;
       if (inInput) return;
-      if (e.ctrlKey && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undoRef.current(); }
-      if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'z')) { e.preventDefault(); redoRef.current(); }
+      if (event.ctrlKey && event.key === 'z' && !event.shiftKey) { event.preventDefault(); undoRef.current(); }
+      if ((event.ctrlKey && event.key === 'y') || (event.ctrlKey && event.shiftKey && event.key === 'z')) { event.preventDefault(); redoRef.current(); }
+      if (event.ctrlKey && event.key === 'k') { event.preventDefault(); setIsSpotlightOpen(true); }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  /* ------ Agentic action listener ------ */
-  const addModuleRef = React.useRef<(moduleId: string) => void>(addModule);
+  /* ---- Assistant actions ---- */
+  const addModuleRef = React.useRef(addModule);
+  const askRemovalRef = React.useRef(askRemoval);
+  const connectRef = React.useRef(onConnect);
   addModuleRef.current = addModule;
-
+  askRemovalRef.current = askRemoval;
+  connectRef.current = onConnect;
   React.useEffect(() => {
-    function onAgentAction(e: Event) {
-      const action = (e as CustomEvent).detail;
+    function onAgentAction(event: Event) {
+      const action = (event as CustomEvent<AssistantAction>).detail;
       if (!action?.type) return;
-      if (action.type === 'add_module') {
-        addModuleRef.current(action.moduleId);
-      } else if (action.type === 'remove_module') {
-        const id = nodeIdFor(action.moduleId);
-        setNodes(nds => {
-          const next = nds.filter(n => n.id !== id);
-          pushHistory(next, edges);
-          return next;
-        });
-      } else if (action.type === 'connect_modules') {
-        const srcId = nodeIdFor(action.sourceId);
-        const tgtId = nodeIdFor(action.targetId);
-        const rel = action.rel ?? 'custom';
-        setEdges(eds => {
-          const next = [...eds, {
-            id: `e_${srcId}_${tgtId}_${Date.now()}`,
-            source: srcId,
-            target: tgtId,
-            type: 'relation',
-            markerEnd: { type: MarkerType.ArrowClosed },
-            data: { rel },
-          } as any];
-          pushHistory(nodes, next);
-          return next;
-        });
+      if (action.type === 'add_module') addModuleRef.current(action.moduleId);
+      else if (action.type === 'remove_module') askRemovalRef.current(action.moduleId);
+      else if (action.type === 'connect_modules') {
+        connectRef.current({ source: nodeIdFor(action.sourceId), target: nodeIdFor(action.targetId), sourceHandle: null, targetHandle: null });
       }
     }
     window.addEventListener('cerulea:action', onAgentAction);
     return () => window.removeEventListener('cerulea:action', onAgentAction);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Filter Spotlight
-  const filteredLib = React.useMemo(() => {
-    if (!q) return library;
-    return library.filter(m => (m.title + m.moduleId).toLowerCase().includes(q.toLowerCase()));
-  }, [library, q]);
+  /* ---- Selectors ---- */
+  const selectedCard = React.useMemo(
+    () => (selectedNodeId && model ? model.cards.find((card) => nodeIdFor(card.moduleId) === selectedNodeId) ?? null : null),
+    [model, selectedNodeId],
+  );
+  const selectedLink = React.useMemo(
+    () => (selectedEdgeId && model ? model.links.find((link) => link.linkId === selectedEdgeId) ?? null : null),
+    [model, selectedEdgeId],
+  );
+  const selectedNeeds = React.useMemo(() => {
+    if (!selectedCard || !model || !prepared) return [];
+    return model.links
+      .filter((link) => link.type === 'requires' && link.from === selectedCard.moduleId)
+      .map((link) => ({ moduleId: link.to, title: prepared.titleById[link.to] ?? link.to, reason: link.reason }));
+  }, [model, prepared, selectedCard]);
+
+  const filteredLibrary = React.useMemo(() => {
+    const held = query.trim().toLowerCase();
+    const list = prepared?.withBridges ?? [];
+    if (!held) return list;
+    return list.filter((part) => `${part.title} ${part.moduleId} ${part.blurb ?? ''}`.toLowerCase().includes(held));
+  }, [prepared, query]);
+
+  const handleNext = async () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    await persist();
+    if (goNext) goNext();
+  };
+
+  const saveText = saveState === 'saving' ? 'Saving' : saveState === 'saved' ? `Saved${blueprintVersion !== null ? ` · Blueprint v${blueprintVersion}` : ''}` : saveState === 'failed' ? 'Save failed' : '';
+  const canUndo = historyIndexRef.current > 0;
+  const canRedo = historyIndexRef.current < historyRef.current.length - 1;
+  void historyMark;
+
+  if (loadProblem) {
+    return (
+      <Box sx={{ p: 4 }}>
+        <Alert severity="error" variant="outlined">
+          <AlertTitle>{loadProblem.message}</AlertTitle>
+          {loadProblem.fix}
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ width: '100%', height: '100%', position: 'absolute', inset: 0, overflow: 'hidden', bgcolor: 'background.default' }}>
       <StepGuidance
         stepKey="step1"
-        title="Blueprint Builder"
+        title="Blueprint"
         subtitle="Step 2 of 6"
-        description="Design the architecture of your application by placing and connecting modules on the canvas. Each module represents a feature or capability."
+        description="Choose what the system should do. Cerulea places the parts each outcome needs on the canvas, links them and explains every card."
         steps={[
-          { first: 'Add modules', next: 'Click "Add Extra Modules" or use the search (Ctrl+K) to find and place modules on the canvas.' },
-          { first: 'Connect modules', next: "Drag from a module's right handle to another module to define how they interact." },
-          { first: 'Configure each module', next: 'Click a module node to open the configuration panel on the right and set its parameters.' },
+          { first: 'Choose outcomes', next: 'Tick plain statements in the Outcomes panel. Cerulea installs the parts each one needs, dependencies included.' },
+          { first: 'Read the links', next: 'A solid line means one part needs another. An arrow means records flow. A dashed arrow means one part starts work in another. A dotted line means one part decides access.' },
+          { first: 'Adjust and connect', next: 'Add a single part with the search (Ctrl+K). Drag between two cards to add a feeds or triggers link where the catalogue records the pair. Click a card to read why it is here and set its parameters.' },
         ]}
-        tip="Start with the core modules your use case requires. You can always add more later. Connected modules automatically share relevant data entities."
+        tip="Removing a card asks first and names what stops working. Undo covers every change."
       />
 
-      {/* 1. Infinite Canvas */}
       <ReactFlow
-        nodes={nodes} edges={edges}
-        onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+        nodes={nodes as Node<ModuleNodeData>[]}
+        edges={edges}
+        onNodesChange={handleNodesChange}
+        onNodeDragStop={onNodeDragStop}
         onConnect={onConnect}
-        onNodeClick={onNodeClick} onEdgeClick={onEdgeClick}
-        onPaneClick={onPaneClick}
-        nodeTypes={nodeTypes} edgeTypes={edgeTypes}
-        fitView snapToGrid snapGrid={[20, 20]}
-        minZoom={0.2} maxZoom={2}
+        onNodeClick={(_event, node) => { setSelectedEdgeId(null); setSelectedNodeId(node.id); }}
+        onEdgeClick={(_event, edge) => { setSelectedNodeId(null); setSelectedEdgeId(edge.id); }}
+        onPaneClick={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        fitView
+        snapToGrid
+        snapGrid={[20, 20]}
+        minZoom={0.2}
+        maxZoom={2}
+        deleteKeyCode={null}
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color={theme.palette.mode === 'light' ? 'rgba(79,70,229,0.12)' : 'rgba(79,70,229,0.18)'} />
-        
-        {/* Adjusted controls margin to avoid top-bar overlap */}
-        <Controls position="top-left" style={{ marginTop: 80, marginLeft: 20 }} />
-        <MiniMap position="top-right" style={{ marginTop: 80, marginRight: 20, borderRadius: 12, overflow:'hidden' }} zoomable pannable />
+        <Controls position="top-left" style={{ marginTop: 80, marginLeft: panelOpen ? 460 : 20 }} />
+        <MiniMap position="top-right" style={{ marginTop: 80, marginRight: selectedCard || selectedLink ? 380 : 20, borderRadius: 12, overflow: 'hidden' }} zoomable pannable />
       </ReactFlow>
 
-      {/* Empty-state guidance banner */}
-      {nodes.length === 0 && (
-        <Box sx={{
-          position: 'absolute', top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          zIndex: 5, pointerEvents: 'none', textAlign: 'center',
-        }}>
-          <Box sx={{
-            p: 3, borderRadius: 3,
-            background: (t) => t.palette.mode === 'dark' ? 'rgba(8,14,36,0.7)' : 'rgba(255,255,255,0.7)',
-            backdropFilter: 'blur(12px)',
-            border: (t) => `1px dashed ${alpha(t.palette.primary.main, 0.3)}`,
-            maxWidth: 400,
-          }}>
-            <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>Build your application blueprint</Typography>
+      {!loaded && !loadProblem && (
+        <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}>
+          <Stack alignItems="center" spacing={1.5}>
+            <CircularProgress size={26} />
+            <Typography variant="body2" color="text.secondary">Cerulea is reading the catalogue and the project.</Typography>
+          </Stack>
+        </Box>
+      )}
+
+      {loaded && model && model.cards.length === 0 && (
+        <Box sx={{ position: 'absolute', top: '50%', left: panelOpen ? 'calc(50% + 210px)' : '50%', transform: 'translate(-50%, -50%)', zIndex: 5, pointerEvents: 'none', textAlign: 'center' }}>
+          <Box sx={{ p: 3, borderRadius: 3, background: (t) => t.palette.mode === 'dark' ? 'rgba(8,14,36,0.7)' : 'rgba(255,255,255,0.7)', backdropFilter: 'blur(12px)', border: (t) => `1px dashed ${alpha(t.palette.primary.main, 0.3)}`, maxWidth: 400 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>Build the Blueprint</Typography>
             <Typography variant="body2" sx={{ opacity: 0.7, lineHeight: 1.6 }}>
-              Click <strong>&quot;Add Extra Modules&quot;</strong> below to choose the features
-              your app needs: like wallets, tokens, governance, or payments.
-              Each module becomes a building block on this canvas.
+              Tick an outcome in the panel on the left, or add a part with the search below. Each one becomes a card on this canvas, with every part it needs.
             </Typography>
             <Typography variant="caption" sx={{ display: 'block', mt: 1.5, opacity: 0.5 }}>
-              Drag modules to reposition them. Draw lines between modules to define how they interact.
+              Drag cards to arrange them. Drag between two cards to link them where the catalogue allows.
             </Typography>
           </Box>
         </Box>
       )}
 
-      {/* 3. Floating Dock (Bottom) */}
+      {/* The side panel */}
+      {loaded && prepared && model && panelOpen && (
+        <SidePanel
+          tab={panelTab}
+          onTabChange={setPanelTab}
+          onClose={() => setPanelOpen(false)}
+          modules={modules}
+          titleById={prepared.titleById}
+          track={track}
+          selection={selection}
+          model={model}
+          conflicts={conflicts}
+          onOutcomesChange={(next) => {
+            const added = next.filter((id) => !selection.outcomeIds.includes(id));
+            const removed = selection.outcomeIds.filter((id) => !next.includes(id));
+            let following = selection;
+            for (const id of added) following = withOutcome(following, id);
+            for (const id of removed) following = withoutOutcome(following, id);
+            // A statement chosen again brings back the parts it needs.
+            if (added.length > 0) {
+              const anchors = new Set(prepared.outcomes.filter((o) => added.includes(o.outcomeId)).map((o) => o.anchorModuleId));
+              following = { ...following, removedModuleIds: following.removedModuleIds.filter((id) => !anchors.has(id)) };
+            }
+            decide({ selection: following });
+          }}
+          onFeedsAnswer={(to, sources) => decide({ selection: withFeedsAnswer(selection, to, sources) })}
+          onTriggerToggle={(pair: TriggerPair, next: boolean) => decide({ selection: withTrigger(selection, pair, next) })}
+          onLinkDelete={onDeleteLink}
+          onApplyFix={applyFix}
+          saveNotes={saveNotes}
+        />
+      )}
+
+      {/* The floating dock */}
       <Box sx={{ position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 50 }}>
-        <FloatingIsland sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 2, borderRadius: 100 }}>
-           
-           <Tooltip title="Back">
-             <IconButton onClick={goPrev ? goPrev : () => window.history.back()} size="small" sx={{border: '1px solid', borderColor:'divider'}}>
-               <KeyboardArrowLeftIcon />
-             </IconButton>
-           </Tooltip>
+        <FloatingIsland sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5, borderRadius: 100 }}>
+          <Tooltip title="Back">
+            <IconButton onClick={goPrev ? goPrev : () => window.history.back()} size="small" sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Back">
+              <KeyboardArrowLeftIcon />
+            </IconButton>
+          </Tooltip>
 
-           <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
+          <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
 
-           <Tooltip title="Undo (Ctrl+Z)">
-             <span>
-               <IconButton size="small" onClick={() => undoRef.current()} disabled={historyIndexRef.current <= 0}>
-                 <UndoIcon fontSize="small" />
-               </IconButton>
-             </span>
-           </Tooltip>
+          <Tooltip title="Undo (Ctrl+Z)">
+            <span>
+              <IconButton size="small" onClick={undo} disabled={!canUndo} aria-label="Undo"><UndoIcon fontSize="small" /></IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title="Redo (Ctrl+Y)">
+            <span>
+              <IconButton size="small" onClick={redo} disabled={!canRedo} aria-label="Redo"><RedoIcon fontSize="small" /></IconButton>
+            </span>
+          </Tooltip>
 
-           <Tooltip title="Redo (Ctrl+Y)">
-             <span>
-               <IconButton size="small" onClick={() => redoRef.current()} disabled={historyIndexRef.current >= historyRef.current.length - 1}>
-                 <RedoIcon fontSize="small" />
-               </IconButton>
-             </span>
-           </Tooltip>
+          <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
 
-           <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
+          <Tooltip title="Outcomes, links and the check">
+            <IconButton size="small" color={panelOpen ? 'primary' : 'default'} onClick={() => setPanelOpen((open) => !open)} aria-label="Outcomes panel">
+              <ChecklistIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
 
-           <Button
-             variant="contained"
-             startIcon={<AddIcon />}
-             onClick={() => setIsSpotlightOpen(true)}
-             sx={{ borderRadius: 1, px: 3, py: 1, fontWeight: 700, boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)' }}
-           >
-             Add Extra Modules
-           </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setIsSpotlightOpen(true)}
+            data-testid="add-part"
+            sx={{ borderRadius: 1, px: 3, py: 1, fontWeight: 700, boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)' }}
+          >
+            Add a part
+          </Button>
 
-           <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
+          <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
 
-           <Tooltip title="Clear Canvas">
-             <IconButton size="small" onClick={() => { const empty: Node[] = []; const emptyE: Edge[] = []; pushHistory(empty, emptyE); setNodes(empty); setEdges(emptyE); }} color="error">
-                <DeleteOutlineIcon />
-             </IconButton>
-           </Tooltip>
+          <Tooltip title="Clear the canvas">
+            <IconButton size="small" onClick={() => setClearAsked(true)} color="error" aria-label="Clear the canvas"><DeleteOutlineIcon /></IconButton>
+          </Tooltip>
+          <Tooltip title="Help">
+            <IconButton size="small" onClick={() => setIsHelpOpen(true)} color="primary" aria-label="Help"><QuestionMarkIcon fontSize="small" /></IconButton>
+          </Tooltip>
 
-           <Tooltip title="Help & Guide">
-             <IconButton size="small" onClick={() => setIsHelpOpen(true)} color="primary">
-                <QuestionMarkIcon fontSize="small" />
-             </IconButton>
-           </Tooltip>
+          <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
 
-           <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
+          {saveText && (
+            <Typography sx={{ fontSize: '0.68rem', color: saveState === 'failed' ? 'error.main' : 'text.secondary' }} data-testid="canvas-save-state">
+              {saveText}
+            </Typography>
+          )}
 
-           <Button 
-             variant="text" 
-             endIcon={<KeyboardArrowRightIcon />} 
-             onClick={handleNext}
-             sx={{ fontWeight: 700, color: 'text.primary' }}
-           >
-             Next
-           </Button>
-
+          <Button variant="text" endIcon={<KeyboardArrowRightIcon />} onClick={() => void handleNext()} sx={{ fontWeight: 700, color: 'text.primary' }}>
+            Next
+          </Button>
         </FloatingIsland>
       </Box>
 
-      {/* 4. The "Spotlight" Library Modal */}
-      <SpotlightDialog 
-        open={isSpotlightOpen} 
-        onClose={() => setIsSpotlightOpen(false)}
-        transitionDuration={200}
-      >
+      {saveFailure && (
+        <Box sx={{ position: 'absolute', bottom: 100, left: '50%', transform: 'translateX(-50%)', zIndex: 50, maxWidth: 560 }}>
+          <Alert severity="error" variant="outlined" onClose={() => setSaveFailure(null)}>
+            {saveFailure.message} {saveFailure.fix}
+          </Alert>
+        </Box>
+      )}
+
+      {/* The search that adds one part */}
+      <SpotlightDialog open={isSpotlightOpen} onClose={() => setIsSpotlightOpen(false)} transitionDuration={200}>
         <Box sx={{ p: 2 }}>
-           <TextField
-             autoFocus
-             fullWidth
-             placeholder="Search for modules..."
-             value={q} onChange={e => setQ(e.target.value)}
-             InputProps={{
-               startAdornment: <SearchIcon sx={{ mr: 2, color: 'text.secondary' }} />,
-               sx: { fontSize: '1.2rem', '& fieldset': { border: 'none' } }
-             }}
-           />
+          <TextField
+            autoFocus
+            fullWidth
+            placeholder="Search the parts"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            inputProps={{ 'aria-label': 'Search the parts' }}
+            InputProps={{ startAdornment: <SearchIcon sx={{ mr: 2, color: 'text.secondary' }} />, sx: { fontSize: '1.2rem', '& fieldset': { border: 'none' } } }}
+          />
         </Box>
         <Divider />
         <DialogContent sx={{ p: 0, height: 400 }}>
-           <ScrollBox sx={{ height: '100%' }}>
-             {filteredLib.map(m => (
-               <Box 
-                 key={m.moduleId} 
-                 onClick={() => addModule(m.moduleId)}
-                 sx={{ 
-                   p: 2, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2,
-                   '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) },
-                   borderBottom: '1px solid', borderColor: 'divider'
-                 }}
-               >
-                  <Box sx={{ p: 1, borderRadius: 1, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
-                     <LayersIcon />
-                  </Box>
-                  <Box>
-                     <Typography variant="subtitle1" fontWeight={700}>{m.title}</Typography>
-                     <Typography variant="caption" color="text.secondary">{blurbFromJson(m)}</Typography>
-                  </Box>
-                  <Box sx={{ ml: 'auto' }}>
-                    <Chip label="Add" size="small" clickable onClick={() => addModule(m.moduleId)} />
-                  </Box>
-               </Box>
-             ))}
-           </ScrollBox>
+          <ScrollBox sx={{ height: '100%' }}>
+            {filteredLibrary.map((part) => (
+              <Box
+                key={part.moduleId}
+                onClick={() => addModule(part.moduleId)}
+                data-testid="spotlight-part"
+                sx={{ p: 2, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2, '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) }, borderBottom: '1px solid', borderColor: 'divider' }}
+              >
+                <Box sx={{ p: 1, borderRadius: 1, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}><LayersIcon /></Box>
+                <Box>
+                  <Typography variant="subtitle1" fontWeight={700}>{part.title}</Typography>
+                  <Typography variant="caption" color="text.secondary">{part.blurb ?? part.longDescription?.[0] ?? part.title}</Typography>
+                </Box>
+                <Box sx={{ ml: 'auto' }}>
+                  <Chip label={model?.installed.includes(part.moduleId) ? 'On the canvas' : 'Add'} size="small" clickable />
+                </Box>
+              </Box>
+            ))}
+          </ScrollBox>
         </DialogContent>
       </SpotlightDialog>
 
-      {/* 5. Help / Info Dialog */}
-      <HelpDialog 
-         open={isHelpOpen} 
-         onClose={() => setIsHelpOpen(false)}
-         PaperProps={{ sx: { borderRadius: 1, maxWidth: 500 } }}
-      >
-         <Box sx={{ p: 3 }}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-              <Typography variant="h6" fontWeight={800}>Blueprint Studio Guide</Typography>
-              <IconButton onClick={() => setIsHelpOpen(false)} size="small"><CloseIcon /></IconButton>
-            </Stack>
-            
-            <Stack spacing={2} sx={{ color: 'text.secondary' }}>
-               <Box>
-                  <Typography variant="subtitle2" fontWeight={700} color="text.primary">1. Module Library</Typography>
-                  <Typography variant="body2">Click <b>&quot;Add Extra Modules&quot;</b> to search the catalog. A module can be a smart contract, a backend service, or a UI feature.</Typography>
-               </Box>
-               <Divider />
-               <Box>
-                  <Typography variant="subtitle2" fontWeight={700} color="text.primary">2. Configuration</Typography>
-                  <Typography variant="body2">Select any module on the canvas to open the <b>Inspector</b>. Here you can configure parameters (e.g., token name) and see dependencies.</Typography>
-               </Box>
-               <Divider />
-               <Box>
-                  <Typography variant="subtitle2" fontWeight={700} color="text.primary">3. Connections</Typography>
-                  <Typography variant="body2">Drag from one module&apos;s handle to another to link them. Click the line to define the relationship (e.g., <i>Reads</i>, <i>Pays</i>).</Typography>
-               </Box>
-            </Stack>
-            
-            <Button fullWidth variant="contained" size="large" onClick={() => setIsHelpOpen(false)} sx={{ mt: 3, borderRadius: 2 }}>
-               Got it
-            </Button>
-         </Box>
+      {/* Help */}
+      <HelpDialog open={isHelpOpen} onClose={() => setIsHelpOpen(false)} PaperProps={{ sx: { borderRadius: 1, maxWidth: 520 } }}>
+        <Box sx={{ p: 3 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+            <Typography variant="h6" fontWeight={800}>How the Blueprint canvas works</Typography>
+            <IconButton onClick={() => setIsHelpOpen(false)} size="small" aria-label="Close the help"><CloseIcon /></IconButton>
+          </Stack>
+          <Stack spacing={2} sx={{ color: 'text.secondary' }}>
+            <Box>
+              <Typography variant="subtitle2" fontWeight={700} color="text.primary">1. Outcomes</Typography>
+              <Typography variant="body2">Tick plain statements in the panel. Cerulea installs the parts each statement needs, every dependency included, and places them as cards.</Typography>
+            </Box>
+            <Divider />
+            <Box>
+              <Typography variant="subtitle2" fontWeight={700} color="text.primary">2. The four links</Typography>
+              <Typography variant="body2">A solid line means one part needs another. A solid arrow means records flow from one part to another. A dashed arrow means one part starts work in another. A dotted line means one part decides who may use another. Cerulea draws the first and the last. We choose the middle two from valid pairs.</Typography>
+            </Box>
+            <Divider />
+            <Box>
+              <Typography variant="subtitle2" fontWeight={700} color="text.primary">3. Cards</Typography>
+              <Typography variant="body2">Click a card to read why it is here, what it contributes and what stops working after removal, and to set its parameters. Removing a card asks first.</Typography>
+            </Box>
+          </Stack>
+          <Button fullWidth variant="contained" size="large" onClick={() => setIsHelpOpen(false)} sx={{ mt: 3, borderRadius: 2 }}>
+            Understood
+          </Button>
+        </Box>
       </HelpDialog>
 
-      {/* 6. Contextual Inspector (Right "Floating Island") */}
-      <Fade in={!!selectedNodeId || !!selectedEdgeId} mountOnEnter unmountOnExit>
-         {/* FIX: Increased top to 90 to clear header */}
-         <Box sx={{ position: 'absolute', top: 90, right: 20, bottom: 20, width: 340, zIndex: 40, pointerEvents: 'none' }}>
-           <FloatingIsland sx={{ height: '100%', display: 'flex', flexDirection: 'column', pointerEvents: 'auto' }}>
-              
-              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-                 <Typography variant="subtitle1" fontWeight={800}>
-                    {selectedNodeId ? 'Configuration' : 'Relationship'}
-                 </Typography>
-                 <IconButton size="small" onClick={onPaneClick}>
-                    <CloseIcon fontSize="small" />
-                 </IconButton>
-              </Stack>
-
-              <ScrollBox sx={{ flex: 1, p: 3 }}>
-                 {selectedNode && selectedModule && (
-                    <Stack spacing={2.5}>
-                       {/* Module header */}
-                       <Box>
-                          <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ mb: 1 }}>
-                            <Box sx={{ width: 38, height: 38, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, mt: 0.25 }}>
-                              <BoltIcon sx={{ color: 'primary.main', fontSize: 20 }} />
-                            </Box>
-                            <Box>
-                              <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.2 }}>{selectedModule.title}</Typography>
-                              {selectedModule.category && (
-                                <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ textTransform: 'uppercase', letterSpacing: 0.4, fontSize: '0.65rem' }}>
-                                  {selectedModule.category}
-                                </Typography>
-                              )}
-                            </Box>
-                          </Stack>
-                          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.65 }}>
-                            {selectedModule.blurb || selectedModule.longDescription?.[0] || ''}
-                          </Typography>
-                          {selectedModule.tags && selectedModule.tags.length > 0 && (
-                            <Box sx={{ mt: 1.5 }}>
-                              <Typography variant="caption" fontWeight={700} color="text.disabled" sx={{ letterSpacing: 0.5, mb: 0.75, display: 'block' }}>
-                                WHAT THIS GENERATES
-                              </Typography>
-                              <Stack direction="row" flexWrap="wrap" gap={0.5}>
-                                {selectedModule.tags.slice(0, 6).map((t) => (
-                                  <Chip key={t} label={t} size="small"
-                                    sx={{ height: 20, fontSize: '0.62rem', fontWeight: 600,
-                                      bgcolor: alpha(theme.palette.primary.main, 0.08),
-                                      color: 'primary.main', border: 'none' }} />
-                                ))}
-                              </Stack>
-                            </Box>
-                          )}
-                       </Box>
-
-                       <Divider />
-
-                       <Box>
-                         <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 0.75 }}>
-                           <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>LOGICAL GROUP</Typography>
-                           <Tooltip title="Optional label to group related modules (e.g. 'Payments', 'Identity'). Shown as a badge on the node. Just for your own organisation." placement="top" arrow>
-                             <InfoOutlinedIcon sx={{ fontSize: 13, opacity: 0.5, cursor: 'help' }} />
-                           </Tooltip>
-                         </Stack>
-                         <TextField
-                            fullWidth size="small"
-                            placeholder="e.g. Payments, Identity, Governance"
-                            value={selectedNode.data.group || ''}
-                            onChange={e => updateNodeData({ group: e.target.value })}
-                         />
-                       </Box>
-
-                       <Box>
-                          <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 0.5 }}>
-                            <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>PARAMETERS</Typography>
-                            <Tooltip title="These settings customise this module's behavior in your deployment. All fields have sensible defaults — you only need to change values specific to your project." placement="top" arrow>
-                              <InfoOutlinedIcon sx={{ fontSize: 13, opacity: 0.5, cursor: 'help' }} />
-                            </Tooltip>
-                          </Stack>
-                          <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 1.5 }}>
-                            Leave defaults or customise for your project.
-                          </Typography>
-                          <SchemaForm
-                             schema={selectedModule.configSchema}
-                             value={selectedNode.data.config || {}}
-                             onChange={patch => updateNodeData({ config: { ...selectedNode.data.config || {}, ...patch } })}
-                          />
-                       </Box>
-
-                       {!!selectedModule.dependsOn?.length && (
-                         <Box sx={{ bgcolor: alpha(theme.palette.info.main, 0.05), p: 2, borderRadius: 2 }}>
-                            <Typography variant="caption" fontWeight={700} color="info.main" sx={{ mb: 1, display: 'block' }}>SUGGESTIONS</Typography>
-                            <Stack spacing={1}>
-                               {selectedModule.dependsOn.map(dep => {
-                                  const key1 = `${selectedModule.moduleId}->${dep}`;
-                                  const key2 = `${dep}->${selectedModule.moduleId}`;
-                                  const reason = selectedModule.reasonByDepId?.[dep] || DEP_REASON[key1] || DEP_REASON[key2] || 'Recommended dependency';
-                                  
-                                  return (
-                                     <Box key={dep} sx={{p:1, border:'1px dashed', borderColor:'divider', borderRadius:1}}>
-                                        <Typography variant="subtitle2" fontWeight={700}>{dep}</Typography>
-                                        <Typography variant="caption" display="block" color="text.secondary" sx={{mb:1}}>{reason}</Typography>
-                                        <Button
-                                          size="small"
-                                          startIcon={<AutoFixHighIcon />}
-                                          onClick={() => addMissing(dep)}
-                                          variant="outlined" color="info" fullWidth
-                                        >
-                                          Add to Canvas
-                                        </Button>
-                                     </Box>
-                                  );
-                               })}
-                            </Stack>
-                         </Box>
-                       )}
-                       
-                       <Button color="error" variant="outlined" startIcon={<DeleteOutlineIcon />} onClick={() => { setNodes(n => n.filter(x => x.id !== selectedNodeId)); setSelectedNodeId(null); }}>
-                          Remove Module
-                       </Button>
-                    </Stack>
-                 )}
-
-                 {selectedEdge && (
-                    <Stack spacing={3}>
-                       <Box>
-                         <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.5 }}>Connection Type</Typography>
-                         <Typography variant="body2" color="text.secondary">
-                           How does one module interact with the other? This defines the data or control flow between them.
-                         </Typography>
-                       </Box>
-                       <Box>
-                         <FormControl fullWidth>
-                           <InputLabel>Relationship</InputLabel>
-                           <Select
-                             label="Relationship"
-                             value={selectedEdge.data?.rel || 'custom'}
-                             onChange={e => setEdges(eds => eds.map(ed => ed.id === selectedEdgeId ? { ...ed, data: { ...ed.data, rel: e.target.value as EdgeRel } } : ed))}
-                           >
-                             <MenuItem value="reads"><strong>READS</strong>: reads data from</MenuItem>
-                             <MenuItem value="writes"><strong>WRITES</strong>: writes/saves data to</MenuItem>
-                             <MenuItem value="triggers"><strong>TRIGGERS</strong>: activates or starts</MenuItem>
-                             <MenuItem value="feeds"><strong>FEEDS</strong>: passes data to</MenuItem>
-                             <MenuItem value="calls"><strong>CALLS</strong>: invokes a function on</MenuItem>
-                             <MenuItem value="pays"><strong>PAYS</strong>: sends a payment to</MenuItem>
-                             <MenuItem value="custom"><strong>LINKS</strong>: general connection</MenuItem>
-                           </Select>
-                         </FormControl>
-                       </Box>
-                       <Button color="error" variant="outlined" onClick={() => { setEdges(e => e.filter(x => x.id !== selectedEdgeId)); setSelectedEdgeId(null); }}>
-                          Delete Connection
-                       </Button>
-                    </Stack>
-                 )}
-              </ScrollBox>
-           </FloatingIsland>
-         </Box>
+      {/* The inspector */}
+      <Fade in={!!selectedCard || !!selectedLink} mountOnEnter unmountOnExit>
+        <Box>
+          {selectedCard && prepared && (
+            <InspectorIsland title="This part" onClose={() => setSelectedNodeId(null)}>
+              <CardInspector
+                card={selectedCard}
+                group={settings[selectedCard.moduleId]?.group ?? ''}
+                config={settings[selectedCard.moduleId]?.config ?? {}}
+                needs={selectedNeeds}
+                onGroupChange={(group) => decide({ settings: { ...settings, [selectedCard.moduleId]: { ...settings[selectedCard.moduleId], group } } })}
+                onConfigChange={(patch) => decide({ settings: { ...settings, [selectedCard.moduleId]: { ...settings[selectedCard.moduleId], config: { ...(settings[selectedCard.moduleId]?.config ?? {}), ...patch } } } })}
+                onRemove={() => askRemoval(selectedCard.moduleId)}
+                onFocus={focusModule}
+              />
+            </InspectorIsland>
+          )}
+          {selectedLink && prepared && (
+            <InspectorIsland title="This link" onClose={() => setSelectedEdgeId(null)}>
+              <LinkInspector link={selectedLink} titleById={prepared.titleById} onDelete={() => onDeleteLink(selectedLink)} />
+            </InspectorIsland>
+          )}
+        </Box>
       </Fade>
 
+      <RemovalDialog impact={removal} onKeep={() => setRemoval(null)} onRemove={confirmRemoval} />
+
+      {/* Two kinds are valid between the two parts, so the person chooses. */}
+      <Dialog open={linkChoice !== null} onClose={() => setLinkChoice(null)} PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>Which link</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            The catalogue records both a feeds and a triggers relation between {prepared?.titleById[linkChoice?.from ?? ''] ?? ''} and {prepared?.titleById[linkChoice?.to ?? ''] ?? ''}.
+          </Typography>
+          <Stack direction="row" spacing={1}>
+            <Button variant="outlined" startIcon={<HubIcon />} onClick={() => chooseLinkKind('feeds')}>Feeds, records flow</Button>
+            <Button variant="outlined" startIcon={<HubIcon />} onClick={() => chooseLinkKind('triggers')}>Triggers, work starts</Button>
+          </Stack>
+        </DialogContent>
+        <DialogActions><Button onClick={() => setLinkChoice(null)}>Cancel</Button></DialogActions>
+      </Dialog>
+
+      {/* Clearing asks first. */}
+      <Dialog open={clearAsked} onClose={() => setClearAsked(false)} PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>Clear the canvas</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">Every outcome, every part and every link leaves the canvas. Undo brings them back until the step closes.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setClearAsked(false)}>Keep them</Button>
+          <Button color="error" variant="contained" onClick={clearCanvas} sx={{ boxShadow: 'none' }}>Clear</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar open={notice !== null} autoHideDuration={6000} onClose={() => setNotice(null)} message={notice ?? ''} anchorOrigin={{ vertical: 'top', horizontal: 'center' }} />
     </Box>
   );
 }
 
-export default function Step1(props: { goPrev?: () => void; goNext?: () => void; }) {
+export default function Step1(props: { goPrev?: () => void; goNext?: () => void; projectId?: string | null }) {
   return (
     <ReactFlowProvider>
       <Step1Inner {...props} />
