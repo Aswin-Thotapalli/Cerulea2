@@ -16,6 +16,8 @@ export class StudioRouteError extends Error {
   readonly code: string;
   readonly fix: string;
   readonly status: number;
+  /** The details the route named beside the fix, such as the faults of a refused Blueprint. */
+  readonly details: Record<string, unknown>;
 
   constructor(failure: RouteFailure, status: number) {
     super(`${failure.message} ${failure.fix}`.trim());
@@ -23,6 +25,7 @@ export class StudioRouteError extends Error {
     this.code = failure.code;
     this.fix = failure.fix;
     this.status = status;
+    this.details = failure.details;
   }
 }
 
@@ -48,7 +51,10 @@ function failureOf(payload: unknown, status: number, url: string): StudioRouteEr
             typeof record.fix === 'string'
               ? record.fix
               : 'Open the screen again, then repeat the action.',
-          details: {},
+          details:
+            record.details && typeof record.details === 'object'
+              ? (record.details as Record<string, unknown>)
+              : {},
         },
         status,
       );

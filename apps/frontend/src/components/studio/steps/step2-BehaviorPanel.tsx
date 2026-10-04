@@ -1,702 +1,908 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+// apps/frontend/src/components/studio/steps/step2-BehaviorPanel.tsx
+// The Logic tab of the Data schema step.
+// Two modes, as production offered: Rules and Visual. Rules lists the rules
+// and the actions of the Blueprint with the formula bar beside each rule and
+// the Access Manifest beside each action, then the triggers Cerulea recommends
+// per module, each one copying into the Blueprint as typed entries. Visual
+// mounts the logic canvas over named drawings; each drawing compiles into one
+// action with its rules and events on every change, so the picture and the
+// Blueprint never drift apart. The script mode production carried is gone:
+// nobody writes code anywhere in Cerulea.
+// Without this tab a system accepts every value it is given.
+
+import React, { useMemo, useState } from 'react';
 import {
-  Box, Stack, Paper, Typography, Button, Chip, Tooltip, IconButton,
-  Dialog, DialogTitle, DialogContent, DialogActions, TextField,
-} from "@mui/material";
-import { useTheme, alpha } from "@mui/material/styles";
-import BoltIcon from "@mui/icons-material/Bolt";
-import AccountTreeIcon from "@mui/icons-material/AccountTree";
-import CodeIcon from "@mui/icons-material/Code";
-import AddIcon from "@mui/icons-material/Add";
+  Alert,
+  AlertTitle,
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  IconButton,
+  MenuItem,
+  Paper,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
+import BoltIcon from '@mui/icons-material/Bolt';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
-import HexagonOutlinedIcon from "@mui/icons-material/HexagonOutlined";
-import LogicCanvas from "../logic/LogicCanvas";
-import CustomScriptPanel from "../custom/CustomScriptPanel";
-import { ModuleInfo } from './step2-types';
+import HexagonOutlinedIcon from '@mui/icons-material/HexagonOutlined';
 
-/* ------------------------------------------------------------------ */
-/* Trigger seed data: pre-filled event→action pairs per module type   */
-/* ------------------------------------------------------------------ */
-const TRIGGER_SEEDS: Record<string, Array<{ event: string; action: string; description: string; color: string }>> = {
-  'user-auth': [
-    { event: 'User.Created', action: 'Send Welcome Email', description: 'Fire when a new user account is created.', color: '#3b82f6' },
-    { event: 'User.LoginFailed (3x)', action: 'Lock Account + Alert', description: 'Prevent brute-force by locking after 3 failed attempts.', color: '#ef4444' },
-  ],
-  'token-erc20': [
-    { event: 'Transfer.Completed', action: 'Update Balance Cache', description: 'Keep off-chain balance cache in sync after every transfer.', color: '#8b5cf6' },
-    { event: 'Token.Minted', action: 'Emit Notification', description: 'Notify the recipient wallet when tokens are minted to them.', color: '#10b981' },
-  ],
-  'governance': [
-    { event: 'Proposal.Created', action: 'Notify Voters', description: 'Alert all eligible voters when a new proposal is submitted.', color: '#f59e0b' },
-    { event: 'Vote.Deadline.Reached', action: 'Finalize Proposal', description: 'Auto-execute the winning outcome when voting ends.', color: '#06b6d4' },
-  ],
-  'consensus': [
-    { event: 'BlockProposal.Created', action: 'Validate Proposer Signature', description: 'Verify the proposer is in the active validator set before propagating the block.', color: '#6366f1' },
-    { event: 'FinalityRecord.Created', action: 'Broadcast Finality Proof', description: 'Distribute the 2/3-supermajority finality proof to all connected peer nodes.', color: '#8b5cf6' },
-    { event: 'ConsensusNode.Slashed', action: 'Emit Slash Event + Update Stake', description: 'Reduce on-chain stake balance and push alert to the validator dashboard.', color: '#ef4444' },
-  ],
-  'evm-config': [
-    { event: 'EVMParameter.Updated', action: 'Redeploy Contract Factory', description: 'Rebuild and redeploy factory contracts to apply the new EVM configuration.', color: '#f59e0b' },
-    { event: 'EVMUpgrade.Proposed', action: 'Notify All Node Operators', description: 'Alert all node operators to download and prepare the new protocol version.', color: '#06b6d4' },
-  ],
-  'genesis': [
-    { event: 'GenesisBlock.Initialized', action: 'Bootstrap Validator Set', description: 'Populate the initial validator set from genesis allocations and start block production.', color: '#10b981' },
-    { event: 'GenesisConfig.Validated', action: 'Lock Genesis Parameters', description: 'Freeze genesis configuration and mark the chain as fully bootstrapped.', color: '#3b82f6' },
-  ],
-  'p2p': [
-    { event: 'PeerDiscovery.Completed', action: 'Update Peer Routing Table', description: 'Refresh the Kademlia routing table with newly discovered peer addresses.', color: '#06b6d4' },
-    { event: 'PeerSession.Disconnected', action: 'Trigger Reconnect Logic', description: 'Attempt reconnection within 30 s if the connected-peer count drops below the minimum threshold.', color: '#f59e0b' },
-  ],
-  'p2p-tls': [
-    { event: 'TLSCertificate.Expiring', action: 'Rotate mTLS Certificate', description: 'Auto-rotate the node mTLS certificate before expiry using the ACME provisioning flow.', color: '#10b981' },
-    { event: 'PeerHandshake.Failed', action: 'Log + Temp-Ban Peer', description: 'Record the failed handshake and apply a 10-minute cooldown ban on that peer address.', color: '#ef4444' },
-  ],
-  'node-permissioning': [
-    { event: 'AllowlistedNode.Added', action: 'Propagate Allow-List', description: 'Push the updated node allowlist to all active validators via the permissioning contract.', color: '#3b82f6' },
-    { event: 'NodePermission.Revoked', action: 'Disconnect + Alert Admin', description: 'Immediately drop the revoked node connection and alert PLATFORM_ADMIN.', color: '#ef4444' },
-  ],
-  'validators': [
-    { event: 'ValidatorDelegation.Staked', action: 'Update Voting Power', description: "Recalculate and publish the validator's voting power based on total delegated stake.", color: '#8b5cf6' },
-    { event: 'ValidatorUptime.ThresholdMissed', action: 'Jail Validator', description: 'Automatically jail a validator that misses 1,000 of the last 10,000 blocks.', color: '#ef4444' },
-  ],
-  'tokenomics': [
-    { event: 'BlockReward.Issued', action: 'Distribute to Validators', description: 'Split the AGT block reward proportionally across active validators by staked weight.', color: '#10b981' },
-    { event: 'InflationMint.Triggered', action: 'Transfer to Reward Pool', description: 'Move the 5% annual inflation mint into the validator rewards pool for next-cycle distribution.', color: '#f59e0b' },
-  ],
-  'fees': [
-    { event: 'BaseFee.Adjusted', action: 'Update Fee Oracle', description: 'Publish the new EIP-1559 base fee to the RPC fee oracle so clients quote accurate gas prices.', color: '#06b6d4' },
-    { event: 'GaslessTx.Submitted', action: 'Deduct from Sponsor Pool', description: 'Verify role eligibility and deduct the gas cost from the ecosystemFarmerFund sponsor balance.', color: '#10b981' },
-  ],
-  'rpc': [
-    { event: 'RateLimitExceeded.Detected', action: 'Throttle + Log IP', description: 'Return HTTP 429 and log the offending IP to the rate-limit registry for monitoring.', color: '#ef4444' },
-    { event: 'BatchRPC.Received', action: 'Queue + Process Async', description: 'Enqueue the batch RPC call and push results back through the async response handler.', color: '#3b82f6' },
-  ],
-  'graphql-gateway': [
-    { event: 'IntrospectionAttempt.Blocked', action: 'Log Security Event', description: 'Record unauthorized schema introspection attempts with requester IP for audit.', color: '#ef4444' },
-    { event: 'QueryDepth.Exceeded', action: 'Reject + Log Abuse', description: 'Block queries with depth > 8 and log the request for abuse monitoring dashboards.', color: '#f59e0b' },
-  ],
-  'ws-subscriptions': [
-    { event: 'LotStageEvent.Emitted', action: 'Fan-out to Subscribers', description: 'Push lot stage-transition payload in real-time to all WebSocket clients subscribed to that lot.', color: '#8b5cf6' },
-    { event: 'IoTBreachAlert.Emitted', action: 'Broadcast Breach Alert', description: 'Instantly broadcast temperature breach alerts to all subscribed dashboard connections.', color: '#ef4444' },
-  ],
-  'api-gateway': [
-    { event: 'JWTToken.Expired', action: 'Return 401 + Invalidate Session', description: 'Clear the server-side session and return 401 so the client re-authenticates cleanly.', color: '#f59e0b' },
-    { event: 'FraudRule.Triggered', action: 'Block Request + Alert Admin', description: 'Immediately block the inbound request and notify PLATFORM_ADMIN of the fraud signal.', color: '#ef4444' },
-  ],
-  'metrics-dashboards': [
-    { event: 'ValidatorDowntime.Detected', action: 'Fire PagerDuty Critical Alert', description: 'Trigger a PagerDuty critical incident when validator uptime drops below SLA threshold.', color: '#ef4444' },
-    { event: 'BlockTimeAnomaly.Detected', action: 'Create Incident + Annotate Grafana', description: 'Log the block-time anomaly for ops review and add a Grafana annotation on the timeline.', color: '#f59e0b' },
-  ],
-  'log-shipping': [
-    { event: 'AuditLog.Written', action: 'Ship to CloudWatch + ELK', description: 'Forward each tamper-evident log entry to both CloudWatch and the ELK search index.', color: '#06b6d4' },
-    { event: 'ShipmentFailed.Detected', action: 'Retry with Exponential Backoff', description: 'Apply exponential backoff retry and alert ops on 3 consecutive delivery failures.', color: '#f59e0b' },
-  ],
-  'backups-restore': [
-    { event: 'BackupSchedule.Triggered', action: 'Snapshot + Upload to S3', description: 'Create an incremental DB snapshot and upload to S3 bucket with SSE-KMS encryption.', color: '#10b981' },
-    { event: 'RestoreRequest.Created', action: 'Validate Hash + Restore', description: 'Verify the backup integrity hash before initiating the restore procedure.', color: '#3b82f6' },
-  ],
-  'wallet-auth': [
-    { event: 'WalletProfile.Created', action: 'Trigger AML Screening', description: 'Run Chainalysis KYT check on the new wallet address before granting platform access.', color: '#8b5cf6' },
-    { event: 'AuthSession.Expired', action: 'Invalidate Session Keys', description: 'Revoke all session keys bound to this expired authentication session.', color: '#ef4444' },
-  ],
-  'session-keys': [
-    { event: 'SessionKey.Created', action: 'Bind to Device Fingerprint', description: 'Register the device fingerprint and bind the key to prevent cross-device reuse.', color: '#3b82f6' },
-    { event: 'SessionKey.Revoked', action: 'Cascade Revocation to Pending Txs', description: 'Cancel any in-flight gasless transactions signed with the revoked key.', color: '#ef4444' },
-  ],
-  'rbac': [
-    { event: 'RoleAssignment.Created', action: 'Write On-chain + Propagate', description: 'Anchor the role grant on-chain and propagate the change to all enforcement middleware.', color: '#10b981' },
-    { event: 'Permission.Changed', action: 'Flush Cache + Notify User', description: 'Invalidate the permission cache for the affected user and send a security notification.', color: '#f59e0b' },
-  ],
-  'org-accounts': [
-    { event: 'OrgMember.Invited', action: 'Send Invitation Email', description: 'Send an org-invite email with onboarding link and a temporary access token.', color: '#3b82f6' },
-    { event: 'OrgMember.Removed', action: 'Revoke All Access', description: 'Strip RBAC roles, invalidate sessions, and remove from the gasless sponsor allowlist.', color: '#ef4444' },
-  ],
-  'kyc': [
-    { event: 'KYCDocument.Submitted', action: 'Queue for Verification', description: 'Route to Sumsub (non-APEDA actors) or APEDA AgriExchange registry check queue.', color: '#06b6d4' },
-    { event: 'KYCVerification.Failed', action: 'Notify + Suspend Actor', description: 'Send rejection notification and set Actor.verificationStatus = SUSPENDED on-chain.', color: '#ef4444' },
-  ],
-  'device-trust': [
-    { event: 'DeviceTrust.Created', action: 'Issue HMAC Device Token', description: 'Generate an HMAC secret for this IoT device to authenticate temperature batch ingestion.', color: '#10b981' },
-    { event: 'DeviceTrust.Revoked', action: 'Block All Device Transactions', description: 'Reject all future HMAC payloads from this device ID immediately.', color: '#ef4444' },
-  ],
-  'gasless-relayer': [
-    { event: 'GaslessSubmission.Received', action: 'Verify Cap + Relay', description: "Check the user's daily cap, verify the meta-tx signature, then relay to chain via admin wallet.", color: '#10b981' },
-    { event: 'DailyCap.Exceeded', action: 'Return 429 + Log Usage', description: 'Block further gasless transactions for today and log usage to analytics.', color: '#f59e0b' },
-  ],
-  'did-vc-ledger': [
-    { event: 'DIDDocument.Created', action: 'Anchor Hash On-chain', description: 'Write the DID document hash to the on-chain DID registry for public verification.', color: '#8b5cf6' },
-    { event: 'VerifiableCredential.Issued', action: 'Emit VC Proof On-chain', description: 'Anchor the VC proof hash on-chain and notify the credential holder.', color: '#10b981' },
-  ],
-  'aml-screening': [
-    { event: 'AMLFlagRecord.Created', action: 'Suspend Actor + Alert Admin', description: 'Immediately set Actor.verificationStatus = SUSPENDED and alert PLATFORM_ADMIN.', color: '#ef4444' },
-    { event: 'AMLScreening.Passed', action: 'Mark Actor Verified', description: 'Update Actor.verificationStatus = VERIFIED and log the screening result for audit.', color: '#10b981' },
-  ],
-  'traceability-ledger': [
-    { event: 'MangoLot.Created', action: 'Assign Lot Number On-chain', description: 'Generate lotNumber (AT-{VAR3}-{YYYY}-{SEQ5}) and write the MangoLot record to chain.', color: '#10b981' },
-    { event: 'LotStageTransition.Emitted', action: 'Notify Stage Stakeholders', description: 'Push notification to all role-holders responsible for the newly entered stage.', color: '#3b82f6' },
-    { event: 'LotStageTransition.REJECTED', action: 'Halt Lot + Alert', description: 'Block all further stage events for this lot and alert FARMER + APEDA_OFFICER.', color: '#ef4444' },
-  ],
-  'cold-chain-monitoring': [
-    { event: 'IoTDeviceSession.Created', action: 'Begin Temperature Monitoring', description: 'Start accepting HMAC-validated temperature batches from the paired IoT device every 5 minutes.', color: '#06b6d4' },
-    { event: 'TemperatureReading.Breach', action: 'Create BreachAlert On-chain', description: 'Write IoTBreachAlert, push notifications to operators, and fire PagerDuty if > threshold + 5°C.', color: '#ef4444' },
-  ],
-  'port-customs-events': [
-    { event: 'ShippingBill.Filed', action: 'Validate via ICEGATE API', description: 'Verify shippingBillNumber format and existence against the ICEGATE API.', color: '#8b5cf6' },
-    { event: 'LEOStatus.Received', action: 'Advance Lot to Cold Storage', description: 'Set MangoLot.currentStage = COLD_STORAGE when LEO is granted by customs.', color: '#10b981' },
-  ],
-  'quality-recall-ledger': [
-    { event: 'RecallEvent.Created', action: 'Broadcast Recall Alert', description: 'Push urgent notification and email to all role-holders linked to the recalled lot.', color: '#ef4444' },
-    { event: 'QualityViolation.Detected', action: 'Create ComplianceViolation On-chain', description: 'Write ComplianceViolation record and halt lot progression until remediation is recorded.', color: '#f59e0b' },
-  ],
-  'evidence-chain': [
-    { event: 'DocumentHash.Created', action: 'Anchor On-chain + Pin to IPFS', description: 'Write hash to on-chain registry and pin the referenced PDF to IPFS via Pinata.', color: '#8b5cf6' },
-    { event: 'EvidenceItem.Challenged', action: 'Lock Chain + Notify Arbitrator', description: 'Lock the evidence chain for this lot and alert the assigned arbitrator for review.', color: '#ef4444' },
-  ],
-  'trade-finance-docs': [
-    { event: 'CertificateOfOrigin.Created', action: 'Validate via APEDA AgriExchange', description: 'Call APEDA AgriExchange API to verify exporter registration and CoO details.', color: '#10b981' },
-    { event: 'BillOfLading.Created', action: 'Validate ISO 6346 + Activate Tracking', description: 'Check containerNumber format and activate the in-transit IoT monitoring session.', color: '#3b82f6' },
-  ],
-  'compliance-attestations': [
-    { event: 'ComplianceAttestation.Created', action: 'Anchor + Mint Certificate NFT', description: 'Write attestation hash on-chain and mint a soulbound CertificateNFT to the issuing authority.', color: '#8b5cf6' },
-    { event: 'AttestationExpiry.Approaching', action: 'Alert Issuing Authority', description: 'Send a 7-day advance warning to APEDA_OFFICER and NPPO_INSPECTOR for renewal.', color: '#f59e0b' },
-  ],
-  'provenance-notary': [
-    { event: 'ProvenanceRecord.Created', action: 'Pin to IPFS + Anchor On-chain', description: 'Pin the document to IPFS via Pinata and anchor its hash to the on-chain provenance registry.', color: '#10b981' },
-    { event: 'TrustAnchor.Revoked', action: 'Cascade Revoke Downstream Certs', description: 'Invalidate all CertificateNFTs whose trust anchor is this revoked provenance record.', color: '#ef4444' },
-  ],
-  'onchain-data': [
-    { event: 'OnChainEvent.Emitted', action: 'Index in Subgraph', description: 'Forward the event to the Subgraph Indexer for efficient off-chain query access.', color: '#6366f1' },
-    { event: 'OnChainEvent.Emitted', action: 'Ship to ELK Stack', description: 'Forward the on-chain event log to the ELK stack for full-text search and long-term audit.', color: '#06b6d4' },
-  ],
-  'oracles': [
-    { event: 'OracleDataFeed.Updated', action: 'Push to Smart Contract Consumers', description: 'Propagate the latest oracle value to all on-chain consumers subscribed to this feed.', color: '#f59e0b' },
-    { event: 'OracleFeed.StaleDetected', action: 'Alert + Switch to Backup Source', description: 'Alert PLATFORM_ADMIN and automatically switch to the configured backup data provider.', color: '#ef4444' },
-  ],
-  'webhooks-inbound': [
-    { event: 'WebhookPayload.Received', action: 'Validate HMAC Signature', description: 'Reject the payload immediately if the HMAC-SHA256 signature does not match the shared secret.', color: '#8b5cf6' },
-    { event: 'IoTBatch.Received', action: 'Queue for Dedup + Threshold Check', description: 'Enqueue the IoT batch for deduplication and breach-threshold evaluation.', color: '#06b6d4' },
-  ],
-  'webhooks-outbound': [
-    { event: 'OutboundWebhook.Triggered', action: 'Sign Payload + Dispatch', description: 'Sign the outbound payload with the platform key and deliver to the subscriber endpoint.', color: '#3b82f6' },
-    { event: 'DeliveryFailed (3x)', action: 'Mark Dead + Alert Admin', description: 'After 3 exponential-backoff retries, mark the webhook dead and notify PLATFORM_ADMIN.', color: '#ef4444' },
-  ],
-  'subgraph-indexer': [
-    { event: 'BlockIndexed.Completed', action: 'Refresh GraphQL Query Cache', description: 'Invalidate and warm the GraphQL query cache with the latest indexed block data.', color: '#10b981' },
-    { event: 'IndexLag.Detected', action: 'Alert + Trigger Re-index', description: 'Alert ops when subgraph lag exceeds 100 blocks and restart indexing from the last checkpoint.', color: '#ef4444' },
-  ],
-  'notifications': [
-    { event: 'PushNotification.Created', action: 'Dispatch by Channel + Role', description: 'Route the notification to the correct channel (push, in-app, WhatsApp) based on actor role preference.', color: '#3b82f6' },
-    { event: 'NotificationDelivery.Failed', action: 'Retry + Fallback Channel', description: 'Retry 3 times then failover to the secondary channel (e.g., SMS if push fails).', color: '#f59e0b' },
-  ],
-  'emails': [
-    { event: 'Email.Created', action: 'Send via Resend', description: 'Submit to the Resend API from agrotrace.in sender domain and track delivery status.', color: '#10b981' },
-    { event: 'ResendDelivery.Failed', action: 'Fallback to SendGrid', description: 'Retry once on Resend then transparently switch to SendGrid as backup provider.', color: '#f59e0b' },
-  ],
-  'audit-logs': [
-    { event: 'AuditEntry.Written', action: 'Compute SHA-256 Chain Hash', description: 'Append a SHA-256 hash linking each entry to the previous one to prevent log tampering.', color: '#8b5cf6' },
-    { event: 'AuditExport.Requested', action: 'Generate Signed PDF', description: 'Assemble chronological event timeline and sign the PDF with the AWS KMS platform key.', color: '#3b82f6' },
-  ],
-  'audit-export': [
-    { event: 'AuditTrailExport.Requested', action: 'Compile + KMS-Sign PDF', description: 'Compile all LotStageTransitions in chronological order and sign the PDF with the KMS platform key.', color: '#6366f1' },
-    { event: 'ExportCompleted', action: 'Upload to S3 + Email Download Link', description: 'Upload the signed PDF to S3 and email the secure download link to the requestor.', color: '#10b981' },
-  ],
-  'produce-grades': [
-    { event: 'GradeStandard.Updated', action: 'Propagate to Active Lots', description: 'Push updated APEDA grading criteria to all lots currently in the PACKHOUSE stage.', color: '#f59e0b' },
-    { event: 'GradeViolation.Detected', action: 'Block Lot Advance', description: 'Prevent the lot from progressing to TREATMENT until a grade re-assessment is recorded.', color: '#ef4444' },
-  ],
-  'document-signing': [
-    { event: 'SignRequest.Created', action: 'Check Signer Capability', description: 'Route to on-chain wallet signature if available, otherwise delegate to DocuSign for small farmers.', color: '#8b5cf6' },
-    { event: 'SignatureComplete', action: 'Anchor Document Hash On-chain', description: 'Write the document hash and signer wallet address to the on-chain ProvenanceRecord.', color: '#10b981' },
-  ],
-  'fraud-rules': [
-    { event: 'DuplicateLot.Detected', action: 'Block + Create Fraud Alert', description: 'Block the FarmRegistration immediately and alert PLATFORM_ADMIN with duplicate lot details.', color: '#ef4444' },
-    { event: 'RoleMismatch.Detected', action: 'Reject Action + Log Violation', description: 'Reject the attempted action and write a ComplianceViolation on-chain for audit.', color: '#f59e0b' },
-  ],
-  'privacy-compliance': [
-    { event: 'ConsentRecord.Revoked', action: 'Anonymize Linked PII', description: 'Trigger the PDPB data-minimization pipeline to anonymize all PII records linked to this consent.', color: '#8b5cf6' },
-    { event: 'DataRetention.Expired', action: 'Schedule Secure Deletion', description: 'Queue expired personal data for PDPB-compliant secure deletion from all storage tiers.', color: '#ef4444' },
-  ],
-  'treasury': [
-    { event: 'FeeCollection.Received', action: 'Split Across Treasury Accounts', description: 'Distribute the per-lot fee: 60% platform, 20% validators, 10% ecosystem fund, 10% reserve.', color: '#10b981' },
-    { event: 'ValidatorReward.Pending', action: 'Distribute Per-block Proportionally', description: 'Release staking rewards to validators each block, proportional to delegated stake weight.', color: '#f59e0b' },
-  ],
-  'escrow-settlement': [
-    { event: 'EscrowRecord.Created', action: 'Lock Funds in Smart Contract', description: 'Lock buyer payment in the escrow contract pending successful lot delivery and acceptance.', color: '#8b5cf6' },
-    { event: 'BuyerReceipt.Accepted', action: 'Release Funds to Exporter', description: 'Trigger EscrowRecord release and send payment notification to the FARMER.', color: '#10b981' },
-    { event: 'BuyerReceipt.Rejected', action: 'Hold Escrow + Open Dispute', description: 'Keep funds locked and auto-trigger the dispute evidence assembly workflow.', color: '#ef4444' },
-  ],
-  'invoices-billing': [
-    { event: 'Invoice.Created', action: 'Email PDF to Buyer', description: 'Send the invoice PDF (AGT-INV prefix, INR + 18% GST) to the buyer contact on record.', color: '#3b82f6' },
-    { event: 'Invoice.Overdue', action: 'Send Reminder + Suspend Lot', description: 'Email a payment reminder and suspend lot progression until payment is confirmed.', color: '#f59e0b' },
-  ],
-  'razorpay-adapter': [
-    { event: 'PaymentOrder.Created', action: 'Generate Razorpay Checkout', description: 'Create a Razorpay order with INR amount + 18% GST and return the checkout URL to the payer.', color: '#06b6d4' },
-    { event: 'Payment.Confirmed', action: 'Mark Invoice PAID + Release Gate', description: 'Update Invoice.status = PAID and trigger the lot-release gate for the next stage.', color: '#10b981' },
-  ],
-  'soulbound-token': [
-    { event: 'SoulboundToken.Minted', action: 'Register in DID Ledger', description: "Link the new soulbound token to the holder's DID document on-chain for verifiable binding.", color: '#8b5cf6' },
-    { event: 'SoulboundToken.RevocationRequested', action: 'Verify Authority + Revoke', description: 'Confirm the requestor holds the APEDA_OFFICER role before executing on-chain revocation.', color: '#ef4444' },
-  ],
-  'erc721': [
-    { event: 'NFTToken.Minted', action: 'Pin Metadata to IPFS', description: 'Upload certificate metadata JSON to IPFS via Pinata and set the on-chain tokenURI.', color: '#8b5cf6' },
-    { event: 'NFTToken.TransferAttempted', action: 'Enforce Soulbound Rule', description: 'Block the transfer and revert with SOULBOUND_NON_TRANSFERABLE if the token was minted as soulbound.', color: '#ef4444' },
-  ],
-  '_default': [
-    { event: 'Record.Created', action: 'Index for Search', description: 'Update the search index when a new record is added.', color: '#3b82f6' },
-    { event: 'Record.Updated', action: 'Write Audit Log', description: 'Track all changes in the audit log for compliance.', color: '#10b981' },
-  ],
+import ControlMirror from '@/components/studio/common/ControlMirror';
+import FormulaBar from '@/components/studio/common/FormulaBar';
+import LogicCanvas from '@/components/studio/logic/LogicCanvas';
+import { compileDrawing, eraseDrawing, writeDrawing } from '@/components/studio/logic/logic-blocks';
+import { toIdentifier, toReadable } from '@/lib/blueprint/compose';
+import { putAction, putRule, recordTypeOf, removeAction, removeRule } from '@/lib/blueprint/edit';
+import { readAndCheck, scopeForCollection, writeFormula } from '@/lib/blueprint/formula';
+import {
+  TRANSACTION_CLASSES,
+  type Action,
+  type Blueprint,
+  type Effect,
+  type Rule,
+  type TransactionClass,
+} from '@/lib/blueprint/types';
+import { recommendedTriggers, triggerOfAction, writeTrigger, type Grouping } from './step2-model';
+import type { Drawing, LogicLayout } from './step2-types';
+
+/** The plain sentence beside each transaction class. */
+export const CLASS_MEANING: Record<TransactionClass, string> = {
+  Routine: 'Everyday work. Cerulea commits it at the lowest threshold, so it confirms fast.',
+  Financial: 'Moves value. A higher share of validators must agree before it commits.',
+  Structural: 'Changes the shape of the system. A high share must agree.',
+  Constitutional:
+    'Changes the rules that govern the rules. The highest share must agree, and the change waits out a delay.',
 };
 
-/* ------------------------------------------------------------------ */
-/* Component                                                           */
-/* ------------------------------------------------------------------ */
-interface BehaviorPanelProps {
-  blueprintModules: ModuleInfo[];
+export const EFFECT_KINDS = [
+  { kind: 'Insert', label: 'Add a record' },
+  { kind: 'Update', label: 'Change a record' },
+  { kind: 'Delete', label: 'Remove a record' },
+  { kind: 'Read', label: 'Read a record' },
+] as const;
+
+export type AccessManifest = { reads: string[]; writes: string[] };
+
+/**
+ * Derives the Access Manifest of one action from its effects.
+ * Every Cerulea transaction declares the state it reads and writes before it
+ * runs. Cerulea derives that declaration here rather than asking for it.
+ */
+export function accessManifestOf(effects: Effect[]): AccessManifest {
+  const reads = new Set<string>();
+  const writes = new Set<string>();
+  const walk = (list: Effect[]) => {
+    for (const effect of list) {
+      if (effect.kind === 'Read') reads.add(effect.collection);
+      if (effect.kind === 'Insert' || effect.kind === 'Update' || effect.kind === 'Delete') writes.add(effect.collection);
+      if (effect.kind === 'Compensate') {
+        walk(effect.effects);
+        walk(effect.on_failure);
+      }
+    }
+  };
+  walk(effects);
+  return { reads: [...reads].sort(), writes: [...writes].sort() };
 }
 
-/** A logic flow as stored on the project (logicJson.flows). moduleId is set for
- *  triggers added under a specific module; project-level flows have none. */
-type Flow = { id: string; name: string; trigger: string; description: string; steps: string[]; moduleId?: string; color?: string };
+/** States what one action does, in the words a person reads. */
+export function describeAction(name: string, manifest: AccessManifest, transactionClass: TransactionClass): string {
+  const reading = manifest.reads.length > 0 ? `reads ${manifest.reads.join(', ')}` : 'reads nothing';
+  const writing = manifest.writes.length > 0 ? `writes ${manifest.writes.join(', ')}` : 'writes nothing';
+  return `${name} ${reading} and ${writing}. Cerulea commits it as ${transactionClass.toLowerCase()} work.`;
+}
+
+/** Builds the effect one choice produces. */
+export function buildEffect(kind: (typeof EFFECT_KINDS)[number]['kind'], collection: string): Effect {
+  if (kind === 'Read') return { kind: 'Read', collection, key: { kind: 'Full' }, bind: `held_${collection}` };
+  if (kind === 'Delete') return { kind: 'Delete', collection, key: { kind: 'Exact', value: { kind: 'Param', name: 'key' } } };
+  return {
+    kind,
+    collection,
+    key: { kind: 'Exact', value: { kind: 'Param', name: 'key' } },
+    value: { kind: 'Param', name: 'record' },
+  };
+}
 
 const FLOW_COLOR = '#8b5cf6';
-const uid = () => `flow_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
-function readStoredFlows(): Flow[] {
-  try {
-    const raw = localStorage.getItem('cerulea.logic');
-    const parsed = raw ? JSON.parse(raw) : null;
-    const flows = Array.isArray(parsed?.flows) ? parsed.flows : [];
-    return flows.map((f: any) => ({
-      id: String(f.id || uid()),
-      name: String(f.name || ''),
-      trigger: String(f.trigger || ''),
-      description: String(f.description || ''),
-      steps: Array.isArray(f.steps) ? f.steps.map(String) : [],
-      moduleId: f.moduleId || undefined,
-      color: f.color || undefined,
-    }));
-  } catch { return []; }
-}
+export type BehaviorPanelProps = {
+  blueprint: Blueprint;
+  grouping: Grouping;
+  track: 'dapp' | 'blockchain';
+  layout: LogicLayout;
+  onChange: (next: Blueprint) => void;
+  onChangeLayout: (next: (held: LogicLayout) => LogicLayout) => void;
+};
 
-function FlowCard({ flow, color, onEdit, onDelete }: { flow: Flow; color: string; onEdit: () => void; onDelete: () => void }) {
+export default function BehaviorPanel({ blueprint, grouping, track, layout, onChange, onChangeLayout }: BehaviorPanelProps) {
   const theme = useTheme();
-  return (
-    <Paper variant="outlined" sx={{ p: 1.75, borderRadius: 1, borderColor: alpha(color, 0.25), bgcolor: alpha(color, 0.025) }}>
-      <Stack direction="row" alignItems="flex-start" spacing={2}>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>WHEN</Typography>
-          <Box sx={{ mt: 0.5, px: 1.25, py: 0.6, borderRadius: 0.75, display: 'inline-flex', alignItems: 'center', gap: 0.75, bgcolor: alpha(color, 0.08), border: `1px solid ${alpha(color, 0.35)}`, maxWidth: '100%' }}>
-            <BoltIcon sx={{ fontSize: 12, color }} />
-            <Typography variant="body2" fontWeight={700} sx={{ color, fontFamily: 'monospace', fontSize: '0.75rem', wordBreak: 'break-word' }}>{flow.trigger}</Typography>
-          </Box>
-        </Box>
-        <Box sx={{ mt: 2.5, color: 'text.disabled', fontWeight: 900, fontSize: '1rem', flexShrink: 0 }}>&rarr;</Box>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>THEN</Typography>
-          <Box sx={{ mt: 0.5, px: 1.25, py: 0.6, borderRadius: 0.75, display: 'inline-flex', alignItems: 'center', gap: 0.75, bgcolor: alpha(theme.palette.success.main, 0.07), border: `1px solid ${alpha(theme.palette.success.main, 0.25)}`, maxWidth: '100%' }}>
-            <AutoFixHighIcon sx={{ fontSize: 12, color: 'success.main' }} />
-            <Typography variant="body2" fontWeight={700} sx={{ color: 'success.main', fontFamily: 'monospace', fontSize: '0.75rem', wordBreak: 'break-word' }}>{flow.name}</Typography>
-          </Box>
-        </Box>
-        <Box sx={{ flex: 1.5, minWidth: 0 }}>
-          <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>WHY</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.4 }}>{flow.description}</Typography>
-          {flow.steps.length > 0 && (
-            <Box component="ol" sx={{ m: 0, mt: 0.75, pl: 2.25, color: 'text.secondary' }}>
-              {flow.steps.map((st, i) => (
-                <Typography key={i} component="li" variant="caption" sx={{ display: 'list-item', lineHeight: 1.45 }}>{st}</Typography>
-              ))}
-            </Box>
-          )}
-        </Box>
-        <Stack direction="row" spacing={0.25} sx={{ flexShrink: 0 }}>
-          <Tooltip title="Edit"><IconButton size="small" onClick={onEdit}><EditOutlinedIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
-          <Tooltip title="Delete"><IconButton size="small" color="error" onClick={onDelete}><DeleteOutlineIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
-        </Stack>
-      </Stack>
-    </Paper>
+  const [mode, setMode] = useState<'cards' | 'visual'>('cards');
+  const [ruleName, setRuleName] = useState('');
+  const [actionName, setActionName] = useState('');
+  const [drawingName, setDrawingName] = useState('');
+  const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<{ moduleId: string; when: string; then: string; why: string } | null>(null);
+
+  const collectionIds = useMemo(() => blueprint.collections.map((entry) => entry.id), [blueprint.collections]);
+  const drawings = useMemo(() => Object.values(layout.drawings), [layout.drawings]);
+  const selectedDrawing = drawings.find((entry) => entry.id === selectedDrawingId) ?? drawings[0] ?? null;
+  const compiled = useMemo(
+    () => (selectedDrawing ? compileDrawing(selectedDrawing, blueprint) : null),
+    [blueprint, selectedDrawing],
   );
-}
 
-export default function BehaviorPanel({ blueprintModules }: BehaviorPanelProps) {
-  const theme = useTheme();
-
-  /* ---------- flows: loaded from the project, persisted back to it ---------- */
-  const [flows, setFlows] = useState<Flow[]>([]);
-  const hydratedRef = useRef(false);
-  useEffect(() => {
-    setFlows(readStoredFlows());
-    const t = setTimeout(() => { hydratedRef.current = true; }, 0);
-    return () => clearTimeout(t);
-  }, []);
-
-  const persistFlows = useCallback(async (next: Flow[]) => {
-    if (typeof window === 'undefined') return;
-    const track = localStorage.getItem('cerulea.projectType') === 'blockchain' ? 'blockchain' : 'dapp';
-    localStorage.setItem('cerulea.logic', JSON.stringify({ flows: next, track }));
-    const projectId = localStorage.getItem('cerulea.projectId');
-    if (!projectId) return;
-    try {
-      await fetch(`/api/projects/${projectId}/logic`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ flows: next, track }),
-      });
-    } catch (err) { console.warn('logic persist failed', err); }
-  }, []);
-  useEffect(() => {
-    if (!hydratedRef.current) return;
-    const t = setTimeout(() => { void persistFlows(flows); }, 1000);
-    return () => clearTimeout(t);
-  }, [flows, persistFlows]);
-
-  const projectFlows = flows.filter((f) => !f.moduleId);
-  const flowsFor = (modId: string) => flows.filter((f) => f.moduleId === modId);
-
-  /* ---------- editor dialog (add / edit) ---------- */
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [dialogModuleId, setDialogModuleId] = useState<string | undefined>(undefined);
-  const [newTriggerEvent, setNewTriggerEvent] = useState('');
-  const [newTriggerAction, setNewTriggerAction] = useState('');
-  const [newTriggerDesc, setNewTriggerDesc] = useState('');
-  const [newTriggerSteps, setNewTriggerSteps] = useState('');
-
-  const openAdd = (moduleId?: string) => {
-    setEditingId(null); setDialogModuleId(moduleId);
-    setNewTriggerEvent(''); setNewTriggerAction(''); setNewTriggerDesc(''); setNewTriggerSteps('');
-    setDialogOpen(true);
+  const addRule = () => {
+    const id = toIdentifier(ruleName);
+    if (id.length === 0 || blueprint.rules.some((entry) => entry.id === id)) return;
+    const collection = blueprint.collections[0];
+    const record = collection ? recordTypeOf(blueprint, collection) : null;
+    const field = record?.fields[0]?.name ?? 'id';
+    onChange(
+      putRule(blueprint, {
+        id,
+        kind: 'Precondition',
+        statement: `${ruleName.trim()} holds before the action runs.`,
+        expression: {
+          kind: 'Call',
+          operator: 'is_present',
+          arguments: [{ kind: 'Field', target: { kind: 'Param', name: 'record' }, field }],
+        },
+        collections: collection ? [collection.id] : [],
+      }),
+    );
+    setRuleName('');
   };
-  const openEdit = (f: Flow) => {
-    setEditingId(f.id); setDialogModuleId(f.moduleId);
-    setNewTriggerEvent(f.trigger); setNewTriggerAction(f.name); setNewTriggerDesc(f.description); setNewTriggerSteps(f.steps.join('\n'));
-    setDialogOpen(true);
+
+  const addAction = () => {
+    const id = toIdentifier(actionName);
+    if (id.length === 0 || blueprint.actions.some((entry) => entry.id === id)) return;
+    const collection = collectionIds[0];
+    if (!collection) return;
+    onChange(
+      putAction(blueprint, {
+        id,
+        name: actionName.trim(),
+        params: [],
+        preconditions: [],
+        effects: [buildEffect('Insert', collection)],
+        emits: [],
+        class: 'Routine',
+        roles: blueprint.identities.roles.slice(0, 1).map((entry) => entry.id),
+        description: `${actionName.trim()} records the work in ${toReadable(collection).toLowerCase()}.`,
+      }),
+    );
+    setActionName('');
   };
+
+  const addDrawing = () => {
+    const name = drawingName.trim();
+    const id = toIdentifier(name);
+    if (name.length < 2 || layout.drawings[id]) return;
+    const drawing: Drawing = {
+      id,
+      name,
+      roles: blueprint.identities.roles.slice(0, 1).map((entry) => entry.id),
+      nodes: [{ id: `${id}_start`, blockId: 'start', position: { x: 60, y: 120 }, props: {} }],
+      edges: [],
+    };
+    onChangeLayout((held) => ({ ...held, drawings: { ...held.drawings, [id]: drawing } }));
+    setSelectedDrawingId(id);
+    setDrawingName('');
+    setMode('visual');
+  };
+
+  const changeDrawing = (next: Drawing) => {
+    onChangeLayout((held) => ({ ...held, drawings: { ...held.drawings, [next.id]: next } }));
+    onChange(writeDrawing(blueprint, next).blueprint);
+  };
+
+  const removeDrawing = (drawing: Drawing) => {
+    onChangeLayout((held) => {
+      const drawings = { ...held.drawings };
+      delete drawings[drawing.id];
+      return { ...held, drawings };
+    });
+    onChange(eraseDrawing(blueprint, drawing.name));
+    setSelectedDrawingId(null);
+  };
+
+  const triggerActions = (collectionIds: string[]) =>
+    blueprint.actions
+      .map((action) => ({ action, trigger: triggerOfAction(blueprint, action.id) }))
+      .filter((entry) => entry.trigger !== null && collectionIds.includes(entry.trigger.collectionId));
+
   const commitDialog = () => {
-    const steps = newTriggerSteps.split('\n').map((x) => x.trim()).filter(Boolean);
-    const patch = { trigger: newTriggerEvent.trim(), name: newTriggerAction.trim(), description: newTriggerDesc.trim() || 'Custom trigger', steps };
-    setFlows((prev) => editingId
-      ? prev.map((f) => (f.id === editingId ? { ...f, ...patch } : f))
-      : [...prev, { id: uid(), moduleId: dialogModuleId, color: FLOW_COLOR, ...patch }]);
-    setDialogOpen(false);
+    if (!dialog) return;
+    const collectionId = (grouping.byModule[dialog.moduleId] ?? [])[0]?.id ?? collectionIds[0];
+    if (!collectionId) return;
+    onChange(
+      writeTrigger(blueprint, {
+        when: dialog.when.trim(),
+        then: dialog.then.trim(),
+        why: dialog.why.trim() || 'Added by hand.',
+        collectionId,
+      }),
+    );
+    setDialog(null);
   };
-  const deleteFlow = (id: string) => setFlows((prev) => prev.filter((f) => f.id !== id));
-
-  const [triggerModeMap, setTriggerModeMap] = useState<Record<string, 'cards' | 'visual' | 'code'>>({});
-  const getTriggerMode = (modId: string) => triggerModeMap[modId] || 'cards';
-  const setTriggerMode = (modId: string, mode: 'cards' | 'visual' | 'code') =>
-    setTriggerModeMap((prev) => ({ ...prev, [modId]: mode }));
 
   return (
     <>
-      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflowY: 'auto', bgcolor: 'background.default' }}>
-        {/* Header */}
-        <Box sx={{
-          px: 4, py: 2.5, borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-          bgcolor: 'background.paper',
-          background: theme.palette.mode === 'dark'
-            ? `linear-gradient(135deg, ${alpha('#4F46E5', 0.07)} 0%, transparent 100%)`
-            : alpha(theme.palette.primary.main, 0.02),
-          flexShrink: 0,
-        }}>
-          <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
+      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflowY: 'auto', bgcolor: 'background.default' }} data-testid="behavior-panel">
+        <Box
+          sx={{
+            px: 4,
+            py: 2.5,
+            borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+            bgcolor: 'background.paper',
+            flexShrink: 0,
+          }}
+        >
+          <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
             <Box>
               <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
                 <BoltIcon sx={{ color: 'warning.main', fontSize: 20 }} />
-                <Typography variant="h6" fontWeight={800}>Logic &amp; Triggers</Typography>
+                <Typography variant="h6" fontWeight={800}>
+                  Logic &amp; Triggers
+                </Typography>
               </Stack>
               <Typography variant="body2" color="text.secondary">
-                Define what happens automatically when events occur in your app. Each trigger connects an event (e.g., &quot;User created&quot;) to one or more actions (e.g., &quot;Send email&quot;). Pre-filled triggers are recommended best-practices for your modules; your own flows are saved to the project.
+                A rule states what the system refuses. An action states what the system does, and every
+                action declares the records it reads and writes before it runs. That declaration is the
+                Access Manifest, and it is what lets the Execution Engine run transactions in parallel.
               </Typography>
             </Box>
-            <Tooltip
-              title="Triggers fire automatically when entity events occur. Example: when a Payment is Created, run SendEmail and MintNFT. No backend code needed."
-              placement="left" arrow
-              componentsProps={{ tooltip: { sx: { bgcolor: 'background.paper', color: 'text.primary', border: '1px solid', borderColor: 'divider', boxShadow: '0 8px 32px rgba(0,0,0,0.25)', borderRadius: 2, p: 1.5, maxWidth: 300, fontSize: '0.8rem' } } }}
-            >
-              <Chip
-                label="How triggers work"
-                size="small" variant="outlined"
-                icon={<AutoFixHighIcon sx={{ fontSize: '0.9rem !important' }} />}
-                sx={{ fontWeight: 600, fontSize: '0.72rem', cursor: 'help', flexShrink: 0, mt: 0.5 }}
-              />
-            </Tooltip>
+            <Stack direction="row" spacing={0.75} sx={{ flexShrink: 0 }}>
+              {(['cards', 'visual'] as const).map((entry) => (
+                <Paper
+                  key={entry}
+                  variant="outlined"
+                  role="tab"
+                  aria-selected={mode === entry}
+                  aria-label={entry === 'cards' ? 'Rules mode' : 'Visual mode'}
+                  onClick={() => setMode(entry)}
+                  sx={{
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: 1,
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    fontSize: '0.7rem',
+                    bgcolor: mode === entry ? 'primary.main' : 'background.paper',
+                    color: mode === entry ? 'white' : 'text.secondary',
+                    borderColor: mode === entry ? 'primary.main' : 'divider',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                  }}
+                  elevation={0}
+                >
+                  {entry === 'cards' ? <BoltIcon sx={{ fontSize: 12 }} /> : <AccountTreeIcon sx={{ fontSize: 12 }} />}
+                  {entry === 'cards' ? 'Rules' : 'Visual'}
+                </Paper>
+              ))}
+            </Stack>
           </Stack>
         </Box>
 
-        <Box sx={{ flex: 1, p: 3, overflowY: 'auto' }}>
-          <Stack spacing={2.5}>
-            {/* Project-level flows (stored on the project) */}
-            <Paper variant="outlined" sx={{ borderRadius: 1.5, overflow: 'hidden', borderColor: alpha(FLOW_COLOR, 0.3) }}>
-              <Box sx={{
-                px: 3, py: 2, borderBottom: `1px solid ${alpha(FLOW_COLOR, 0.15)}`,
-                background: theme.palette.mode === 'dark' ? `linear-gradient(135deg, ${alpha(FLOW_COLOR, 0.12)} 0%, ${alpha(theme.palette.background.paper, 0.8)} 100%)` : alpha(FLOW_COLOR, 0.05),
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              }}>
-                <Stack direction="row" alignItems="center" spacing={1.5}>
-                  <BoltIcon sx={{ fontSize: 16, color: FLOW_COLOR }} />
-                  <Typography variant="subtitle2" fontWeight={800}>Project logic flows</Typography>
-                  <Chip label={`${projectFlows.length} flow${projectFlows.length === 1 ? '' : 's'}`} size="small" variant="outlined" sx={{ fontSize: '0.6rem', height: 16 }} />
-                </Stack>
-                <Button startIcon={<AddIcon />} variant="contained" size="small" onClick={() => openAdd(undefined)} sx={{ borderRadius: 2, fontWeight: 700 }}>
-                  Add Flow
-                </Button>
-              </Box>
-              <Box sx={{ p: 2.5 }}>
-                {projectFlows.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">No project flows yet. Add one, or use the module triggers below.</Typography>
-                ) : (
-                  <Stack spacing={1}>
-                    {projectFlows.map((f) => (
-                      <FlowCard key={f.id} flow={f} color={f.color || FLOW_COLOR} onEdit={() => openEdit(f)} onDelete={() => deleteFlow(f.id)} />
-                    ))}
+        {mode === 'cards' && (
+          <Box sx={{ flex: 1, p: 3 }}>
+            <Stack spacing={2.5}>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: 1.5 }}>
+                <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+                  Rules
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  An invariant holds at every moment. A precondition holds before an action runs.
+                </Typography>
+                <Stack spacing={2}>
+                  {blueprint.rules.map((rule) => (
+                    <Stack key={rule.id} spacing={1.5} data-testid={`rule-${rule.id}`}>
+                      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                        <Box sx={{ flex: 1 }}>
+                          <TextField
+                            size="small"
+                            label="What this rule holds"
+                            value={rule.statement}
+                            onChange={(event) => onChange(putRule(blueprint, { ...rule, statement: event.target.value }))}
+                            fullWidth
+                            inputProps={{ 'aria-label': `Statement of rule ${rule.id}` }}
+                          />
+                          <ControlMirror controlId="blueprint.rule_statement" dense />
+                        </Box>
+                        <Box sx={{ minWidth: 200 }}>
+                          <TextField
+                            select
+                            size="small"
+                            fullWidth
+                            label="When it holds"
+                            value={rule.kind}
+                            onChange={(event) => onChange(putRule(blueprint, { ...rule, kind: event.target.value as Rule['kind'] }))}
+                            inputProps={{ 'aria-label': `Kind of rule ${rule.id}` }}
+                          >
+                            <MenuItem value="Invariant">At every moment</MenuItem>
+                            <MenuItem value="Precondition">Before an action</MenuItem>
+                          </TextField>
+                          <ControlMirror controlId="blueprint.rule_kind" dense />
+                        </Box>
+                        <Box>
+                          <Button size="small" color="error" onClick={() => onChange(removeRule(blueprint, rule.id))}>
+                            Remove
+                          </Button>
+                        </Box>
+                      </Stack>
+                      <RuleFormula blueprint={blueprint} rule={rule} onChange={onChange} />
+                    </Stack>
+                  ))}
+                  {blueprint.rules.length === 0 && (
+                    <Typography variant="body2" color="text.secondary">
+                      No rule yet. A system with no rule accepts every value it is given.
+                    </Typography>
+                  )}
+                  <Divider />
+                  <Stack direction="row" spacing={2}>
+                    <TextField
+                      size="small"
+                      label="Add a rule"
+                      value={ruleName}
+                      onChange={(event) => setRuleName(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') addRule();
+                      }}
+                      sx={{ minWidth: 280 }}
+                      helperText="Name what must hold, such as an amount above zero."
+                      inputProps={{ 'aria-label': 'Add a rule' }}
+                    />
+                    <Box>
+                      <Button variant="outlined" onClick={addRule} disabled={ruleName.trim().length < 2}>
+                        Add it
+                      </Button>
+                    </Box>
                   </Stack>
-                )}
-              </Box>
-            </Paper>
+                </Stack>
+              </Paper>
 
-            {/* Per-module trigger cards */}
-            {blueprintModules.length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 12, opacity: 0.5 }}>
-                <BoltIcon sx={{ fontSize: 48, mb: 1 }} />
-                <Typography>No modules yet. Add modules in the Blueprint Builder first.</Typography>
-              </Box>
-            ) : blueprintModules.map((mod) => {
-              const mode = getTriggerMode(mod.id);
-              const seeds = TRIGGER_SEEDS[mod.id] || TRIGGER_SEEDS['_default'] || [];
-              const own = flowsFor(mod.id);
-              return (
-                <Paper
-                  key={mod.id}
-                  variant="outlined"
-                  sx={{
-                    borderRadius: 1.5, overflow: 'hidden',
-                    borderColor: alpha(theme.palette.primary.main, 0.15),
-                    '&:hover': { borderColor: alpha(theme.palette.primary.main, 0.28) },
-                    transition: 'border-color 0.15s ease',
-                  }}
-                >
-                  {/* Module header */}
-                  <Box sx={{
-                    px: 3, py: 2, borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-                    background: theme.palette.mode === 'dark'
-                      ? `linear-gradient(135deg, ${alpha('#4F46E5', 0.1)} 0%, ${alpha(theme.palette.background.paper, 0.8)} 100%)`
-                      : alpha(theme.palette.primary.main, 0.04),
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  }}>
-                    <Stack direction="row" alignItems="center" spacing={1.5}>
-                      <HexagonOutlinedIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-                      <Typography variant="subtitle2" fontWeight={800}>{mod.label}</Typography>
-                      {mod.category && (
-                        <Chip label={mod.category} size="small" variant="outlined" sx={{ fontSize: '0.6rem', height: 16 }} />
-                      )}
-                    </Stack>
-                    <Stack direction="row" spacing={0.75}>
-                      {(['cards', 'visual', 'code'] as const).map((m) => (
-                        <Paper
-                          key={m}
-                          variant="outlined"
-                          onClick={() => setTriggerMode(mod.id, m)}
-                          sx={{
-                            px: 1.5, py: 0.5, borderRadius: 1, cursor: 'pointer',
-                            fontWeight: 700, fontSize: '0.7rem',
-                            bgcolor: mode === m ? 'primary.main' : 'background.paper',
-                            color: mode === m ? 'white' : 'text.secondary',
-                            borderColor: mode === m ? 'primary.main' : 'divider',
-                            display: 'flex', alignItems: 'center', gap: 0.5,
-                          }}
-                          elevation={0}
-                        >
-                          {m === 'cards' && <BoltIcon sx={{ fontSize: 12 }} />}
-                          {m === 'visual' && <AccountTreeIcon sx={{ fontSize: 12 }} />}
-                          {m === 'code' && <CodeIcon sx={{ fontSize: 12 }} />}
-                          {m === 'cards' ? 'Rules' : m === 'visual' ? 'Visual' : 'Script'}
-                        </Paper>
-                      ))}
-                    </Stack>
-                  </Box>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: 1.5 }}>
+                <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+                  Actions
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  An action is one thing a person or a program asks the system to do. Cerulea reads the
+                  effects and derives the Access Manifest from them.
+                </Typography>
+                <Stack spacing={3}>
+                  {blueprint.actions.map((action) => (
+                    <ActionCard
+                      key={action.id}
+                      action={action}
+                      blueprint={blueprint}
+                      collectionIds={collectionIds}
+                      onChange={onChange}
+                    />
+                  ))}
+                  {blueprint.actions.length === 0 && (
+                    <Typography variant="body2" color="text.secondary">
+                      No action yet. Add one so a person can change a record.
+                    </Typography>
+                  )}
+                  <Divider />
+                  <Stack direction="row" spacing={2}>
+                    <TextField
+                      size="small"
+                      label="Add an action"
+                      value={actionName}
+                      onChange={(event) => setActionName(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') addAction();
+                      }}
+                      sx={{ minWidth: 280 }}
+                      helperText="Name the thing a person asks the system to do."
+                      inputProps={{ 'aria-label': 'Add an action' }}
+                    />
+                    <Box>
+                      <Button
+                        variant="outlined"
+                        onClick={addAction}
+                        disabled={actionName.trim().length < 2 || collectionIds.length === 0}
+                      >
+                        Add it
+                      </Button>
+                    </Box>
+                  </Stack>
+                </Stack>
+              </Paper>
 
-                  {/* Content area */}
-                  <Box sx={{ p: mode === 'cards' ? 2.5 : 0 }}>
-                    {mode === 'cards' && (
-                      <Stack spacing={1.5}>
-                        {own.length > 0 && (
-                          <>
-                            <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ letterSpacing: 0.5 }}>
-                              YOUR TRIGGERS FOR {mod.label.toUpperCase()}
-                            </Typography>
-                            <Stack spacing={1}>
-                              {own.map((f) => (
-                                <FlowCard key={f.id} flow={f} color={f.color || FLOW_COLOR} onEdit={() => openEdit(f)} onDelete={() => deleteFlow(f.id)} />
-                              ))}
-                            </Stack>
-                          </>
-                        )}
-                        <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ letterSpacing: 0.5 }}>
-                          RECOMMENDED TRIGGERS FOR {mod.label.toUpperCase()}
-                        </Typography>
-                        <Stack spacing={1}>
-                          {seeds.map((t, i) => (
-                            <Paper
-                              key={i}
-                              variant="outlined"
-                              sx={{ p: 1.75, borderRadius: 1, borderColor: alpha(t.color, 0.25), bgcolor: alpha(t.color, 0.025) }}
-                            >
-                              <Stack direction="row" alignItems="flex-start" spacing={2}>
-                                <Box sx={{ flex: 1 }}>
-                                  <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>WHEN</Typography>
-                                  <Box sx={{
-                                    mt: 0.5, px: 1.25, py: 0.6, borderRadius: 0.75,
-                                    display: 'inline-flex', alignItems: 'center', gap: 0.75,
-                                    bgcolor: alpha(t.color, 0.08), border: `1px solid ${alpha(t.color, 0.35)}`,
-                                  }}>
-                                    <BoltIcon sx={{ fontSize: 12, color: t.color }} />
-                                    <Typography variant="body2" fontWeight={700} sx={{ color: t.color, fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                                      {t.event}
-                                    </Typography>
-                                  </Box>
-                                </Box>
-                                <Box sx={{ mt: 2.5, color: 'text.disabled', fontWeight: 900, fontSize: '1rem', flexShrink: 0 }}>&rarr;</Box>
-                                <Box sx={{ flex: 1 }}>
-                                  <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>THEN</Typography>
-                                  <Box sx={{
-                                    mt: 0.5, px: 1.25, py: 0.6, borderRadius: 0.75,
-                                    display: 'inline-flex', alignItems: 'center', gap: 0.75,
-                                    bgcolor: alpha(theme.palette.success.main, 0.07), border: `1px solid ${alpha(theme.palette.success.main, 0.25)}`,
-                                  }}>
-                                    <AutoFixHighIcon sx={{ fontSize: 12, color: 'success.main' }} />
-                                    <Typography variant="body2" fontWeight={700} sx={{ color: 'success.main', fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                                      {t.action}
-                                    </Typography>
-                                  </Box>
-                                </Box>
-                                <Box sx={{ flex: 1.5 }}>
-                                  <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>WHY</Typography>
-                                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.4 }}>{t.description}</Typography>
-                                </Box>
-                                <Tooltip title="Add to your triggers (editable copy)">
-                                  <IconButton size="small" onClick={() => setFlows((prev) => [...prev, { id: uid(), moduleId: mod.id, color: t.color, name: t.action, trigger: t.event, description: t.description, steps: [] }])}>
-                                    <AddIcon sx={{ fontSize: 16 }} />
-                                  </IconButton>
-                                </Tooltip>
-                              </Stack>
-                            </Paper>
-                          ))}
+              {grouping.modules
+                .filter((mod) => (grouping.byModule[mod.id] ?? []).length > 0)
+                .map((mod) => {
+                  const collections = grouping.byModule[mod.id] ?? [];
+                  const own = triggerActions(collections.map((entry) => entry.id));
+                  const seeds = recommendedTriggers(collections).filter(
+                    (seed) => blueprint.actions.some((action) => action.id === toIdentifier(seed.then)) === false,
+                  );
+                  return (
+                    <Paper
+                      key={mod.id}
+                      variant="outlined"
+                      sx={{ borderRadius: 1.5, overflow: 'hidden', borderColor: alpha(theme.palette.primary.main, 0.15) }}
+                      data-testid={`module-triggers-${mod.id}`}
+                    >
+                      <Box
+                        sx={{
+                          px: 3,
+                          py: 2,
+                          borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+                          background: alpha(theme.palette.primary.main, 0.04),
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <Stack direction="row" alignItems="center" spacing={1.5}>
+                          <HexagonOutlinedIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                          <Typography variant="subtitle2" fontWeight={800}>
+                            {mod.label}
+                          </Typography>
+                          {mod.category && (
+                            <Chip label={mod.category} size="small" variant="outlined" sx={{ fontSize: '0.6rem', height: 16 }} />
+                          )}
                         </Stack>
                         <Button
                           startIcon={<AddIcon />}
                           variant="outlined"
                           size="small"
-                          onClick={() => openAdd(mod.id)}
-                          sx={{ borderRadius: 2, alignSelf: 'flex-start', mt: 0.5, fontWeight: 700 }}
+                          onClick={() => setDialog({ moduleId: mod.id, when: '', then: '', why: '' })}
+                          sx={{ borderRadius: 2, fontWeight: 700 }}
                         >
                           Add Custom Trigger
                         </Button>
-                      </Stack>
-                    )}
-                    {mode === 'visual' && (
-                      <Box sx={{ position: 'relative', height: 400 }}>
-                        <Box sx={{
-                          position: 'absolute', inset: 0, zIndex: 0,
-                          bgcolor: theme.palette.mode === 'dark' ? alpha('#080E24', 0.9) : alpha('#f8f9ff', 0.95),
-                          backgroundImage: 'radial-gradient(rgba(79,70,229,0.15) 1px, transparent 1px)',
-                          backgroundSize: '24px 24px',
-                        }} />
-                        <Box sx={{
-                          position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2,
-                          display: 'flex', alignItems: 'center', gap: 1, px: 2, py: 1,
-                          bgcolor: alpha(theme.palette.background.paper, 0.85),
-                          borderBottom: `1px solid ${theme.palette.divider}`,
-                          backdropFilter: 'blur(8px)',
-                        }}>
-                          <Chip label="DAPP" size="small" sx={{ height: 20, fontSize: '0.6rem', fontWeight: 800, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', border: 'none' }} />
-                          <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ fontSize: '0.68rem' }}>Visual Flow Editor</Typography>
-                          <Box sx={{ flex: 1 }} />
-                          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>Click + drag to connect trigger nodes</Typography>
-                        </Box>
-                        <Box sx={{ position: 'absolute', top: 40, left: 0, right: 0, bottom: 0, zIndex: 1 }}>
-                          <LogicCanvas />
-                        </Box>
                       </Box>
-                    )}
-                    {mode === 'code' && (
-                      <Box sx={{ position: 'relative' }}>
-                        <Box sx={{
-                          display: 'flex', alignItems: 'center', gap: 1, px: 2.5, py: 1.25,
-                          bgcolor: '#1a1f3a',
-                          borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
-                        }}>
-                          <Box sx={{ display: 'flex', gap: 0.5 }}>
-                            {['#ef4444', '#f59e0b', '#10b981'].map(c => <Box key={c} sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c }} />)}
-                          </Box>
-                          <Typography variant="caption" sx={{ color: '#6b7db3', fontFamily: 'monospace', fontSize: '0.7rem' }}>
-                            trigger.{mod.id.replace(/-/g, '_')}.ts
+                      <Box sx={{ p: 2.5 }}>
+                        <Stack spacing={1.5}>
+                          {own.length > 0 && (
+                            <>
+                              <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ letterSpacing: 0.5 }}>
+                                TRIGGERS FOR {mod.label.toUpperCase()}
+                              </Typography>
+                              {own.map(({ action, trigger }) => (
+                                <TriggerCard
+                                  key={action.id}
+                                  when={trigger?.when ?? ''}
+                                  then={trigger?.then ?? action.name}
+                                  why={trigger?.why ?? action.description}
+                                  color={FLOW_COLOR}
+                                  manifest={accessManifestOf(action.effects)}
+                                  onDelete={() => onChange(removeAction(blueprint, action.id))}
+                                />
+                              ))}
+                            </>
+                          )}
+                          <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ letterSpacing: 0.5 }}>
+                            RECOMMENDED TRIGGERS FOR {mod.label.toUpperCase()}
                           </Typography>
-                          <Box sx={{ flex: 1 }} />
-                          <Chip label="TypeScript" size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: alpha('#3b82f6', 0.15), color: '#60a5fa', border: 'none' }} />
-                        </Box>
-                        <Box sx={{ height: 480, bgcolor: theme.palette.mode === 'dark' ? '#0d1117' : '#1e1e2e' }}>
-                          <CustomScriptPanel projectId="" />
-                        </Box>
+                          {seeds.length === 0 && (
+                            <Typography variant="body2" color="text.secondary">
+                              Every recommendation for this module is already in the Blueprint.
+                            </Typography>
+                          )}
+                          {seeds.map((seed) => (
+                            <TriggerCard
+                              key={`${seed.when}-${seed.then}`}
+                              when={seed.when}
+                              then={seed.then}
+                              why={seed.why}
+                              color="#3b82f6"
+                              onAdd={() =>
+                                onChange(
+                                  writeTrigger(blueprint, {
+                                    ...seed,
+                                    collectionId:
+                                      collections.find((entry) => seed.when.includes(toReadable(entry.id).toLowerCase()))?.id ??
+                                      collections[0].id,
+                                  }),
+                                )
+                              }
+                            />
+                          ))}
+                        </Stack>
                       </Box>
-                    )}
-                  </Box>
-                </Paper>
-              );
-            })}
-          </Stack>
-        </Box>
+                    </Paper>
+                  );
+                })}
+            </Stack>
+          </Box>
+        )}
+
+        {mode === 'visual' && (
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 3, py: 1.5, borderBottom: `1px solid ${theme.palette.divider}`, flexWrap: 'wrap' }} useFlexGap>
+              {drawings.map((drawing) => (
+                <Chip
+                  key={drawing.id}
+                  label={drawing.name}
+                  color={selectedDrawing?.id === drawing.id ? 'primary' : 'default'}
+                  onClick={() => setSelectedDrawingId(drawing.id)}
+                  onDelete={() => removeDrawing(drawing)}
+                  aria-label={`Flow ${drawing.name}`}
+                />
+              ))}
+              <TextField
+                size="small"
+                label="New flow"
+                value={drawingName}
+                onChange={(event) => setDrawingName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') addDrawing();
+                }}
+                inputProps={{ 'aria-label': 'Name of the new flow' }}
+                sx={{ minWidth: 220 }}
+              />
+              <Button variant="outlined" size="small" onClick={addDrawing} disabled={drawingName.trim().length < 2}>
+                Draw it
+              </Button>
+              <Typography variant="caption" color="text.secondary">
+                Each flow writes one action, with its rules and its events, as you draw.
+              </Typography>
+            </Stack>
+            {selectedDrawing && compiled ? (
+              <Box sx={{ flex: 1, minHeight: 520, position: 'relative' }}>
+                <LogicCanvas
+                  drawing={selectedDrawing}
+                  blueprint={blueprint}
+                  track={track}
+                  compiled={compiled}
+                  onChangeDrawing={changeDrawing}
+                />
+              </Box>
+            ) : (
+              <Box sx={{ p: 4 }}>
+                <Alert severity="info">
+                  <AlertTitle>No flow yet</AlertTitle>
+                  Name a flow and draw it. The first block is placed for you.
+                </Alert>
+              </Box>
+            )}
+          </Box>
+        )}
       </Box>
 
-      {/* Flow / trigger dialog (add or edit) */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+      <Dialog open={dialog !== null} onClose={() => setDialog(null)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
         <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>{editingId ? 'Edit Flow' : dialogModuleId ? 'Add Custom Trigger' : 'Add Flow'}</span>
-          <IconButton size="small" onClick={() => setDialogOpen(false)}><CloseIcon /></IconButton>
+          <span>Add Custom Trigger</span>
+          <IconButton size="small" onClick={() => setDialog(null)} aria-label="Close">
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2.5} pt={1}>
             <TextField
-              label="When (Event / trigger)" size="small" fullWidth
-              placeholder="e.g. User.SignedUp, Payment.Completed"
-              value={newTriggerEvent} onChange={(e) => setNewTriggerEvent(e.target.value)}
-              helperText="The event that triggers this rule"
+              label="When"
+              size="small"
+              fullWidth
+              value={dialog?.when ?? ''}
+              onChange={(event) => setDialog((held) => (held ? { ...held, when: event.target.value } : held))}
+              helperText="The event that starts the trigger. Cerulea writes it to the Events section."
+              inputProps={{ 'aria-label': 'When' }}
             />
             <TextField
-              label="Then (Action / flow name)" size="small" fullWidth
-              placeholder="e.g. Send Welcome Email, Mint NFT"
-              value={newTriggerAction} onChange={(e) => setNewTriggerAction(e.target.value)}
-              helperText="What happens when the event fires"
+              label="Then"
+              size="small"
+              fullWidth
+              value={dialog?.then ?? ''}
+              onChange={(event) => setDialog((held) => (held ? { ...held, then: event.target.value } : held))}
+              helperText="What the system does. Cerulea writes it as an action that reads the record and announces the outcome."
+              inputProps={{ 'aria-label': 'Then' }}
             />
             <TextField
-              label="Why (Description)" size="small" fullWidth multiline rows={2}
-              placeholder="Explain the business purpose of this trigger..."
-              value={newTriggerDesc} onChange={(e) => setNewTriggerDesc(e.target.value)}
-            />
-            <TextField
-              label="Steps (one per line)" size="small" fullWidth multiline minRows={3}
-              placeholder={'Validate input\nWrite the record\nNotify the next role'}
-              value={newTriggerSteps} onChange={(e) => setNewTriggerSteps(e.target.value)}
+              label="Why"
+              size="small"
+              fullWidth
+              multiline
+              rows={2}
+              value={dialog?.why ?? ''}
+              onChange={(event) => setDialog((held) => (held ? { ...held, why: event.target.value } : held))}
+              helperText="The reason a reviewer reads beside the action."
+              inputProps={{ 'aria-label': 'Why' }}
             />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDialogOpen(false)} sx={{ borderRadius: 1 }}>Cancel</Button>
+          <Button onClick={() => setDialog(null)}>Cancel</Button>
           <Button
             variant="contained"
-            disabled={!newTriggerEvent.trim() || !newTriggerAction.trim()}
+            disabled={!dialog || dialog.when.trim().length < 2 || dialog.then.trim().length < 2}
             onClick={commitDialog}
-            sx={{ borderRadius: 1, fontWeight: 700 }}
           >
-            {editingId ? 'Save Changes' : 'Add'}
+            Add
           </Button>
         </DialogActions>
       </Dialog>
     </>
+  );
+}
+
+function TriggerCard({
+  when,
+  then,
+  why,
+  color,
+  manifest,
+  onAdd,
+  onDelete,
+}: {
+  when: string;
+  then: string;
+  why: string;
+  color: string;
+  manifest?: AccessManifest;
+  onAdd?: () => void;
+  onDelete?: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Paper variant="outlined" sx={{ p: 1.75, borderRadius: 1, borderColor: alpha(color, 0.25), bgcolor: alpha(color, 0.025) }}>
+      <Stack direction="row" alignItems="flex-start" spacing={2}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>
+            WHEN
+          </Typography>
+          <Box sx={{ mt: 0.5, px: 1.25, py: 0.6, borderRadius: 0.75, display: 'inline-flex', alignItems: 'center', gap: 0.75, bgcolor: alpha(color, 0.08), border: `1px solid ${alpha(color, 0.35)}` }}>
+            <BoltIcon sx={{ fontSize: 12, color }} />
+            <Typography variant="body2" fontWeight={700} sx={{ color, fontSize: '0.75rem' }}>
+              {when}
+            </Typography>
+          </Box>
+        </Box>
+        <Box sx={{ mt: 2.5, color: 'text.disabled', fontWeight: 900, fontSize: '1rem', flexShrink: 0 }}>&rarr;</Box>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>
+            THEN
+          </Typography>
+          <Box sx={{ mt: 0.5, px: 1.25, py: 0.6, borderRadius: 0.75, display: 'inline-flex', alignItems: 'center', gap: 0.75, bgcolor: alpha(theme.palette.success.main, 0.07), border: `1px solid ${alpha(theme.palette.success.main, 0.25)}` }}>
+            <AutoFixHighIcon sx={{ fontSize: 12, color: 'success.main' }} />
+            <Typography variant="body2" fontWeight={700} sx={{ color: 'success.main', fontSize: '0.75rem' }}>
+              {then}
+            </Typography>
+          </Box>
+        </Box>
+        <Box sx={{ flex: 1.5, minWidth: 0 }}>
+          <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ letterSpacing: 0.5 }}>
+            WHY
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.4 }}>
+            {why}
+          </Typography>
+          {manifest && (
+            <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }} flexWrap="wrap" useFlexGap>
+              {manifest.reads.map((entry) => (
+                <Chip key={`r-${entry}`} size="small" variant="outlined" label={`reads ${entry}`} />
+              ))}
+              {manifest.writes.map((entry) => (
+                <Chip key={`w-${entry}`} size="small" color="primary" label={`writes ${entry}`} />
+              ))}
+            </Stack>
+          )}
+        </Box>
+        {onAdd && (
+          <Tooltip title="Add to the Blueprint as an event and an action">
+            <IconButton size="small" onClick={onAdd} aria-label={`Add the trigger ${then}`}>
+              <AddIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        )}
+        {onDelete && (
+          <Tooltip title="Remove">
+            <IconButton size="small" color="error" onClick={onDelete} aria-label={`Remove the trigger ${then}`}>
+              <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Stack>
+    </Paper>
+  );
+}
+
+function ActionCard({
+  action,
+  blueprint,
+  collectionIds,
+  onChange,
+}: {
+  action: Action;
+  blueprint: Blueprint;
+  collectionIds: string[];
+  onChange: (next: Blueprint) => void;
+}) {
+  const manifest = accessManifestOf(action.effects);
+  const transactionClass = action.class ?? 'Routine';
+  return (
+    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }} data-testid={`action-${action.id}`}>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 1 }}>
+        <TextField
+          size="small"
+          label="What it does"
+          value={action.name}
+          onChange={(event) => onChange(putAction(blueprint, { ...action, name: event.target.value }))}
+          fullWidth
+          inputProps={{ 'aria-label': `Name of action ${action.id}` }}
+        />
+        <Box sx={{ minWidth: 220 }}>
+          <TextField
+            select
+            size="small"
+            fullWidth
+            label="Kind of work"
+            value={transactionClass}
+            onChange={(event) => onChange(putAction(blueprint, { ...action, class: event.target.value as TransactionClass }))}
+            helperText={CLASS_MEANING[transactionClass]}
+            inputProps={{ 'aria-label': `Class of action ${action.id}` }}
+          >
+            {TRANSACTION_CLASSES.map((entry) => (
+              <MenuItem key={entry} value={entry}>
+                {entry}
+              </MenuItem>
+            ))}
+          </TextField>
+          <ControlMirror controlId="blueprint.action_class" dense />
+        </Box>
+        <TextField
+          select
+          size="small"
+          label="Rule it checks first"
+          value={action.preconditions[0] ?? ''}
+          onChange={(event) =>
+            onChange(putAction(blueprint, { ...action, preconditions: event.target.value ? [event.target.value] : [] }))
+          }
+          sx={{ minWidth: 240 }}
+          helperText="The action stops when the rule fails."
+          inputProps={{ 'aria-label': `Rule of action ${action.id}` }}
+        >
+          <MenuItem value="">No rule</MenuItem>
+          {blueprint.rules.map((rule) => (
+            <MenuItem key={rule.id} value={rule.id}>
+              {rule.statement}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          size="small"
+          label="Who may run it"
+          value={action.roles[0] ?? ''}
+          onChange={(event) => onChange(putAction(blueprint, { ...action, roles: event.target.value ? [event.target.value] : action.roles }))}
+          sx={{ minWidth: 200 }}
+          helperText="A role from the Access & Roles tab."
+          inputProps={{ 'aria-label': `Role of action ${action.id}` }}
+        >
+          {blueprint.identities.roles.map((role) => (
+            <MenuItem key={role.id} value={role.id}>
+              {role.name}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Stack>
+
+      <Stack direction="row" spacing={2} sx={{ mb: 1 }} flexWrap="wrap" useFlexGap>
+        {action.effects.map((effect, index) => (
+          <TextField
+            key={`${action.id}-effect-${index}`}
+            select
+            size="small"
+            label={`${EFFECT_KINDS.find((entry) => entry.kind === effect.kind)?.label ?? effect.kind} ${index + 1}`}
+            value={'collection' in effect ? effect.collection : ''}
+            onChange={(event) =>
+              onChange(
+                putAction(blueprint, {
+                  ...action,
+                  effects: action.effects.map((entry, position) =>
+                    position === index && (entry.kind === 'Insert' || entry.kind === 'Update' || entry.kind === 'Delete' || entry.kind === 'Read')
+                      ? buildEffect(entry.kind, event.target.value)
+                      : entry,
+                  ),
+                }),
+              )
+            }
+            sx={{ minWidth: 220 }}
+            inputProps={{ 'aria-label': `Collection of effect ${index + 1} of ${action.id}` }}
+            disabled={'collection' in effect === false}
+          >
+            {collectionIds.map((entry) => (
+              <MenuItem key={entry} value={entry}>
+                {toReadable(entry)}
+              </MenuItem>
+            ))}
+          </TextField>
+        ))}
+        <TextField
+          select
+          size="small"
+          label="Add what it touches"
+          value=""
+          onChange={(event) =>
+            onChange(
+              putAction(blueprint, {
+                ...action,
+                effects: [...action.effects, buildEffect(event.target.value as (typeof EFFECT_KINDS)[number]['kind'], collectionIds[0] ?? 'record')],
+              }),
+            )
+          }
+          sx={{ minWidth: 220 }}
+          inputProps={{ 'aria-label': `Add an effect to ${action.id}` }}
+        >
+          {EFFECT_KINDS.map((entry) => (
+            <MenuItem key={entry.kind} value={entry.kind}>
+              {entry.label}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Stack>
+
+      <Typography variant="body2" color="text.secondary">
+        {describeAction(action.name, manifest, transactionClass)}
+      </Typography>
+      <Stack direction="row" spacing={1} sx={{ mt: 1 }} flexWrap="wrap" useFlexGap>
+        {manifest.reads.map((entry) => (
+          <Chip key={`r-${entry}`} size="small" variant="outlined" label={`reads ${entry}`} />
+        ))}
+        {manifest.writes.map((entry) => (
+          <Chip key={`w-${entry}`} size="small" color="primary" label={`writes ${entry}`} />
+        ))}
+      </Stack>
+      <Button size="small" color="error" sx={{ mt: 1 }} onClick={() => onChange(removeAction(blueprint, action.id))}>
+        Remove this action
+      </Button>
+    </Paper>
+  );
+}
+
+/**
+ * The formula bar beside one rule.
+ * The bar reads the expression the rule already holds, checks every type as a
+ * person types and writes the expression back when the reading is clean.
+ */
+export function RuleFormula({
+  blueprint,
+  rule,
+  onChange,
+}: {
+  blueprint: Blueprint;
+  rule: Rule;
+  onChange: (next: Blueprint) => void;
+}) {
+  const collectionId = rule.collections[0] ?? blueprint.collections[0]?.id ?? '';
+  const scope = useMemo(() => scopeForCollection(blueprint, collectionId), [blueprint, collectionId]);
+  const [text, setText] = useState(() => writeFormula(rule.expression));
+
+  const change = (next: string) => {
+    setText(next);
+    const reading = readAndCheck(next, scope);
+    if (reading.expression && reading.fault === undefined) {
+      onChange(putRule(blueprint, { ...rule, expression: reading.expression }));
+    }
+  };
+
+  return (
+    <FormulaBar
+      label={`The formula behind ${toReadable(rule.id).toLowerCase()}`}
+      plain="Cerulea checks this formula against the record while you type. A rule with a broken formula stops the whole Blueprint from compiling."
+      scope={scope}
+      value={text}
+      onChange={change}
+    />
   );
 }
