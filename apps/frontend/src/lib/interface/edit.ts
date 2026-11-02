@@ -190,6 +190,13 @@ export function applyGrid(screen: Screen, breakpoint: Breakpoint, cells: readonl
   const ordered = [...cells].sort((left, right) => left.y - right.y || left.x - right.x);
   const orderOf = new Map(ordered.map((cell, index) => [cell.i, index] as const));
   const spanOf = new Map(cells.map((cell) => [cell.i, Math.max(1, Math.min(cell.w, breakpoint.columns))] as const));
+  // A grid that reads the same as the section already does leaves the section alone,
+  // so opening a screen writes nothing into the Blueprint.
+  const shown = visibleBody(screen, breakpoint);
+  const unchanged =
+    shown.length === ordered.length &&
+    shown.every((node, index) => ordered[index]?.i === node.id && spanOf.get(node.id) === Math.max(1, placementAt(node, breakpoint).span));
+  if (unchanged) return screen;
   const body = bodyOf(screen).map((node) => {
     const order = orderOf.get(node.id);
     if (order === undefined) return node;

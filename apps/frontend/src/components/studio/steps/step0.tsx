@@ -286,6 +286,9 @@ export default function Step0({
   const [saveState, setSaveState] = React.useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
   const [failure, setFailure] = React.useState<SaveFailure | null>(null);
   const [initialising, setInitialising] = React.useState(false);
+  // An existing project saves only after its answers were read back, so an
+  // empty form never overwrites what Cerulea APIs holds.
+  const [armed, setArmed] = React.useState(!existingProjectId);
 
   // Dialogs
   const [wsDialogOpen, setWsDialogOpen] = React.useState(false);
@@ -365,6 +368,7 @@ export default function Step0({
         const wanted: ProjectTrack = reply.details.network.kind === 'public-access' ? 'dapp' : 'blockchain';
         setDerivation(reply.details.network.overridden ? applyTrackOverride(base, wanted) : base);
         setStudioState({ projectType: reply.foundation.track, templateId: reply.foundation.templateId || null, appMetadata: { appName: reply.project.name, appDescription: reply.project.description } });
+        setArmed(true);
       } catch (cause) {
         if (live) setFailure(describeSaveFailure(cause));
       }
@@ -427,11 +431,11 @@ export default function Step0({
 
   // Every answer on the details phase saves after a short pause.
   React.useEffect(() => {
-    if (!projectId || phase !== 'details') return;
+    if (!projectId || phase !== 'details' || !armed) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => { void saveFoundation(projectId); }, 1000);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [projectId, phase, name, description, selectedTemplate, networkKind, derivation.overridden, publishSelected, blockSeconds, retentionDays, legacyMode]); // eslint-disable-line
+  }, [projectId, phase, armed, name, description, selectedTemplate, networkKind, derivation.overridden, publishSelected, blockSeconds, retentionDays, legacyMode]); // eslint-disable-line
 
   /** Opens the project in Cerulea APIs. The division workspace holds it. */
   const createProject = React.useCallback(async (projectName: string, summary: string, ptype: ProjectType, template: string | null): Promise<string> => {

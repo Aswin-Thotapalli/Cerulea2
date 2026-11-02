@@ -188,7 +188,7 @@ export function localFaults(
           area: 'binding',
           screen: screen.id,
           component: node.id,
-          problem: `The ${kindWords(node.component).toLowerCase()} reads a ${binds} and holds no binding.`,
+          problem: `The ${kindWords(node.component).toLowerCase()} reads ${binds === 'action' ? 'an' : 'a'} ${binds} and holds no binding.`,
           fix: 'Choose a binding in the inspector, or remove the component.',
         });
       }
@@ -665,7 +665,7 @@ export default function Step5({ goPrev, goNext, projectId, embedded = false, onS
                                 </Typography>
                                 {entry.binds !== 'nothing' && (
                                   <Typography variant="caption" display="block" color="text.secondary">
-                                    Reads a {entry.binds}.
+                                    Reads {entry.binds === 'action' ? 'an' : 'a'} {entry.binds}.
                                   </Typography>
                                 )}
                               </Paper>
