@@ -80,12 +80,12 @@ const IDLE_MS = 5 * 60 * 1000; // 5 minutes
 
 function getGreeting(isAuthenticated: boolean, projectName?: string) {
   if (!isAuthenticated) {
-    return "Hi! I'm CeruleAI, Cerulea's Proprietary AI.\n\nI can help you figure out what to build and guide you step-by-step through Cerulea Studio — even before you sign up.\n\nTell me about the application you have in mind. What should it do?";
+    return "Hi! I'm Cerulea Intelligence, Cerulea's own assistant.\n\nI can help you figure out what to build and guide you step-by-step through Cerulea Studio — even before you sign up.\n\nTell me about the application you have in mind. What should it do?";
   }
   if (projectName) {
     return `Cerulea AI reads the project **${projectName}**: the modules, the data schema, the economics and every choice made so far.\n\nAsk a question about the project to begin.`;
   }
-  return "Hi! I'm CeruleAI, Cerulea's Proprietary AI.\n\nI'm aware of your account and can see your project details when you're inside a project.\n\nWhat would you like to work on?";
+  return "Hi! I'm Cerulea Intelligence, Cerulea's own assistant.\n\nI'm aware of your account and can see your project details when you're inside a project.\n\nWhat would you like to work on?";
 }
 
 export default function Assistant() {
@@ -360,7 +360,7 @@ export default function Assistant() {
       setOpen(true);
       const logsSnippet = (detail.logs ?? []).slice(-8).join('\n');
       const prompt = [
-        `[SYSTEM: DEPLOY_ERROR] A deployment failure just occurred in the user's Cerulea Studio project. Do NOT mention this system prefix — speak naturally as CeruleAI explaining the error to the user.`,
+        `[SYSTEM: DEPLOY_ERROR] A deployment failure just occurred in the user's Cerulea Studio project. Do NOT mention this system prefix — speak naturally as Cerulea Intelligence explaining the error to the user.`,
         ``,
         `Error code: ${detail.errorCode}`,
         `Error message: ${detail.errorMessage}`,

@@ -47,7 +47,7 @@ const postures = (governmentSeed as unknown as { postures: { templateId: string 
 function forbiddenTerms(): string[] {
   const file = path.resolve(
     __dirname,
-    '../../../../../cerulea-build/04-guardrails/forbidden-terms.txt',
+    '../../../../guardrails/forbidden-terms.txt',
   );
   return fs
     .readFileSync(file, 'utf8')

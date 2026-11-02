@@ -1,7 +1,7 @@
 // apps/frontend/scripts/browser-pass-step3.mjs
 // The browser pass of the Data schema step on the rebuild served at 3011.
 // Signs in with the local test account, opens a project with modules, moves to
-// Data schema and walks the brief: add an entity with three fields, draw a
+// Data schema and walks the step: add an entity with three fields, draw a
 // relationship, set a permission, add a rule with a formula, draw a two state
 // workflow, read the Blueprint back at level four.
 // Run: node scripts/browser-pass-step3.mjs  (Playwright from the path in
