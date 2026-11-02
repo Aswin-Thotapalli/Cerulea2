@@ -59,13 +59,8 @@ If tests don’t exist yet:
 - Use theme tokens where possible.
 - Centralize shared UI patterns (especially Studio Next/Back controls).
 
-## AI-assisted development rules (important)
-AI is allowed to:
-- read the repo
-- propose diffs
-- implement complete features
-
-AI is not allowed to:
-- insert placeholders (e.g., TODO, “implement later”, fake data) unless explicitly requested
-- change architecture without documenting the decision
-- delete files without proving safety (build/lint must pass)
+## Rules for every contribution (important)
+Every change:
+- is complete and runnable, with no placeholder (e.g., TODO, “implement later”, fake data) unless explicitly requested
+- documents any architecture change in DECISIONS.md
+- proves safety before deleting files (build/lint must pass)

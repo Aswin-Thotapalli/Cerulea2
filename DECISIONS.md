@@ -62,7 +62,7 @@ Examples of disallowed placeholders:
 - partial code “sketches”
 - “implement later” comments
 
-All generated code must be complete, runnable, and aligned with existing architecture.
+All code must be complete, runnable, and aligned with existing architecture.
 
 ## Repository cleanliness
 - Do not commit local sqlite or local caches.

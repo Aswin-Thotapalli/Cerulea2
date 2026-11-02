@@ -7,7 +7,7 @@ import { GET } from './route';
 /**
  * The sign out redirect stays on the Studio site.
  *
- * Internal security assessment finding S-01, task P10-026. The sign out route
+ * Internal security assessment finding S-01. The sign out route
  * read its landing page from the address and sent the browser there unread.
  * A link naming another site sent a person from Studio to a page a stranger
  * controls. These cases hold the fix in place.
